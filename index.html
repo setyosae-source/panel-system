@@ -305,10 +305,13 @@ tr:hover td{background:var(--bg)}
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <div><div class="page-title">Pre-Project Request</div><div class="page-sub">Admin Dashboard</div></div>
       </div>
-      <button class="btn btn-primary" onclick="openForm()">
-        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Request Baru
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="ppUserInfo" class="topbar-user"></div>
+        <button class="btn btn-primary" onclick="openForm()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Request Baru
+        </button>
+      </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <div class="period-tabs">
@@ -407,10 +410,13 @@ tr:hover td{background:var(--bg)}
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <div><div class="page-title">Kelola PO</div><div class="page-sub">Purchase Order Management</div></div>
       </div>
-      <button class="btn btn-primary" onclick="openPOForm()">
-        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        PO Baru
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="poUserInfo" class="topbar-user"></div>
+        <button class="btn btn-primary" onclick="openPOForm()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          PO Baru
+        </button>
+      </div>
     </div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total PO</div><div class="stat-val" id="poSTotal">—</div></div>
@@ -774,17 +780,13 @@ function startApp(){
 function buildTopbarUser(){
   const roleLabel={'admin':'Admin','sales':'Sales','engineering':'Engineering','produksi':'Produksi & QC','logistik':'Logistik'};
   const roleColor={'admin':'role-admin','sales':'role-sales','engineering':'role-engineering','produksi':'role-produksi','logistik':'role-logistik'};
-  const html = `<div class="topbar-user">
-    <strong>${currentUser.full_name}</strong>
+  const inner = `<strong>${currentUser.full_name}</strong>
     <span class="role-badge role-chip ${roleColor[currentUser.role]||''}">${roleLabel[currentUser.role]||currentUser.role}</span>
-    ${can('users')?`<button class="btn btn-sm btn-ghost" onclick="openUserMgmt()" style="font-size:11px">Kelola User</button>`:''}
-    <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>
-  </div>`;
-  // Insert into both topbars
-  document.querySelectorAll('.topbar').forEach(tb=>{
-    let ud = tb.querySelector('.user-display');
-    if(!ud){ud=document.createElement('div');ud.className='user-display';tb.appendChild(ud);}
-    ud.innerHTML=html;
+    ${can('users')?'<button class="btn btn-sm btn-ghost" onclick="openUserMgmt()" style="font-size:11px">Kelola User</button>':''}
+    <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>`;
+  ['ppUserInfo','poUserInfo'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=inner;
   });
 }
 
