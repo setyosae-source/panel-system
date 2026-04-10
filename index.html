@@ -79,6 +79,8 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg)}
 .mono{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)}
 .empty-row td{text-align:center;padding:3rem;color:var(--text3);font-size:13px;white-space:normal}
+.group-header td{border-top:2px solid var(--border2) !important}
+tr.group-header:first-child td{border-top:none !important}
 
 
 /* BADGES */
@@ -248,10 +250,7 @@ tr:hover td{background:var(--bg)}
         <option value="">Semua Status</option>
         <option>Open</option><option>In Progress</option><option>Done</option>
       </select>
-      <select class="filter-sel" id="fOutput" onchange="renderTable()">
-        <option value="">Semua Output</option>
-        <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option>
-      </select>
+
     </div>
     <div class="table-card">
       <div class="table-wrap">
@@ -449,24 +448,43 @@ function navFilter(el,status){
 
 function renderTable(){
   const q=document.getElementById('search').value.toLowerCase();
-  const st=document.getElementById('fStatus').value,out=document.getElementById('fOutput').value;
+  const st=document.getElementById('fStatus').value;
   const filtered=allReqs.filter(r=>{
     const txt=[r.id,r.requester,r.customer,r.project||''].join(' ').toLowerCase();
-    return txt.includes(q)&&(!st||r.status===st)&&(!out||r.output===out);
+    return txt.includes(q)&&(!st||r.status===st);
   });
   const tbody=document.getElementById('tableBody');
   if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Belum ada data</td></tr>';return;}
-  tbody.innerHTML=filtered.map(r=>`
-    <tr style="cursor:pointer" onclick="openDetail('${r.id}')">
-      <td class="mono">${r.id}</td>
-      <td>${fmtDate(r.date)}</td>
-      <td>${r.requester}</td>
-      <td style="font-weight:600">${r.customer}</td>
-      <td style="color:var(--text2)">${r.project||'—'}</td>
-      <td>${badge(r.status)}</td>
-    </tr>`).join('');
-}
 
+  // Group by date descending, within date sort requester ascending
+  const groups={};
+  filtered
+    .sort((a,b)=> b.date.localeCompare(a.date) || a.requester.localeCompare(b.requester))
+    .forEach(r=>{
+      if(!groups[r.date]) groups[r.date]=[];
+      groups[r.date].push(r);
+    });
+
+  let rows='';
+  Object.keys(groups).forEach(date=>{
+    rows+=`<tr class="group-header">
+      <td colspan="6" style="background:var(--surface2);font-size:11px;font-weight:700;color:var(--text3);padding:6px 10px;letter-spacing:.04em;border-bottom:1px solid var(--border)">
+        ${fmtDateLong(date)} <span style="font-weight:400;margin-left:6px">${groups[date].length} request</span>
+      </td>
+    </tr>`;
+    groups[date].forEach(r=>{
+      rows+=`<tr style="cursor:pointer" onclick="openDetail('${r.id}')">
+        <td class="mono">${r.id}</td>
+        <td>${fmtDate(r.date)}</td>
+        <td>${r.requester}</td>
+        <td style="font-weight:600">${r.customer}</td>
+        <td style="color:var(--text2)">${r.project||'—'}</td>
+        <td>${badge(r.status)}</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML=rows;
+}
 function fileBadge(arr,c){
   if(!arr||!arr.length)return'<span style="color:var(--text3);font-size:11px">—</span>';
   return`<span style="color:var(--${c});font-size:12px;font-weight:700">${arr.length} file</span>`;
@@ -832,6 +850,13 @@ const sv=(id,val)=>{document.getElementById(id).value=val;};
 const today=()=>new Date().toISOString().split('T')[0];
 const genId=()=>'REQ-'+Date.now().toString(36).slice(-5).toUpperCase()+'-'+Math.random().toString(36).slice(2,4).toUpperCase();
 const fileUrl=path=>`${SB_URL}/storage/v1/object/public/request-docs/${path}`;
+const fmtDateLong=d=>{
+  if(!d)return'—';
+  const x=new Date(d+'T00:00:00');
+  const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return days[x.getDay()]+', '+x.getDate()+' '+months[x.getMonth()]+' '+x.getFullYear();
+};
 const fmtDate=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');return x.getDate().toString().padStart(2,'0')+'/'+(x.getMonth()+1).toString().padStart(2,'0')+'/'+x.getFullYear();};
 const fmtSize=b=>{if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';};
 const badge=s=>{const m={'Open':'b-open','In Progress':'b-inprog','Done':'b-done'};return`<span class="badge ${m[s]||''}">${s}</span>`;};
