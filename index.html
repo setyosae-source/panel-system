@@ -720,11 +720,16 @@ async function doLogin(){
   btn.disabled=true; btn.textContent='Memuat...';
   try{
     const hash = await sha256(password);
-    const{data,error} = await sb.from('app_users').select('*').eq('username',username).eq('password_hash',hash).eq('is_active',true).single();
-    if(error||!data){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
-    currentUser = data;
-    sessionStorage.setItem('panelUser', JSON.stringify(data));
-    await sb.from('app_users').update({last_login:new Date().toISOString()}).eq('id',data.id);
+    // Cari user by username dulu
+    const{data:users,error:err1} = await sb.from('app_users').select('*').eq('username',username).eq('is_active',true);
+    if(err1){showLoginError('Error: '+err1.message);btn.disabled=false;btn.textContent='Masuk';return;}
+    if(!users||users.length===0){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
+    // Cek password hash
+    const user = users.find(u=>u.password_hash===hash);
+    if(!user){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
+    currentUser = user;
+    sessionStorage.setItem('panelUser', JSON.stringify(user));
+    await sb.from('app_users').update({last_login:new Date().toISOString()}).eq('id',user.id);
     startApp();
   }catch(e){showLoginError('Error: '+e.message);}
   btn.disabled=false; btn.textContent='Masuk';
