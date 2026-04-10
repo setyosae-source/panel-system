@@ -3,619 +3,795 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pre-Project Request — Panel System</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Panel System — Pre-Project Request</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg: #f5f4f0;
-  --surface: #ffffff;
-  --surface2: #f0efe9;
-  --border: #e2e0d8;
-  --border2: #d0cec4;
-  --text: #1a1917;
-  --text2: #6b6960;
-  --text3: #9a9890;
-  --accent: #1a1917;
-  --blue: #1d4ed8;
-  --blue-bg: #eff6ff;
-  --amber: #92400e;
-  --amber-bg: #fffbeb;
-  --green: #166534;
-  --green-bg: #f0fdf4;
-  --red: #991b1b;
-  --red-bg: #fef2f2;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:#e0ddd4;--border2:#c8c5ba;
+  --text:#18181a;--text2:#5c5b57;--text3:#9c9a94;
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --amber:#92400e;--amber-bg:#fffbeb;
+  --green:#166534;--green-bg:#f0fdf4;
+  --red:#991b1b;--red-bg:#fef2f2;--red-border:#fecaca;
+  --r:10px;--r-sm:6px;--r-lg:14px;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
-a { color: inherit; text-decoration: none; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
 
-/* Layout */
-.shell { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 2rem; flex-shrink: 0; position: fixed; height: 100vh; overflow-y: auto; }
-.main { margin-left: 220px; flex: 1; padding: 2rem; min-height: 100vh; }
+/* ADMIN LAYOUT */
+.admin-shell{display:flex;min-height:100vh}
+.sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);padding:1.25rem .875rem;display:flex;flex-direction:column;gap:1.5rem;position:fixed;height:100vh;overflow-y:auto;z-index:50;transition:transform .25s}
+.main-content{margin-left:230px;flex:1;padding:1.75rem;min-height:100vh}
 
-/* Sidebar */
-.logo { font-size: 13px; font-weight: 600; letter-spacing: .04em; color: var(--text); padding: 0 0.5rem; }
-.logo span { display: block; font-size: 11px; font-weight: 400; color: var(--text3); margin-top: 2px; }
-.nav-section { display: flex; flex-direction: column; gap: 2px; }
-.nav-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--text3); text-transform: uppercase; padding: 0 0.5rem; margin-bottom: 4px; }
-.nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; color: var(--text2); transition: all .15s; }
-.nav-item:hover, .nav-item.active { background: var(--surface2); color: var(--text); }
-.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* SIDEBAR */
+.logo-mark{display:flex;align-items:center;gap:10px;padding:0 .5rem}
+.logo-icon{width:32px;height:32px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:16px;height:16px;color:#fff;stroke:currentColor}
+.logo-text{font-size:13px;font-weight:700}
+.logo-sub{font-size:11px;color:var(--text3)}
+.nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;padding:0 .625rem;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;cursor:pointer;color:var(--text2);transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none}
+.nav-item:hover,.nav-item.active{background:var(--surface2);color:var(--text)}
+.nav-item.active{font-weight:600}
+.nav-badge{margin-left:auto;background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px}
 
-/* Top bar */
-.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
-.page-title { font-size: 20px; font-weight: 600; }
-.page-sub { font-size: 13px; color: var(--text3); margin-top: 2px; }
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+.page-title{font-size:21px;font-weight:700;letter-spacing:-.01em}
+.page-sub{font-size:12px;color:var(--text3);margin-top:2px}
 
-/* Stats */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.75rem; }
-.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
-.stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-.stat-val { font-size: 26px; font-weight: 600; line-height: 1; }
-.stat-val.c-blue { color: var(--blue); }
-.stat-val.c-amber { color: var(--amber); }
-.stat-val.c-green { color: var(--green); }
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.125rem}
+.stat-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.stat-val{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.green{color:var(--green)}
 
-/* Toolbar */
-.toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
-.search-wrap { flex: 1; min-width: 200px; position: relative; }
-.search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text3); }
-.search-wrap input { width: 100%; padding: 8px 10px 8px 32px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--surface); color: var(--text); outline: none; }
-.search-wrap input:focus { border-color: var(--border2); }
-select.filter { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--surface); color: var(--text); outline: none; cursor: pointer; }
+/* TOOLBAR */
+.toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3);stroke:currentColor;fill:none}
+input[type=text],input[type=date],select,textarea{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--border2)}
+.search-wrap input{width:100%;padding:8px 10px 8px 32px}
+select.filter-sel{padding:8px 10px;cursor:pointer}
 
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: all .15s; white-space: nowrap; }
-.btn:hover { background: var(--surface2); }
-.btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
-.btn-primary:hover { background: #333; }
-.btn-sm { padding: 5px 12px; font-size: 12px; }
-.btn-danger { color: var(--red); border-color: #fca5a5; }
-.btn-danger:hover { background: var(--red-bg); }
-.btn svg { width: 14px; height: 14px; }
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap;line-height:1}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0}
+.btn:hover{background:var(--surface2)}.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--text);color:#fff;border-color:var(--text)}.btn-primary:hover{background:#333}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-danger{color:var(--red);border-color:var(--red-border)}.btn-danger:hover{background:var(--red-bg)}
+.btn-ghost{border-color:transparent;background:transparent}.btn-ghost:hover{background:var(--surface2)}
 
-/* Table */
-.table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-thead { background: var(--surface2); }
-th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; border-bottom: 1px solid var(--border); }
-td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--bg); }
-.mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); }
-.empty-row td { text-align: center; padding: 3rem; color: var(--text3); }
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:700px}
+thead{background:var(--surface2)}
+th{padding:10px 13px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;border-bottom:1px solid var(--border)}
+td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)}
+.empty-row td{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
 
-/* Badges */
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
-.badge::before { content:''; width: 5px; height: 5px; border-radius: 50%; }
-.badge-open { background: var(--blue-bg); color: var(--blue); }
-.badge-open::before { background: var(--blue); }
-.badge-inprogress { background: var(--amber-bg); color: var(--amber); }
-.badge-inprogress::before { background: var(--amber); }
-.badge-done { background: var(--green-bg); color: var(--green); }
-.badge-done::before { background: var(--green); }
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%}
+.b-open{background:var(--blue-bg);color:var(--blue)}.b-open::before{background:var(--blue)}
+.b-inprog{background:var(--amber-bg);color:var(--amber)}.b-inprog::before{background:var(--amber)}
+.b-done{background:var(--green-bg);color:var(--green)}.b-done::before{background:var(--green)}
 
-/* Modal */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; backdrop-filter: blur(2px); }
-.modal { background: var(--surface); border-radius: 14px; width: 100%; max-width: 660px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-.modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.modal-header h2 { font-size: 15px; font-weight: 600; }
-.modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
-.modal-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(3px)}
+.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:0 24px 64px rgba(0,0,0,.18);margin:auto}
+.modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.modal-header h2{font-size:15px;font-weight:700}
+.modal-body{padding:1.375rem 1.5rem;display:flex;flex-direction:column;gap:1rem;max-height:75vh;overflow-y:auto}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
 
-/* Form */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.form-row label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
-.form-row input, .form-row select, .form-row textarea {
-  width: 100%; padding: 8px 11px; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif;
-  font-size: 13px; background: var(--surface); color: var(--text); outline: none; transition: border .15s;
-}
-.form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--border2); }
-.form-row textarea { resize: vertical; min-height: 80px; }
-.req { color: #e74c3c; }
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-row label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 10px}
+.form-row textarea{resize:vertical;min-height:78px;line-height:1.6}
+.req{color:#e74c3c}
 
-/* Upload */
-.upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; font-size: 13px; color: var(--text3); transition: all .15s; }
-.upload-zone:hover { background: var(--bg); border-color: var(--text3); }
-.upload-zone svg { width: 20px; height: 20px; margin-bottom: 6px; display: block; margin-left: auto; margin-right: auto; color: var(--text3); }
-.file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.file-item { display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: var(--radius-sm); padding: 7px 10px; font-size: 12px; }
-.file-item .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-item a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
-.file-item .fsize { color: var(--text3); flex-shrink: 0; }
+/* UPLOAD */
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r-sm);padding:1rem;text-align:center;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px}
+.upload-zone:hover{background:var(--surface2);border-color:var(--text3)}
+.upload-zone svg{width:20px;height:20px;stroke:currentColor;fill:none;display:block;margin:0 auto 6px}
+.file-list{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.file-item{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:var(--r-sm);padding:7px 10px;font-size:12px}
+.file-item .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item a{color:var(--blue);text-decoration:underline;text-underline-offset:2px}
+.file-item .fsize{color:var(--text3);font-size:11px;flex-shrink:0}
+.upload-more-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--blue);cursor:pointer;padding:5px 0;border:none;background:none;font-family:inherit;font-weight:600;margin-top:4px}
+.upload-more-btn:hover{text-decoration:underline}
+.upload-more-btn svg{width:13px;height:13px;stroke:currentColor;fill:none}
 
-/* Detail */
-.detail-section { border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
-.detail-section:last-child { border-bottom: none; }
-.section-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
-.kv-grid { display: grid; grid-template-columns: 130px 1fr; gap: 8px 12px; font-size: 13px; }
-.kv-grid .k { color: var(--text3); }
-.kv-grid .v { font-weight: 500; }
-.link-box { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; }
-.link-box code { font-family: 'DM Mono', monospace; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text2); }
-.status-flow { display: flex; gap: 6px; flex-wrap: wrap; }
+/* DETAIL */
+.detail-section{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
+.detail-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.sect-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:7px 12px;font-size:13px}
+.kv .k{color:var(--text3)}.kv .v{font-weight:500}
+.desc-box{margin-top:10px;font-size:13px;color:var(--text2);line-height:1.65;background:var(--surface2);padding:10px 12px;border-radius:var(--r-sm)}
+.status-actions{display:flex;gap:6px;flex-wrap:wrap}
+.link-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 12px}
+.link-box code{font-family:'JetBrains Mono',monospace;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
 
-/* Toast */
-.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: #fff; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; z-index: 999; opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; }
-.toast.show { opacity: 1; transform: translateY(0); }
+/* TOAST */
+.toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;max-width:300px}
+.toast.show{opacity:1;transform:translateY(0)}
 
-/* Loading */
-.loading { text-align: center; padding: 3rem; color: var(--text3); }
-.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--text2); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* LOADING */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--text2);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row td{text-align:center;padding:2.5rem;color:var(--text3)}
 
-@media (max-width: 768px) {
-  .sidebar { display: none; }
-  .main { margin-left: 0; padding: 1rem; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  .form-grid { grid-template-columns: 1fr; }
+/* SALES SHELL */
+.sales-shell{min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.sales-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:50}
+.sales-header .hlogo{display:flex;align-items:center;gap:10px}
+.hlogo-icon{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.hlogo-icon svg{width:14px;height:14px;color:#fff;stroke:currentColor;fill:none}
+.hlogo-text{font-size:13px;font-weight:700}
+.hlogo-sub{font-size:11px;color:var(--text3)}
+.sales-body{flex:1;padding:1.5rem 1rem;max-width:720px;margin:0 auto;width:100%}
+
+/* NAME GATE */
+.name-gate{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:2rem;text-align:center;max-width:400px;margin:3rem auto}
+.name-gate h2{font-size:18px;font-weight:700;margin-bottom:6px}
+.name-gate p{font-size:13px;color:var(--text2);margin-bottom:1.25rem}
+.name-gate input{width:100%;padding:10px 12px;margin-bottom:10px}
+
+/* TABS */
+.tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;margin-bottom:1.25rem}
+.tab-btn{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;border-radius:5px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s}
+.tab-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* SALES CARDS */
+.sales-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:10px}
+.sales-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+.sales-card-title{font-size:14px;font-weight:700}
+.sales-card-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.sales-card-footer{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+
+/* HAMBURGER */
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--text)}
+.hamburger svg{width:20px;height:20px;stroke:currentColor;fill:none}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:49}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.show{display:block}
+  .main-content{margin-left:0;padding:1rem}
+  .hamburger{display:flex}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .form-grid{grid-template-columns:1fr}
+  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:100%;margin:auto 0 0}
+  .overlay{align-items:flex-end;padding:0}
+  .modal-body{max-height:65vh}
+  .kv{grid-template-columns:100px 1fr}
 }
 </style>
 </head>
 <body>
 
-<div class="shell">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">Panel System<span>Pre-Project Request</span></div>
-    <nav class="nav-section">
-      <div class="nav-label">Menu</div>
-      <div class="nav-item active" onclick="showView('list')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        Semua Request
-      </div>
-      <div class="nav-item" onclick="filterByStatus('Open')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
-        Open
-      </div>
-      <div class="nav-item" onclick="filterByStatus('In Progress')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        In Progress
-      </div>
-      <div class="nav-item" onclick="filterByStatus('Done')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Done
-      </div>
-    </nav>
+<!-- ══ ADMIN SHELL ══ -->
+<div class="admin-shell" id="adminShell" style="display:none">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+      <div><div class="logo-text">Panel System</div><div class="logo-sub">Pre-Project Request</div></div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Filter</div>
+      <button class="nav-item active" id="navAll" onclick="navFilter(this,'')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        Semua <span class="nav-badge" id="nbTotal">0</span>
+      </button>
+      <button class="nav-item" id="navOpen" onclick="navFilter(this,'Open')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
+        Open <span class="nav-badge" id="nbOpen">0</span>
+      </button>
+      <button class="nav-item" id="navInprog" onclick="navFilter(this,'In Progress')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        In Progress <span class="nav-badge" id="nbInprog">0</span>
+      </button>
+      <button class="nav-item" id="navDone" onclick="navFilter(this,'Done')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Done <span class="nav-badge" id="nbDone">0</span>
+      </button>
+    </div>
+    <div class="nav-group" style="margin-top:auto">
+      <div class="nav-label">Bagikan</div>
+      <button class="nav-item" onclick="copySalesLink()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Salin Link Sales
+      </button>
+    </div>
   </aside>
 
-  <!-- Main -->
-  <main class="main">
+  <main class="main-content">
     <div class="topbar">
-      <div>
-        <div class="page-title">Pre-Project Request</div>
-        <div class="page-sub">Panel System — Drawing & BOM Request Management</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Pre-Project Request</div><div class="page-sub">Admin Dashboard</div></div>
       </div>
       <button class="btn btn-primary" onclick="openForm()">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Request Baru
       </button>
     </div>
-
-    <div class="stats" id="statsArea">
-      <div class="stat"><div class="stat-label">Total</div><div class="stat-val" id="sTotal">—</div></div>
-      <div class="stat"><div class="stat-label">Open</div><div class="stat-val c-blue" id="sOpen">—</div></div>
-      <div class="stat"><div class="stat-label">In Progress</div><div class="stat-val c-amber" id="sInprog">—</div></div>
-      <div class="stat"><div class="stat-label">Done</div><div class="stat-val c-green" id="sDone">—</div></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="sTotal">—</div></div>
+      <div class="stat-card"><div class="stat-label">Open</div><div class="stat-val blue" id="sOpen">—</div></div>
+      <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-val amber" id="sInprog">—</div></div>
+      <div class="stat-card"><div class="stat-label">Done</div><div class="stat-val green" id="sDone">—</div></div>
     </div>
-
     <div class="toolbar">
       <div class="search-wrap">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input type="text" id="search" placeholder="Cari requester, customer, project, ID..." oninput="renderTable()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="search" placeholder="Cari ID, requester, customer, project..." oninput="renderTable()">
       </div>
-      <select class="filter" id="filterStatus" onchange="renderTable()">
+      <select class="filter-sel" id="fStatus" onchange="renderTable()">
         <option value="">Semua Status</option>
-        <option value="Open">Open</option>
-        <option value="In Progress">In Progress</option>
-        <option value="Done">Done</option>
+        <option>Open</option><option>In Progress</option><option>Done</option>
       </select>
-      <select class="filter" id="filterOutput" onchange="renderTable()">
+      <select class="filter-sel" id="fOutput" onchange="renderTable()">
         <option value="">Semua Output</option>
-        <option value="Drawing">Drawing</option>
-        <option value="BOM">BOM</option>
-        <option value="Drawing & BOM">Drawing & BOM</option>
+        <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option>
       </select>
     </div>
-
     <div class="table-card">
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th>No. Request</th>
-              <th>Tanggal</th>
-              <th>Requester</th>
-              <th>Customer</th>
-              <th>Project</th>
-              <th>Output</th>
-              <th>Dok. Customer</th>
-              <th>Dok. Hasil</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            <tr><td colspan="10" class="loading"><span class="spinner"></span>Memuat data...</td></tr>
-          </tbody>
+          <thead><tr>
+            <th>No. Request</th><th>Tanggal</th><th>Requester</th><th>Customer</th>
+            <th>Project</th><th>Output</th><th>Dok. Customer</th><th>Dok. Hasil</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="tableBody"><tr class="loading-row"><td colspan="10"><span class="spinner"></span>Memuat data...</td></tr></tbody>
         </table>
       </div>
     </div>
   </main>
 </div>
 
-<!-- Form Modal -->
+<!-- ══ SALES SHELL ══ -->
+<div class="sales-shell" id="salesShell" style="display:none">
+  <header class="sales-header">
+    <div class="hlogo">
+      <div class="hlogo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+      <div><div class="hlogo-text">Panel System</div><div class="hlogo-sub">Request Drawing & BOM</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="salesUserBadge" style="font-size:12px;color:var(--text2)"></span>
+      <button class="btn btn-sm btn-ghost" onclick="changeName()" style="font-size:11px">Ganti nama</button>
+    </div>
+  </header>
+  <div class="sales-body">
+    <!-- Name Gate -->
+    <div class="name-gate" id="nameGate">
+      <h2>Selamat datang</h2>
+      <p>Masukkan nama Anda untuk melanjutkan</p>
+      <input type="text" id="salesNameInput" placeholder="Nama Anda..." onkeydown="if(event.key==='Enter')confirmName()">
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="confirmName()">Lanjutkan</button>
+    </div>
+    <!-- Sales App -->
+    <div id="salesApp" style="display:none">
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tabNewBtn" onclick="switchTab('new')">+ Request Baru</button>
+        <button class="tab-btn" id="tabMyBtn" onclick="switchTab('my')">Request Saya</button>
+      </div>
+      <!-- Tab New -->
+      <div id="tabNew">
+        <div class="sales-card">
+          <div style="font-size:15px;font-weight:700;margin-bottom:1rem">Form Request Drawing / BOM</div>
+          <div class="form-grid" style="margin-bottom:1rem">
+            <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="sDate"></div>
+            <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="sCustomer" placeholder="Nama customer"></div>
+          </div>
+          <div class="form-row" style="margin-bottom:1rem"><label>Project / No. PO</label><input type="text" id="sProject" placeholder="Nama project atau nomor PO"></div>
+          <div class="form-row" style="margin-bottom:1rem">
+            <label>Jenis Output <span class="req">*</span></label>
+            <select id="sOutput" onchange="toggleSalesOther()">
+              <option value="">-- Pilih --</option>
+              <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option><option>Lainnya</option>
+            </select>
+          </div>
+          <div class="form-row" id="sOtherRow" style="display:none;margin-bottom:1rem"><label>Keterangan</label><input type="text" id="sOutputOther" placeholder="Jelaskan jenis output"></div>
+          <div class="form-row" style="margin-bottom:1rem"><label>Deskripsi / Catatan</label><textarea id="sDesc" placeholder="Deskripsi kebutuhan, spec singkat, referensi..."></textarea></div>
+          <div class="form-row" style="margin-bottom:1rem">
+            <label>Dokumen dari Customer (Spec, SLD, dll)</label>
+            <div class="upload-zone" onclick="document.getElementById('sDocInput').click()">
+              <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              Klik untuk upload (bisa beberapa file)
+              <input type="file" id="sDocInput" multiple style="display:none" onchange="handleSalesFiles(this)">
+            </div>
+            <div class="file-list" id="sDocList"></div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitSalesRequest()" id="btnSubmit">Kirim Request</button>
+        </div>
+      </div>
+      <!-- Tab My -->
+      <div id="tabMy" style="display:none">
+        <div id="myReqList"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALS ══ -->
+<!-- Admin Form -->
 <div class="overlay" id="formModal" style="display:none">
   <div class="modal">
-    <div class="modal-header">
-      <h2 id="formTitle">Request Baru</h2>
-      <button class="btn btn-sm" onclick="closeForm()">✕ Tutup</button>
-    </div>
+    <div class="modal-header"><h2 id="formTitle">Request Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('formModal')">✕</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-row">
-          <label>Tanggal <span class="req">*</span></label>
-          <input type="date" id="fDate">
-        </div>
-        <div class="form-row">
-          <label>Requester <span class="req">*</span></label>
-          <input type="text" id="fRequester" placeholder="Nama / Departemen">
-        </div>
-        <div class="form-row">
-          <label>Customer <span class="req">*</span></label>
-          <input type="text" id="fCustomer" placeholder="Nama customer">
-        </div>
-        <div class="form-row">
-          <label>Project</label>
-          <input type="text" id="fProject" placeholder="Nama project / no. PO">
-        </div>
+        <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="fDate"></div>
+        <div class="form-row"><label>Requester <span class="req">*</span></label><input type="text" id="fRequester" placeholder="Nama / Departemen"></div>
+        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="fCustomer" placeholder="Nama customer"></div>
+        <div class="form-row"><label>Project</label><input type="text" id="fProject" placeholder="Nama project / No. PO"></div>
       </div>
       <div class="form-row">
         <label>Jenis Output <span class="req">*</span></label>
         <select id="fOutput" onchange="toggleOther()">
           <option value="">-- Pilih --</option>
-          <option>Drawing</option>
-          <option>BOM</option>
-          <option>Drawing & BOM</option>
-          <option>Lainnya</option>
+          <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option><option>Lainnya</option>
         </select>
       </div>
-      <div class="form-row" id="outputOtherRow" style="display:none">
-        <label>Keterangan output lainnya</label>
-        <input type="text" id="fOutputOther" placeholder="Jelaskan jenis output">
-      </div>
+      <div class="form-row" id="fOtherRow" style="display:none"><label>Keterangan output</label><input type="text" id="fOutputOther"></div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="fDesc" placeholder="Deskripsi, requirement, referensi..."></textarea></div>
+      <hr style="border:none;border-top:1px solid var(--border)">
       <div class="form-row">
-        <label>Deskripsi / Catatan</label>
-        <textarea id="fDesc" placeholder="Deskripsi pekerjaan, requirement khusus, referensi, dll..."></textarea>
-      </div>
-      <div class="form-row">
-        <label>Dokumen dari Customer (Spec, SLD, dll)</label>
-        <div class="upload-zone" onclick="document.getElementById('inputCustomer').click()">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          Klik untuk upload (bisa beberapa file)
-          <input type="file" id="inputCustomer" multiple style="display:none" onchange="handleFiles('customer',this)">
+        <label>Dokumen dari Customer</label>
+        <div class="upload-zone" onclick="document.getElementById('fDocCustomer').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload dokumen customer
+          <input type="file" id="fDocCustomer" multiple style="display:none" onchange="handleAdminFiles('customer',this)">
         </div>
-        <div class="file-list" id="listCustomer"></div>
+        <div class="file-list" id="fListCustomer"></div>
       </div>
       <div class="form-row">
-        <label>Dokumen Hasil (Drawing, BOM, dll)</label>
-        <div class="upload-zone" onclick="document.getElementById('inputResult').click()">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          Klik untuk upload hasil pekerjaan
-          <input type="file" id="inputResult" multiple style="display:none" onchange="handleFiles('result',this)">
+        <label>Dokumen Hasil</label>
+        <div class="upload-zone" onclick="document.getElementById('fDocResult').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload dokumen hasil
+          <input type="file" id="fDocResult" multiple style="display:none" onchange="handleAdminFiles('result',this)">
         </div>
-        <div class="file-list" id="listResult"></div>
+        <div class="file-list" id="fListResult"></div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeForm()">Batal</button>
-      <button class="btn btn-primary" onclick="saveForm()" id="btnSave">Simpan Request</button>
+      <button class="btn" onclick="closeModal('formModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSave" onclick="saveRequest()">Simpan</button>
     </div>
   </div>
 </div>
 
-<!-- Detail Modal -->
+<!-- Admin Detail -->
 <div class="overlay" id="detailModal" style="display:none">
   <div class="modal" id="detailContent"></div>
+</div>
+
+<!-- Sales Detail/Upload -->
+<div class="overlay" id="salesModal" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h2 id="salesModalTitle">Detail</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('salesModal')">✕</button></div>
+    <div class="modal-body" id="salesModalBody"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('salesModal')">Tutup</button></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const SUPABASE_URL = 'https://sswslwddemackxrrbpre.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
+const sb=supabase.createClient(SB_URL,SB_KEY);
 
-let allRequests = [];
-let editId = null;
-let tempFiles = { customer: [], result: [] };
+const isSales=new URLSearchParams(location.search).get('mode')==='sales';
+let allReqs=[],editId=null,salesName='',salesFiles=[];
+let adminTmp={customer:[],result:[]};
 
-// ---- INIT ----
-async function init() {
-  await loadRequests();
-}
-
-async function loadRequests() {
-  const { data, error } = await sb
-    .from('requests')
-    .select(`*, docs_customer(*), docs_result(*)`)
-    .order('created_at', { ascending: false });
-  if (error) { showToast('Gagal memuat data: ' + error.message); return; }
-  allRequests = data || [];
-  renderStats();
-  renderTable();
-}
-
-// ---- STATS ----
-function renderStats() {
-  document.getElementById('sTotal').textContent = allRequests.length;
-  document.getElementById('sOpen').textContent = allRequests.filter(r => r.status === 'Open').length;
-  document.getElementById('sInprog').textContent = allRequests.filter(r => r.status === 'In Progress').length;
-  document.getElementById('sDone').textContent = allRequests.filter(r => r.status === 'Done').length;
-}
-
-// ---- TABLE ----
-function renderTable() {
-  const q = document.getElementById('search').value.toLowerCase();
-  const st = document.getElementById('filterStatus').value;
-  const out = document.getElementById('filterOutput').value;
-  const filtered = allRequests.filter(r => {
-    const matchQ = [r.id, r.requester, r.customer, r.project || ''].join(' ').toLowerCase().includes(q);
-    const matchSt = !st || r.status === st;
-    const matchOut = !out || r.output === out;
-    return matchQ && matchSt && matchOut;
-  });
-  const tbody = document.getElementById('tableBody');
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Belum ada data request</td></tr>';
-    return;
+window.addEventListener('DOMContentLoaded',()=>{
+  if(isSales){
+    document.getElementById('salesShell').style.display='flex';
+    document.title='Request Drawing & BOM — Panel System';
+    const saved=sessionStorage.getItem('salesName');
+    if(saved){salesName=saved;showSalesApp();}
+  }else{
+    document.getElementById('adminShell').style.display='flex';
+    loadRequests();
   }
-  tbody.innerHTML = filtered.map(r => `
+});
+
+// ── ADMIN ──
+async function loadRequests(){
+  const{data,error}=await sb.from('requests').select('*,docs_customer(*),docs_result(*)').order('created_at',{ascending:false});
+  if(error){toast('Gagal memuat: '+error.message);return;}
+  allReqs=data||[];renderStats();renderTable();
+}
+
+function renderStats(){
+  const total=allReqs.length,open=allReqs.filter(r=>r.status==='Open').length,inp=allReqs.filter(r=>r.status==='In Progress').length,done=allReqs.filter(r=>r.status==='Done').length;
+  document.getElementById('sTotal').textContent=total;document.getElementById('sOpen').textContent=open;
+  document.getElementById('sInprog').textContent=inp;document.getElementById('sDone').textContent=done;
+  document.getElementById('nbTotal').textContent=total;document.getElementById('nbOpen').textContent=open;
+  document.getElementById('nbInprog').textContent=inp;document.getElementById('nbDone').textContent=done;
+}
+
+function navFilter(el,status){
+  document.getElementById('fStatus').value=status;renderTable();
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');closeSidebar();
+}
+
+function renderTable(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const st=document.getElementById('fStatus').value,out=document.getElementById('fOutput').value;
+  const filtered=allReqs.filter(r=>{
+    const txt=[r.id,r.requester,r.customer,r.project||''].join(' ').toLowerCase();
+    return txt.includes(q)&&(!st||r.status===st)&&(!out||r.output===out);
+  });
+  const tbody=document.getElementById('tableBody');
+  if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="10">Belum ada data</td></tr>';return;}
+  tbody.innerHTML=filtered.map(r=>`
     <tr>
       <td class="mono">${r.id}</td>
       <td style="white-space:nowrap">${fmtDate(r.date)}</td>
       <td>${r.requester}</td>
-      <td style="font-weight:500">${r.customer}</td>
-      <td style="color:var(--text2)">${r.project || '—'}</td>
-      <td><span style="font-size:12px;background:var(--surface2);padding:3px 8px;border-radius:4px">${r.output}</span></td>
-      <td style="text-align:center">${(r.docs_customer || []).length > 0 ? `<span style="color:var(--blue);font-size:12px;font-weight:600">${r.docs_customer.length} file</span>` : '<span style="color:var(--text3);font-size:12px">—</span>'}</td>
-      <td style="text-align:center">${(r.docs_result || []).length > 0 ? `<span style="color:var(--green);font-size:12px;font-weight:600">${r.docs_result.length} file</span>` : '<span style="color:var(--text3);font-size:12px">—</span>'}</td>
+      <td style="font-weight:600">${r.customer}</td>
+      <td style="color:var(--text2)">${r.project||'—'}</td>
+      <td><span style="font-size:11px;background:var(--surface2);padding:3px 8px;border-radius:4px;font-weight:600">${r.output}</span></td>
+      <td style="text-align:center">${fileBadge(r.docs_customer,'blue')}</td>
+      <td style="text-align:center">${fileBadge(r.docs_result,'green')}</td>
       <td>${badge(r.status)}</td>
       <td><button class="btn btn-sm" onclick="openDetail('${r.id}')">Detail</button></td>
     </tr>`).join('');
 }
 
-function filterByStatus(s) {
-  document.getElementById('filterStatus').value = s;
-  renderTable();
+function fileBadge(arr,c){
+  if(!arr||!arr.length)return'<span style="color:var(--text3);font-size:11px">—</span>';
+  return`<span style="color:var(--${c});font-size:12px;font-weight:700">${arr.length} file</span>`;
 }
 
-// ---- FORM ----
-function openForm(id) {
-  editId = id || null;
-  tempFiles = { customer: [], result: [] };
-  document.getElementById('formTitle').textContent = id ? 'Edit Request' : 'Request Baru';
-  if (id) {
-    const r = allRequests.find(x => x.id === id);
-    document.getElementById('fDate').value = r.date;
-    document.getElementById('fRequester').value = r.requester;
-    document.getElementById('fCustomer').value = r.customer;
-    document.getElementById('fProject').value = r.project || '';
-    const knownOutputs = ['Drawing', 'BOM', 'Drawing & BOM'];
-    document.getElementById('fOutput').value = knownOutputs.includes(r.output) ? r.output : 'Lainnya';
-    document.getElementById('fOutputOther').value = knownOutputs.includes(r.output) ? '' : r.output;
-    document.getElementById('fDesc').value = r.description || '';
-    tempFiles.customer = (r.docs_customer || []).map(f => ({ ...f, existing: true }));
-    tempFiles.result = (r.docs_result || []).map(f => ({ ...f, existing: true }));
-  } else {
-    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-    ['fRequester', 'fCustomer', 'fProject', 'fOutputOther', 'fDesc'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('fOutput').value = '';
+// Form
+function openForm(id){
+  editId=id||null;adminTmp={customer:[],result:[]};
+  document.getElementById('formTitle').textContent=id?'Edit Request':'Request Baru';
+  if(id){
+    const r=allReqs.find(x=>x.id===id);
+    sv('fDate',r.date);sv('fRequester',r.requester);sv('fCustomer',r.customer);
+    sv('fProject',r.project||'');sv('fDesc',r.description||'');
+    const known=['Drawing','BOM','Drawing & BOM'];
+    document.getElementById('fOutput').value=known.includes(r.output)?r.output:'Lainnya';
+    document.getElementById('fOutputOther').value=known.includes(r.output)?'':r.output;
+    adminTmp.customer=(r.docs_customer||[]).map(f=>({...f,existing:true}));
+    adminTmp.result=(r.docs_result||[]).map(f=>({...f,existing:true}));
+  }else{
+    ['fRequester','fCustomer','fProject','fOutputOther','fDesc'].forEach(x=>sv(x,''));
+    document.getElementById('fOutput').value='';
+    sv('fDate',today());
   }
-  toggleOther();
-  renderFileList('customer');
-  renderFileList('result');
-  document.getElementById('formModal').style.display = 'flex';
-}
-function closeForm() { document.getElementById('formModal').style.display = 'none'; }
-function toggleOther() {
-  document.getElementById('outputOtherRow').style.display = document.getElementById('fOutput').value === 'Lainnya' ? 'block' : 'none';
+  toggleOther();renderAdminList('customer');renderAdminList('result');
+  document.getElementById('formModal').style.display='flex';
 }
 
-// ---- FILE UPLOAD ----
-function handleFiles(type, input) {
-  Array.from(input.files).forEach(f => tempFiles[type].push({ file: f, name: f.name, size: f.size, existing: false }));
-  renderFileList(type);
-  input.value = '';
+function toggleOther(){document.getElementById('fOtherRow').style.display=gv('fOutput')==='Lainnya'?'block':'none';}
+
+function handleAdminFiles(type,input){
+  Array.from(input.files).forEach(f=>adminTmp[type].push({file:f,name:f.name,size:f.size,existing:false}));
+  renderAdminList(type);input.value='';
 }
 
-function renderFileList(type) {
-  const el = document.getElementById('list' + (type === 'customer' ? 'Customer' : 'Result'));
-  el.innerHTML = tempFiles[type].map((f, i) => `
+function renderAdminList(type){
+  const el=document.getElementById('fList'+(type==='customer'?'Customer':'Result'));
+  el.innerHTML=adminTmp[type].map((f,i)=>`
     <div class="file-item">
-      ${f.existing
-        ? `<a class="fname" href="${getFileUrl(f.file_path)}" target="_blank" title="${f.file_name}">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`
-        : `<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}
-      <button class="btn btn-sm btn-danger" onclick="removeFile('${type}',${i})">Hapus</button>
+      ${f.existing?`<a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`
+        :`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}
+      <button class="btn btn-sm btn-danger" onclick="removeAdminFile('${type}',${i})">✕</button>
     </div>`).join('');
 }
 
-function removeFile(type, i) {
-  const f = tempFiles[type][i];
-  if (f.existing) {
-    sb.storage.from('request-docs').remove([f.file_path]);
-    sb.from('docs_' + type).delete().eq('id', f.id);
-  }
-  tempFiles[type].splice(i, 1);
-  renderFileList(type);
+async function removeAdminFile(type,i){
+  const f=adminTmp[type][i];
+  if(f.existing){await sb.storage.from('request-docs').remove([f.file_path]);await sb.from('docs_'+type).delete().eq('id',f.id);}
+  adminTmp[type].splice(i,1);renderAdminList(type);
 }
 
-function getFileUrl(path) {
-  return `${SUPABASE_URL}/storage/v1/object/public/request-docs/${path}`;
+async function saveRequest(){
+  const date=gv('fDate'),requester=gv('fRequester').trim(),customer=gv('fCustomer').trim(),outputRaw=gv('fOutput');
+  if(!date||!requester||!customer||!outputRaw){toast('Lengkapi field wajib (*)');return;}
+  const output=outputRaw==='Lainnya'?(gv('fOutputOther')||'Lainnya'):outputRaw;
+  const btn=document.getElementById('btnSave');btn.disabled=true;btn.textContent='Menyimpan...';
+  try{
+    let rid=editId;
+    if(editId){await sb.from('requests').update({date,requester,customer,project:gv('fProject').trim(),output,description:gv('fDesc').trim()}).eq('id',editId);}
+    else{rid=genId();await sb.from('requests').insert({id:rid,date,requester,customer,project:gv('fProject').trim(),output,description:gv('fDesc').trim(),status:'Open'});}
+    await uploadAdminFiles(rid,'customer');await uploadAdminFiles(rid,'result');
+    toast(editId?'Request diperbarui':'Request disimpan');closeModal('formModal');await loadRequests();
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Simpan';
 }
 
-function fmtSize(b) {
-  if (!b) return '';
-  if (b < 1024) return b + ' B';
-  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-  return (b / 1048576).toFixed(1) + ' MB';
-}
-
-async function uploadFiles(requestId, type) {
-  const newFiles = tempFiles[type].filter(f => !f.existing);
-  for (const f of newFiles) {
-    const path = `${requestId}/${type}/${Date.now()}_${f.file.name}`;
-    const { error: upErr } = await sb.storage.from('request-docs').upload(path, f.file);
-    if (upErr) { showToast('Upload gagal: ' + f.file.name); continue; }
-    await sb.from('docs_' + type).insert({ request_id: requestId, file_name: f.file.name, file_path: path, file_size: f.file.size });
+async function uploadAdminFiles(rid,type){
+  for(const f of adminTmp[type].filter(x=>!x.existing)){
+    const path=`${rid}/${type}/${Date.now()}_${f.file.name}`;
+    const{error}=await sb.storage.from('request-docs').upload(path,f.file);
+    if(!error)await sb.from('docs_'+type).insert({request_id:rid,file_name:f.file.name,file_path:path,file_size:f.file.size});
   }
 }
 
-// ---- SAVE ----
-async function saveForm() {
-  const date = document.getElementById('fDate').value;
-  const requester = document.getElementById('fRequester').value.trim();
-  const customer = document.getElementById('fCustomer').value.trim();
-  const outputRaw = document.getElementById('fOutput').value;
-  if (!date || !requester || !customer || !outputRaw) { showToast('Lengkapi field wajib (*)'); return; }
-  const output = outputRaw === 'Lainnya' ? (document.getElementById('fOutputOther').value || 'Lainnya') : outputRaw;
+// Detail
+async function openDetail(id){
+  const r=allReqs.find(x=>x.id===id);
+  let stBtn='';
+  if(r.status==='Open')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','In Progress')">▶ In Progress</button>`;
+  if(r.status==='In Progress')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Done')">✓ Done</button>`;
+  if(r.status==='Done')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Open')">↺ Reopen</button>`;
 
-  const btn = document.getElementById('btnSave');
-  btn.disabled = true; btn.textContent = 'Menyimpan...';
-
-  try {
-    let reqId;
-    if (editId) {
-      reqId = editId;
-      await sb.from('requests').update({
-        date, requester, customer, project: document.getElementById('fProject').value.trim(),
-        output, description: document.getElementById('fDesc').value.trim()
-      }).eq('id', editId);
-    } else {
-      const now = Date.now().toString(36).toUpperCase();
-      reqId = `REQ-${String(allRequests.length + 1).padStart(4, '0')}-${now}`;
-      await sb.from('requests').insert({
-        id: reqId, date, requester, customer,
-        project: document.getElementById('fProject').value.trim(),
-        output, description: document.getElementById('fDesc').value.trim(), status: 'Open'
-      });
-    }
-    await uploadFiles(reqId, 'customer');
-    await uploadFiles(reqId, 'result');
-    showToast(editId ? 'Request diperbarui' : 'Request baru disimpan');
-    closeForm();
-    await loadRequests();
-  } catch (e) {
-    showToast('Error: ' + e.message);
-  }
-  btn.disabled = false; btn.textContent = 'Simpan Request';
-}
-
-// ---- DETAIL ----
-async function openDetail(id) {
-  const r = allRequests.find(x => x.id === id);
-  const custFiles = (r.docs_customer || []).map(f =>
-    `<div class="file-item"><a class="fname" href="${getFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
-  const resFiles = (r.docs_result || []).map(f =>
-    `<div class="file-item"><a class="fname" href="${getFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
-
-  let statusBtns = '';
-  if (r.status === 'Open') statusBtns = `<button class="btn btn-sm" onclick="updateStatus('${id}','In Progress')">▶ Mulai (In Progress)</button>`;
-  if (r.status === 'In Progress') statusBtns = `<button class="btn btn-sm" onclick="updateStatus('${id}','Done')">✓ Selesai (Done)</button>`;
-  if (r.status === 'Done') statusBtns = `<button class="btn btn-sm" onclick="updateStatus('${id}','Open')">↺ Reopen</button>`;
-
-  document.getElementById('detailContent').innerHTML = `
+  document.getElementById('detailContent').innerHTML=`
     <div class="modal-header">
-      <div><div class="mono" style="font-size:11px;margin-bottom:3px">${r.id}</div><h2>${r.customer}${r.project ? ' — ' + r.project : ''}</h2></div>
-      <button class="btn btn-sm" onclick="document.getElementById('detailModal').style.display='none'">✕ Tutup</button>
+      <div><div class="mono" style="font-size:11px;margin-bottom:2px">${r.id}</div><h2>${r.customer}${r.project?' — '+r.project:''}</h2></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('detailModal')">✕</button>
     </div>
     <div class="modal-body">
       <div class="detail-section">
-        <div class="section-title">Informasi Request</div>
-        <div class="kv-grid">
+        <div class="sect-title">Informasi</div>
+        <div class="kv">
           <span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span>
           <span class="k">Requester</span><span class="v">${r.requester}</span>
           <span class="k">Customer</span><span class="v">${r.customer}</span>
-          <span class="k">Project</span><span class="v">${r.project || '—'}</span>
+          <span class="k">Project</span><span class="v">${r.project||'—'}</span>
           <span class="k">Output</span><span class="v">${r.output}</span>
           <span class="k">Status</span><span class="v">${badge(r.status)}</span>
         </div>
-        ${r.description ? `<div style="margin-top:10px;font-size:13px;color:var(--text2);line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:6px">${r.description}</div>` : ''}
+        ${r.description?`<div class="desc-box">${r.description}</div>`:''}
       </div>
       <div class="detail-section">
-        <div class="section-title">Ubah Status</div>
-        <div class="status-flow">${statusBtns}</div>
+        <div class="sect-title">Ubah Status</div>
+        <div class="status-actions">${stBtn}</div>
       </div>
       <div class="detail-section">
-        <div class="section-title">Dokumen dari Customer (${(r.docs_customer || []).length} file)</div>
-        <div class="file-list">${custFiles || '<span style="font-size:13px;color:var(--text3)">Belum ada dokumen</span>'}</div>
+        <div class="sect-title">Dokumen Customer (${(r.docs_customer||[]).length} file)</div>
+        <div class="file-list" id="adminCustList">${renderFileItems(r.docs_customer||[])}</div>
+        <button class="upload-more-btn" onclick="document.getElementById('inlineCust_${id}').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Tambah dokumen customer
+        </button>
+        <input type="file" id="inlineCust_${id}" multiple style="display:none" onchange="inlineUpload('${id}','customer',this)">
       </div>
       <div class="detail-section">
-        <div class="section-title">Dokumen Hasil (${(r.docs_result || []).length} file)</div>
-        <div class="file-list">${resFiles || '<span style="font-size:13px;color:var(--text3)">Belum ada dokumen</span>'}</div>
+        <div class="sect-title">Dokumen Hasil (${(r.docs_result||[]).length} file)</div>
+        <div class="file-list" id="adminResultList">${renderFileItems(r.docs_result||[])}</div>
+        <button class="upload-more-btn" onclick="document.getElementById('inlineResult_${id}').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Tambah dokumen hasil
+        </button>
+        <input type="file" id="inlineResult_${id}" multiple style="display:none" onchange="inlineUpload('${id}','result',this)">
       </div>
       <div class="detail-section">
-        <div class="section-title">ID Request (untuk share)</div>
-        <div class="link-box">
-          <code>${r.id}</code>
-          <button class="btn btn-sm" onclick="copyText('${r.id}','ID disalin!')">Salin ID</button>
-        </div>
-        <div style="margin-top:6px;font-size:12px;color:var(--text3)">Bagikan ID ini ke rekan untuk merujuk request ini.</div>
+        <div class="sect-title">ID Request</div>
+        <div class="link-box"><code>${r.id}</code><button class="btn btn-sm" onclick="copyText('${r.id}','ID disalin!')">Salin</button></div>
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
-      <button class="btn btn-sm btn-danger" onclick="deleteReq('${id}')">Hapus Request</button>
-      <button class="btn btn-sm" onclick="document.getElementById('detailModal').style.display='none';openForm('${id}')">Edit Request</button>
+      <button class="btn btn-sm btn-danger" onclick="deleteReq('${id}')">Hapus</button>
+      <button class="btn btn-sm" onclick="closeModal('detailModal');openForm('${id}')">Edit</button>
     </div>`;
-  document.getElementById('detailModal').style.display = 'flex';
+  document.getElementById('detailModal').style.display='flex';
 }
 
-async function updateStatus(id, status) {
-  await sb.from('requests').update({ status }).eq('id', id);
-  showToast('Status diubah ke: ' + status);
-  await loadRequests();
-  openDetail(id);
+async function inlineUpload(id,type,input){
+  const files=Array.from(input.files);
+  for(const f of files){
+    const path=`${id}/${type}/${Date.now()}_${f.name}`;
+    const{error}=await sb.storage.from('request-docs').upload(path,f);
+    if(!error)await sb.from('docs_'+type).insert({request_id:id,file_name:f.name,file_path:path,file_size:f.size});
+    else toast('Gagal: '+f.name);
+  }
+  input.value='';toast(files.length+' file diupload');
+  await loadRequests();openDetail(id);
 }
 
-async function deleteReq(id) {
-  if (!confirm('Hapus request ini? Semua dokumen terkait juga akan dihapus.')) return;
-  const r = allRequests.find(x => x.id === id);
-  const allDocs = [...(r.docs_customer || []), ...(r.docs_result || [])];
-  if (allDocs.length) await sb.storage.from('request-docs').remove(allDocs.map(d => d.file_path));
-  await sb.from('requests').delete().eq('id', id);
-  document.getElementById('detailModal').style.display = 'none';
-  showToast('Request dihapus');
-  await loadRequests();
+function renderFileItems(arr){
+  if(!arr.length)return'<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
+  return arr.map(f=>`<div class="file-item"><a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
 }
 
-// ---- HELPERS ----
-function badge(s) {
-  const map = { 'Open': 'badge-open', 'In Progress': 'badge-inprogress', 'Done': 'badge-done' };
-  return `<span class="badge ${map[s] || ''}">${s}</span>`;
+async function updateStatus(id,status){
+  await sb.from('requests').update({status}).eq('id',id);
+  toast('Status → '+status);await loadRequests();openDetail(id);
 }
-function fmtDate(d) {
-  if (!d) return '—';
-  const x = new Date(d + 'T00:00:00');
-  return x.getDate().toString().padStart(2, '0') + '/' + (x.getMonth() + 1).toString().padStart(2, '0') + '/' + x.getFullYear();
-}
-function copyText(text, msg) {
-  navigator.clipboard.writeText(text).then(() => showToast(msg)).catch(() => showToast(text));
-}
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-function showView(v) {}
 
-init();
+async function deleteReq(id){
+  if(!confirm('Hapus request ini?'))return;
+  const r=allReqs.find(x=>x.id===id);
+  const all=[...(r.docs_customer||[]),...(r.docs_result||[])];
+  if(all.length)await sb.storage.from('request-docs').remove(all.map(d=>d.file_path));
+  await sb.from('requests').delete().eq('id',id);
+  closeModal('detailModal');toast('Dihapus');await loadRequests();
+}
+
+function copySalesLink(){
+  const url=location.origin+location.pathname+'?mode=sales';
+  navigator.clipboard.writeText(url).then(()=>toast('Link sales disalin!')).catch(()=>toast(url));
+}
+
+// ── SALES ──
+function confirmName(){
+  const val=document.getElementById('salesNameInput').value.trim();
+  if(!val){toast('Masukkan nama Anda');return;}
+  salesName=val;sessionStorage.setItem('salesName',val);showSalesApp();
+}
+
+function changeName(){
+  sessionStorage.removeItem('salesName');salesName='';
+  document.getElementById('salesApp').style.display='none';
+  document.getElementById('nameGate').style.display='block';
+  document.getElementById('salesNameInput').value='';
+  document.getElementById('salesUserBadge').textContent='';
+}
+
+function showSalesApp(){
+  document.getElementById('nameGate').style.display='none';
+  document.getElementById('salesApp').style.display='block';
+  document.getElementById('salesUserBadge').textContent='Halo, '+salesName;
+  sv('sDate',today());loadMyRequests();
+}
+
+function switchTab(tab){
+  document.getElementById('tabNew').style.display=tab==='new'?'block':'none';
+  document.getElementById('tabMy').style.display=tab==='my'?'block':'none';
+  document.getElementById('tabNewBtn').className='tab-btn'+(tab==='new'?' active':'');
+  document.getElementById('tabMyBtn').className='tab-btn'+(tab==='my'?' active':'');
+  if(tab==='my')loadMyRequests();
+}
+
+function toggleSalesOther(){document.getElementById('sOtherRow').style.display=gv('sOutput')==='Lainnya'?'block':'none';}
+
+function handleSalesFiles(input){
+  salesFiles=salesFiles.concat(Array.from(input.files));renderSalesList();input.value='';
+}
+
+function renderSalesList(){
+  document.getElementById('sDocList').innerHTML=salesFiles.map((f,i)=>`
+    <div class="file-item">
+      <span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>
+      <button class="btn btn-sm btn-danger" onclick="salesFiles.splice(${i},1);renderSalesList()">✕</button>
+    </div>`).join('');
+}
+
+async function submitSalesRequest(){
+  const date=gv('sDate'),customer=gv('sCustomer').trim(),outputRaw=gv('sOutput');
+  if(!date||!customer||!outputRaw){toast('Lengkapi field wajib (*)');return;}
+  const output=outputRaw==='Lainnya'?(gv('sOutputOther')||'Lainnya'):outputRaw;
+  const btn=document.getElementById('btnSubmit');btn.disabled=true;btn.textContent='Mengirim...';
+  try{
+    const rid=genId();
+    await sb.from('requests').insert({id:rid,date,requester:salesName,customer,project:gv('sProject').trim(),output,description:gv('sDesc').trim(),status:'Open'});
+    for(const f of salesFiles){
+      const path=`${rid}/customer/${Date.now()}_${f.name}`;
+      const{error}=await sb.storage.from('request-docs').upload(path,f);
+      if(!error)await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});
+    }
+    toast('Request berhasil dikirim!');
+    sv('sCustomer','');sv('sProject','');sv('sDesc','');
+    document.getElementById('sOutput').value='';salesFiles=[];renderSalesList();switchTab('my');
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Kirim Request';
+}
+
+async function loadMyRequests(){
+  const el=document.getElementById('myReqList');
+  el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div>';
+  const{data}=await sb.from('requests').select('*,docs_customer(*),docs_result(*)').eq('requester',salesName).order('created_at',{ascending:false});
+  if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Belum ada request dari Anda</div>';return;}
+  el.innerHTML=data.map(r=>`
+    <div class="sales-card">
+      <div class="sales-card-header">
+        <div>
+          <div class="sales-card-title">${r.customer}${r.project?' — '+r.project:''}</div>
+          <div class="sales-card-sub">${r.id} · ${fmtDate(r.date)}</div>
+        </div>
+        ${badge(r.status)}
+      </div>
+      <div style="font-size:13px;color:var(--text2)">
+        <span style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:4px;font-weight:600">${r.output}</span>
+        ${r.description?`<div style="margin-top:6px">${r.description}</div>`:''}
+      </div>
+      <div class="sales-card-footer">
+        <div style="font-size:12px;color:var(--text3)">${(r.docs_customer||[]).length} dok. customer · ${(r.docs_result||[]).length} dok. hasil</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" onclick="salesViewDetail('${r.id}')">Lihat</button>
+          <button class="btn btn-sm btn-primary" onclick="salesAddDoc('${r.id}')">+ Dokumen</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function salesViewDetail(id){
+  const{data:r}=await sb.from('requests').select('*,docs_customer(*),docs_result(*)').eq('id',id).single();
+  document.getElementById('salesModalTitle').textContent=r.customer+(r.project?' — '+r.project:'');
+  document.getElementById('salesModalBody').innerHTML=`
+    <div class="detail-section">
+      <div class="sect-title">Info</div>
+      <div class="kv">
+        <span class="k">Status</span><span class="v">${badge(r.status)}</span>
+        <span class="k">Output</span><span class="v">${r.output}</span>
+        <span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span>
+      </div>
+      ${r.description?`<div class="desc-box">${r.description}</div>`:''}
+    </div>
+    <div class="detail-section">
+      <div class="sect-title">Dokumen Anda (${(r.docs_customer||[]).length})</div>
+      <div class="file-list">${renderFileItems(r.docs_customer||[])}</div>
+    </div>
+    <div class="detail-section">
+      <div class="sect-title">Dokumen Hasil dari Engineering (${(r.docs_result||[]).length})</div>
+      <div class="file-list">${renderFileItems(r.docs_result||[])}</div>
+    </div>`;
+  document.getElementById('salesModal').style.display='flex';
+}
+
+async function salesAddDoc(id){
+  const{data:r}=await sb.from('requests').select('*,docs_customer(*)').eq('id',id).single();
+  document.getElementById('salesModalTitle').textContent='Tambah Dokumen';
+  document.getElementById('salesModalBody').innerHTML=`
+    <div class="detail-section">
+      <div class="sect-title">Dokumen yang sudah ada (${(r.docs_customer||[]).length})</div>
+      <div class="file-list">${renderFileItems(r.docs_customer||[])}</div>
+    </div>
+    <div class="form-row">
+      <label>Upload dokumen baru</label>
+      <div class="upload-zone" onclick="document.getElementById('sAddDoc').click()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+        Pilih file untuk diupload
+        <input type="file" id="sAddDoc" multiple style="display:none" onchange="uploadSalesDoc('${id}',this)">
+      </div>
+      <div class="file-list" id="sAddDocList"></div>
+    </div>`;
+  document.getElementById('salesModal').style.display='flex';
+}
+
+async function uploadSalesDoc(rid,input){
+  const files=Array.from(input.files);
+  const listEl=document.getElementById('sAddDocList');
+  for(const f of files){
+    listEl.innerHTML+=`<div class="file-item"><span class="spinner"></span><span class="fname">${f.name}</span></div>`;
+    const path=`${rid}/customer/${Date.now()}_${f.name}`;
+    const{error}=await sb.storage.from('request-docs').upload(path,f);
+    if(!error){await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});toast(f.name+' diupload');}
+    else toast('Gagal: '+f.name);
+  }
+  input.value='';listEl.innerHTML='';salesAddDoc(rid);loadMyRequests();
+}
+
+// ── UTILS ──
+const gv=id=>document.getElementById(id).value;
+const sv=(id,val)=>{document.getElementById(id).value=val;};
+const today=()=>new Date().toISOString().split('T')[0];
+const genId=()=>'REQ-'+Date.now().toString(36).slice(-5).toUpperCase()+'-'+Math.random().toString(36).slice(2,4).toUpperCase();
+const fileUrl=path=>`${SB_URL}/storage/v1/object/public/request-docs/${path}`;
+const fmtDate=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');return x.getDate().toString().padStart(2,'0')+'/'+(x.getMonth()+1).toString().padStart(2,'0')+'/'+x.getFullYear();};
+const fmtSize=b=>{if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';};
+const badge=s=>{const m={'Open':'b-open','In Progress':'b-inprog','Done':'b-done'};return`<span class="badge ${m[s]||''}">${s}</span>`;};
+const closeModal=id=>{document.getElementById(id).style.display='none';};
+const copyText=(t,msg)=>navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>toast(t));
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show');}
 </script>
 </body>
 </html>
