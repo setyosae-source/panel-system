@@ -3,34 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Panel System — Pre-Project Request</title>
+<title>Panel System</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root {
-  --bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:#e0ddd4;--border2:#c8c5ba;
+:root{--bg:#f7f6f3;--surface:#fff;--surface2:#f0efe9;--border:#e0ddd4;--border2:#c8c5ba;
   --text:#18181a;--text2:#5c5b57;--text3:#9c9a94;
-  --blue:#1d4ed8;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
-  --amber:#92400e;--amber-bg:#fffbeb;
-  --green:#166534;--green-bg:#f0fdf4;
-  --red:#991b1b;--red-bg:#fef2f2;--red-border:#fecaca;
-  --r:10px;--r-sm:6px;--r-lg:14px;
-}
+  --blue:#1d4ed8;--blue-bg:#eff6ff;--amber:#92400e;--amber-bg:#fffbeb;
+  --green:#166534;--green-bg:#f0fdf4;--red:#991b1b;--red-bg:#fef2f2;--red-border:#fecaca;
+  --r:10px;--r-sm:6px;--r-lg:14px;}
 *{box-sizing:border-box;margin:0;padding:0}
-html{overflow-x:hidden}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;overflow-x:hidden}
-
-/* ADMIN LAYOUT */
-.admin-shell{display:flex;min-height:100vh;overflow-x:hidden;width:100%}
+html,body{overflow-x:hidden}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+.shell{display:flex;min-height:100vh;overflow-x:hidden;width:100%}
 .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);padding:1.25rem .875rem;display:flex;flex-direction:column;gap:1.5rem;position:fixed;height:100vh;overflow-y:auto;z-index:50;transition:transform .25s}
 .main-content{margin-left:230px;flex:1;padding:1.75rem;min-height:100vh;min-width:0;overflow-x:hidden}
-
-/* SIDEBAR */
 .logo-mark{display:flex;align-items:center;gap:10px;padding:0 .5rem}
 .logo-icon{width:32px;height:32px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center}
-.logo-icon svg{width:16px;height:16px;color:#fff;stroke:currentColor}
-.logo-text{font-size:13px;font-weight:700}
-.logo-sub{font-size:11px;color:var(--text3)}
+.logo-icon svg{width:16px;height:16px;color:#fff;stroke:currentColor;fill:none}
+.logo-text{font-size:13px;font-weight:700}.logo-sub{font-size:11px;color:var(--text3)}
 .nav-group{display:flex;flex-direction:column;gap:2px}
 .nav-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;padding:0 .625rem;margin-bottom:4px}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;cursor:pointer;color:var(--text2);transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
@@ -38,29 +29,23 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .nav-item:hover,.nav-item.active{background:var(--surface2);color:var(--text)}
 .nav-item.active{font-weight:600}
 .nav-badge{margin-left:auto;background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px}
-
-/* TOPBAR */
 .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
-.page-title{font-size:21px;font-weight:700;letter-spacing:-.01em}
-.page-sub{font-size:12px;color:var(--text3);margin-top:2px}
-
-/* STATS */
+.page-title{font-size:21px;font-weight:700;letter-spacing:-.01em}.page-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.period-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;flex-wrap:wrap;min-width:0}
+.period-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s;white-space:nowrap}
+.period-btn:hover{color:var(--text)}.period-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.125rem}
 .stat-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
 .stat-val{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.02em}
 .stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.green{color:var(--green)}
-
-/* TOOLBAR */
 .toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;min-width:0}
 .search-wrap{flex:1;min-width:0;position:relative}
 .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3);stroke:currentColor;fill:none}
-input[type=text],input[type=date],select,textarea{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);outline:none;transition:border-color .15s}
+input[type=text],input[type=date],select,textarea{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);outline:none;transition:border-color .15s;max-width:100%;box-sizing:border-box}
 input:focus,select:focus,textarea:focus{border-color:var(--border2)}
 .search-wrap input{width:100%;padding:8px 10px 8px 32px}
 select.filter-sel{padding:8px 10px;cursor:pointer}
-
-/* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap;line-height:1}
 .btn svg{width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0}
 .btn:hover{background:var(--surface2)}.btn:active{transform:scale(.98)}
@@ -68,45 +53,33 @@ select.filter-sel{padding:8px 10px;cursor:pointer}
 .btn-sm{padding:5px 11px;font-size:12px}
 .btn-danger{color:var(--red);border-color:var(--red-border)}.btn-danger:hover{background:var(--red-bg)}
 .btn-ghost{border-color:transparent;background:transparent}.btn-ghost:hover{background:var(--surface2)}
-
-/* TABLE */
 .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .table-wrap{overflow-x:hidden}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 thead{background:var(--surface2)}
-th{padding:8px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap}
+th{padding:8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap}
 td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg)}
 .mono{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)}
-.empty-row td{text-align:center;padding:3rem;color:var(--text3);font-size:13px;white-space:normal}
-.group-header td{border-top:2px solid var(--border2) !important}
-tr.group-header:first-child td{border-top:none !important}
-
-
-/* BADGES */
+.empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);font-size:13px;white-space:normal}
+.group-header td{background:var(--surface2)!important;padding:6px 10px;border-bottom:1px solid var(--border);border-top:2px solid var(--border2)}
 .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
 .badge::before{content:'';width:5px;height:5px;border-radius:50%}
 .b-open{background:var(--blue-bg);color:var(--blue)}.b-open::before{background:var(--blue)}
 .b-inprog{background:var(--amber-bg);color:var(--amber)}.b-inprog::before{background:var(--amber)}
 .b-done{background:var(--green-bg);color:var(--green)}.b-done::before{background:var(--green)}
-
-/* MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(3px)}
 .modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:0 24px 64px rgba(0,0,0,.18);margin:auto;box-sizing:border-box}
 .modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .modal-header h2{font-size:15px;font-weight:700}
 .modal-body{padding:1.375rem 1.5rem;display:flex;flex-direction:column;gap:1rem;max-height:75vh;overflow-y:auto}
 .modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
-
-/* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .form-row label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
-.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 10px;max-width:100%;box-sizing:border-box}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:8px 10px}
 .form-row textarea{resize:vertical;min-height:78px;line-height:1.6}
 .req{color:#e74c3c}
-
-/* UPLOAD */
 .upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r-sm);padding:1rem;text-align:center;cursor:pointer;transition:all .15s;color:var(--text3);font-size:13px}
 .upload-zone:hover{background:var(--surface2);border-color:var(--text3)}
 .upload-zone svg{width:20px;height:20px;stroke:currentColor;fill:none;display:block;margin:0 auto 6px}
@@ -118,66 +91,46 @@ tr.group-header:first-child td{border-top:none !important}
 .upload-more-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--blue);cursor:pointer;padding:5px 0;border:none;background:none;font-family:inherit;font-weight:600;margin-top:4px}
 .upload-more-btn:hover{text-decoration:underline}
 .upload-more-btn svg{width:13px;height:13px;stroke:currentColor;fill:none}
-
-/* DETAIL */
 .detail-section{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
 .detail-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
 .sect-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
-.kv{display:grid;grid-template-columns:120px 1fr;gap:7px 12px;font-size:13px}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:7px 12px;font-size:13px}
 .kv .k{color:var(--text3)}.kv .v{font-weight:500}
 .desc-box{margin-top:10px;font-size:13px;color:var(--text2);line-height:1.65;background:var(--surface2);padding:10px 12px;border-radius:var(--r-sm)}
-.status-actions{display:flex;gap:6px;flex-wrap:wrap}
 .link-box{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 12px}
 .link-box code{font-family:'JetBrains Mono',monospace;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
-
-/* TOAST */
 .toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;max-width:300px}
 .toast.show{opacity:1;transform:translateY(0)}
-
-/* LOADING */
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--text2);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-row td{text-align:center;padding:2.5rem;color:var(--text3)}
-
-/* SALES SHELL */
+/* SALES */
 .sales-shell{min-height:100vh;background:var(--bg);display:flex;flex-direction:column;overflow-x:hidden;width:100%}
 .sales-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:50;overflow:hidden}
-.sales-header .hlogo{display:flex;align-items:center;gap:10px}
+.hlogo{display:flex;align-items:center;gap:10px}
 .hlogo-icon{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center}
 .hlogo-icon svg{width:14px;height:14px;color:#fff;stroke:currentColor;fill:none}
-.hlogo-text{font-size:13px;font-weight:700}
-.hlogo-sub{font-size:11px;color:var(--text3)}
+.hlogo-text{font-size:13px;font-weight:700}.hlogo-sub{font-size:11px;color:var(--text3)}
 .sales-body{flex:1;padding:1.5rem 1rem;max-width:720px;margin:0 auto;width:100%;min-width:0;overflow-x:hidden;box-sizing:border-box}
-
-/* NAME GATE */
-.name-gate{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:2rem;text-align:center;max-width:400px;margin:3rem auto;width:100%}
+.name-gate{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:2rem;text-align:center;max-width:400px;margin:3rem auto;width:100%;box-sizing:border-box}
 .name-gate h2{font-size:18px;font-weight:700;margin-bottom:6px}
 .name-gate p{font-size:13px;color:var(--text2);margin-bottom:1.25rem}
 .name-gate input{width:100%;padding:10px 12px;margin-bottom:10px}
-
-/* TABS */
 .tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;margin-bottom:1.25rem;width:100%;box-sizing:border-box}
 .tab-btn{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;border-radius:5px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s}
 .tab-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-
-/* SALES CARDS */
 .sales-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:10px;overflow:hidden;word-break:break-word}
 .sales-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
-.sales-card-title{font-size:14px;font-weight:700}
-.sales-card-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.sales-card-title{font-size:14px;font-weight:700}.sales-card-sub{font-size:12px;color:var(--text3);margin-top:2px}
 .sales-card-footer{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-width:0}
-
-/* PERIOD TABS */
-.period-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;flex-wrap:wrap;min-width:0}
-.period-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s;white-space:nowrap}
-.period-btn:hover{color:var(--text)}
-.period-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-
-/* HAMBURGER */
 .hamburger{display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--text)}
 .hamburger svg{width:20px;height:20px;stroke:currentColor;fill:none}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:49}
-
+/* PO */
+.pk-card{background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px}
+.item-card{background:var(--surface2);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.step-row{display:flex;align-items:center;gap:8px;padding:3px 0}
+.step-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.step-line{width:1px;height:12px;background:var(--border);margin-left:10px}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
@@ -195,9 +148,11 @@ tr.group-header:first-child td{border-top:none !important}
 </head>
 <body>
 
-<!-- ══ ADMIN SHELL ══ -->
-<div class="admin-shell" id="adminShell" style="display:none">
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<!-- ══ SIDEBAR SHARED ══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ══ PRE-PROJECT SHELL ══ -->
+<div class="shell" id="ppShell" style="display:none">
   <aside class="sidebar" id="sidebar">
     <div class="logo-mark">
       <div class="logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
@@ -209,17 +164,24 @@ tr.group-header:first-child td{border-top:none !important}
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
         Semua <span class="nav-badge" id="nbTotal">0</span>
       </button>
-      <button class="nav-item" id="navOpen" onclick="navFilter(this,'Open')">
+      <button class="nav-item" onclick="navFilter(this,'Open')">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M12 8v4l3 3"/></svg>
         Open <span class="nav-badge" id="nbOpen">0</span>
       </button>
-      <button class="nav-item" id="navInprog" onclick="navFilter(this,'In Progress')">
+      <button class="nav-item" onclick="navFilter(this,'In Progress')">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         In Progress <span class="nav-badge" id="nbInprog">0</span>
       </button>
-      <button class="nav-item" id="navDone" onclick="navFilter(this,'Done')">
+      <button class="nav-item" onclick="navFilter(this,'Done')">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         Done <span class="nav-badge" id="nbDone">0</span>
+      </button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Modul</div>
+      <button class="nav-item" onclick="switchModule('po')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Kelola PO <span class="nav-badge" id="nbPO">0</span>
       </button>
     </div>
     <div class="nav-group" style="margin-top:auto">
@@ -230,7 +192,6 @@ tr.group-header:first-child td{border-top:none !important}
       </button>
     </div>
   </aside>
-
   <main class="main-content">
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
@@ -242,15 +203,14 @@ tr.group-header:first-child td{border-top:none !important}
         Request Baru
       </button>
     </div>
-    <!-- Period Filter -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
       <div class="period-tabs">
-        <button class="period-btn active" onclick="setPeriod('today',this)">Hari Ini</button>
+        <button class="period-btn" onclick="setPeriod('today',this)">Hari Ini</button>
         <button class="period-btn" onclick="setPeriod('week',this)">Minggu Ini</button>
         <button class="period-btn" onclick="setPeriod('month',this)">Bulan Ini</button>
         <button class="period-btn" onclick="setPeriod('year',this)">Tahun Ini</button>
         <button class="period-btn" onclick="setPeriod('range',this)">Range</button>
-        <button class="period-btn" onclick="setPeriod('all',this)">Semua</button>
+        <button class="period-btn active" onclick="setPeriod('all',this)">Semua</button>
       </div>
       <div id="rangeInputs" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
         <input type="date" id="rangeFrom" style="padding:5px 8px;font-size:12px" onchange="renderStats()">
@@ -273,7 +233,6 @@ tr.group-header:first-child td{border-top:none !important}
         <option value="">Semua Status</option>
         <option>Open</option><option>In Progress</option><option>Done</option>
       </select>
-
     </div>
     <div class="table-card">
       <div class="table-wrap">
@@ -281,10 +240,101 @@ tr.group-header:first-child td{border-top:none !important}
           <colgroup>
             <col style="width:18%"><col style="width:24%"><col style="width:32%"><col style="width:26%">
           </colgroup>
+          <thead><tr><th>No.</th><th>Req.</th><th>Cust.</th><th>Proj.</th></tr></thead>
+          <tbody id="tableBody"><tr class="loading-row"><td colspan="4"><span class="spinner"></span>Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ══ PO SHELL ══ -->
+<div class="shell" id="poShell" style="display:none">
+  <aside class="sidebar" id="poSidebar">
+    <div class="logo-mark">
+      <div class="logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+      <div><div class="logo-text">Panel System</div><div class="logo-sub">Kelola PO</div></div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Filter Status</div>
+      <button class="nav-item active" onclick="poNavFilter(this,'')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+        Semua <span class="nav-badge" id="poNbAll">0</span>
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'Terima PO')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+        Terima PO
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'Engineering')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+        Engineering
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'Produksi')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        Produksi
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'QC')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        QC
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'Pengiriman')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+        Pengiriman
+      </button>
+      <button class="nav-item" onclick="poNavFilter(this,'Selesai')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        Selesai
+      </button>
+    </div>
+    <div class="nav-group" style="margin-top:auto">
+      <div class="nav-label">Navigasi</div>
+      <button class="nav-item" onclick="switchModule('pp')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        Pre-Project
+      </button>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Kelola PO</div><div class="page-sub">Purchase Order Management</div></div>
+      </div>
+      <button class="btn btn-primary" onclick="openPOForm()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        PO Baru
+      </button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total PO</div><div class="stat-val" id="poSTotal">—</div></div>
+      <div class="stat-card"><div class="stat-label">On Progress</div><div class="stat-val blue" id="poSProgress">—</div></div>
+      <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-val" style="color:var(--red)" id="poSOverdue">—</div></div>
+      <div class="stat-card"><div class="stat-label">Selesai</div><div class="stat-val green" id="poSDone">—</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="poSearch" placeholder="Cari No. PO, customer, project..." oninput="renderPOTable()">
+      </div>
+      <select class="filter-sel" id="poFStatus" onchange="renderPOTable()">
+        <option value="">Semua Status</option>
+        <option>Terima PO</option><option>Engineering</option><option>Produksi</option>
+        <option>QC</option><option>Pengiriman</option><option>Instalasi</option>
+        <option>Commissioning</option><option>Selesai</option>
+      </select>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <colgroup>
+            <col style="width:20%"><col style="width:10%"><col style="width:25%">
+            <col style="width:23%"><col style="width:10%"><col style="width:12%">
+          </colgroup>
           <thead><tr>
-            <th>No.</th><th>Req.</th><th>Cust.</th><th>Proj.</th>
+            <th>No. PO</th><th>Tgl.</th><th>Customer</th>
+            <th>Project</th><th>Target</th><th>Status</th>
           </tr></thead>
-          <tbody id="tableBody"><tr class="loading-row"><td colspan="4"><span class="spinner"></span>Memuat data...</td></tr></tbody>
+          <tbody id="poTableBody"><tr class="loading-row"><td colspan="6"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -296,7 +346,7 @@ tr.group-header:first-child td{border-top:none !important}
   <header class="sales-header">
     <div class="hlogo">
       <div class="hlogo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
-      <div><div class="hlogo-text">Panel System</div><div class="hlogo-sub">Request Drawing & BOM</div></div>
+      <div><div class="hlogo-text">Panel System</div><div class="hlogo-sub">Request Drawing &amp; BOM</div></div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="salesUserBadge" style="font-size:12px;color:var(--text2)"></span>
@@ -304,20 +354,17 @@ tr.group-header:first-child td{border-top:none !important}
     </div>
   </header>
   <div class="sales-body">
-    <!-- Name Gate -->
     <div class="name-gate" id="nameGate">
       <h2>Selamat datang</h2>
       <p>Masukkan nama Anda untuk melanjutkan</p>
       <input type="text" id="salesNameInput" placeholder="Nama Anda..." onkeydown="if(event.key==='Enter')confirmName()">
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="confirmName()">Lanjutkan</button>
     </div>
-    <!-- Sales App -->
     <div id="salesApp" style="display:none">
       <div class="tab-bar">
         <button class="tab-btn active" id="tabNewBtn" onclick="switchTab('new')">+ Request Baru</button>
         <button class="tab-btn" id="tabMyBtn" onclick="switchTab('my')">Request Saya</button>
       </div>
-      <!-- Tab New -->
       <div id="tabNew">
         <div class="sales-card">
           <div style="font-size:15px;font-weight:700;margin-bottom:1rem">Form Request Drawing / BOM</div>
@@ -330,7 +377,7 @@ tr.group-header:first-child td{border-top:none !important}
             <label>Jenis Output <span class="req">*</span></label>
             <select id="sOutput" onchange="toggleSalesOther()">
               <option value="">-- Pilih --</option>
-              <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option><option>Lainnya</option>
+              <option>Drawing</option><option>BOM</option><option>Drawing &amp; BOM</option><option>Lainnya</option>
             </select>
           </div>
           <div class="form-row" id="sOtherRow" style="display:none;margin-bottom:1rem"><label>Keterangan</label><input type="text" id="sOutputOther" placeholder="Jelaskan jenis output"></div>
@@ -347,7 +394,6 @@ tr.group-header:first-child td{border-top:none !important}
           <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitSalesRequest()" id="btnSubmit">Kirim Request</button>
         </div>
       </div>
-      <!-- Tab My -->
       <div id="tabMy" style="display:none">
         <div id="myReqList"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
       </div>
@@ -355,11 +401,10 @@ tr.group-header:first-child td{border-top:none !important}
   </div>
 </div>
 
-<!-- ══ MODALS ══ -->
-<!-- Admin Form -->
+<!-- ══ PP MODALS ══ -->
 <div class="overlay" id="formModal" style="display:none">
   <div class="modal">
-    <div class="modal-header"><h2 id="formTitle">Request Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('formModal')">✕</button></div>
+    <div class="modal-header"><h2 id="formTitle">Request Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('formModal')">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="fDate"></div>
@@ -371,7 +416,7 @@ tr.group-header:first-child td{border-top:none !important}
         <label>Jenis Output <span class="req">*</span></label>
         <select id="fOutput" onchange="toggleOther()">
           <option value="">-- Pilih --</option>
-          <option>Drawing</option><option>BOM</option><option>Drawing & BOM</option><option>Lainnya</option>
+          <option>Drawing</option><option>BOM</option><option>Drawing &amp; BOM</option><option>Lainnya</option>
         </select>
       </div>
       <div class="form-row" id="fOtherRow" style="display:none"><label>Keterangan output</label><input type="text" id="fOutputOther"></div>
@@ -403,163 +448,237 @@ tr.group-header:first-child td{border-top:none !important}
   </div>
 </div>
 
-<!-- Admin Detail -->
 <div class="overlay" id="detailModal" style="display:none">
   <div class="modal" id="detailContent"></div>
 </div>
 
-<!-- Sales Detail/Upload -->
 <div class="overlay" id="salesModal" style="display:none">
   <div class="modal" style="max-width:520px">
-    <div class="modal-header"><h2 id="salesModalTitle">Detail</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('salesModal')">✕</button></div>
+    <div class="modal-header"><h2 id="salesModalTitle">Detail</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('salesModal')">&#x2715;</button></div>
     <div class="modal-body" id="salesModalBody"></div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('salesModal')">Tutup</button></div>
   </div>
 </div>
 
-<!-- WA Modal -->
 <div class="overlay" id="waModal" style="display:none">
   <div class="modal" style="max-width:420px">
     <div class="modal-body" id="waModalBody"></div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ══ PO MODALS ══ -->
+<div class="overlay" id="poFormModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header"><h2 id="poFormTitle">PO Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('poFormModal')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" placeholder="No. Purchase Order"></div>
+        <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO"></div>
+        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" placeholder="Nama customer"></div>
+        <div class="form-row"><label>Project</label><input type="text" id="pfProject" placeholder="Nama project / lokasi"></div>
+        <div class="form-row"><label>Tgl. Kirim Target</label><input type="date" id="pfTglKirim"></div>
+        <div class="form-row"><label>No. Project</label><input type="text" id="pfNoProject" placeholder="No. urut project"></div>
+      </div>
+      <div class="form-row"><label>Nilai PO (Rp)</label><input type="text" id="pfNilai" placeholder="Contoh: 150000000"></div>
+      <div class="form-row"><label>Linked Pre-Project (opsional)</label>
+        <select id="pfLinked"><option value="">— Tidak ada —</option></select>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:13px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT"> FAT</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi"> Instalasi</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning"> Commissioning</label>
+      </div>
+      <div class="form-row"><label>Catatan</label><textarea id="pfCatatan" placeholder="Catatan tambahan..."></textarea></div>
+      <hr style="border:none;border-top:1px solid var(--border)">
+      <div class="form-row">
+        <label>File PO &amp; Dokumen Support</label>
+        <div class="upload-zone" onclick="document.getElementById('pfDocs').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload File PO, File Support, dll
+          <input type="file" id="pfDocs" multiple style="display:none" onchange="handlePOFormFiles(this)">
+        </div>
+        <div class="file-list" id="pfDocList"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('poFormModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSavePO" onclick="savePO()">Simpan</button>
+    </div>
+  </div>
+</div>
 
+<div class="overlay" id="poDetailModal" style="display:none">
+  <div class="modal" style="max-width:760px" id="poDetailContent"></div>
+</div>
+
+<div class="overlay" id="pkFormModal" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h2 id="pkFormTitle">Pengajuan PK</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('pkFormModal')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>No. PK</label><input type="text" id="pkNoPK" placeholder="No. Permohonan Keuangan"></div>
+        <div class="form-row"><label>Tgl. Pengajuan <span class="req">*</span></label><input type="date" id="pkTglPengajuan"></div>
+      </div>
+      <div class="form-row"><label>Keperluan <span class="req">*</span></label><input type="text" id="pkKeperluan" placeholder="Keperluan pembelian material..."></div>
+      <div class="form-row"><label>Nilai Pengajuan (Rp) <span class="req">*</span></label><input type="text" id="pkNilai" placeholder="Contoh: 50000000"></div>
+      <div class="form-row"><label>Catatan</label><textarea id="pkCatatan" placeholder="Catatan tambahan..."></textarea></div>
+      <hr style="border:none;border-top:1px solid var(--border)">
+      <div class="form-row">
+        <label>Dokumen PK</label>
+        <div class="upload-zone" onclick="document.getElementById('pkDocs').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Upload dokumen pengajuan
+          <input type="file" id="pkDocs" multiple style="display:none" onchange="handlePKFormFiles(this)">
+        </div>
+        <div class="file-list" id="pkDocList"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('pkFormModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSavePK" onclick="savePK()">Simpan PK</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="itemFormModal" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header"><h2 id="itemFormTitle">Tambah Item</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('itemFormModal')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Kategori</label><select id="itCategory">
+          <option>Rectifier</option><option>Inverter</option><option>UPS</option>
+          <option>Battery</option><option>Baterai</option><option>Panel ACDB</option>
+          <option>Panel DCDB</option><option>PANEL BOX</option><option>Rak Baterai</option><option>Lainnya</option>
+        </select></div>
+        <div class="form-row"><label>Tipe / Model</label><input type="text" id="itType" placeholder="Misal: S-PRO3"></div>
+      </div>
+      <div class="form-row"><label>Spesifikasi</label><input type="text" id="itSpec" placeholder="Misal: 110VDC - 60A"></div>
+      <div class="form-row"><label>Serial Number SAE</label><input type="text" id="itSerial" placeholder="Kosongkan jika belum ada"></div>
+      <div class="form-row"><label>Catatan Item</label><input type="text" id="itCatatan" placeholder="Catatan"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('itemFormModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSaveItem" onclick="saveItem()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
 const sb=supabase.createClient(SB_URL,SB_KEY);
-
 const isSales=new URLSearchParams(location.search).get('mode')==='sales';
-let allReqs=[],editId=null,salesName='',salesFiles=[];
-let adminTmp={customer:[],result:[]};
 
+// STATE
+let allReqs=[],allPOs=[];
+let editId=null,editPOId=null,editPKId=null,editItemId=null;
+let salesName='',salesFiles=[];
+let adminTmp={customer:[],result:[]};
+let poTmpFiles=[],pkTmpFiles=[];
+let activePeriod='all',pkCurrentPOId='',itemCurrentPOId='';
+
+// ── INIT ──
+history.replaceState({page:'home'},'','');
 window.addEventListener('DOMContentLoaded',()=>{
   if(isSales){
     document.getElementById('salesShell').style.display='flex';
     document.title='Request Drawing & BOM — Panel System';
     const saved=sessionStorage.getItem('salesName');
     if(saved){salesName=saved;showSalesApp();}
-  }else{
-    document.getElementById('adminShell').style.display='flex';
-    loadRequests();
+  } else {
+    switchModule('pp');
   }
 });
 
-// ── ADMIN ──
+window.addEventListener('popstate',()=>{
+  const modals=['detailModal','formModal','salesModal','waModal','poDetailModal','poFormModal','pkFormModal','itemFormModal'];
+  const anyOpen=modals.some(id=>{const el=document.getElementById(id);return el&&el.style.display!=='none';});
+  if(anyOpen){
+    modals.forEach(id=>{const el=document.getElementById(id);if(el&&el.style.display!=='none')el.style.display='none';});
+    history.pushState({page:'home'},'','');
+    return;
+  }
+  if(isSales&&document.getElementById('tabMy')&&document.getElementById('tabMy').style.display!=='none'){
+    switchTab('new');history.pushState({page:'home'},'','');return;
+  }
+  history.pushState({page:'home'},'','');
+});
+
+// ── MODULE SWITCH ──
+function switchModule(mod){
+  document.getElementById('ppShell').style.display=mod==='pp'?'flex':'none';
+  document.getElementById('poShell').style.display=mod==='po'?'flex':'none';
+  if(mod==='pp'&&allReqs.length===0) loadRequests();
+  if(mod==='po') loadPOs();
+  history.pushState({page:mod},'','');
+  closeSidebar();
+}
+
+// ════ PRE-PROJECT ════
 async function loadRequests(){
   const{data,error}=await sb.from('requests').select('*,docs_customer(*),docs_result(*)').order('created_at',{ascending:false});
   if(error){toast('Gagal memuat: '+error.message);return;}
-  allReqs=data||[];renderStats();renderTable();
+  allReqs=data||[];
+  renderStats();renderTable();
+  document.getElementById('nbPO').textContent=allPOs.filter(p=>p.status!=='Selesai').length;
 }
 
-let activePeriod='all';
-
-function setPeriod(p, btn){
-  activePeriod=p;
+let activePrd='all';
+function setPeriod(p,btn){
+  activePrd=p;
   document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('rangeInputs').style.display = p==='range' ? 'flex' : 'none';
+  document.getElementById('rangeInputs').style.display=p==='range'?'flex':'none';
   renderStats();
 }
-
 function getPeriodReqs(){
-  const now=new Date();
-  const toDateStr=d=>d.toISOString().split('T')[0];
+  const now=new Date(),toStr=d=>d.toISOString().split('T')[0];
   let from='',to='';
-  if(activePeriod==='today'){
-    from=to=toDateStr(now);
-  } else if(activePeriod==='week'){
-    const day=now.getDay()||7;
-    const mon=new Date(now); mon.setDate(now.getDate()-day+1);
-    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
-    from=toDateStr(mon); to=toDateStr(sun);
-  } else if(activePeriod==='month'){
-    from=toDateStr(new Date(now.getFullYear(),now.getMonth(),1));
-    to=toDateStr(new Date(now.getFullYear(),now.getMonth()+1,0));
-  } else if(activePeriod==='year'){
-    from=toDateStr(new Date(now.getFullYear(),0,1));
-    to=toDateStr(new Date(now.getFullYear(),11,31));
-  } else if(activePeriod==='range'){
-    from=document.getElementById('rangeFrom').value;
-    to=document.getElementById('rangeTo').value;
-  } else {
-    return allReqs;
-  }
-  return allReqs.filter(r=>r.date>=from && r.date<=to);
+  if(activePrd==='today'){from=to=toStr(now);}
+  else if(activePrd==='week'){const d=now.getDay()||7,m=new Date(now);m.setDate(now.getDate()-d+1);const s=new Date(m);s.setDate(m.getDate()+6);from=toStr(m);to=toStr(s);}
+  else if(activePrd==='month'){from=toStr(new Date(now.getFullYear(),now.getMonth(),1));to=toStr(new Date(now.getFullYear(),now.getMonth()+1,0));}
+  else if(activePrd==='year'){from=toStr(new Date(now.getFullYear(),0,1));to=toStr(new Date(now.getFullYear(),11,31));}
+  else if(activePrd==='range'){from=gv('rangeFrom');to=gv('rangeTo');}
+  else return allReqs;
+  return allReqs.filter(r=>r.date>=from&&r.date<=to);
 }
-
 function renderStats(){
   const reqs=getPeriodReqs();
-  const total=reqs.length,open=reqs.filter(r=>r.status==='Open').length,
-        inp=reqs.filter(r=>r.status==='In Progress').length,done=reqs.filter(r=>r.status==='Done').length;
-  document.getElementById('sTotal').textContent=total;
-  document.getElementById('sOpen').textContent=open;
-  document.getElementById('sInprog').textContent=inp;
-  document.getElementById('sDone').textContent=done;
-  document.getElementById('nbTotal').textContent=allReqs.length;
-  document.getElementById('nbOpen').textContent=allReqs.filter(r=>r.status==='Open').length;
-  document.getElementById('nbInprog').textContent=allReqs.filter(r=>r.status==='In Progress').length;
-  document.getElementById('nbDone').textContent=allReqs.filter(r=>r.status==='Done').length;
+  const tot=reqs.length,o=reqs.filter(r=>r.status==='Open').length,ip=reqs.filter(r=>r.status==='In Progress').length,d=reqs.filter(r=>r.status==='Done').length;
+  sv2('sTotal',tot);sv2('sOpen',o);sv2('sInprog',ip);sv2('sDone',d);
+  sv2('nbTotal',allReqs.length);
+  sv2('nbOpen',allReqs.filter(r=>r.status==='Open').length);
+  sv2('nbInprog',allReqs.filter(r=>r.status==='In Progress').length);
+  sv2('nbDone',allReqs.filter(r=>r.status==='Done').length);
 }
 function navFilter(el,status){
   document.getElementById('fStatus').value=status;renderTable();
-  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('#sidebar .nav-item').forEach(x=>x.classList.remove('active'));
   el.classList.add('active');closeSidebar();
 }
-
 function renderTable(){
-  const q=document.getElementById('search').value.toLowerCase();
-  const st=document.getElementById('fStatus').value;
-  const filtered=allReqs.filter(r=>{
-    const txt=[r.id,r.requester,r.customer,r.project||''].join(' ').toLowerCase();
-    return txt.includes(q)&&(!st||r.status===st);
-  });
-  const tbody=document.getElementById('tableBody');
-  if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="4">Belum ada data</td></tr>';return;}
-
+  const q=gv('search').toLowerCase(),st=gv('fStatus');
   const statusOrder={'Open':0,'In Progress':1,'Done':2};
+  const filtered=allReqs.filter(r=>[r.id,r.requester,r.customer,r.project||''].join(' ').toLowerCase().includes(q)&&(!st||r.status===st));
   const sorted=filtered.slice().sort((a,b)=>{
-    const dd=b.date.localeCompare(a.date);
-    if(dd!==0)return dd;
-    const sd=(statusOrder[a.status]??9)-(statusOrder[b.status]??9);
-    if(sd!==0)return sd;
+    const dd=b.date.localeCompare(a.date);if(dd)return dd;
+    const sd=(statusOrder[a.status]??9)-(statusOrder[b.status]??9);if(sd)return sd;
     return a.requester.localeCompare(b.requester);
   });
-
-  const grps=[];
-  let lastKey='';
-  sorted.forEach(r=>{
-    const key=r.date+'|'+r.status;
-    if(key!==lastKey){grps.push({date:r.date,status:r.status,items:[]});lastKey=key;}
-    grps[grps.length-1].items.push(r);
-  });
-
+  const tbody=document.getElementById('tableBody');
+  if(!sorted.length){tbody.innerHTML='<tr class="empty-row"><td colspan="4">Belum ada data</td></tr>';return;}
+  const grps=[];let lastKey='';
+  sorted.forEach(r=>{const k=r.date+'|'+r.status;if(k!==lastKey){grps.push({date:r.date,status:r.status,items:[]});lastKey=k;}grps[grps.length-1].items.push(r);});
   let rows='';
   grps.forEach(g=>{
-    rows+=`<tr class="group-header"><td colspan="4" style="background:var(--surface2);padding:6px 10px;border-bottom:1px solid var(--border)">
-      <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.04em">${fmtDateLong(g.date)}</span>
-      <span style="margin-left:8px">${badge(g.status)}</span>
-      <span style="font-size:11px;color:var(--text3);margin-left:6px">${g.items.length} request</span>
-    </td></tr>`;
-    g.items.forEach(r=>{
-      rows+=`<tr style="cursor:pointer" onclick="openDetail('${r.id}')">
-        <td class="mono">${r.id}</td>
-        <td>${r.requester}</td>
-        <td style="font-weight:600">${r.customer}</td>
-        <td style="color:var(--text2)">${r.project||'—'}</td>
-      </tr>`;
-    });
+    rows+=`<tr class="group-header"><td colspan="4"><span style="font-size:11px;font-weight:700;color:var(--text3)">${fmtDateLong(g.date)}</span><span style="margin-left:8px">${badge(g.status)}</span><span style="font-size:11px;color:var(--text3);margin-left:6px">${g.items.length} req</span></td></tr>`;
+    g.items.forEach(r=>{rows+=`<tr style="cursor:pointer" onclick="openDetail('${r.id}')"><td class="mono">${r.id}</td><td>${r.requester}</td><td style="font-weight:600">${r.customer}</td><td style="color:var(--text2)">${r.project||'—'}</td></tr>`;});
   });
   tbody.innerHTML=rows;
 }
-function fileBadge(arr,c){
-  if(!arr||!arr.length)return'<span style="color:var(--text3);font-size:11px">—</span>';
-  return`<span style="color:var(--${c});font-size:12px;font-weight:700">${arr.length} file</span>`;
-}
 
-// Form
+// PP Form
 function openForm(id){
   editId=id||null;adminTmp={customer:[],result:[]};
   document.getElementById('formTitle').textContent=id?'Edit Request':'Request Baru';
@@ -569,41 +688,28 @@ function openForm(id){
     sv('fProject',r.project||'');sv('fDesc',r.description||'');
     const known=['Drawing','BOM','Drawing & BOM'];
     document.getElementById('fOutput').value=known.includes(r.output)?r.output:'Lainnya';
-    document.getElementById('fOutputOther').value=known.includes(r.output)?'':r.output;
+    sv('fOutputOther',known.includes(r.output)?'':r.output);
     adminTmp.customer=(r.docs_customer||[]).map(f=>({...f,existing:true}));
     adminTmp.result=(r.docs_result||[]).map(f=>({...f,existing:true}));
   }else{
     ['fRequester','fCustomer','fProject','fOutputOther','fDesc'].forEach(x=>sv(x,''));
-    document.getElementById('fOutput').value='';
-    sv('fDate',today());
+    document.getElementById('fOutput').value='';sv('fDate',today());
   }
   toggleOther();renderAdminList('customer');renderAdminList('result');
   document.getElementById('formModal').style.display='flex';
+  history.pushState({modal:'form'},'','');
 }
-
 function toggleOther(){document.getElementById('fOtherRow').style.display=gv('fOutput')==='Lainnya'?'block':'none';}
-
-function handleAdminFiles(type,input){
-  Array.from(input.files).forEach(f=>adminTmp[type].push({file:f,name:f.name,size:f.size,existing:false}));
-  renderAdminList(type);input.value='';
-}
-
+function handleAdminFiles(type,input){Array.from(input.files).forEach(f=>adminTmp[type].push({file:f,name:f.name,size:f.size,existing:false}));renderAdminList(type);input.value='';}
 function renderAdminList(type){
   const el=document.getElementById('fList'+(type==='customer'?'Customer':'Result'));
-  el.innerHTML=adminTmp[type].map((f,i)=>`
-    <div class="file-item">
-      ${f.existing?`<a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`
-        :`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}
-      <button class="btn btn-sm btn-danger" onclick="removeAdminFile('${type}',${i})">✕</button>
-    </div>`).join('');
+  el.innerHTML=adminTmp[type].map((f,i)=>`<div class="file-item">${f.existing?`<a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`:`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}<button class="btn btn-sm btn-danger" onclick="removeAdminFile('${type}',${i})">&#x2715;</button></div>`).join('');
 }
-
 async function removeAdminFile(type,i){
   const f=adminTmp[type][i];
   if(f.existing){await sb.storage.from('request-docs').remove([f.file_path]);await sb.from('docs_'+type).delete().eq('id',f.id);}
   adminTmp[type].splice(i,1);renderAdminList(type);
 }
-
 async function saveRequest(){
   const date=gv('fDate'),requester=gv('fRequester').trim(),customer=gv('fCustomer').trim(),outputRaw=gv('fOutput');
   if(!date||!requester||!customer||!outputRaw){toast('Lengkapi field wajib (*)');return;}
@@ -613,162 +719,410 @@ async function saveRequest(){
     let rid=editId;
     if(editId){await sb.from('requests').update({date,requester,customer,project:gv('fProject').trim(),output,description:gv('fDesc').trim()}).eq('id',editId);}
     else{rid=genId();await sb.from('requests').insert({id:rid,date,requester,customer,project:gv('fProject').trim(),output,description:gv('fDesc').trim(),status:'Open'});}
-    await uploadAdminFiles(rid,'customer');await uploadAdminFiles(rid,'result');
+    for(const f of adminTmp.customer.filter(x=>!x.existing)){const p=`${rid}/customer/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('request-docs').upload(p,f.file);if(!error)await sb.from('docs_customer').insert({request_id:rid,file_name:f.file.name,file_path:p,file_size:f.file.size});}
+    for(const f of adminTmp.result.filter(x=>!x.existing)){const p=`${rid}/result/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('request-docs').upload(p,f.file);if(!error)await sb.from('docs_result').insert({request_id:rid,file_name:f.file.name,file_path:p,file_size:f.file.size});}
     toast(editId?'Request diperbarui':'Request disimpan');closeModal('formModal');await loadRequests();
   }catch(e){toast('Error: '+e.message);}
   btn.disabled=false;btn.textContent='Simpan';
 }
 
-async function uploadAdminFiles(rid,type){
-  for(const f of adminTmp[type].filter(x=>!x.existing)){
-    const path=`${rid}/${type}/${Date.now()}_${f.file.name}`;
-    const{error}=await sb.storage.from('request-docs').upload(path,f.file);
-    if(!error)await sb.from('docs_'+type).insert({request_id:rid,file_name:f.file.name,file_path:path,file_size:f.file.size});
-  }
-}
-
-// Detail
+// PP Detail
 async function openDetail(id){
-  history.pushState({modal:'detail',id},'','#detail-'+id);
   const r=allReqs.find(x=>x.id===id);
   let stBtn='';
-  if(r.status==='Open')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','In Progress')">▶ In Progress</button>`;
-  if(r.status==='In Progress')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Done')">✓ Done</button>`;
-  if(r.status==='Done')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Open')">↺ Reopen</button>`;
-
+  if(r.status==='Open')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','In Progress')">&#x25B6; In Progress</button>`;
+  if(r.status==='In Progress')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Done')">&#x2713; Done</button>`;
+  if(r.status==='Done')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Open')">&#x21BA; Reopen</button>`;
+  const custFiles=renderFileItems(r.docs_customer||[]);
+  const resFiles=renderFileItems(r.docs_result||[]);
   document.getElementById('detailContent').innerHTML=`
-    <div class="modal-header">
-      <div><div class="mono" style="font-size:11px;margin-bottom:2px">${r.id}</div><h2>${r.customer}${r.project?' — '+r.project:''}</h2></div>
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('detailModal')">✕</button>
-    </div>
+    <div class="modal-header"><div><div class="mono" style="font-size:11px;margin-bottom:2px">${r.id}</div><h2>${r.customer}${r.project?' — '+r.project:''}</h2></div><button class="btn btn-ghost btn-sm" onclick="closeModal('detailModal')">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="detail-section">
-        <div class="sect-title">Informasi</div>
-        <div class="kv">
-          <span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span>
-          <span class="k">Requester</span><span class="v">${r.requester}</span>
-          <span class="k">Customer</span><span class="v">${r.customer}</span>
-          <span class="k">Project</span><span class="v">${r.project||'—'}</span>
-          <span class="k">Output</span><span class="v">${r.output}</span>
-          <span class="k">Status</span><span class="v">${badge(r.status)}</span>
-        </div>
+      <div class="detail-section"><div class="sect-title">Informasi</div>
+        <div class="kv"><span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span><span class="k">Requester</span><span class="v">${r.requester}</span><span class="k">Customer</span><span class="v">${r.customer}</span><span class="k">Project</span><span class="v">${r.project||'—'}</span><span class="k">Output</span><span class="v">${r.output}</span><span class="k">Status</span><span class="v">${badge(r.status)}</span></div>
         ${r.description?`<div class="desc-box">${r.description}</div>`:''}
       </div>
-      <div class="detail-section">
-        <div class="sect-title">Ubah Status</div>
-        <div class="status-actions">${stBtn}</div>
-      </div>
-      <div class="detail-section">
-        <div class="sect-title">Dokumen Customer (${(r.docs_customer||[]).length} file)</div>
-        <div class="file-list" id="adminCustList">${renderFileItems(r.docs_customer||[])}</div>
-        <button class="upload-more-btn" onclick="document.getElementById('inlineCust_${id}').click()">
-          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          Tambah dokumen customer
-        </button>
+      <div class="detail-section"><div class="sect-title">Status</div><div style="display:flex;gap:6px">${stBtn}</div></div>
+      <div class="detail-section"><div class="sect-title">Dok. Customer (${(r.docs_customer||[]).length})</div>
+        <div class="file-list">${custFiles||noFile()}</div>
+        <button class="upload-more-btn" onclick="document.getElementById('inlineCust_${id}').click()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tambah</button>
         <input type="file" id="inlineCust_${id}" multiple style="display:none" onchange="inlineUpload('${id}','customer',this)">
       </div>
-      <div class="detail-section">
-        <div class="sect-title">Dokumen Hasil (${(r.docs_result||[]).length} file)</div>
-        <div class="file-list" id="adminResultList">${renderFileItems(r.docs_result||[])}</div>
-        <button class="upload-more-btn" onclick="document.getElementById('inlineResult_${id}').click()">
-          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          Tambah dokumen hasil
-        </button>
-        <input type="file" id="inlineResult_${id}" multiple style="display:none" onchange="inlineUpload('${id}','result',this)">
+      <div class="detail-section"><div class="sect-title">Dok. Hasil (${(r.docs_result||[]).length})</div>
+        <div class="file-list">${resFiles||noFile()}</div>
+        <button class="upload-more-btn" onclick="document.getElementById('inlineRes_${id}').click()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tambah</button>
+        <input type="file" id="inlineRes_${id}" multiple style="display:none" onchange="inlineUpload('${id}','result',this)">
       </div>
-      <div class="detail-section">
-        <div class="sect-title">ID Request</div>
-        <div class="link-box"><code>${r.id}</code><button class="btn btn-sm" onclick="copyText('${r.id}','ID disalin!')">Salin</button></div>
-      </div>
+      <div class="detail-section"><div class="sect-title">ID Request</div><div class="link-box"><code>${r.id}</code><button class="btn btn-sm" onclick="copyText('${r.id}','ID disalin!')">Salin</button></div></div>
     </div>
-    <div class="modal-footer" style="justify-content:space-between">
-      <button class="btn btn-sm btn-danger" onclick="deleteReq('${id}')">Hapus</button>
-      <button class="btn btn-sm" onclick="closeModal('detailModal');openForm('${id}')">Edit</button>
-    </div>`;
+    <div class="modal-footer" style="justify-content:space-between"><button class="btn btn-sm btn-danger" onclick="deleteReq('${id}')">Hapus</button><button class="btn btn-sm" onclick="closeModal('detailModal');openForm('${id}')">Edit</button></div>`;
   document.getElementById('detailModal').style.display='flex';
+  history.pushState({modal:'detail',id},'','#req-'+id);
 }
-
 async function inlineUpload(id,type,input){
-  const files=Array.from(input.files);
-  for(const f of files){
-    const path=`${id}/${type}/${Date.now()}_${f.name}`;
-    const{error}=await sb.storage.from('request-docs').upload(path,f);
-    if(!error)await sb.from('docs_'+type).insert({request_id:id,file_name:f.name,file_path:path,file_size:f.size});
-    else toast('Gagal: '+f.name);
-  }
-  input.value='';toast(files.length+' file diupload');
-  await loadRequests();openDetail(id);
+  for(const f of Array.from(input.files)){const p=`${id}/${type}/${Date.now()}_${f.name}`;const{error}=await sb.storage.from('request-docs').upload(p,f);if(!error)await sb.from('docs_'+type).insert({request_id:id,file_name:f.name,file_path:p,file_size:f.size});else toast('Gagal: '+f.name);}
+  input.value='';toast('Upload selesai');await loadRequests();openDetail(id);
 }
-
-function renderFileItems(arr){
-  if(!arr.length)return'<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
-  return arr.map(f=>`<div class="file-item"><a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
-}
-
-async function updateStatus(id,status){
-  await sb.from('requests').update({status}).eq('id',id);
-  toast('Status → '+status);await loadRequests();openDetail(id);
-}
-
+async function updateStatus(id,status){await sb.from('requests').update({status}).eq('id',id);toast('Status → '+status);await loadRequests();openDetail(id);}
 async function deleteReq(id){
   if(!confirm('Hapus request ini?'))return;
   const r=allReqs.find(x=>x.id===id);
   const all=[...(r.docs_customer||[]),...(r.docs_result||[])];
   if(all.length)await sb.storage.from('request-docs').remove(all.map(d=>d.file_path));
-  await sb.from('requests').delete().eq('id',id);
-  closeModal('detailModal');toast('Dihapus');await loadRequests();
+  await sb.from('requests').delete().eq('id',id);closeModal('detailModal');toast('Dihapus');await loadRequests();
+}
+function copySalesLink(){const url=location.origin+location.pathname+'?mode=sales';navigator.clipboard.writeText(url).then(()=>toast('Link sales disalin!')).catch(()=>toast(url));}
+
+// ════ PO MODULE ════
+async function loadPOs(){
+  const{data,error}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*)').order('created_at',{ascending:false});
+  if(error){toast('Gagal memuat PO: '+error.message);return;}
+  allPOs=data||[];renderPOStats();renderPOTable();
+  document.getElementById('nbPO').textContent=allPOs.filter(p=>p.status!=='Selesai').length;
+}
+function renderPOStats(){
+  const today2=new Date().toISOString().split('T')[0];
+  sv2('poSTotal',allPOs.length);
+  sv2('poSProgress',allPOs.filter(p=>p.status!=='Selesai').length);
+  sv2('poSOverdue',allPOs.filter(p=>p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2).length);
+  sv2('poSDone',allPOs.filter(p=>p.status==='Selesai').length);
+  sv2('poNbAll',allPOs.length);
+}
+function poNavFilter(el,status){
+  document.getElementById('poFStatus').value=status;renderPOTable();
+  document.querySelectorAll('#poSidebar .nav-item').forEach(x=>x.classList.remove('active'));el.classList.add('active');closeSidebar();
+}
+function renderPOTable(){
+  const q=gv('poSearch').toLowerCase(),st=gv('poFStatus'),today2=new Date().toISOString().split('T')[0];
+  const filtered=allPOs.filter(p=>[p.no_po,p.customer,p.project||'',p.no_project||''].join(' ').toLowerCase().includes(q)&&(!st||p.status===st));
+  const tbody=document.getElementById('poTableBody');
+  if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Belum ada PO</td></tr>';return;}
+  tbody.innerHTML=filtered.map(p=>{
+    const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
+    return`<tr style="cursor:pointer${ov?';background:#fef9f9':''}" onclick="openPODetail('${p.id}')">
+      <td class="mono" style="font-size:11px">${p.no_po}</td>
+      <td>${fmtDate(p.tgl_po)}</td>
+      <td style="font-weight:600">${p.customer}</td>
+      <td style="color:var(--text2)">${p.project||'—'}</td>
+      <td style="${ov?'color:var(--red);font-weight:600':''}">${fmtDate(p.tgl_kirim)||'—'}</td>
+      <td>${poBadge(p.status)}</td>
+    </tr>`;
+  }).join('');
 }
 
-function copySalesLink(){
-  const url=location.origin+location.pathname+'?mode=sales';
-  navigator.clipboard.writeText(url).then(()=>toast('Link sales disalin!')).catch(()=>toast(url));
+// PO Form
+async function openPOForm(id){
+  editPOId=id||null;poTmpFiles=[];
+  document.getElementById('poFormTitle').textContent=id?'Edit PO':'PO Baru';
+  const sel=document.getElementById('pfLinked');
+  sel.innerHTML='<option value="">— Tidak ada —</option>';
+  if(!allReqs.length)await loadRequests();
+  allReqs.forEach(r=>{sel.innerHTML+=`<option value="${r.id}">${r.id} — ${r.customer}</option>`;});
+  if(id){
+    const p=allPOs.find(x=>x.id===id);
+    sv('pfNoPO',p.no_po);sv('pfTglPO',p.tgl_po);sv('pfCustomer',p.customer);
+    sv('pfProject',p.project||'');sv('pfTglKirim',p.tgl_kirim||'');
+    sv('pfNoProject',p.no_project||'');sv('pfNilai',p.nilai_po||'');sv('pfCatatan',p.catatan||'');
+    document.getElementById('pfLinked').value=p.linked_request_id||'';
+    document.getElementById('pfFAT').checked=!!p.fat;
+    document.getElementById('pfInstalasi').checked=!!p.instalasi;
+    document.getElementById('pfCommissioning').checked=!!p.commissioning;
+    poTmpFiles=(p.po_docs||[]).map(f=>({...f,existing:true}));
+  }else{
+    ['pfNoPO','pfCustomer','pfProject','pfNoProject','pfNilai','pfCatatan'].forEach(x=>sv(x,''));
+    sv('pfTglPO',today());sv('pfTglKirim','');
+    ['pfFAT','pfInstalasi','pfCommissioning'].forEach(x=>{document.getElementById(x).checked=false;});
+  }
+  renderPOFormFiles();
+  document.getElementById('poFormModal').style.display='flex';
+  history.pushState({modal:'poForm'},'','');
+}
+function handlePOFormFiles(input){Array.from(input.files).forEach(f=>poTmpFiles.push({file:f,name:f.name,size:f.size,existing:false}));renderPOFormFiles();input.value='';}
+function renderPOFormFiles(){
+  document.getElementById('pfDocList').innerHTML=poTmpFiles.map((f,i)=>`<div class="file-item">${f.existing?`<a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`:`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}<button class="btn btn-sm btn-danger" onclick="poTmpFiles.splice(${i},1);renderPOFormFiles()">&#x2715;</button></div>`).join('');
+}
+async function savePO(){
+  const no_po=gv('pfNoPO').trim(),tgl_po=gv('pfTglPO'),customer=gv('pfCustomer').trim();
+  if(!no_po||!tgl_po||!customer){toast('Lengkapi field wajib (*)');return;}
+  const btn=document.getElementById('btnSavePO');btn.disabled=true;btn.textContent='Menyimpan...';
+  try{
+    const payload={no_po,tgl_po,customer,project:gv('pfProject').trim()||null,tgl_kirim:gv('pfTglKirim')||null,
+      no_project:gv('pfNoProject').trim()||null,nilai_po:gv('pfNilai')?parseFloat(gv('pfNilai').replace(/[^0-9]/g,'')):null,
+      catatan:gv('pfCatatan').trim()||null,linked_request_id:gv('pfLinked')||null,
+      fat:document.getElementById('pfFAT').checked,instalasi:document.getElementById('pfInstalasi').checked,
+      commissioning:document.getElementById('pfCommissioning').checked};
+    let pid=editPOId;
+    if(editPOId){await sb.from('purchase_orders').update(payload).eq('id',editPOId);}
+    else{pid='PO-'+Date.now().toString(36).slice(-6).toUpperCase();await sb.from('purchase_orders').insert({...payload,id:pid,status:'Terima PO'});await logPO(pid,'PO Masuk','PO baru diterima');}
+    for(const f of poTmpFiles.filter(x=>!x.existing)){const path=`${pid}/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f.file);if(!error)await sb.from('po_docs').insert({po_id:pid,file_name:f.file.name,file_path:path,file_size:f.file.size,doc_type:'File PO'});}
+    toast(editPOId?'PO diperbarui':'PO disimpan');closeModal('poFormModal');await loadPOs();
+    if(editPOId)openPODetail(editPOId);
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Simpan';
 }
 
-// ── SALES ──
+// PO Detail
+async function openPODetail(id){
+  const{data:p}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_log(*)').eq('id',id).single();
+  if(!p){toast('Gagal memuat detail');return;}
+  const today2=new Date().toISOString().split('T')[0];
+  const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
+  const BASE_FLOW=['Terima PO','Engineering','Produksi','QC','Pengiriman'];
+  const EXTRA=[...(p.instalasi?['Instalasi']:[]),...(p.commissioning?['Commissioning']:[]),'Selesai'];
+  const FLOW=[...BASE_FLOW,...EXTRA];
+  const curIdx=FLOW.indexOf(p.status);
+  const nextSt=FLOW[curIdx+1];
+  const prevSt=curIdx>0?FLOW[curIdx-1]:null;
+
+  // Stepper HTML
+  let stepper='';
+  FLOW.forEach((s,i)=>{
+    const done=i<curIdx,cur=i===curIdx;
+    stepper+=`<div class="step-row"><div class="step-dot" style="background:${done?'var(--green-bg)':cur?'var(--blue-bg)':'var(--surface2)'};color:${done?'var(--green)':cur?'var(--blue)':'var(--text3)'};${cur?'border:2px solid var(--blue)':''}">${done?'&#x2713;':i+1}</div><span style="font-size:12px;font-weight:${cur?700:400};color:${cur?'var(--blue)':'var(--text2)'}">${s}</span></div>`;
+    if(i<FLOW.length-1)stepper+=`<div class="step-line"></div>`;
+  });
+
+  // PK list
+  const pkList=(p.po_pk||[]).sort((a,b)=>a.tgl_pengajuan.localeCompare(b.tgl_pengajuan)).map(k=>`
+    <div class="pk-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div><div style="font-size:13px;font-weight:600">${k.no_pk?k.no_pk+' — ':''}${k.keperluan}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDate(k.tgl_pengajuan)}</div></div>
+        <div style="display:flex;align-items:center;gap:6px">${pkBadge(k.status)}
+          <button class="btn btn-sm" onclick="updatePKStatus('${k.id}','${p.id}')">Ubah</button></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
+        <span>Diajukan: <strong>${fmtRp(k.nilai_pengajuan)}</strong></span>
+        ${k.nilai_realisasi?`<span>Realisasi: <strong>${fmtRp(k.nilai_realisasi)}</strong></span>`:''}
+        ${k.tgl_realisasi?`<span>Tgl. Realisasi: ${fmtDate(k.tgl_realisasi)}</span>`:''}
+      </div>
+      ${k.catatan?`<div style="margin-top:5px;font-size:12px;color:var(--text3)">${k.catatan}</div>`:''}
+    </div>`).join('');
+
+  // Items
+  const itemList=(p.po_items||[]).sort((a,b)=>(a.no_urut||0)-(b.no_urut||0)).map((it,i)=>`
+    <div class="item-card">
+      <span style="font-size:11px;color:var(--text3);min-width:20px">${it.no_urut||i+1}</span>
+      <div style="flex:1;min-width:100px">
+        <div style="font-size:12px;font-weight:600">${it.item_category||''}${it.item_type?' — '+it.item_type:''}</div>
+        <div style="font-size:11px;color:var(--text3)">${it.spesifikasi||''}${it.serial_number?' | SN: '+it.serial_number:''}</div>
+      </div>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+        ${itemBadge(it.status_produksi)}
+        ${it.status_pengiriman==='Sudah Dikirim'?'<span class="badge b-done" style="font-size:10px">Dikirim</span>':''}
+        <button class="btn btn-sm" onclick="updateItemStatus('${it.id}','${p.id}')">Ubah</button>
+      </div>
+    </div>`).join('');
+
+  // Docs
+  const docList=(p.po_docs||[]).map(f=>`<div class="file-item"><a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
+
+  // Log
+  const logList=(p.po_log||[]).sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,10).map(l=>`
+    <div style="display:flex;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text3);flex-shrink:0;white-space:nowrap">${fmtDateTime(l.created_at)}</span>
+      <span><strong>${l.aksi}</strong>${l.detail?' — '+l.detail:''}</span>
+    </div>`).join('');
+
+  const fatInfo=[p.fat?'FAT':'',p.instalasi?'Instalasi':'',p.commissioning?'Commissioning':''].filter(Boolean).join(', ')||'—';
+
+  document.getElementById('poDetailContent').innerHTML=`
+    <div class="modal-header">
+      <div>
+        <div class="mono" style="font-size:11px;margin-bottom:2px">${p.no_po}${p.no_project?' &middot; No.'+p.no_project:''}</div>
+        <h2>${p.customer}${p.project?' — '+p.project:''}</h2>
+        ${ov?`<div style="font-size:11px;color:var(--red);margin-top:2px">&#9888; Overdue — target kirim ${fmtDate(p.tgl_kirim)}</div>`:''}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('poDetailModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <div class="sect-title">Informasi PO</div>
+        <div class="kv">
+          <span class="k">Tgl. PO</span><span class="v">${fmtDate(p.tgl_po)}</span>
+          <span class="k">Target Kirim</span><span class="v" style="${ov?'color:var(--red);font-weight:700':''}">${fmtDate(p.tgl_kirim)||'—'}</span>
+          <span class="k">Nilai PO</span><span class="v">${p.nilai_po?fmtRp(p.nilai_po):'—'}</span>
+          <span class="k">FAT/Ins./Com.</span><span class="v">${fatInfo}</span>
+          ${p.linked_request_id?`<span class="k">Pre-Project</span><span class="v" style="color:var(--blue)">${p.linked_request_id}</span>`:''}
+        </div>
+        ${p.catatan?`<div class="desc-box">${p.catatan}</div>`:''}
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Progress Status</div>
+        ${stepper}
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          ${nextSt?`<button class="btn btn-sm btn-primary" onclick="updatePOStatus('${p.id}','${nextSt}')">&#x2192; ${nextSt}</button>`:''}
+          ${prevSt&&p.status!=='Selesai'?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
+        </div>
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
+          <button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>
+        </div>
+        ${itemList||noFile()}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${(p.po_pk||[]).length})</div>
+          <button class="btn btn-sm" onclick="openPKForm('${p.id}')">+ Ajukan PK</button>
+        </div>
+        ${pkList||noFile()}
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Dokumen PO</div>
+        <div class="file-list">${docList||noFile()}</div>
+        <button class="upload-more-btn" onclick="document.getElementById('poInlineDoc_${p.id}').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tambah dokumen
+        </button>
+        <input type="file" id="poInlineDoc_${p.id}" multiple style="display:none" onchange="uploadPOInlineDoc('${p.id}',this)">
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Riwayat</div>
+        ${logList||noFile()}
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-sm btn-danger" onclick="deletePO('${p.id}')">Hapus PO</button>
+      <button class="btn btn-sm" onclick="closeModal('poDetailModal');openPOForm('${p.id}')">Edit</button>
+    </div>`;
+  document.getElementById('poDetailModal').style.display='flex';
+  history.pushState({modal:'poDetail',id},'','#po-'+id);
+}
+
+async function updatePOStatus(id,status){
+  await sb.from('purchase_orders').update({status}).eq('id',id);
+  await logPO(id,'Status Berubah','→ '+status);
+  toast('Status → '+status);await loadPOs();openPODetail(id);
+}
+async function uploadPOInlineDoc(pid,input){
+  for(const f of Array.from(input.files)){const path=`${pid}/${Date.now()}_${f.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f);if(!error){await sb.from('po_docs').insert({po_id:pid,file_name:f.name,file_path:path,file_size:f.size,doc_type:'Tambahan'});toast(f.name+' diupload');}else toast('Gagal: '+f.name);}
+  input.value='';await loadPOs();openPODetail(pid);
+}
+async function deletePO(id){
+  if(!confirm('Hapus PO ini?'))return;
+  const p=allPOs.find(x=>x.id===id);
+  const docs=p.po_docs||[];
+  if(docs.length)await sb.storage.from('po-docs').remove(docs.map(d=>d.file_path));
+  await sb.from('purchase_orders').delete().eq('id',id);
+  closeModal('poDetailModal');toast('PO dihapus');await loadPOs();
+}
+
+// PK
+function openPKForm(poId,pkId){
+  pkCurrentPOId=poId;editPKId=pkId||null;pkTmpFiles=[];
+  document.getElementById('pkFormTitle').textContent=pkId?'Edit PK':'Pengajuan PK Baru';
+  if(pkId){
+    const p=allPOs.find(x=>x.id===poId);const k=(p.po_pk||[]).find(x=>x.id===pkId);
+    sv('pkNoPK',k.no_pk||'');sv('pkTglPengajuan',k.tgl_pengajuan);sv('pkKeperluan',k.keperluan);sv('pkNilai',k.nilai_pengajuan||'');sv('pkCatatan',k.catatan||'');
+  }else{['pkNoPK','pkKeperluan','pkNilai','pkCatatan'].forEach(x=>sv(x,''));sv('pkTglPengajuan',today());}
+  document.getElementById('pkDocList').innerHTML='';
+  document.getElementById('pkFormModal').style.display='flex';
+  history.pushState({modal:'pkForm'},'','');
+}
+function handlePKFormFiles(input){
+  Array.from(input.files).forEach(f=>pkTmpFiles.push({file:f,name:f.name}));
+  document.getElementById('pkDocList').innerHTML=pkTmpFiles.map((f,i)=>`<div class="file-item"><span class="fname">${f.name}</span><button class="btn btn-sm btn-danger" onclick="pkTmpFiles.splice(${i},1);this.closest('.file-item').remove()">&#x2715;</button></div>`).join('');
+  input.value='';
+}
+async function savePK(){
+  const keperluan=gv('pkKeperluan').trim(),tgl=gv('pkTglPengajuan'),nilaiStr=gv('pkNilai');
+  if(!keperluan||!tgl||!nilaiStr){toast('Lengkapi field wajib (*)');return;}
+  const btn=document.getElementById('btnSavePK');btn.disabled=true;btn.textContent='Menyimpan...';
+  try{
+    const payload={keperluan,tgl_pengajuan:tgl,nilai_pengajuan:parseFloat(nilaiStr.replace(/[^0-9]/g,'')),no_pk:gv('pkNoPK').trim()||null,catatan:gv('pkCatatan').trim()||null};
+    let kid=editPKId;
+    if(editPKId){await sb.from('po_pk').update(payload).eq('id',editPKId);}
+    else{
+      kid='PK-'+Date.now().toString(36).slice(-5).toUpperCase();
+      await sb.from('po_pk').insert({...payload,id:kid,po_id:pkCurrentPOId,status:'Diajukan'});
+      await logPO(pkCurrentPOId,'PK Diajukan',payload.keperluan+' — '+fmtRp(payload.nilai_pengajuan));
+    }
+    for(const f of pkTmpFiles){const path=`pk/${kid}/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f.file);if(!error)await sb.from('pk_docs').insert({pk_id:kid,file_name:f.file.name,file_path:path,file_size:f.file.size});}
+    toast('PK disimpan');closeModal('pkFormModal');await loadPOs();openPODetail(pkCurrentPOId);
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Simpan PK';
+}
+async function updatePKStatus(pkId,poId){
+  const statuses=['Diajukan','Disetujui','Ditolak','Pengadaan','Realisasi','Selesai'];
+  const newSt=prompt('Status PK:\n'+statuses.map((s,i)=>`${i+1}. ${s}`).join('\n')+'\n\nKetik angka:');
+  if(!newSt)return;
+  const idx=parseInt(newSt)-1;
+  if(isNaN(idx)||idx<0||idx>=statuses.length){toast('Tidak valid');return;}
+  const chosen=statuses[idx];
+  const upd={status:chosen};
+  if(chosen==='Disetujui')upd.tgl_approval=today();
+  if(chosen==='Realisasi'||chosen==='Selesai'){
+    const rStr=prompt('Nilai realisasi (Rp):');
+    if(rStr)upd.nilai_realisasi=parseFloat(rStr.replace(/[^0-9]/g,''));
+    upd.tgl_realisasi=prompt('Tanggal realisasi (YYYY-MM-DD):',today())||today();
+  }
+  await sb.from('po_pk').update(upd).eq('id',pkId);
+  await logPO(poId,'PK Update','→ '+chosen);
+  toast('Status PK → '+chosen);await loadPOs();openPODetail(poId);
+}
+
+// Items
+function openItemForm(poId,itemId){
+  itemCurrentPOId=poId;editItemId=itemId||null;
+  document.getElementById('itemFormTitle').textContent=itemId?'Edit Item':'Tambah Item';
+  if(itemId){
+    const p=allPOs.find(x=>x.id===poId);const it=(p.po_items||[]).find(x=>x.id===itemId);
+    document.getElementById('itCategory').value=it.item_category||'Rectifier';
+    sv('itType',it.item_type||'');sv('itSpec',it.spesifikasi||'');sv('itSerial',it.serial_number||'');sv('itCatatan',it.catatan||'');
+  }else{['itType','itSpec','itSerial','itCatatan'].forEach(x=>sv(x,''));document.getElementById('itCategory').value='Rectifier';}
+  document.getElementById('itemFormModal').style.display='flex';
+  history.pushState({modal:'itemForm'},'','');
+}
+async function saveItem(){
+  const btn=document.getElementById('btnSaveItem');btn.disabled=true;btn.textContent='Menyimpan...';
+  try{
+    const p=allPOs.find(x=>x.id===itemCurrentPOId);
+    const payload={item_category:document.getElementById('itCategory').value,item_type:gv('itType').trim()||null,spesifikasi:gv('itSpec').trim()||null,serial_number:gv('itSerial').trim()||null,catatan:gv('itCatatan').trim()||null};
+    if(editItemId){await sb.from('po_items').update(payload).eq('id',editItemId);}
+    else{const iid='IT-'+Date.now().toString(36).slice(-6).toUpperCase();await sb.from('po_items').insert({...payload,id:iid,po_id:itemCurrentPOId,no_urut:(p.po_items||[]).length+1,status_produksi:'Belum Produksi',status_pengiriman:'Belum Dikirim'});}
+    toast('Item disimpan');closeModal('itemFormModal');await loadPOs();openPODetail(itemCurrentPOId);
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Simpan';
+}
+async function updateItemStatus(itemId,poId){
+  const sp=prompt('Status Produksi:\n1. Belum Produksi\n2. Proses Produksi\n3. QC\n4. Selesai Produksi\n\n(Enter=skip)');
+  const sk=prompt('Status Pengiriman:\n1. Belum Dikirim\n2. Sudah Dikirim\n\n(Enter=skip)');
+  const upd={};
+  const prod=['Belum Produksi','Proses Produksi','QC','Selesai Produksi'];
+  if(sp){const i=parseInt(sp)-1;if(!isNaN(i)&&i>=0&&i<prod.length)upd.status_produksi=prod[i];}
+  if(sk==='1')upd.status_pengiriman='Belum Dikirim';
+  if(sk==='2')upd.status_pengiriman='Sudah Dikirim';
+  if(Object.keys(upd).length){await sb.from('po_items').update(upd).eq('id',itemId);toast('Item diperbarui');await loadPOs();openPODetail(poId);}
+}
+async function logPO(poId,aksi,detail){
+  try{await sb.from('po_log').insert({po_id:poId,aksi,detail:detail||null});}catch(e){}
+}
+
+// ════ SALES ════
 function confirmName(){
   const val=document.getElementById('salesNameInput').value.trim();
   if(!val){toast('Masukkan nama Anda');return;}
   salesName=val;sessionStorage.setItem('salesName',val);showSalesApp();
 }
-
-function changeName(){
-  sessionStorage.removeItem('salesName');salesName='';
-  document.getElementById('salesApp').style.display='none';
-  document.getElementById('nameGate').style.display='block';
-  document.getElementById('salesNameInput').value='';
-  document.getElementById('salesUserBadge').textContent='';
-}
-
+function changeName(){sessionStorage.removeItem('salesName');salesName='';document.getElementById('salesApp').style.display='none';document.getElementById('nameGate').style.display='block';document.getElementById('salesNameInput').value='';document.getElementById('salesUserBadge').textContent='';}
 function showSalesApp(){
-  document.getElementById('nameGate').style.display='none';
-  document.getElementById('salesApp').style.display='block';
-  document.getElementById('salesUserBadge').textContent='Halo, '+salesName;
-  sv('sDate',today());loadMyRequests();
+  document.getElementById('nameGate').style.display='none';document.getElementById('salesApp').style.display='block';
+  document.getElementById('salesUserBadge').textContent='Halo, '+salesName;sv('sDate',today());loadMyRequests();
 }
-
 function switchTab(tab){
   document.getElementById('tabNew').style.display=tab==='new'?'block':'none';
   document.getElementById('tabMy').style.display=tab==='my'?'block':'none';
   document.getElementById('tabNewBtn').className='tab-btn'+(tab==='new'?' active':'');
   document.getElementById('tabMyBtn').className='tab-btn'+(tab==='my'?' active':'');
   if(tab==='my'){loadMyRequests();history.pushState({page:'salesMy'},'','');}
-  if(tab==='new'){history.pushState({page:'home'},'','');}
+  if(tab==='new')history.pushState({page:'home'},'','');
 }
-
 function toggleSalesOther(){document.getElementById('sOtherRow').style.display=gv('sOutput')==='Lainnya'?'block':'none';}
-
-function handleSalesFiles(input){
-  salesFiles=salesFiles.concat(Array.from(input.files));renderSalesList();input.value='';
-}
-
+function handleSalesFiles(input){salesFiles=salesFiles.concat(Array.from(input.files));renderSalesList();input.value='';}
 function renderSalesList(){
-  document.getElementById('sDocList').innerHTML=salesFiles.map((f,i)=>`
-    <div class="file-item">
-      <span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>
-      <button class="btn btn-sm btn-danger" onclick="salesFiles.splice(${i},1);renderSalesList()">✕</button>
-    </div>`).join('');
+  document.getElementById('sDocList').innerHTML=salesFiles.map((f,i)=>`<div class="file-item"><span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span><button class="btn btn-sm btn-danger" onclick="salesFiles.splice(${i},1);renderSalesList()">&#x2715;</button></div>`).join('');
 }
-
 async function submitSalesRequest(){
   const date=gv('sDate'),customer=gv('sCustomer').trim(),outputRaw=gv('sOutput');
   if(!date||!customer||!outputRaw){toast('Lengkapi field wajib (*)');return;}
@@ -777,19 +1131,37 @@ async function submitSalesRequest(){
   try{
     const rid=genId();
     await sb.from('requests').insert({id:rid,date,requester:salesName,customer,project:gv('sProject').trim(),output,description:gv('sDesc').trim(),status:'Open'});
-    for(const f of salesFiles){
-      const path=`${rid}/customer/${Date.now()}_${f.name}`;
-      const{error}=await sb.storage.from('request-docs').upload(path,f);
-      if(!error)await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});
-    }
-    toast('Request berhasil dikirim!');
-    sv('sCustomer','');sv('sProject','');sv('sDesc','');
-    document.getElementById('sOutput').value='';salesFiles=[];renderSalesList();
-    showWAPrompt(rid, customer, gv('sProject'), output);
+    for(const f of salesFiles){const path=`${rid}/customer/${Date.now()}_${f.name}`;const{error}=await sb.storage.from('request-docs').upload(path,f);if(!error)await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});}
+    showWAPrompt(rid,customer,gv('sProject'),output);
+    sv('sCustomer','');sv('sProject','');sv('sDesc','');document.getElementById('sOutput').value='';salesFiles=[];renderSalesList();
   }catch(e){toast('Error: '+e.message);}
   btn.disabled=false;btn.textContent='Kirim Request';
 }
-
+function showWAPrompt(rid,customer,project,output){
+  const hr=new Date().getHours();
+  const salam=hr<11?'Selamat Pagi':hr<15?'Selamat Siang':'Selamat Sore';
+  const msg=encodeURIComponent(`${salam},\n\nAda request baru masuk:\n\n*No. Request:* ${rid}\n*Requester:* ${salesName}\n*Customer:* ${customer}\n*Project:* ${project||'-'}\n*Output:* ${output}\n\nMohon ditinjau dan ditindaklanjuti. Terima kasih.`);
+  const waUrl='https://wa.me/6285718264782?text='+msg;
+  document.getElementById('waModalBody').innerHTML=`
+    <div style="text-align:center;padding:1rem 0">
+      <div style="width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+        <svg width="28" height="28" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.852L.057 23.571a.75.75 0 00.921.921l5.719-1.471A11.943 11.943 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.953-1.355l-.355-.211-3.676.945.963-3.567-.231-.368A9.712 9.712 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
+      </div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Request Terkirim!</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem;line-height:1.6">Kirim notifikasi WhatsApp ke engineering?</div>
+      <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;text-align:left;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:1.5rem">
+        <strong>No:</strong> ${rid}<br><strong>Requester:</strong> ${salesName}<br><strong>Customer:</strong> ${customer}<br><strong>Project:</strong> ${project||'-'}<br><strong>Output:</strong> ${output}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn" onclick="closeModal('waModal');switchTab('my')">Lewati</button>
+        <a href="${waUrl}" target="_blank" onclick="closeModal('waModal');switchTab('my')" class="btn btn-primary" style="background:#25D366;border-color:#25D366;text-decoration:none">
+          <svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.852L.057 23.571a.75.75 0 00.921.921l5.719-1.471A11.943 11.943 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.953-1.355l-.355-.211-3.676.945.963-3.567-.231-.368A9.712 9.712 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
+          Kirim via WhatsApp
+        </a>
+      </div>
+    </div>`;
+  document.getElementById('waModal').style.display='flex';
+}
 async function loadMyRequests(){
   const el=document.getElementById('myReqList');
   el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div>';
@@ -797,177 +1169,88 @@ async function loadMyRequests(){
   if(!data||!data.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Belum ada request dari Anda</div>';return;}
   el.innerHTML=data.map(r=>`
     <div class="sales-card">
-      <div class="sales-card-header">
-        <div>
-          <div class="sales-card-title">${r.customer}${r.project?' — '+r.project:''}</div>
-          <div class="sales-card-sub">${r.id} · ${fmtDate(r.date)}</div>
-        </div>
-        ${badge(r.status)}
-      </div>
-      <div style="font-size:13px;color:var(--text2)">
-        <span style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:4px;font-weight:600">${r.output}</span>
-        ${r.description?`<div style="margin-top:6px">${r.description}</div>`:''}
-      </div>
+      <div class="sales-card-header"><div><div class="sales-card-title">${r.customer}${r.project?' — '+r.project:''}</div><div class="sales-card-sub">${r.id} &middot; ${fmtDate(r.date)}</div></div>${badge(r.status)}</div>
+      <div style="font-size:13px;color:var(--text2)"><span style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:4px;font-weight:600">${r.output}</span>${r.description?`<div style="margin-top:6px">${r.description}</div>`:''}</div>
       <div class="sales-card-footer">
-        <div style="font-size:12px;color:var(--text3)">${(r.docs_customer||[]).length} dok. customer · ${(r.docs_result||[]).length} dok. hasil</div>
+        <div style="font-size:12px;color:var(--text3)">${(r.docs_customer||[]).length} dok. customer &middot; ${(r.docs_result||[]).length} dok. hasil</div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm" onclick="salesViewDetail('${r.id}')">Lihat</button>
-          <button class="btn btn-sm btn-primary" onclick="salesAddDoc('${r.id}')">+ Dokumen</button>
+          <button class="btn btn-sm btn-primary" onclick="salesAddDoc('${r.id}')">+ Dok.</button>
         </div>
       </div>
     </div>`).join('');
 }
-
 async function salesViewDetail(id){
   const{data:r}=await sb.from('requests').select('*,docs_customer(*),docs_result(*)').eq('id',id).single();
   document.getElementById('salesModalTitle').textContent=r.customer+(r.project?' — '+r.project:'');
   document.getElementById('salesModalBody').innerHTML=`
-    <div class="detail-section">
-      <div class="sect-title">Info</div>
-      <div class="kv">
-        <span class="k">Status</span><span class="v">${badge(r.status)}</span>
-        <span class="k">Output</span><span class="v">${r.output}</span>
-        <span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span>
-      </div>
-      ${r.description?`<div class="desc-box">${r.description}</div>`:''}
-    </div>
-    <div class="detail-section">
-      <div class="sect-title">Dokumen Anda (${(r.docs_customer||[]).length})</div>
-      <div class="file-list">${renderFileItems(r.docs_customer||[])}</div>
-    </div>
-    <div class="detail-section">
-      <div class="sect-title">Dokumen Hasil dari Engineering (${(r.docs_result||[]).length})</div>
-      <div class="file-list">${renderFileItems(r.docs_result||[])}</div>
-    </div>`;
+    <div class="detail-section"><div class="sect-title">Info</div><div class="kv"><span class="k">Status</span><span class="v">${badge(r.status)}</span><span class="k">Output</span><span class="v">${r.output}</span><span class="k">Tanggal</span><span class="v">${fmtDate(r.date)}</span></div>${r.description?`<div class="desc-box">${r.description}</div>`:''}</div>
+    <div class="detail-section"><div class="sect-title">Dokumen Anda (${(r.docs_customer||[]).length})</div><div class="file-list">${renderFileItems(r.docs_customer||[])}</div></div>
+    <div class="detail-section"><div class="sect-title">Dokumen Hasil Engineering (${(r.docs_result||[]).length})</div><div class="file-list">${renderFileItems(r.docs_result||[])}</div></div>`;
   document.getElementById('salesModal').style.display='flex';
 }
-
 async function salesAddDoc(id){
   const{data:r}=await sb.from('requests').select('*,docs_customer(*)').eq('id',id).single();
   document.getElementById('salesModalTitle').textContent='Tambah Dokumen';
   document.getElementById('salesModalBody').innerHTML=`
-    <div class="detail-section">
-      <div class="sect-title">Dokumen yang sudah ada (${(r.docs_customer||[]).length})</div>
-      <div class="file-list">${renderFileItems(r.docs_customer||[])}</div>
-    </div>
-    <div class="form-row">
-      <label>Upload dokumen baru</label>
+    <div class="detail-section"><div class="sect-title">Dokumen yang ada (${(r.docs_customer||[]).length})</div><div class="file-list">${renderFileItems(r.docs_customer||[])}</div></div>
+    <div class="form-row"><label>Upload dokumen baru</label>
       <div class="upload-zone" onclick="document.getElementById('sAddDoc').click()">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-        Pilih file untuk diupload
+        Pilih file
         <input type="file" id="sAddDoc" multiple style="display:none" onchange="uploadSalesDoc('${id}',this)">
       </div>
       <div class="file-list" id="sAddDocList"></div>
     </div>`;
   document.getElementById('salesModal').style.display='flex';
 }
-
 async function uploadSalesDoc(rid,input){
   const files=Array.from(input.files);
-  const listEl=document.getElementById('sAddDocList');
   for(const f of files){
-    listEl.innerHTML+=`<div class="file-item"><span class="spinner"></span><span class="fname">${f.name}</span></div>`;
+    document.getElementById('sAddDocList').innerHTML+=`<div class="file-item"><span class="spinner"></span><span class="fname">${f.name}</span></div>`;
     const path=`${rid}/customer/${Date.now()}_${f.name}`;
     const{error}=await sb.storage.from('request-docs').upload(path,f);
-    if(!error){await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});toast(f.name+' diupload');}
-    else toast('Gagal: '+f.name);
+    if(!error){await sb.from('docs_customer').insert({request_id:rid,file_name:f.name,file_path:path,file_size:f.size});toast(f.name+' diupload');}else toast('Gagal: '+f.name);
   }
-  input.value='';listEl.innerHTML='';salesAddDoc(rid);loadMyRequests();
+  input.value='';document.getElementById('sAddDocList').innerHTML='';salesAddDoc(rid);loadMyRequests();
 }
 
-// ── WA NOTIFICATION ──
-function showWAPrompt(rid, customer, project, output){
-  const msg = encodeURIComponent(
-    (() => {
-      const hr = new Date().getHours();
-      const salam = hr < 11 ? 'Selamat Pagi' : hr < 15 ? 'Selamat Siang' : 'Selamat Sore';
-      return `${salam},\n\nAda request baru masuk:\n\n*No. Request:* ${rid}\n*Requester:* ${salesName}\n*Customer:* ${customer}\n*Project:* ${project||'-'}\n*Output:* ${output}\n\nMohon ditinjau dan ditindaklanjuti. Terima kasih.`;
-    })()
-  );
-  const waUrl = `https://wa.me/6285718264782?text=${msg}`;
-
-  // Show WA modal
-  document.getElementById('waModalBody').innerHTML = `
-    <div style="text-align:center;padding:1rem 0">
-      <div style="width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
-        <svg width="28" height="28" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.852L.057 23.571a.75.75 0 00.921.921l5.719-1.471A11.943 11.943 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.953-1.355l-.355-.211-3.676.945.963-3.567-.231-.368A9.712 9.712 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
-      </div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Request Terkirim!</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem;line-height:1.6">
-        Kirim notifikasi WhatsApp ke engineering<br>untuk ditinjau dan ditindaklanjuti?
-      </div>
-      <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;text-align:left;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:1.5rem">
-        <strong>No:</strong> ${rid}<br>
-        <strong>Requester:</strong> ${salesName}<br>
-        <strong>Customer:</strong> ${customer}<br>
-        <strong>Project:</strong> ${project||'-'}<br>
-        <strong>Output:</strong> ${output}
-      </div>
-      <div style="display:flex;gap:8px;justify-content:center">
-        <button class="btn" onclick="closeModal('waModal')">Lewati</button>
-        <a href="${waUrl}" target="_blank" onclick="closeModal('waModal')" class="btn btn-primary" style="background:#25D366;border-color:#25D366;text-decoration:none">
-          <svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.118 1.528 5.852L.057 23.571a.75.75 0 00.921.921l5.719-1.471A11.943 11.943 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.953-1.355l-.355-.211-3.676.945.963-3.567-.231-.368A9.712 9.712 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
-          Kirim via WhatsApp
-        </a>
-      </div>
-    </div>`;
-  document.getElementById('waModal').style.display='flex';
-  switchTab('my');
-}
-
-// ── UTILS ──
-const gv=id=>document.getElementById(id).value;
-const sv=(id,val)=>{document.getElementById(id).value=val;};
+// ════ UTILS ════
+const gv=id=>document.getElementById(id)?.value||'';
+const sv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+const sv2=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
 const today=()=>new Date().toISOString().split('T')[0];
 const genId=()=>'REQ-'+Date.now().toString(36).slice(-5).toUpperCase()+'-'+Math.random().toString(36).slice(2,4).toUpperCase();
 const fileUrl=path=>`${SB_URL}/storage/v1/object/public/request-docs/${path}`;
-const fmtDateLong=d=>{
-  if(!d)return'—';
-  const x=new Date(d+'T00:00:00');
-  const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-  const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  return days[x.getDay()]+', '+x.getDate()+' '+months[x.getMonth()]+' '+x.getFullYear();
-};
+const poFileUrl=path=>`${SB_URL}/storage/v1/object/public/po-docs/${path}`;
+const fmtRp=n=>n?'Rp '+Number(n).toLocaleString('id-ID'):'—';
 const fmtDate=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');return x.getDate().toString().padStart(2,'0')+'/'+(x.getMonth()+1).toString().padStart(2,'0')+'/'+x.getFullYear();};
+const fmtDateLong=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return days[x.getDay()]+', '+x.getDate()+' '+months[x.getMonth()]+' '+x.getFullYear();};
+const fmtDateTime=s=>{if(!s)return'';const d=new Date(s);return fmtDate(d.toISOString().split('T')[0])+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
 const fmtSize=b=>{if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';};
+const noFile=()=>'<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
 const badge=s=>{const m={'Open':'b-open','In Progress':'b-inprog','Done':'b-done'};return`<span class="badge ${m[s]||''}">${s}</span>`;};
-const closeModal=(id,fromPop)=>{
-  document.getElementById(id).style.display='none';
-  if(!fromPop && history.state && history.state.modal) history.back();
+const poBadge=s=>{
+  const c={'Terima PO':'#1d4ed8','Engineering':'#92400e','Produksi':'#7c3aed','QC':'#0369a1','Pengiriman':'#0f766e','Instalasi':'#b45309','Commissioning':'#6d28d9','Selesai':'#166534'};
+  const bg={'Terima PO':'#eff6ff','Engineering':'#fffbeb','Produksi':'#f5f3ff','QC':'#e0f2fe','Pengiriman':'#f0fdfa','Instalasi':'#fef3c7','Commissioning':'#ede9fe','Selesai':'#f0fdf4'};
+  return`<span style="display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
 };
+const pkBadge=s=>{
+  const c={'Diajukan':'#92400e','Disetujui':'#166534','Ditolak':'#991b1b','Pengadaan':'#7c3aed','Realisasi':'#0369a1','Selesai':'#166534'};
+  const bg={'Diajukan':'#fffbeb','Disetujui':'#f0fdf4','Ditolak':'#fef2f2','Pengadaan':'#f5f3ff','Realisasi':'#e0f2fe','Selesai':'#f0fdf4'};
+  return`<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
+};
+const itemBadge=s=>{
+  const c={'Belum Produksi':'#6b7280','Proses Produksi':'#92400e','QC':'#0369a1','Selesai Produksi':'#166534'};
+  const bg={'Belum Produksi':'#f3f4f6','Proses Produksi':'#fffbeb','QC':'#e0f2fe','Selesai Produksi':'#f0fdf4'};
+  return`<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
+};
+function renderFileItems(arr){if(!arr||!arr.length)return noFile();return arr.map(f=>`<div class="file-item"><a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');}
+const closeModal=id=>{document.getElementById(id).style.display='none';};
 const copyText=(t,msg)=>navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>toast(t));
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
-// ── BACK NAVIGATION ──
-// Push a base state so back never exits the app
-history.replaceState({page:'home'},'','');
-
-window.addEventListener('popstate', e=>{
-  const state = e.state || {};
-  const modals=['detailModal','formModal','salesModal','waModal','salesUploadModal'];
-  const anyOpen = modals.some(id=>{
-    const el=document.getElementById(id);
-    return el && el.style.display!=='none';
-  });
-  if(anyOpen){
-    modals.forEach(id=>{
-      const el=document.getElementById(id);
-      if(el && el.style.display!=='none') el.style.display='none';
-    });
-    history.pushState({page:'home'},'','');
-    return;
-  }
-  // Sales: if on 'my' tab, back goes to 'new' tab
-  if(isSales && document.getElementById('tabMy') && document.getElementById('tabMy').style.display!=='none'){
-    switchTab('new');
-    history.pushState({page:'home'},'','');
-    return;
-  }
-  // Otherwise push back so we never exit
-  history.pushState({page:'home'},'','');
-});
-
-function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show');}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('poSidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('poSidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show');}
 </script>
 </body>
 </html>
