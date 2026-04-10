@@ -145,6 +145,27 @@ tr:hover td{background:var(--bg)}
   .kv{grid-template-columns:100px 1fr}
 }
 
+
+/* ── SORTABLE & FILTERS ── */
+.stat-card{cursor:pointer;transition:all .15s}
+.stat-card:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-card.active-filter{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+.sort-th{cursor:pointer;user-select:none}
+.sort-th:hover{color:var(--text2)}
+.sort-arrow{font-size:10px;margin-left:3px;opacity:.4}
+.sort-arrow.active{opacity:1;color:var(--blue)}
+/* Multi-status filter */
+.ms-wrap{position:relative;display:inline-block}
+.ms-btn{padding:8px 10px;cursor:pointer;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:var(--surface);color:var(--text);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.ms-btn:hover{background:var(--surface2)}
+.ms-dropdown{position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:100;min-width:180px;padding:6px 0;display:none}
+.ms-dropdown.open{display:block}
+.ms-option{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:13px}
+.ms-option:hover{background:var(--surface2)}
+.ms-option input{flex-shrink:0}
+.ms-clear{padding:6px 12px;font-size:12px;color:var(--blue);cursor:pointer;border-top:1px solid var(--border);margin-top:4px}
+.ms-clear:hover{background:var(--surface2)}
+
 /* ── LOGIN ── */
 .login-shell{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem}
 .login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:2.5rem 2rem;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.08)}
@@ -419,22 +440,33 @@ tr:hover td{background:var(--bg)}
       </div>
     </div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total PO</div><div class="stat-val" id="poSTotal">—</div></div>
-      <div class="stat-card"><div class="stat-label">On Progress</div><div class="stat-val blue" id="poSProgress">—</div></div>
-      <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-val" style="color:var(--red)" id="poSOverdue">—</div></div>
-      <div class="stat-card"><div class="stat-label">Selesai</div><div class="stat-val green" id="poSDone">—</div></div>
+      <div class="stat-card" id="scTotal" onclick="statCardFilter('all')"><div class="stat-label">Total PO</div><div class="stat-val" id="poSTotal">—</div></div>
+      <div class="stat-card" id="scProgress" onclick="statCardFilter('progress')"><div class="stat-label">On Progress</div><div class="stat-val blue" id="poSProgress">—</div></div>
+      <div class="stat-card" id="scOverdue" onclick="statCardFilter('overdue')"><div class="stat-label">Overdue</div><div class="stat-val" style="color:var(--red)" id="poSOverdue">—</div></div>
+      <div class="stat-card" id="scDone" onclick="statCardFilter('done')"><div class="stat-label">Selesai</div><div class="stat-val green" id="poSDone">—</div></div>
     </div>
     <div class="toolbar">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <input type="text" id="poSearch" placeholder="Cari No. PO, customer, project..." oninput="renderPOTable()">
       </div>
-      <select class="filter-sel" id="poFStatus" onchange="renderPOTable()">
-        <option value="">Semua Status</option>
-        <option>Terima PO</option><option>Engineering</option><option>Produksi</option>
-        <option>QC</option><option>Pengiriman</option><option>Instalasi</option>
-        <option>Commissioning</option><option>Selesai</option>
-      </select>
+      <div class="ms-wrap" id="msWrap">
+        <div class="ms-btn" onclick="toggleMsDropdown()">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h4"/></svg>
+          <span id="msLabel">Semua Status</span>
+        </div>
+        <div class="ms-dropdown" id="msDropdown">
+          <label class="ms-option"><input type="checkbox" value="Terima PO" onchange="updateMsLabel()"> Terima PO</label>
+          <label class="ms-option"><input type="checkbox" value="Engineering" onchange="updateMsLabel()"> Engineering</label>
+          <label class="ms-option"><input type="checkbox" value="Produksi" onchange="updateMsLabel()"> Produksi</label>
+          <label class="ms-option"><input type="checkbox" value="QC" onchange="updateMsLabel()"> QC</label>
+          <label class="ms-option"><input type="checkbox" value="Pengiriman" onchange="updateMsLabel()"> Pengiriman</label>
+          <label class="ms-option"><input type="checkbox" value="Instalasi" onchange="updateMsLabel()"> Instalasi</label>
+          <label class="ms-option"><input type="checkbox" value="Commissioning" onchange="updateMsLabel()"> Commissioning</label>
+          <label class="ms-option"><input type="checkbox" value="Selesai" onchange="updateMsLabel()"> Selesai</label>
+          <div class="ms-clear" onclick="clearMsFilter()">Hapus filter</div>
+        </div>
+      </div>
     </div>
     <div class="table-card">
       <div class="table-wrap">
@@ -444,8 +476,12 @@ tr:hover td{background:var(--bg)}
             <col style="width:23%"><col style="width:10%"><col style="width:12%">
           </colgroup>
           <thead><tr>
-            <th>No. PO</th><th>Tgl.</th><th>Customer</th>
-            <th>Project</th><th>Target</th><th>Status</th>
+            <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
+            <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. <span class="sort-arrow" id="sarr_tgl_po"></span></th>
+            <th class="sort-th" onclick="sortPO('customer')">Customer <span class="sort-arrow" id="sarr_customer"></span></th>
+            <th class="sort-th" onclick="sortPO('project')">Project <span class="sort-arrow" id="sarr_project"></span></th>
+            <th class="sort-th" onclick="sortPO('tgl_kirim')">Target <span class="sort-arrow" id="sarr_tgl_kirim"></span></th>
+            <th class="sort-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
           </tr></thead>
           <tbody id="poTableBody"><tr class="loading-row"><td colspan="6"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table>
@@ -1002,6 +1038,54 @@ async function loadPOs(){
   allPOs=data||[];renderPOStats();renderPOTable();
   document.getElementById('nbPO').textContent=allPOs.filter(p=>p.status!=='Selesai').length;
 }
+// PO sort state
+let poSortCol='tgl_po', poSortDir='desc';
+// PO stat card filter
+let poStatFilter=''; // 'all','progress','overdue','done',''
+
+function statCardFilter(type){
+  poStatFilter = poStatFilter===type?'':type;
+  document.querySelectorAll('[id^="sc"]').forEach(el=>el.classList.remove('active-filter'));
+  if(poStatFilter) document.getElementById('sc'+poStatFilter.charAt(0).toUpperCase()+poStatFilter.slice(1))?.classList.add('active-filter');
+  // Clear multi-select when stat card clicked
+  clearMsFilter(false);
+  renderPOTable();
+}
+
+function toggleMsDropdown(){
+  document.getElementById('msDropdown').classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('msWrap');
+  if(wrap&&!wrap.contains(e.target)) document.getElementById('msDropdown')?.classList.remove('open');
+});
+function getSelectedStatuses(){
+  return Array.from(document.querySelectorAll('#msDropdown input[type=checkbox]:checked')).map(cb=>cb.value);
+}
+function updateMsLabel(){
+  const sel=getSelectedStatuses();
+  document.getElementById('msLabel').textContent=sel.length===0?'Semua Status':sel.length===1?sel[0]:sel.length+' Status';
+  poStatFilter=''; // clear stat card filter when multi-select used
+  document.querySelectorAll('[id^="sc"]').forEach(el=>el.classList.remove('active-filter'));
+  renderPOTable();
+}
+function clearMsFilter(doRender=true){
+  document.querySelectorAll('#msDropdown input[type=checkbox]').forEach(cb=>cb.checked=false);
+  document.getElementById('msLabel').textContent='Semua Status';
+  if(doRender) renderPOTable();
+}
+
+function sortPO(col){
+  if(poSortCol===col) poSortDir=poSortDir==='asc'?'desc':'asc';
+  else{poSortCol=col;poSortDir='asc';}
+  renderPOTable();
+}
+function updateSortArrows(){
+  document.querySelectorAll('[id^="sarr_"]').forEach(el=>{el.textContent='';el.classList.remove('active');});
+  const el=document.getElementById('sarr_'+poSortCol);
+  if(el){el.textContent=poSortDir==='asc'?'▲':'▼';el.classList.add('active');}
+}
+
 function renderPOStats(){
   const today2=new Date().toISOString().split('T')[0];
   sv2('poSTotal',allPOs.length);
@@ -1010,18 +1094,54 @@ function renderPOStats(){
   sv2('poSDone',allPOs.filter(p=>p.status==='Selesai').length);
   sv2('poNbAll',allPOs.length);
 }
+
 function poNavFilter(el,status){
-  document.getElementById('poFStatus').value=status;renderPOTable();
-  document.querySelectorAll('#poSidebar .nav-item').forEach(x=>x.classList.remove('active'));el.classList.add('active');closeSidebar();
+  clearMsFilter(false);
+  if(status){
+    // check the corresponding checkbox
+    const cb=document.querySelector('#msDropdown input[value="'+status+'"]');
+    if(cb){cb.checked=true;updateMsLabel();}
+  }
+  poStatFilter='';
+  document.querySelectorAll('[id^="sc"]').forEach(e=>e.classList.remove('active-filter'));
+  document.querySelectorAll('#poSidebar .nav-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');closeSidebar();
+  renderPOTable();
 }
+
 function renderPOTable(){
-  const q=gv('poSearch').toLowerCase(),st=gv('poFStatus'),today2=new Date().toISOString().split('T')[0];
-  const filtered=allPOs.filter(p=>[p.no_po,p.customer,p.project||'',p.no_project||''].join(' ').toLowerCase().includes(q)&&(!st||p.status===st));
+  const q=gv('poSearch').toLowerCase();
+  const selStatuses=getSelectedStatuses();
+  const today2=new Date().toISOString().split('T')[0];
+
+  let filtered=allPOs.filter(p=>{
+    const txt=[p.no_po,p.customer,p.project||'',p.no_project||''].join(' ').toLowerCase();
+    if(!txt.includes(q)) return false;
+    // Stat card filter
+    if(poStatFilter==='progress') return p.status!=='Selesai';
+    if(poStatFilter==='overdue') return p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
+    if(poStatFilter==='done') return p.status==='Selesai';
+    // Multi-select status filter
+    if(selStatuses.length>0) return selStatuses.includes(p.status);
+    return true;
+  });
+
+  // Sort
+  filtered.sort((a,b)=>{
+    let va=a[poSortCol]||'', vb=b[poSortCol]||'';
+    if(typeof va==='string') va=va.toLowerCase();
+    if(typeof vb==='string') vb=vb.toLowerCase();
+    if(va<vb) return poSortDir==='asc'?-1:1;
+    if(va>vb) return poSortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  updateSortArrows();
   const tbody=document.getElementById('poTableBody');
   if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="6">Belum ada PO</td></tr>';return;}
   tbody.innerHTML=filtered.map(p=>{
     const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
-    return`<tr style="cursor:pointer${ov?';background:#fef9f9':''}" onclick="openPODetail('${p.id}')">
+    return`<tr style="cursor:pointer${ov?';background:#fff8f8':''}" onclick="openPODetail('${p.id}')">
       <td class="mono" style="font-size:11px">${p.no_po}</td>
       <td>${fmtDate(p.tgl_po)}</td>
       <td style="font-weight:600">${p.customer}</td>
