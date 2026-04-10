@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Panel System — Pre-Project Request</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -17,12 +17,12 @@
   --r:10px;--r-sm:6px;--r-lg:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;overflow-x:hidden}
 
 /* ADMIN LAYOUT */
-.admin-shell{display:flex;min-height:100vh}
+.admin-shell{display:flex;min-height:100vh;overflow-x:hidden;width:100%}
 .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);padding:1.25rem .875rem;display:flex;flex-direction:column;gap:1.5rem;position:fixed;height:100vh;overflow-y:auto;z-index:50;transition:transform .25s}
-.main-content{margin-left:230px;flex:1;padding:1.75rem;min-height:100vh}
+.main-content{margin-left:230px;flex:1;padding:1.75rem;min-height:100vh;min-width:0;overflow-x:hidden}
 
 /* SIDEBAR */
 .logo-mark{display:flex;align-items:center;gap:10px;padding:0 .5rem}
@@ -51,8 +51,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 .stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.green{color:var(--green)}
 
 /* TOOLBAR */
-.toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
-.search-wrap{flex:1;min-width:180px;position:relative}
+.toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;min-width:0}
+.search-wrap{flex:1;min-width:0;position:relative}
 .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3);stroke:currentColor;fill:none}
 input[type=text],input[type=date],select,textarea{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);outline:none;transition:border-color .15s}
 input:focus,select:focus,textarea:focus{border-color:var(--border2)}
@@ -167,7 +167,7 @@ tr.group-header:first-child td{border-top:none !important}
 .sales-card-footer{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 
 /* PERIOD TABS */
-.period-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px}
+.period-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;flex-wrap:wrap;min-width:0}
 .period-btn{padding:5px 12px;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s;white-space:nowrap}
 .period-btn:hover{color:var(--text)}
 .period-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -936,12 +936,23 @@ const closeModal=(id,fromPop)=>{
 const copyText=(t,msg)=>navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>toast(t));
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
 // ── BACK NAVIGATION ──
+// Push a base state so back never exits the app
+history.replaceState({modal:null},'','');
+
 window.addEventListener('popstate', e=>{
-  // Close any open modal when back is pressed
-  ['detailModal','formModal','salesModal','waModal','salesUploadModal'].forEach(id=>{
+  const modals=['detailModal','formModal','salesModal','waModal','salesUploadModal'];
+  const anyOpen = modals.some(id=>{
     const el=document.getElementById(id);
-    if(el && el.style.display!=='none') el.style.display='none';
+    return el && el.style.display!=='none';
   });
+  if(anyOpen){
+    // Close topmost open modal and push base state again so we stay in app
+    modals.forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && el.style.display!=='none') el.style.display='none';
+    });
+    history.pushState({modal:null},'','');
+  }
 });
 
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show');}
