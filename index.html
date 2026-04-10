@@ -70,15 +70,18 @@ select.filter-sel{padding:8px 10px;cursor:pointer}
 
 /* TABLE */
 .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;min-width:700px}
+.table-wrap{overflow-x:hidden}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
 thead{background:var(--surface2)}
-th{padding:10px 13px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;border-bottom:1px solid var(--border)}
-td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:middle}
+th{padding:8px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);overflow:hidden;white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg)}
-.mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)}
-.empty-row td{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)}
+.empty-row td{text-align:center;padding:3rem;color:var(--text3);font-size:13px;white-space:normal}
+.col-id{width:13%}.col-tgl{width:9%}.col-req{width:11%}.col-cust{width:15%}
+.col-proj{width:13%}.col-out{width:10%}.col-dc{width:7%}.col-dr{width:7%}
+.col-st{width:10%}.col-act{width:5%}
 
 /* BADGES */
 .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
@@ -255,9 +258,14 @@ tr:hover td{background:var(--bg)}
     <div class="table-card">
       <div class="table-wrap">
         <table>
+          <colgroup>
+            <col class="col-id"><col class="col-tgl"><col class="col-req"><col class="col-cust">
+            <col class="col-proj"><col class="col-out"><col class="col-dc"><col class="col-dr">
+            <col class="col-st"><col class="col-act">
+          </colgroup>
           <thead><tr>
-            <th>No. Request</th><th>Tanggal</th><th>Requester</th><th>Customer</th>
-            <th>Project</th><th>Output</th><th>Dok. Customer</th><th>Dok. Hasil</th><th>Status</th><th></th>
+            <th>No. Request</th><th>Tgl</th><th>Requester</th><th>Customer</th>
+            <th>Project</th><th>Output</th><th>Dok.C</th><th>Dok.H</th><th>Status</th><th></th>
           </tr></thead>
           <tbody id="tableBody"><tr class="loading-row"><td colspan="10"><span class="spinner"></span>Memuat data...</td></tr></tbody>
         </table>
@@ -446,17 +454,17 @@ function renderTable(){
   const tbody=document.getElementById('tableBody');
   if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="10">Belum ada data</td></tr>';return;}
   tbody.innerHTML=filtered.map(r=>`
-    <tr>
+    <tr style="cursor:pointer" onclick="openDetail('${r.id}')">
       <td class="mono">${r.id}</td>
-      <td style="white-space:nowrap">${fmtDate(r.date)}</td>
+      <td>${fmtDate(r.date)}</td>
       <td>${r.requester}</td>
       <td style="font-weight:600">${r.customer}</td>
       <td style="color:var(--text2)">${r.project||'—'}</td>
-      <td><span style="font-size:11px;background:var(--surface2);padding:3px 8px;border-radius:4px;font-weight:600">${r.output}</span></td>
+      <td>${r.output}</td>
       <td style="text-align:center">${fileBadge(r.docs_customer,'blue')}</td>
       <td style="text-align:center">${fileBadge(r.docs_result,'green')}</td>
       <td>${badge(r.status)}</td>
-      <td><button class="btn btn-sm" onclick="openDetail('${r.id}')">Detail</button></td>
+      <td style="text-align:center"><span style="color:var(--text3);font-size:16px">›</span></td>
     </tr>`).join('');
 }
 
