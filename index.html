@@ -144,9 +144,116 @@ tr:hover td{background:var(--bg)}
   .modal-body{max-height:65vh}
   .kv{grid-template-columns:100px 1fr}
 }
+
+/* ── LOGIN ── */
+.login-shell{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:2.5rem 2rem;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,.08)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:2rem}
+.login-logo-icon{width:36px;height:36px;background:var(--text);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.login-logo-icon svg{width:18px;height:18px;color:#fff;stroke:currentColor;fill:none}
+.login-logo-text{font-size:15px;font-weight:700}
+.login-logo-sub{font-size:12px;color:var(--text3)}
+.login-card h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.login-card p{font-size:13px;color:var(--text2);margin-bottom:1.5rem}
+.login-field{margin-bottom:1rem}
+.login-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.login-field input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
+.login-field input:focus{border-color:var(--border2)}
+.login-error{background:var(--red-bg);color:var(--red);font-size:13px;padding:8px 12px;border-radius:var(--r-sm);margin-bottom:1rem;display:none}
+/* ── USER MANAGEMENT ── */
+.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table th{padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
+.user-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.role-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.role-admin{background:#f5f3ff;color:#6d28d9}
+.role-sales{background:#eff6ff;color:#1d4ed8}
+.role-engineering{background:#fef3c7;color:#92400e}
+.role-produksi{background:#f0fdf4;color:#166534}
+.role-logistik{background:#f0fdfa;color:#0f766e}
+/* ── TOPBAR USER INFO ── */
+.topbar-user{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)}
+.topbar-user strong{color:var(--text)}
+.topbar-user .role-chip{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+
 </style>
 </head>
 <body>
+
+<!-- ══ LOGIN SHELL ══ -->
+<div id="loginShell" style="display:none">
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+        <div><div class="login-logo-text">Panel System</div><div class="login-logo-sub">PT. Sarana Andalan Elektrika</div></div>
+      </div>
+      <h2>Masuk</h2>
+      <p>Gunakan username dan password yang diberikan admin</p>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-field">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="Username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;margin-top:.5rem" onclick="doLogin()" id="btnLogin">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ USER MANAGEMENT MODAL ══ -->
+<div class="overlay" id="userMgmtModal" style="display:none">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-header"><h2>Kelola User</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('userMgmtModal')">&#x2715;</button></div>
+    <div class="modal-body" id="userMgmtBody">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+        <button class="btn btn-primary btn-sm" onclick="openUserForm()">+ User Baru</button>
+      </div>
+      <div id="userList">Memuat...</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="userFormModal" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2 id="userFormTitle">User Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('userFormModal')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Username <span class="req">*</span></label><input type="text" id="ufUsername" placeholder="username" autocomplete="off"></div>
+        <div class="form-row"><label>Nama Lengkap <span class="req">*</span></label><input type="text" id="ufFullName" placeholder="Nama lengkap"></div>
+      </div>
+      <div class="form-row">
+        <label>Role <span class="req">*</span></label>
+        <select id="ufRole" onchange="renderPermEditor()">
+          <option value="sales">Sales</option>
+          <option value="engineering">Engineering</option>
+          <option value="produksi">Produksi &amp; QC</option>
+          <option value="logistik">Logistik</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Password <span class="req" id="pwReq">*</span><span id="pwOptLabel" style="display:none;color:var(--text3);font-weight:400"> (kosongkan jika tidak diubah)</span></label>
+        <input type="password" id="ufPassword" placeholder="Password" autocomplete="new-password">
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="ufActive" checked>
+        <label for="ufActive" style="margin:0;cursor:pointer">Aktif</label>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border)">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Custom Permissions <span style="font-weight:400;color:var(--text3)">(opsional — override default role)</span></div>
+        <div id="permEditor" style="display:flex;flex-direction:column;gap:6px;font-size:13px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('userFormModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSaveUser" onclick="saveUser()">Simpan</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ SIDEBAR SHARED ══ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -179,7 +286,7 @@ tr:hover td{background:var(--bg)}
     </div>
     <div class="nav-group">
       <div class="nav-label">Modul</div>
-      <button class="nav-item" onclick="switchModule('po')">
+      <button class="nav-item po-nav-item" onclick="switchModule('po')">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Kelola PO <span class="nav-badge" id="nbPO">0</span>
       </button>
@@ -578,17 +685,125 @@ let adminTmp={customer:[],result:[]};
 let poTmpFiles=[],pkTmpFiles=[];
 let activePeriod='all',pkCurrentPOId='',itemCurrentPOId='';
 
-// ── INIT ──
+// ── AUTH & INIT ──
 history.replaceState({page:'home'},'','');
-window.addEventListener('DOMContentLoaded',()=>{
-  if(isSales){
+
+// Default permissions per role
+const ROLE_PERMS = {
+  admin:       {pp_view:1,pp_manage:1,pp_upload_result:1,po_view:1,po_engineering:1,po_produksi:1,po_qc:1,po_logistik:1,po_pk:1,users:1},
+  sales:       {pp_view:1,pp_input:1,pp_upload_doc:1},
+  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_engineering:1},
+  produksi:    {po_view:1,po_produksi:1,po_qc:1},
+  logistik:    {po_view:1,po_logistik:1},
+};
+
+let currentUser = null;
+
+function getPerms(){
+  if(!currentUser) return {};
+  const base = ROLE_PERMS[currentUser.role]||{};
+  const custom = currentUser.permissions||{};
+  return {...base,...custom};
+}
+function can(perm){ return !!getPerms()[perm]; }
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin(){
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if(!username||!password){showLoginError('Username dan password wajib diisi');return;}
+  const btn = document.getElementById('btnLogin');
+  btn.disabled=true; btn.textContent='Memuat...';
+  try{
+    const hash = await sha256(password);
+    const{data,error} = await sb.from('app_users').select('*').eq('username',username).eq('password_hash',hash).eq('is_active',true).single();
+    if(error||!data){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
+    currentUser = data;
+    sessionStorage.setItem('panelUser', JSON.stringify(data));
+    await sb.from('app_users').update({last_login:new Date().toISOString()}).eq('id',data.id);
+    startApp();
+  }catch(e){showLoginError('Error: '+e.message);}
+  btn.disabled=false; btn.textContent='Masuk';
+}
+
+function showLoginError(msg){
+  const el=document.getElementById('loginError');
+  el.textContent=msg; el.style.display='block';
+}
+
+function doLogout(){
+  currentUser=null;
+  sessionStorage.removeItem('panelUser');
+  ['ppShell','poShell','salesShell'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('loginShell').style.display='block';
+  document.getElementById('loginPassword').value='';
+  document.getElementById('loginError').style.display='none';
+}
+
+function startApp(){
+  document.getElementById('loginShell').style.display='none';
+  // Build topbar user info in both shells
+  buildTopbarUser();
+  if(currentUser.role==='sales'){
+    // Sales go to sales shell directly — prefill their name
+    salesName = currentUser.full_name;
+    sessionStorage.setItem('salesName', salesName);
     document.getElementById('salesShell').style.display='flex';
-    document.title='Request Drawing & BOM — Panel System';
-    const saved=sessionStorage.getItem('salesName');
-    if(saved){salesName=saved;showSalesApp();}
+    document.getElementById('salesUserBadge').textContent='Halo, '+salesName;
+    document.getElementById('sDate').value=today();
+    loadMyRequests();
+    // Hide name gate, show app
+    document.getElementById('nameGate').style.display='none';
+    document.getElementById('salesApp').style.display='block';
   } else {
     switchModule('pp');
   }
+  // Build nav based on permissions
+  buildNav();
+}
+
+function buildTopbarUser(){
+  const roleLabel={'admin':'Admin','sales':'Sales','engineering':'Engineering','produksi':'Produksi & QC','logistik':'Logistik'};
+  const roleColor={'admin':'role-admin','sales':'role-sales','engineering':'role-engineering','produksi':'role-produksi','logistik':'role-logistik'};
+  const html = `<div class="topbar-user">
+    <strong>${currentUser.full_name}</strong>
+    <span class="role-badge role-chip ${roleColor[currentUser.role]||''}">${roleLabel[currentUser.role]||currentUser.role}</span>
+    ${can('users')?`<button class="btn btn-sm btn-ghost" onclick="openUserMgmt()" style="font-size:11px">Kelola User</button>`:''}
+    <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>
+  </div>`;
+  // Insert into both topbars
+  document.querySelectorAll('.topbar').forEach(tb=>{
+    let ud = tb.querySelector('.user-display');
+    if(!ud){ud=document.createElement('div');ud.className='user-display';tb.appendChild(ud);}
+    ud.innerHTML=html;
+  });
+}
+
+function buildNav(){
+  // Show/hide PO nav based on permission
+  document.querySelectorAll('.po-nav-item').forEach(el=>{
+    el.style.display = can('po_view')?'':'none';
+  });
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  if(isSales){
+    // Sales mode via URL — still require login
+    document.title='Request Drawing & BOM — Panel System';
+  }
+  const saved = sessionStorage.getItem('panelUser');
+  if(saved){
+    try{
+      currentUser = JSON.parse(saved);
+      startApp();
+      return;
+    }catch(e){}
+  }
+  document.getElementById('loginShell').style.display='block';
 });
 
 window.addEventListener('popstate',()=>{
@@ -871,7 +1086,7 @@ async function openPODetail(id){
   const EXTRA=[...(p.instalasi?['Instalasi']:[]),...(p.commissioning?['Commissioning']:[]),'Selesai'];
   const FLOW=[...BASE_FLOW,...EXTRA];
   const curIdx=FLOW.indexOf(p.status);
-  const nextSt=FLOW[curIdx+1];
+  const nextSt=FLOW[curIdx+1]; // guarded by permission in render
   const prevSt=curIdx>0?FLOW[curIdx-1]:null;
 
   // Stepper HTML
@@ -951,21 +1166,21 @@ async function openPODetail(id){
         <div class="sect-title">Progress Status</div>
         ${stepper}
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          ${nextSt?`<button class="btn btn-sm btn-primary" onclick="updatePOStatus('${p.id}','${nextSt}')">&#x2192; ${nextSt}</button>`:''}
-          ${prevSt&&p.status!=='Selesai'?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
+          ${nextSt&&canUpdateStatus(nextSt)?`<button class="btn btn-sm btn-primary" onclick="updatePOStatus('${p.id}','${nextSt}')">&#x2192; ${nextSt}</button>`:''}
+          ${prevSt&&p.status!=='Selesai'&&can('admin')?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
         </div>
       </div>
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
-          <button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>
+          ${can('po_engineering')||can('admin')?`<button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>`:''}
         </div>
         ${itemList||noFile()}
       </div>
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${(p.po_pk||[]).length})</div>
-          <button class="btn btn-sm" onclick="openPKForm('${p.id}')">+ Ajukan PK</button>
+          ${can('po_pk')?`<button class="btn btn-sm" onclick="openPKForm('${p.id}')">+ Ajukan PK</button>`:''}
         </div>
         ${pkList||noFile()}
       </div>
@@ -1101,11 +1316,19 @@ async function logPO(poId,aksi,detail){
 
 // ════ SALES ════
 function confirmName(){
+  // Still works for direct URL access without login (fallback)
   const val=document.getElementById('salesNameInput').value.trim();
   if(!val){toast('Masukkan nama Anda');return;}
   salesName=val;sessionStorage.setItem('salesName',val);showSalesApp();
 }
-function changeName(){sessionStorage.removeItem('salesName');salesName='';document.getElementById('salesApp').style.display='none';document.getElementById('nameGate').style.display='block';document.getElementById('salesNameInput').value='';document.getElementById('salesUserBadge').textContent='';}
+function changeName(){
+  if(currentUser){doLogout();return;}
+  sessionStorage.removeItem('salesName');salesName='';
+  document.getElementById('salesApp').style.display='none';
+  document.getElementById('nameGate').style.display='block';
+  document.getElementById('salesNameInput').value='';
+  document.getElementById('salesUserBadge').textContent='';
+}
 function showSalesApp(){
   document.getElementById('nameGate').style.display='none';document.getElementById('salesApp').style.display='block';
   document.getElementById('salesUserBadge').textContent='Halo, '+salesName;sv('sDate',today());loadMyRequests();
@@ -1215,7 +1438,146 @@ async function uploadSalesDoc(rid,input){
   input.value='';document.getElementById('sAddDocList').innerHTML='';salesAddDoc(rid);loadMyRequests();
 }
 
+
+// ════ USER MANAGEMENT ════
+const PERM_LABELS = {
+  pp_view:'Lihat Pre-Project', pp_input:'Input Request Baru', pp_upload_doc:'Upload Dok. Customer',
+  pp_upload_result:'Upload Dok. Hasil/Drawing', pp_manage:'Kelola Semua Request',
+  po_view:'Lihat PO', po_engineering:'Update Status Engineering', po_produksi:'Update Status Produksi',
+  po_qc:'Update Status QC', po_logistik:'Update Status Pengiriman/Logistik', po_pk:'Kelola PK (Keuangan)',
+  users:'Kelola User'
+};
+
+let allUsers=[], editUserId=null;
+
+async function openUserMgmt(){
+  document.getElementById('userMgmtModal').style.display='flex';
+  await loadUsers();
+  history.pushState({modal:'userMgmt'},'','');
+}
+
+async function loadUsers(){
+  const{data}=await sb.from('app_users').select('*').order('role').order('full_name');
+  allUsers=data||[];
+  renderUserList();
+}
+
+function renderUserList(){
+  const roleLabel={'admin':'Admin','sales':'Sales','engineering':'Engineering','produksi':'Produksi & QC','logistik':'Logistik'};
+  const roleColor={'admin':'role-admin','sales':'role-sales','engineering':'role-engineering','produksi':'role-produksi','logistik':'role-logistik'};
+  document.getElementById('userList').innerHTML = `
+    <table class="user-table">
+      <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Custom Perm.</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        ${allUsers.map(u=>`
+          <tr>
+            <td class="mono">${u.username}</td>
+            <td style="font-weight:500">${u.full_name}</td>
+            <td><span class="role-badge ${roleColor[u.role]||''}">${roleLabel[u.role]||u.role}</span></td>
+            <td style="font-size:11px;color:var(--text3)">${u.permissions&&Object.keys(u.permissions).length>0?Object.keys(u.permissions).length+' custom':'—'}</td>
+            <td><span style="font-size:11px;font-weight:600;color:${u.is_active?'var(--green)':'var(--text3)'}">${u.is_active?'Aktif':'Nonaktif'}</span></td>
+            <td><button class="btn btn-sm" onclick="openUserForm('${u.id}')">Edit</button></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function openUserForm(userId){
+  editUserId=userId||null;
+  document.getElementById('userFormTitle').textContent=userId?'Edit User':'User Baru';
+  document.getElementById('pwReq').style.display=userId?'none':'inline';
+  document.getElementById('pwOptLabel').style.display=userId?'inline':'none';
+  document.getElementById('ufPassword').value='';
+  if(userId){
+    const u=allUsers.find(x=>x.id===userId);
+    sv('ufUsername',u.username); sv('ufFullName',u.full_name);
+    document.getElementById('ufRole').value=u.role;
+    document.getElementById('ufActive').checked=u.is_active;
+    // Load custom perms
+    window._editPerms = u.permissions||null;
+  }else{
+    ['ufUsername','ufFullName'].forEach(x=>sv(x,''));
+    document.getElementById('ufRole').value='sales';
+    document.getElementById('ufActive').checked=true;
+    window._editPerms=null;
+  }
+  renderPermEditor();
+  document.getElementById('userFormModal').style.display='flex';
+  history.pushState({modal:'userForm'},'','');
+}
+
+function renderPermEditor(){
+  const role=document.getElementById('ufRole').value;
+  const defaults=ROLE_PERMS[role]||{};
+  const custom=window._editPerms||{};
+  const hasCustom=Object.keys(custom).length>0;
+  let html='';
+  // Show toggle to enable custom permissions
+  html+=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:8px">
+    <input type="checkbox" id="useCustomPerms" ${hasCustom?'checked':''} onchange="toggleCustomPerms()">
+    <span style="font-size:13px">Aktifkan custom permissions (override default role)</span>
+  </label>`;
+  html+=`<div id="permCheckboxes" style="${hasCustom?'':'display:none'}">`;
+  html+=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Default role: <strong>${Object.keys(defaults).map(k=>PERM_LABELS[k]||k).join(', ')||'—'}</strong></div>`;
+  Object.entries(PERM_LABELS).forEach(([key,label])=>{
+    const checked=hasCustom?(key in custom?custom[key]:!!defaults[key]):!!defaults[key];
+    html+=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0">
+      <input type="checkbox" name="perm_${key}" ${checked?'checked':''}>
+      <span>${label}</span>
+    </label>`;
+  });
+  html+='</div>';
+  document.getElementById('permEditor').innerHTML=html;
+}
+
+function toggleCustomPerms(){
+  const on=document.getElementById('useCustomPerms').checked;
+  document.getElementById('permCheckboxes').style.display=on?'block':'none';
+}
+
+async function saveUser(){
+  const username=gv('ufUsername').trim(), fullName=gv('ufFullName').trim(), role=document.getElementById('ufRole').value;
+  if(!username||!fullName){toast('Lengkapi field wajib');return;}
+  const btn=document.getElementById('btnSaveUser');btn.disabled=true;btn.textContent='Menyimpan...';
+  try{
+    // Build permissions
+    const useCustom=document.getElementById('useCustomPerms').checked;
+    let perms=null;
+    if(useCustom){
+      perms={};
+      Object.keys(PERM_LABELS).forEach(key=>{
+        const cb=document.querySelector(`input[name="perm_${key}"]`);
+        if(cb&&cb.checked) perms[key]=1;
+      });
+      if(Object.keys(perms).length===0) perms=null;
+    }
+    const payload={username,full_name:fullName,role,is_active:document.getElementById('ufActive').checked,permissions:perms};
+    // Password
+    const pw=gv('ufPassword');
+    if(pw) payload.password_hash=await sha256(pw);
+    if(editUserId){
+      if(!pw) delete payload.password_hash;
+      await sb.from('app_users').update(payload).eq('id',editUserId);
+    }else{
+      if(!pw){toast('Password wajib untuk user baru');btn.disabled=false;btn.textContent='Simpan';return;}
+      payload.id='usr-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5);
+      await sb.from('app_users').insert(payload);
+    }
+    toast(editUserId?'User diperbarui':'User baru dibuat');
+    closeModal('userFormModal');
+    await loadUsers();
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Simpan';
+}
+
 // ════ UTILS ════
+function canUpdateStatus(status){
+  if(can('admin')) return true;
+  if(status==='Engineering') return can('po_engineering');
+  if(status==='Produksi'||status==='QC') return can('po_produksi')||can('po_qc');
+  if(status==='Pengiriman'||status==='Instalasi'||status==='Commissioning') return can('po_logistik');
+  return false;
+}
 const gv=id=>document.getElementById(id)?.value||'';
 const sv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
 const sv2=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
