@@ -455,43 +455,30 @@ function renderTable(){
   const tbody=document.getElementById('tableBody');
   if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="4">Belum ada data</td></tr>';return;}
 
-  // Group by date descending, within date sort requester ascending
-  const groups={};
-  filtered
-    .sort((a,b)=> b.date.localeCompare(a.date) || a.requester.localeCompare(b.requester))
-    .forEach(r=>{
-      if(!groups[r.date]) groups[r.date]=[];
-      groups[r.date].push(r);
-    });
-
-  // Group by date+status: date desc, within date by status order then requester asc
   const statusOrder={'Open':0,'In Progress':1,'Done':2};
-  const sorted=filtered.sort((a,b)=>{
-    const dateDiff=b.date.localeCompare(a.date);
-    if(dateDiff!==0)return dateDiff;
-    const stDiff=(statusOrder[a.status]??9)-(statusOrder[b.status]??9);
-    if(stDiff!==0)return stDiff;
+  const sorted=filtered.slice().sort((a,b)=>{
+    const dd=b.date.localeCompare(a.date);
+    if(dd!==0)return dd;
+    const sd=(statusOrder[a.status]??9)-(statusOrder[b.status]??9);
+    if(sd!==0)return sd;
     return a.requester.localeCompare(b.requester);
   });
 
-  // Build groups: key = date|status
-  const groups=[];
+  const grps=[];
   let lastKey='';
   sorted.forEach(r=>{
     const key=r.date+'|'+r.status;
-    if(key!==lastKey){groups.push({date:r.date,status:r.status,items:[]});lastKey=key;}
-    groups[groups.length-1].items.push(r);
+    if(key!==lastKey){grps.push({date:r.date,status:r.status,items:[]});lastKey=key;}
+    grps[grps.length-1].items.push(r);
   });
 
   let rows='';
-  groups.forEach(g=>{
-    rows+=`<tr class="group-header">
-      <td colspan="4" style="background:var(--surface2);padding:6px 10px;border-bottom:1px solid var(--border)">
-        <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.04em">${fmtDateLong(g.date)}</span>
-        <span style="margin-left:8px">${badge(g.status)}</span>
-        <span style="font-size:11px;color:var(--text3);margin-left:6px">${g.items.length} request</span>
-      </td>
-    </tr>`;
+  grps.forEach(g=>{
+    rows+=`<tr class="group-header"><td colspan="4" style="background:var(--surface2);padding:6px 10px;border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.04em">${fmtDateLong(g.date)}</span>
+      <span style="margin-left:8px">${badge(g.status)}</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:6px">${g.items.length} request</span>
+    </td></tr>`;
     g.items.forEach(r=>{
       rows+=`<tr style="cursor:pointer" onclick="openDetail('${r.id}')">
         <td class="mono">${r.id}</td>
