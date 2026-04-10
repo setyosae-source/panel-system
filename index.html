@@ -1213,16 +1213,38 @@ async function openPODetail(id){
   const EXTRA=[...(p.instalasi?['Instalasi']:[]),...(p.commissioning?['Commissioning']:[]),'Selesai'];
   const FLOW=[...BASE_FLOW,...EXTRA];
   const curIdx=FLOW.indexOf(p.status);
-  const nextSt=FLOW[curIdx+1]; // guarded by permission in render
+  const nextSt=FLOW[curIdx+1];
   const prevSt=curIdx>0?FLOW[curIdx-1]:null;
 
-  // Stepper HTML
+  // Stepper
   let stepper='';
   FLOW.forEach((s,i)=>{
     const done=i<curIdx,cur=i===curIdx;
     stepper+=`<div class="step-row"><div class="step-dot" style="background:${done?'var(--green-bg)':cur?'var(--blue-bg)':'var(--surface2)'};color:${done?'var(--green)':cur?'var(--blue)':'var(--text3)'};${cur?'border:2px solid var(--blue)':''}">${done?'&#x2713;':i+1}</div><span style="font-size:12px;font-weight:${cur?700:400};color:${cur?'var(--blue)':'var(--text2)'}">${s}</span></div>`;
     if(i<FLOW.length-1)stepper+=`<div class="step-line"></div>`;
   });
+
+  // Docs grouped by type
+  const docs = p.po_docs||[];
+  const docsByType = {};
+  docs.forEach(d=>{ if(!docsByType[d.doc_type]) docsByType[d.doc_type]=[]; docsByType[d.doc_type].push(d); });
+
+  function docSection(typeKey, label, stageStatus, icon){
+    const list = (docsByType[typeKey]||[]);
+    const canUp = can('admin') || canUpdateStatus(stageStatus||'');
+    const fileHtml = list.length
+      ? list.map(f=>`<div class="file-item"><a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('')
+      : `<span style="font-size:12px;color:var(--text3)">Belum ada</span>`;
+    const upBtn = canUp ? `<button class="upload-more-btn" onclick="document.getElementById('docup_${typeKey}_${p.id}').click()">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>${label.split('/')[0]}
+      </button>
+      <input type="file" id="docup_${typeKey}_${p.id}" multiple style="display:none" onchange="uploadDocByType('${p.id}','${typeKey}','${stageStatus||''}',this)">` : '';
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${icon} ${label} <span style="font-weight:400">(${list.length})</span></div>
+      <div class="file-list" style="margin-top:0">${fileHtml}</div>
+      ${upBtn}
+    </div>`;
+  }
 
   // PK list
   const pkList=(p.po_pk||[]).sort((a,b)=>a.tgl_pengajuan.localeCompare(b.tgl_pengajuan)).map(k=>`
@@ -1256,9 +1278,6 @@ async function openPODetail(id){
       </div>
     </div>`).join('');
 
-  // Docs
-  const docList=(p.po_docs||[]).map(f=>`<div class="file-item"><a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');
-
   // Log
   const logList=(p.po_log||[]).sort((a,b)=>b.created_at.localeCompare(a.created_at)).slice(0,10).map(l=>`
     <div style="display:flex;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
@@ -1267,6 +1286,15 @@ async function openPODetail(id){
     </div>`).join('');
 
   const fatInfo=[p.fat?'FAT':'',p.instalasi?'Instalasi':'',p.commissioning?'Commissioning':''].filter(Boolean).join(', ')||'—';
+
+  // Check drawing & BOM status for engineering section
+  const hasDrw = (docsByType['Drawing']||[]).length > 0;
+  const hasBOM = (docsByType['BOM']||[]).length > 0;
+  const engTip = p.status==='Engineering'
+    ? `<div style="font-size:11px;margin-top:8px;padding:6px 10px;border-radius:var(--r-sm);background:${hasDrw&&hasBOM?'var(--green-bg)':'var(--amber-bg)'};color:${hasDrw&&hasBOM?'var(--green)':'var(--amber)'}">
+        ${hasDrw?'✓':'○'} Drawing &nbsp; ${hasBOM?'✓':'○'} BOM &nbsp;
+        ${hasDrw&&hasBOM?'Keduanya lengkap — siap pindah ke Produksi':'Perlu keduanya untuk lanjut ke Produksi'}
+      </div>` : '';
 
   document.getElementById('poDetailContent').innerHTML=`
     <div class="modal-header">
@@ -1278,6 +1306,8 @@ async function openPODetail(id){
       <button class="btn btn-ghost btn-sm" onclick="closeModal('poDetailModal')">&#x2715;</button>
     </div>
     <div class="modal-body">
+
+      <!-- Info -->
       <div class="detail-section">
         <div class="sect-title">Informasi PO</div>
         <div class="kv">
@@ -1289,6 +1319,8 @@ async function openPODetail(id){
         </div>
         ${p.catatan?`<div class="desc-box">${p.catatan}</div>`:''}
       </div>
+
+      <!-- Progress -->
       <div class="detail-section">
         <div class="sect-title">Progress Status</div>
         ${stepper}
@@ -1297,6 +1329,80 @@ async function openPODetail(id){
           ${prevSt&&p.status!=='Selesai'&&can('admin')?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
         </div>
       </div>
+
+      <!-- Dokumen per tahapan -->
+      <div class="detail-section">
+        <div class="sect-title">Dokumen per Tahapan</div>
+
+        <!-- Engineering -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <span style="background:${p.status==='Engineering'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='Engineering'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Engineering</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${docSection('Drawing','Drawing','Engineering','📐')}
+            ${docSection('BOM','BOM','Engineering','📋')}
+          </div>
+          ${engTip}
+        </div>
+
+        <!-- Produksi -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="background:${p.status==='Produksi'?'var(--amber-bg)':'var(--surface)'};color:${p.status==='Produksi'?'var(--amber)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Produksi</span>
+          </div>
+          ${docSection('Laporan Produksi','Laporan Produksi','Produksi','🏭')}
+        </div>
+
+        <!-- QC -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="background:${p.status==='QC'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='QC'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">QC / FAT In-House</span>
+          </div>
+          ${docSection('FAT Report','FAT In-House Report','QC','✅')}
+        </div>
+
+        <!-- Pengiriman -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="background:${p.status==='Pengiriman'?'#f0fdfa':'var(--surface)'};color:${p.status==='Pengiriman'?'#0f766e':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Pengiriman</span>
+          </div>
+          ${docSection('Surat Jalan','Surat Jalan / DO / DN','Pengiriman','🚚')}
+        </div>
+
+        ${p.instalasi?`
+        <!-- Instalasi -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="background:${p.status==='Instalasi'?'var(--amber-bg)':'var(--surface)'};color:${p.status==='Instalasi'?'var(--amber)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Instalasi / SAT</span>
+          </div>
+          ${docSection('SAT','SAT (Site Acceptance Test)','Instalasi','🔧')}
+        </div>`:''}
+
+        ${p.commissioning?`
+        <!-- Commissioning -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="background:${p.status==='Commissioning'?'#ede9fe':'var(--surface)'};color:${p.status==='Commissioning'?'#6d28d9':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Commissioning / BAST</span>
+          </div>
+          ${docSection('BAST','BAST (Berita Acara Serah Terima)','Commissioning','📝')}
+        </div>`:''}
+
+        <!-- Dokumen lainnya -->
+        <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+            <span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--text3)">File PO & Lainnya</span>
+          </div>
+          ${docSection('File PO','File PO','','📄')}
+          ${docSection('Tambahan','Dokumen Tambahan','','📎')}
+          <button class="upload-more-btn" onclick="document.getElementById('docup_Tambahan_extra_${p.id}').click()">
+            <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Upload lainnya
+          </button>
+          <input type="file" id="docup_Tambahan_extra_${p.id}" multiple style="display:none" onchange="uploadDocByType('${p.id}','Tambahan','',this)">
+        </div>
+      </div>
+
+      <!-- Item -->
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
@@ -1304,6 +1410,8 @@ async function openPODetail(id){
         </div>
         ${itemList||noFile()}
       </div>
+
+      <!-- PK -->
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${(p.po_pk||[]).length})</div>
@@ -1311,18 +1419,13 @@ async function openPODetail(id){
         </div>
         ${pkList||noFile()}
       </div>
-      <div class="detail-section">
-        <div class="sect-title">Dokumen PO</div>
-        <div class="file-list">${docList||noFile()}</div>
-        <button class="upload-more-btn" onclick="document.getElementById('poInlineDoc_${p.id}').click()">
-          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tambah dokumen
-        </button>
-        <input type="file" id="poInlineDoc_${p.id}" multiple style="display:none" onchange="uploadPOInlineDoc('${p.id}',this)">
-      </div>
+
+      <!-- Log -->
       <div class="detail-section">
         <div class="sect-title">Riwayat</div>
         ${logList||noFile()}
       </div>
+
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn btn-sm btn-danger" onclick="deletePO('${p.id}')">Hapus PO</button>
@@ -1331,12 +1434,127 @@ async function openPODetail(id){
   document.getElementById('poDetailModal').style.display='flex';
   history.pushState({modal:'poDetail',id},'','#po-'+id);
 }
-
 async function updatePOStatus(id,status){
   await sb.from('purchase_orders').update({status}).eq('id',id);
   await logPO(id,'Status Berubah','→ '+status);
   toast('Status → '+status);await loadPOs();openPODetail(id);
 }
+// Doc type → trigger rules
+const DOC_TRIGGERS = {
+  'Drawing':  { requireAlso:'BOM',   nextStatus:'Produksi', currentStatus:'Engineering', label:'Drawing' },
+  'BOM':      { requireAlso:'Drawing', nextStatus:'Produksi', currentStatus:'Engineering', label:'BOM' },
+  'FAT Report': { nextStatus:'Pengiriman', currentStatus:'QC',         label:'FAT In-House Report' },
+  'Surat Jalan':{ nextStatus:null,    currentStatus:'Pengiriman',    label:'Surat Jalan/DO/DN' }, // next determined dynamically
+  'SAT':        { nextStatus:null,    currentStatus:'Instalasi',     label:'SAT' },
+  'BAST':       { nextStatus:'Selesai', currentStatus:'Commissioning', label:'BAST' },
+};
+
+async function uploadDocByType(poId, docType, triggerStatus, input){
+  const files = Array.from(input.files);
+  if(!files.length){input.value='';return;}
+
+  for(const f of files){
+    const path=`${poId}/${docType.replace(/\s/g,'_')}/${Date.now()}_${f.name}`;
+    const{error}=await sb.storage.from('po-docs').upload(path,f);
+    if(!error){
+      await sb.from('po_docs').insert({po_id:poId,file_name:f.name,file_path:path,file_size:f.size,doc_type:docType});
+      await logPO(poId,'Upload Dokumen',docType+': '+f.name);
+      toast(f.name+' diupload');
+    } else {
+      toast('Gagal upload: '+f.name);
+    }
+  }
+  input.value='';
+
+  // Check auto-status trigger
+  await checkDocTrigger(poId, docType);
+
+  // Refresh detail
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function checkDocTrigger(poId, docType){
+  const trigger = DOC_TRIGGERS[docType];
+  if(!trigger) return;
+
+  // Get latest PO data
+  const{data:p}=await sb.from('purchase_orders')
+    .select('*,po_docs(*)')
+    .eq('id',poId).single();
+  if(!p) return;
+
+  // Only trigger if PO is at the right current status
+  if(p.status !== trigger.currentStatus) return;
+
+  // Determine next status
+  let nextStatus = trigger.nextStatus;
+  if(!nextStatus){
+    // Dynamic: Surat Jalan → Instalasi jika ada, else Selesai
+    // SAT → Commissioning jika ada, else Selesai
+    if(docType==='Surat Jalan'){
+      nextStatus = p.instalasi ? 'Instalasi' : (p.commissioning ? 'Commissioning' : 'Selesai');
+    } else if(docType==='SAT'){
+      nextStatus = p.commissioning ? 'Commissioning' : 'Selesai';
+    }
+  }
+  if(!nextStatus) return;
+
+  // Special case: Drawing & BOM both required
+  if(trigger.requireAlso){
+    const docs = p.po_docs||[];
+    const hasThis = docs.some(d=>d.doc_type===docType);
+    const hasOther = docs.some(d=>d.doc_type===trigger.requireAlso);
+    if(!hasThis||!hasOther) return; // not ready yet
+  }
+
+  // Show confirmation popup
+  showStatusConfirm(p, docType, trigger.label, nextStatus);
+}
+
+function showStatusConfirm(p, docType, docLabel, nextStatus){
+  // Create confirm overlay
+  const existing = document.getElementById('statusConfirmOverlay');
+  if(existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'statusConfirmOverlay';
+  el.className = 'overlay';
+  el.style.zIndex = '300';
+  el.innerHTML = `
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h2>Ubah Status Otomatis?</h2>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('statusConfirmOverlay').remove()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <div style="text-align:center;padding:.5rem 0">
+          <div style="width:48px;height:48px;background:var(--blue-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:22px">&#x1F4C4;</div>
+          <div style="font-size:14px;color:var(--text2);line-height:1.7">
+            Dokumen <strong>${docLabel}</strong> berhasil diupload.<br>
+            PO <strong>${p.no_po}</strong> siap pindah status:
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:1rem 0;font-size:15px;font-weight:700">
+            ${poBadge(p.status)}
+            <span style="color:var(--text3)">&#x2192;</span>
+            ${poBadge(nextStatus)}
+          </div>
+          <div style="font-size:12px;color:var(--text3)">Ubah status sekarang?</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:center;gap:12px">
+        <button class="btn" onclick="document.getElementById('statusConfirmOverlay').remove()">Nanti Saja</button>
+        <button class="btn btn-primary" onclick="confirmStatusChange('${p.id}','${nextStatus}')">Ya, Ubah Status</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+}
+
+async function confirmStatusChange(poId, newStatus){
+  document.getElementById('statusConfirmOverlay')?.remove();
+  await updatePOStatus(poId, newStatus);
+}
+
 async function uploadPOInlineDoc(pid,input){
   for(const f of Array.from(input.files)){const path=`${pid}/${Date.now()}_${f.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f);if(!error){await sb.from('po_docs').insert({po_id:pid,file_name:f.name,file_path:path,file_size:f.size,doc_type:'Tambahan'});toast(f.name+' diupload');}else toast('Gagal: '+f.name);}
   input.value='';await loadPOs();openPODetail(pid);
