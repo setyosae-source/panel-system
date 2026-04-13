@@ -1089,7 +1089,7 @@ function copySalesLink(){const url=location.origin+location.pathname+'?mode=sale
 
 // ════ PO MODULE ════
 async function loadPOs(){
-  const{data,error}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*)').order('created_at',{ascending:false});
+  const{data,error}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_pic(*, app_users(id,full_name,role))').order('created_at',{ascending:false});
   if(error){toast('Gagal memuat PO: '+error.message);return;}
   allPOs=data||[];renderPOStats();renderPOTable();
   document.getElementById('nbPO').textContent=allPOs.filter(p=>p.status!=='Selesai').length;
@@ -1261,7 +1261,7 @@ async function savePO(){
 
 // PO Detail
 async function openPODetail(id){
-  const{data:p}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_log(*)').eq('id',id).single();
+  const{data:p}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_log(*),po_pic(*,app_users(id,full_name,role))').eq('id',id).single();
   if(!p){toast('Gagal memuat detail');return;}
   const today2=new Date().toISOString().split('T')[0];
   const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
@@ -1287,8 +1287,8 @@ async function openPODetail(id){
 
   function docSection(typeKey, label, stageStatus, icon){
     const list = (docsByType[typeKey]||[]);
-    const canUp = can('admin') || canUpdateStatus(stageStatus||'');
-    const canEdit = can('admin') || canUpdateStatus(stageStatus||'');
+    const canUp = can('admin') || isPIC(p, stageStatus);
+    const canEdit = can('admin') || isPIC(p, stageStatus);
     const fileHtml = list.length
       ? list.map(f=>{
           const url = poFileUrl(f.file_path);
@@ -1477,11 +1477,14 @@ async function openPODetail(id){
         </div>
       </div>
 
+      <!-- PIC Assignment -->
+      ${can('admin') ? buildPICSection(p) : buildPICReadOnly(p)}
+
       <!-- Item -->
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
-          ${can('po_engineering')||can('admin')?`<button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>`:''}
+          ${can('po_engineering')||can('admin')?'<button class="btn btn-sm" onclick="openItemForm(\''+p.id+'\')">+ Tambah</button>':''}
         </div>
         ${itemList||noFile()}
       </div>
@@ -2110,6 +2113,183 @@ async function deletePPDoc(docId, reqId, table, filePath, fileName){
   toast('Dokumen dihapus');
   await loadRequests();
   openDetail(reqId);
+}
+
+// ════ PIC MANAGEMENT ════
+const PIC_STAGES = ['Engineering','Produksi','QC','Pengiriman','Instalasi','Commissioning'];
+
+function isPIC(po, stage){
+  if(!stage||!currentUser) return false;
+  const pics = (po.po_pic||[]).filter(x=>x.stage===stage);
+  return pics.some(x=>x.user_id===currentUser.id);
+}
+
+function getPICNames(po, stage){
+  return (po.po_pic||[])
+    .filter(x=>x.stage===stage)
+    .map(x=>x.app_users?.full_name||'?')
+    .join(', ') || '—';
+}
+
+function buildPICSection(p){
+  const stagesForPO = ['Engineering','Produksi','QC','Pengiriman',
+    ...(p.instalasi?['Instalasi']:[]), ...(p.commissioning?['Commissioning']:[])];
+  const rows = stagesForPO.map(stage=>{
+    const pics = (p.po_pic||[]).filter(x=>x.stage===stage);
+    const names = pics.map(x=>{
+      const name = x.app_users?.full_name||'?';
+      return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-right:4px">'
+        +name
+        +'<button onclick="removePIC(\''+x.id+'\',\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:11px;padding:0 2px;line-height:1">&#x2715;</button></span>';
+    }).join('');
+    return '<tr>'
+      +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:130px">'+stage+'</td>'
+      +'<td style="padding:7px 10px">'+(names||'<span style="font-size:12px;color:var(--text3)">Belum ada PIC</span>')+'</td>'
+      +'<td style="padding:7px 10px;width:120px">'
+      +'<button class="btn btn-sm" onclick="openAssignPIC(\''+p.id+'\',\''+stage+'\')">+ Assign</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+
+  return '<div class="detail-section">'
+    +'<div class="sect-title">PIC per Tahapan</div>'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr>'
+    +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">Tahapan</th>'
+    +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">PIC</th>'
+    +'<th style="padding:6px 10px;border-bottom:1px solid var(--border)"></th>'
+    +'</tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'</table>'
+    +'</div>';
+}
+
+function buildPICReadOnly(p){
+  // Non-admin: only show their own assigned stages
+  const myStages = (p.po_pic||[]).filter(x=>x.user_id===currentUser?.id).map(x=>x.stage);
+  if(!myStages.length) return '';
+  return '<div class="detail-section">'
+    +'<div class="sect-title">Tahapan Anda</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +myStages.map(s=>'<span style="background:var(--blue-bg);color:var(--blue);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600">'+s+'</span>').join('')
+    +'</div></div>';
+}
+
+// Assign PIC modal
+let _assignCtx = {};
+async function openAssignPIC(poId, stage){
+  _assignCtx = {poId, stage};
+  // Load all users
+  if(!allUsers.length){
+    const{data}=await sb.from('app_users').select('*').eq('is_active',true).order('full_name');
+    allUsers=data||[];
+  }
+  const po = allPOs.find(x=>x.id===poId);
+  const existingIds = (po?.po_pic||[]).filter(x=>x.stage===stage).map(x=>x.user_id);
+
+  // Get last used PICs for this stage from other POs (as default suggestion)
+  let lastUsedIds = [];
+  if(existingIds.length === 0){
+    // Only suggest if no PIC assigned yet for this PO
+    const{data:lastPIC} = await sb.from('po_pic')
+      .select('user_id, assigned_at')
+      .eq('stage', stage)
+      .neq('po_id', poId)
+      .order('assigned_at', {ascending:false})
+      .limit(10);
+    if(lastPIC && lastPIC.length){
+      // Get unique user_ids from most recent assignment
+      const latestTime = lastPIC[0].assigned_at;
+      // Group by assignment batch - take users assigned at the same time (same PO last time)
+      const{data:lastBatch} = await sb.from('po_pic')
+        .select('user_id, po_id, assigned_at')
+        .eq('stage', stage)
+        .neq('po_id', poId)
+        .order('assigned_at', {ascending:false})
+        .limit(1);
+      if(lastBatch && lastBatch.length){
+        const lastPoId = lastBatch[0].po_id;
+        const{data:batchUsers} = await sb.from('po_pic')
+          .select('user_id')
+          .eq('stage', stage)
+          .eq('po_id', lastPoId);
+        lastUsedIds = (batchUsers||[]).map(x=>x.user_id);
+      }
+    }
+  }
+
+  // Final: use existing if any, else use last used as default
+  const defaultIds = existingIds.length > 0 ? existingIds : lastUsedIds;
+
+  // Role mapping per stage
+  const stageRole = {
+    Engineering:'engineering', Produksi:'produksi', QC:'produksi',
+    Pengiriman:'logistik', Instalasi:'logistik', Commissioning:'logistik'
+  };
+  const suggestedRole = stageRole[stage];
+
+  // Build user checkboxes
+  const userOpts = allUsers.map(u=>{
+    const checked = defaultIds.includes(u.id);
+    const isSuggested = u.role === suggestedRole;
+    const roleLabel = {admin:'Admin',sales:'Sales',engineering:'Engineering',produksi:'Produksi & QC',logistik:'Logistik'};
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<input type="checkbox" value="'+u.id+'" '+(checked?'checked':'')+'>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:13px;font-weight:500">'+u.full_name+'</div>'
+      +'<div style="font-size:11px;color:var(--text3)">'+u.username+' · '+(roleLabel[u.role]||u.role)+(isSuggested?' ✓':'')+'</div>'
+      +'</div>'
+      +'</label>';
+  }).join('');
+
+  // Show in a simple overlay
+  const existing = document.getElementById('assignPICOverlay');
+  if(existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'assignPICOverlay';
+  el.className = 'overlay';
+  el.style.zIndex = '300';
+  el.innerHTML = '<div class="modal" style="max-width:420px">'
+    +'<div class="modal-header"><h2>Assign PIC — '+stage+'</h2><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'assignPICOverlay\').remove()">&#x2715;</button></div>'
+    +'<div class="modal-body" style="max-height:60vh;overflow-y:auto">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Centang user yang menjadi PIC untuk tahapan <strong>'+stage+'</strong>'+(existingIds.length===0&&lastUsedIds.length>0?' <span style="color:var(--amber);font-size:11px">(&#x21BA; dari PO sebelumnya)</span>':'')+'</div>'
+    +userOpts
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn" onclick="document.getElementById(\'assignPICOverlay\').remove()">Batal</button>'
+    +'<button class="btn btn-primary" onclick="saveAssignPIC()">Simpan</button></div>'
+    +'</div>';
+  document.body.appendChild(el);
+  history.pushState({modal:'assignPIC'},'','');
+}
+
+async function saveAssignPIC(){
+  const {poId, stage} = _assignCtx;
+  const checked = Array.from(document.querySelectorAll('#assignPICOverlay input[type=checkbox]:checked')).map(cb=>cb.value);
+
+  // Delete all existing PICs for this stage+PO
+  await sb.from('po_pic').delete().eq('po_id',poId).eq('stage',stage);
+
+  // Insert new ones
+  if(checked.length){
+    const rows = checked.map(uid=>({
+      id: 'pic-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,5),
+      po_id: poId, stage, user_id: uid
+    }));
+    await sb.from('po_pic').insert(rows);
+  }
+
+  await logPO(poId,'Assign PIC',stage+': '+checked.length+' user');
+  toast('PIC '+stage+' disimpan');
+  document.getElementById('assignPICOverlay')?.remove();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function removePIC(picId, poId){
+  await sb.from('po_pic').delete().eq('id',picId);
+  toast('PIC dihapus');
+  await loadPOs();
+  openPODetail(poId);
 }
 
 // ════ UTILS ════
