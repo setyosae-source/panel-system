@@ -803,6 +803,7 @@ function getPerms(){
   return {...base,...custom};
 }
 function can(perm){ return !!getPerms()[perm]; }
+function isAdmin(){ return !!(currentUser && (currentUser.role === 'admin')); }
 
 async function sha256(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -1268,6 +1269,8 @@ async function savePO(){
 
 // PO Detail
 async function openPODetail(id){
+  // Debug: verify currentUser role
+  if(currentUser) console.log('[DEBUG] openPODetail - user role:', currentUser.role, '| isAdmin:', currentUser.role==='admin');
   // Try with po_pic first, fallback without if table doesn't exist
   let {data:p, error:err} = await sb.from('purchase_orders')
     .select('*,po_pk(*),po_items(*),po_docs(*),po_log(*),po_pic(*,app_users(id,full_name,role))').eq('id',id).single();
@@ -1304,8 +1307,8 @@ async function openPODetail(id){
 
   function docSection(typeKey, label, stageStatus, icon){
     const list = (docsByType[typeKey]||[]);
-    const canUp = can('admin') || isPIC(p, stageStatus);
-    const canEdit = can('admin') || isPIC(p, stageStatus);
+    const canUp = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
+    const canEdit = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
     const fileHtml = list.length
       ? list.map(f=>{
           const url = poFileUrl(f.file_path);
@@ -1418,7 +1421,7 @@ async function openPODetail(id){
         ${stepper}
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           ${nextSt&&canUpdateStatus(nextSt)?`<button class="btn btn-sm btn-primary" onclick="updatePOStatus('${p.id}','${nextSt}')">&#x2192; ${nextSt}</button>`:''}
-          ${prevSt&&p.status!=='Selesai'&&can('admin')?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
+          ${prevSt&&p.status!=='Selesai'&&(currentUser&&currentUser.role==='admin')?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
         </div>
       </div>
 
@@ -1495,13 +1498,13 @@ async function openPODetail(id){
       </div>
 
       <!-- PIC Assignment -->
-      ${can('admin') ? buildPICSection(p) : buildPICReadOnly(p)}
+      ${(currentUser && currentUser.role==='admin') ? buildPICSection(p) : buildPICReadOnly(p)}
 
       <!-- Item -->
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
-          ${can('po_engineering')||can('admin')?'<button class="btn btn-sm" onclick="openItemForm(\''+p.id+'\')">+ Tambah</button>':''}
+          ${can('po_engineering')||(currentUser&&currentUser.role==='admin')?'<button class="btn btn-sm" onclick="openItemForm(\''+p.id+'\')">+ Tambah</button>':''}
         </div>
         ${itemList||noFile()}
       </div>
@@ -2311,7 +2314,7 @@ async function removePIC(picId, poId){
 
 // ════ UTILS ════
 function canUpdateStatus(status){
-  if(can('admin')) return true;
+  if(currentUser && currentUser.role==='admin') return true;
   if(status==='Engineering') return can('po_engineering');
   if(status==='Produksi'||status==='QC') return can('po_produksi')||can('po_qc');
   if(status==='Pengiriman'||status==='Instalasi'||status==='Commissioning') return can('po_logistik');
