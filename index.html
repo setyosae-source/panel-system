@@ -1089,7 +1089,14 @@ function copySalesLink(){const url=location.origin+location.pathname+'?mode=sale
 
 // ════ PO MODULE ════
 async function loadPOs(){
-  const{data,error}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_pic(*, app_users(id,full_name,role))').order('created_at',{ascending:false});
+  // Try with po_pic, fallback without
+  let {data, error} = await sb.from('purchase_orders')
+    .select('*,po_pk(*),po_items(*),po_docs(*),po_pic(*,app_users(id,full_name,role))').order('created_at',{ascending:false});
+  if(error){
+    const res2 = await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*)').order('created_at',{ascending:false});
+    data=res2.data; error=res2.error;
+    if(data) data=data.map(p=>({...p,po_pic:[]}));
+  }
   if(error){toast('Gagal memuat PO: '+error.message);return;}
   allPOs=data||[];renderPOStats();renderPOTable();
   document.getElementById('nbPO').textContent=allPOs.filter(p=>p.status!=='Selesai').length;
@@ -1261,7 +1268,17 @@ async function savePO(){
 
 // PO Detail
 async function openPODetail(id){
-  const{data:p}=await sb.from('purchase_orders').select('*,po_pk(*),po_items(*),po_docs(*),po_log(*),po_pic(*,app_users(id,full_name,role))').eq('id',id).single();
+  // Try with po_pic first, fallback without if table doesn't exist
+  let {data:p, error:err} = await sb.from('purchase_orders')
+    .select('*,po_pk(*),po_items(*),po_docs(*),po_log(*),po_pic(*,app_users(id,full_name,role))').eq('id',id).single();
+  if(err){
+    // Fallback: load without po_pic (table might not exist yet)
+    const{data:p2,error:err2}=await sb.from('purchase_orders')
+      .select('*,po_pk(*),po_items(*),po_docs(*),po_log(*)').eq('id',id).single();
+    if(err2||!p2){toast('Gagal memuat detail: '+(err2?.message||err.message));return;}
+    p = {...p2, po_pic:[]};
+    if(err.message && !err.message.includes('po_pic')) console.warn('PO detail error:',err.message);
+  }
   if(!p){toast('Gagal memuat detail');return;}
   const today2=new Date().toISOString().split('T')[0];
   const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
