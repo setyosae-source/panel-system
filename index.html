@@ -146,6 +146,26 @@ tr:hover td{background:var(--bg)}
 }
 
 
+
+/* ── DOC VIEWER ── */
+.doc-viewer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;flex-direction:column}
+.doc-viewer-bar{background:#1a1917;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.doc-viewer-bar .fname{color:#fff;font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-viewer-bar .btn{border-color:#444;color:#ccc;background:transparent}
+.doc-viewer-bar .btn:hover{background:#333;color:#fff}
+.doc-viewer-frame{flex:1;width:100%;border:none;background:#fff}
+.doc-viewer-img{max-width:100%;max-height:100%;object-fit:contain;margin:auto;display:block}
+.doc-viewer-fallback{color:#ccc;text-align:center;padding:3rem;font-size:14px}
+/* ── FILE ITEM ACTIONS ── */
+.file-item{position:relative}
+.file-actions{display:flex;gap:4px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.file-item:hover .file-actions{opacity:1}
+.file-act-btn{background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:4px;color:var(--text3);font-size:12px;font-family:inherit}
+.file-act-btn:hover{background:var(--border);color:var(--text)}
+.file-act-btn.del:hover{background:var(--red-bg);color:var(--red)}
+/* File version badge */
+.ver-badge{font-size:10px;background:var(--surface2);color:var(--text3);padding:1px 6px;border-radius:20px;flex-shrink:0}
+
 /* ── SORTABLE & FILTERS ── */
 .stat-card{cursor:pointer;transition:all .15s}
 .stat-card:hover{border-color:var(--border2);box-shadow:0 2px 8px rgba(0,0,0,.06)}
@@ -712,6 +732,41 @@ tr:hover td{background:var(--bg)}
   </div>
 </div>
 
+
+<!-- ══ DOC VIEWER ══ -->
+<div class="doc-viewer-overlay" id="docViewer" style="display:none">
+  <div class="doc-viewer-bar">
+    <span class="fname" id="dvFileName">—</span>
+    <a id="dvDownload" href="#" download class="btn btn-sm">&#x2B07; Download</a>
+    <button class="btn btn-sm" onclick="closeDocViewer()">&#x2715; Tutup</button>
+  </div>
+  <div id="dvBody" style="flex:1;display:flex;overflow:hidden"></div>
+</div>
+
+<!-- ══ DOC EDIT MODAL ══ -->
+<div class="overlay" id="docEditModal" style="display:none;z-index:400">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2>Edit Dokumen</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('docEditModal')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Nama File (label)</label><input type="text" id="deFileName" placeholder="Nama dokumen"></div>
+      <hr style="border:none;border-top:1px solid var(--border)">
+      <div class="form-row">
+        <label>Ganti File (opsional — file lama jadi riwayat)</label>
+        <div class="upload-zone" onclick="document.getElementById('deFileInput').click()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Pilih file pengganti
+          <input type="file" id="deFileInput" style="display:none" onchange="previewReplaceFile(this)">
+        </div>
+        <div id="deFilePreview" style="margin-top:6px;font-size:12px;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('docEditModal')">Batal</button>
+      <button class="btn btn-primary" id="btnSaveDoc" onclick="saveDocEdit()">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
@@ -816,10 +871,11 @@ function startApp(){
 function buildTopbarUser(){
   const roleLabel={'admin':'Admin','sales':'Sales','engineering':'Engineering','produksi':'Produksi & QC','logistik':'Logistik'};
   const roleColor={'admin':'role-admin','sales':'role-sales','engineering':'role-engineering','produksi':'role-produksi','logistik':'role-logistik'};
-  const inner = `<strong>${currentUser.full_name}</strong>
-    <span class="role-badge role-chip ${roleColor[currentUser.role]||''}">${roleLabel[currentUser.role]||currentUser.role}</span>
-    ${can('users')?'<button class="btn btn-sm btn-ghost" onclick="openUserMgmt()" style="font-size:11px">Kelola User</button>':''}
-    <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>`;
+  const userBtn = can('users') ? '<button class="btn btn-sm btn-ghost" onclick="openUserMgmt()" style="font-size:11px">Kelola User</button>' : '';
+  const inner = '<strong>'+currentUser.full_name+'</strong>'
+    +' <span class="role-badge role-chip '+(roleColor[currentUser.role]||'')+'">'+( roleLabel[currentUser.role]||currentUser.role)+'</span>'
+    +' '+userBtn
+    +' <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>';
   ['ppUserInfo','poUserInfo'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.innerHTML=inner;
@@ -991,8 +1047,8 @@ async function openDetail(id){
   if(r.status==='Open')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','In Progress')">&#x25B6; In Progress</button>`;
   if(r.status==='In Progress')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Done')">&#x2713; Done</button>`;
   if(r.status==='Done')stBtn=`<button class="btn btn-sm" onclick="updateStatus('${id}','Open')">&#x21BA; Reopen</button>`;
-  const custFiles=renderFileItems(r.docs_customer||[]);
-  const resFiles=renderFileItems(r.docs_result||[]);
+  const custFiles=renderFileItems(r.docs_customer||[], r.id, 'docs_customer');
+  const resFiles=renderFileItems(r.docs_result||[], r.id, 'docs_result');
   document.getElementById('detailContent').innerHTML=`
     <div class="modal-header"><div><div class="mono" style="font-size:11px;margin-bottom:2px">${r.id}</div><h2>${r.customer}${r.project?' — '+r.project:''}</h2></div><button class="btn btn-ghost btn-sm" onclick="closeModal('detailModal')">&#x2715;</button></div>
     <div class="modal-body">
@@ -1232,9 +1288,28 @@ async function openPODetail(id){
   function docSection(typeKey, label, stageStatus, icon){
     const list = (docsByType[typeKey]||[]);
     const canUp = can('admin') || canUpdateStatus(stageStatus||'');
+    const canEdit = can('admin') || canUpdateStatus(stageStatus||'');
     const fileHtml = list.length
-      ? list.map(f=>`<div class="file-item"><a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('')
-      : `<span style="font-size:12px;color:var(--text3)">Belum ada</span>`;
+      ? list.map(f=>{
+          const url = poFileUrl(f.file_path);
+          const isOld = f.file_name.startsWith('[v lama]');
+          const fn = f.file_name.replace(/'/g,'&#39;');
+          const fp = f.file_path.replace(/'/g,'&#39;');
+          const editBtn = (canEdit && !isOld)
+            ? '<button class="file-act-btn" onclick="openDocEdit(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fn+'\',\''+fp+'\')">&#x270F;</button>'
+            : '';
+          const delBtn = canEdit
+            ? '<button class="file-act-btn del" onclick="deleteDoc(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fp+'\',\''+fn+'\')">&#x1F5D1;</button>'
+            : '';
+          return '<div class="file-item" style="'+(isOld?'opacity:.5':'')+'">'
+            +'<a class="fname" href="javascript:void(0)" onclick="openDoc(\''+url+'\',\''+fn+'\')" title="Klik untuk buka">'+f.file_name+'</a>'
+            +'<span class="fsize">'+fmtSize(f.file_size)+'</span>'
+            +'<div class="file-actions">'
+            +'<button class="file-act-btn" onclick="openDoc(\''+url+'\',\''+fn+'\')">&#x1F441;</button>'
+            +editBtn+delBtn
+            +'</div></div>';
+        }).join('')
+      : '<span style="font-size:12px;color:var(--text3)">Belum ada</span>';
     const upBtn = canUp ? `<button class="upload-more-btn" onclick="document.getElementById('docup_${typeKey}_${p.id}').click()">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>${label.split('/')[0]}
       </button>
@@ -1915,6 +1990,128 @@ async function saveUser(){
   btn.disabled=false;btn.textContent='Simpan';
 }
 
+// ════ DOCUMENT VIEWER ════
+const VIEWABLE_IN_BROWSER = ['pdf','jpg','jpeg','png','gif','webp','svg','bmp'];
+const OFFICE_TYPES = ['doc','docx','xls','xlsx','ppt','pptx','csv','txt'];
+
+function openDoc(url, fileName){
+  const ext = fileName.split('.').pop().toLowerCase();
+  const dvBody = document.getElementById('dvBody');
+  document.getElementById('dvFileName').textContent = fileName;
+  document.getElementById('dvDownload').href = url;
+  document.getElementById('dvDownload').download = fileName;
+
+  if(VIEWABLE_IN_BROWSER.includes(ext)){
+    if(['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)){
+      dvBody.innerHTML = `<img class="doc-viewer-img" src="${url}" alt="${fileName}" style="padding:16px">`;
+    } else {
+      // PDF
+      dvBody.innerHTML = `<iframe class="doc-viewer-frame" src="${url}"></iframe>`;
+    }
+  } else if(OFFICE_TYPES.includes(ext)){
+    // Google Docs Viewer
+    const gdUrl = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
+    dvBody.innerHTML = `<iframe class="doc-viewer-frame" src="${gdUrl}"></iframe>
+      <div style="position:absolute;bottom:1rem;right:1rem">
+        <a href="${url}" target="_blank" class="btn btn-sm" style="background:var(--text);color:#fff">Buka di Tab Baru</a>
+      </div>`;
+  } else {
+    // Fallback: open in new tab or download
+    dvBody.innerHTML = `<div class="doc-viewer-fallback">
+      <div style="font-size:2rem;margin-bottom:1rem">&#x1F4C4;</div>
+      <div>Format <strong>.${ext}</strong> tidak bisa ditampilkan langsung.</div>
+      <div style="margin-top:1rem;display:flex;gap:10px;justify-content:center">
+        <a href="${url}" target="_blank" class="btn btn-sm" style="background:var(--blue);color:#fff;border-color:var(--blue)">Buka di Tab Baru</a>
+        <a href="${url}" download="${fileName}" class="btn btn-sm" style="background:var(--text);color:#fff;border-color:var(--text)">Download</a>
+      </div>
+    </div>`;
+  }
+  document.getElementById('docViewer').style.display='flex';
+}
+
+function closeDocViewer(){
+  document.getElementById('docViewer').style.display='none';
+  document.getElementById('dvBody').innerHTML='';
+}
+// Close on Escape key
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDocViewer(); });
+
+// ════ DOCUMENT EDIT / DELETE ════
+let _editDocCtx = {}; // {docId, poId, table, oldPath, oldName}
+
+function openDocEdit(docId, poId, table, fileName, filePath){
+  _editDocCtx = {docId, poId, table, oldPath:filePath, oldName:fileName, newFile:null};
+  document.getElementById('deFileName').value = fileName;
+  document.getElementById('deFilePreview').textContent = '';
+  document.getElementById('deFileInput').value = '';
+  document.getElementById('docEditModal').style.display='flex';
+  history.pushState({modal:'docEdit'},'','');
+}
+
+function previewReplaceFile(input){
+  const f = input.files[0];
+  if(!f) return;
+  _editDocCtx.newFile = f;
+  document.getElementById('deFilePreview').textContent = '✓ ' + f.name + ' (' + fmtSize(f.size) + ')';
+}
+
+async function saveDocEdit(){
+  const btn = document.getElementById('btnSaveDoc');
+  btn.disabled=true; btn.textContent='Menyimpan...';
+  try{
+    const {docId, poId, table, oldPath, oldName, newFile} = _editDocCtx;
+    const newName = document.getElementById('deFileName').value.trim() || oldName;
+
+    if(newFile){
+      // Upload new file, keep old as version (rename in DB with _v1, _v2 etc)
+      const ext = newFile.name.split('.').pop();
+      const newPath = oldPath.replace(/[^/]+$/, Date.now()+'_'+newFile.name);
+      const{error:upErr} = await sb.storage.from('po-docs').upload(newPath, newFile);
+      if(upErr){toast('Gagal upload file baru: '+upErr.message);btn.disabled=false;btn.textContent='Simpan';return;}
+      // Mark old as archived version
+      await sb.from(table).update({file_name:'[v lama] '+oldName}).eq('id',docId);
+      // Insert new record
+      await sb.from(table).insert({
+        po_id: poId,
+        file_name: newName !== oldName ? newName : newFile.name,
+        file_path: newPath,
+        file_size: newFile.size,
+        doc_type: (await sb.from(table).select('doc_type').eq('id',docId).single()).data?.doc_type || 'Tambahan'
+      });
+      await logPO(poId,'Ganti File',newName+' (versi baru)');
+      toast('File diganti, versi lama disimpan');
+    } else {
+      // Just rename
+      await sb.from(table).update({file_name:newName}).eq('id',docId);
+      toast('Nama file diperbarui');
+    }
+    closeModal('docEditModal');
+    await loadPOs();
+    openPODetail(poId);
+  }catch(e){toast('Error: '+e.message);}
+  btn.disabled=false; btn.textContent='Simpan';
+}
+
+async function deleteDoc(docId, poId, table, filePath, fileName){
+  if(!confirm('Hapus dokumen "'+fileName+'"? Tindakan ini tidak bisa dibatalkan.')) return;
+  await sb.storage.from('po-docs').remove([filePath]);
+  await sb.from(table).delete().eq('id',docId);
+  await logPO(poId,'Hapus Dokumen',fileName);
+  toast('Dokumen dihapus');
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// Also for pre-project docs
+async function deletePPDoc(docId, reqId, table, filePath, fileName){
+  if(!confirm('Hapus dokumen "'+fileName+'"?')) return;
+  await sb.storage.from('request-docs').remove([filePath]);
+  await sb.from(table).delete().eq('id',docId);
+  toast('Dokumen dihapus');
+  await loadRequests();
+  openDetail(reqId);
+}
+
 // ════ UTILS ════
 function canUpdateStatus(status){
   if(can('admin')) return true;
@@ -1952,7 +2149,24 @@ const itemBadge=s=>{
   const bg={'Belum Produksi':'#f3f4f6','Proses Produksi':'#fffbeb','QC':'#e0f2fe','Selesai Produksi':'#f0fdf4'};
   return`<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
 };
-function renderFileItems(arr){if(!arr||!arr.length)return noFile();return arr.map(f=>`<div class="file-item"><a class="fname" href="${fileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span></div>`).join('');}
+function renderFileItems(arr, reqId, table){
+  if(!arr||!arr.length)return noFile();
+  return arr.map(f=>{
+    const url=fileUrl(f.file_path);
+    const fn=f.file_name.replace(/'/g,'&#39;');
+    const fp=f.file_path.replace(/'/g,'&#39;');
+    const delBtn=(reqId&&table)
+      ? '<button class="file-act-btn del" onclick="deletePPDoc(\'' + f.id + '\',\''+reqId+'\',\''+table+'\',\''+fp+'\',\''+fn+'\')">&#x1F5D1;</button>'
+      : '';
+    return '<div class="file-item">'
+      +'<a class="fname" href="javascript:void(0)" onclick="openDoc(\''+url+'\',\''+fn+'\')">'+f.file_name+'</a>'
+      +'<span class="fsize">'+fmtSize(f.file_size)+'</span>'
+      +'<div class="file-actions">'
+      +'<button class="file-act-btn" onclick="openDoc(\''+url+'\',\''+fn+'\')">&#x1F441;</button>'
+      +delBtn
+      +'</div></div>';
+  }).join('');
+}
 const closeModal=id=>{document.getElementById(id).style.display='none';};
 const copyText=(t,msg)=>navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>toast(t));
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
