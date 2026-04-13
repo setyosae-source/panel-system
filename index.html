@@ -1305,10 +1305,13 @@ async function openPODetail(id){
   const docsByType = {};
   docs.forEach(d=>{ if(!docsByType[d.doc_type]) docsByType[d.doc_type]=[]; docsByType[d.doc_type].push(d); });
 
-  function docSection(typeKey, label, stageStatus, icon){
+  function docSection(typeKey, label, stageStatus, icon, adminOnly){
     const list = (docsByType[typeKey]||[]);
-    const canUp = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
-    const canEdit = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
+    const _isAdmin = !!(currentUser && currentUser.role === 'admin');
+    const canUp = adminOnly ? _isAdmin : (_isAdmin || isPIC(p, stageStatus));
+    const canEdit = adminOnly ? _isAdmin : (_isAdmin || isPIC(p, stageStatus));
+    const canView = adminOnly ? _isAdmin : true;
+    if(adminOnly && !_isAdmin) return '';
     const fileHtml = list.length
       ? list.map(f=>{
           const url = poFileUrl(f.file_path);
@@ -1419,9 +1422,9 @@ async function openPODetail(id){
       <div class="detail-section">
         <div class="sect-title">Progress Status</div>
         ${stepper}
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          ${nextSt&&canUpdateStatus(nextSt)?`<button class="btn btn-sm btn-primary" onclick="updatePOStatus('${p.id}','${nextSt}')">&#x2192; ${nextSt}</button>`:''}
-          ${prevSt&&p.status!=='Selesai'&&(currentUser&&currentUser.role==='admin')?`<button class="btn btn-sm" onclick="updatePOStatus('${p.id}','${prevSt}')">&#x2190; ${prevSt}</button>`:''}
+        <div style="margin-top:8px;font-size:11px;color:var(--text3);font-style:italic">
+          Status berubah otomatis saat dokumen tahapan diupload.
+          ${(currentUser&&currentUser.role==='admin')?`<button class="btn btn-sm" style="margin-left:8px;font-size:11px" onclick="showManualStatusMenu('${p.id}','${p.status}')">Override (Admin)</button>`:''}
         </div>
       </div>
 
@@ -1436,7 +1439,7 @@ async function openPODetail(id){
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             ${docSection('Drawing','Drawing','Engineering','📐')}
-            ${docSection('BOM','BOM','Engineering','📋')}
+            ${docSection('BOM','BOM','Engineering','📋',true)}
           </div>
           ${engTip}
         </div>
@@ -2312,66 +2315,4 @@ async function removePIC(picId, poId){
   openPODetail(poId);
 }
 
-// ════ UTILS ════
-function canUpdateStatus(status){
-  if(currentUser && currentUser.role==='admin') return true;
-  if(status==='Engineering') return can('po_engineering');
-  if(status==='Produksi'||status==='QC') return can('po_produksi')||can('po_qc');
-  if(status==='Pengiriman'||status==='Instalasi'||status==='Commissioning') return can('po_logistik');
-  return false;
-}
-const gv=id=>document.getElementById(id)?.value||'';
-const sv=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
-const sv2=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
-const today=()=>new Date().toISOString().split('T')[0];
-const genId=()=>'REQ-'+Date.now().toString(36).slice(-5).toUpperCase()+'-'+Math.random().toString(36).slice(2,4).toUpperCase();
-const fileUrl=path=>`${SB_URL}/storage/v1/object/public/request-docs/${path}`;
-const poFileUrl=path=>`${SB_URL}/storage/v1/object/public/po-docs/${path}`;
-const fmtRp=n=>n?'Rp '+Number(n).toLocaleString('id-ID'):'—';
-const fmtDate=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');return x.getDate().toString().padStart(2,'0')+'/'+(x.getMonth()+1).toString().padStart(2,'0')+'/'+x.getFullYear();};
-const fmtDateLong=d=>{if(!d)return'—';const x=new Date(d+'T00:00:00');const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return days[x.getDay()]+', '+x.getDate()+' '+months[x.getMonth()]+' '+x.getFullYear();};
-const fmtDateTime=s=>{if(!s)return'';const d=new Date(s);return fmtDate(d.toISOString().split('T')[0])+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
-const fmtSize=b=>{if(!b)return'';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';};
-const noFile=()=>'<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
-const badge=s=>{const m={'Open':'b-open','In Progress':'b-inprog','Done':'b-done'};return`<span class="badge ${m[s]||''}">${s}</span>`;};
-const poBadge=s=>{
-  const c={'Terima PO':'#1d4ed8','Engineering':'#92400e','Produksi':'#7c3aed','QC':'#0369a1','Pengiriman':'#0f766e','Instalasi':'#b45309','Commissioning':'#6d28d9','Selesai':'#166534'};
-  const bg={'Terima PO':'#eff6ff','Engineering':'#fffbeb','Produksi':'#f5f3ff','QC':'#e0f2fe','Pengiriman':'#f0fdfa','Instalasi':'#fef3c7','Commissioning':'#ede9fe','Selesai':'#f0fdf4'};
-  return`<span style="display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
-};
-const pkBadge=s=>{
-  const c={'Diajukan':'#92400e','Disetujui':'#166534','Ditolak':'#991b1b','Pengadaan':'#7c3aed','Realisasi':'#0369a1','Selesai':'#166534'};
-  const bg={'Diajukan':'#fffbeb','Disetujui':'#f0fdf4','Ditolak':'#fef2f2','Pengadaan':'#f5f3ff','Realisasi':'#e0f2fe','Selesai':'#f0fdf4'};
-  return`<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
-};
-const itemBadge=s=>{
-  const c={'Belum Produksi':'#6b7280','Proses Produksi':'#92400e','QC':'#0369a1','Selesai Produksi':'#166534'};
-  const bg={'Belum Produksi':'#f3f4f6','Proses Produksi':'#fffbeb','QC':'#e0f2fe','Selesai Produksi':'#f0fdf4'};
-  return`<span style="display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:${bg[s]||'#f3f4f6'};color:${c[s]||'#374151'}">${s}</span>`;
-};
-function renderFileItems(arr, reqId, table){
-  if(!arr||!arr.length)return noFile();
-  return arr.map(f=>{
-    const url=fileUrl(f.file_path);
-    const fn=f.file_name.replace(/'/g,'&#39;');
-    const fp=f.file_path.replace(/'/g,'&#39;');
-    const delBtn=(reqId&&table)
-      ? '<button class="file-act-btn del" onclick="deletePPDoc(\'' + f.id + '\',\''+reqId+'\',\''+table+'\',\''+fp+'\',\''+fn+'\')">&#x1F5D1;</button>'
-      : '';
-    return '<div class="file-item">'
-      +'<a class="fname" href="javascript:void(0)" onclick="openDoc(\''+url+'\',\''+fn+'\')">'+f.file_name+'</a>'
-      +'<span class="fsize">'+fmtSize(f.file_size)+'</span>'
-      +'<div class="file-actions">'
-      +'<button class="file-act-btn" onclick="openDoc(\''+url+'\',\''+fn+'\')">&#x1F441;</button>'
-      +delBtn
-      +'</div></div>';
-  }).join('');
-}
-const closeModal=id=>{document.getElementById(id).style.display='none';};
-const copyText=(t,msg)=>navigator.clipboard.writeText(t).then(()=>toast(msg)).catch(()=>toast(t));
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800);}
-function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('poSidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('show');}
-function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('poSidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show');}
-</script>
-</body>
-</html>
+
