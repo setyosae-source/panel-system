@@ -1559,7 +1559,7 @@ async function openPODetail(id){
       </div>
 
       <!-- PIC Assignment -->
-      ${isAdmin() ? buildPICSection(p) : ''}
+      <div id="picSectionContainer">${isAdmin() ? buildPICSection(p) : ''}</div>
 
       <!-- Item -->
       <div class="detail-section">
@@ -2509,15 +2509,15 @@ async function saveAssignPIC(){
   await logPO(poId,'Assign PIC',stage+': '+checked.length+' user');
   toast('PIC '+stage+' disimpan');
   document.getElementById('assignPICOverlay')?.remove();
-  await loadPOs();
-  openPODetail(poId);
+
+  // Refresh only PIC section, not full modal
+  await refreshPICSection(poId);
 }
 
 async function removePIC(picId, poId){
   await sb.from('po_pic').delete().eq('id',picId);
   toast('PIC dihapus');
-  await loadPOs();
-  openPODetail(poId);
+  await refreshPICSection(poId);
 }
 
 // ════ PRODUKSI APPROVAL FLOW ════
@@ -2624,6 +2624,24 @@ function buildDocPKSection(p){
     +'<div class="sect-title" style="margin-bottom:0">💰 Dokumen PK</div>'+addBtn+'</div>'
     +buildStandaloneDocList(p,'Dokumen PK','pk_doc')
     +'</div>';
+}
+
+async function refreshPICSection(poId){
+  // Fetch fresh PO data with po_pic
+  let {data:p} = await sb.from('purchase_orders')
+    .select('*,po_pic(*,app_users(id,full_name,role))')
+    .eq('id',poId).single();
+  if(!p) return;
+
+  // Update allPOs cache
+  const idx = allPOs.findIndex(x=>x.id===poId);
+  if(idx>=0) allPOs[idx] = {...allPOs[idx], po_pic: p.po_pic};
+
+  // Re-render only the PIC section
+  const picContainer = document.getElementById('picSectionContainer');
+  if(picContainer){
+    picContainer.innerHTML = buildPICSection(p);
+  }
 }
 
 // ════ UTILS ════
