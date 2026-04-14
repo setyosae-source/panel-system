@@ -2896,6 +2896,8 @@ function renderItemRows(){
     return;
   }
   const rows = poFormItems.map((it,i)=>{
+    const autoCatsList = ['Rectifier','Inverter','UPS','Panel ACDB','Panel DCDB'];
+    const isAutoCatItem = autoCatsList.some(c=>(it.category||'').includes(c));
     const div=document.createElement('div');
     div.style.cssText='border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;background:var(--surface)';
     div.innerHTML=''
@@ -2912,9 +2914,9 @@ function renderItemRows(){
       +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Tipe / Model <span style="font-size:10px;color:var(--text3)">(auto)</span></label>'
       +'<input id="pfi_typ_'+i+'" type="text" value="" placeholder="Otomatis atau isi manual" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:var(--surface2);" readonly></div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:2fr 80px;gap:8px;margin-bottom:8px">'
-      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>'
-      +'<input id="pfi_spc_'+i+'" type="text" value="" placeholder="110-75A, 3 Phase, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'<div style="display:grid;grid-template-columns:'+(isAutoCatItem?'1fr':'2fr')+' 80px;gap:8px;margin-bottom:8px">'
+      +(isAutoCatItem?'':'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>'
+        +'<input id="pfi_spc_'+i+'" type="text" value="" placeholder="Isi spesifikasi..." style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>')
       +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>'
       +'<input id="pfi_qty_'+i+'" type="number" value="1" min="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
       +'</div>'
@@ -2940,8 +2942,15 @@ function renderItemRows(){
     typEl.readOnly = isAutoCat;
     typEl.style.background = isAutoCat ? 'var(--surface2)' : 'var(--surface)';
     typEl.placeholder = isAutoCat ? 'Otomatis dari spec' : 'Isi tipe / model';
-    div.querySelector('#pfi_spc_'+i).value = poFormItems[i].spec||'';
+
     div.querySelector('#pfi_qty_'+i).value = poFormItems[i].qty||1;
+    if(!isAutoCatItem){
+      const spcEl = div.querySelector('#pfi_spc_'+i);
+      if(spcEl){
+        spcEl.value = poFormItems[i].spec||'';
+        spcEl.oninput=e=>{poFormItems[i].spec=e.target.value};
+      }
+    }
     // Add Spec button if category warrants it
     const specCategories = ['Rectifier','UPS','Inverter','ACDB','DCDB','rectifier','ups','inverter','acdb','dcdb'];
     const specBtn = div.querySelector('#pfi_spec_btn_'+i);
@@ -2971,7 +2980,7 @@ function renderItemRows(){
       renderItemRows();
     };
     div.querySelector('#pfi_typ_'+i).oninput=e=>{poFormItems[i].type=e.target.value};
-    div.querySelector('#pfi_spc_'+i).oninput=e=>{poFormItems[i].spec=e.target.value};
+
     div.querySelector('#pfi_qty_'+i).oninput=e=>{poFormItems[i].qty=parseInt(e.target.value)||1};
     div.querySelector('#pfi_prd_'+i).onchange=e=>{
       poFormItems[i].is_produksi=e.target.checked;
