@@ -1491,7 +1491,7 @@ async function openPODetail(id){
   document.getElementById('poDetailContent').innerHTML=`
     <div class="modal-header">
       <div>
-        <div class="mono" style="font-size:11px;margin-bottom:2px">${p.no_po}${p.no_project?' &middot; No.'+p.no_project:''}</div>
+        <div class="mono" style="font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text)">${p.no_po}${p.no_project?'  ·  '+p.no_project:''}</div>
         <h2>${p.customer}${p.project?' — '+p.project:''}</h2>
         ${ov?`<div style="font-size:11px;color:var(--red);margin-top:2px">&#9888; Overdue — target kirim ${fmtDate(p.tgl_kirim)}</div>`:''}
       </div>
@@ -1505,7 +1505,7 @@ async function openPODetail(id){
         <div class="kv">
           <span class="k">Tgl. PO</span><span class="v">${fmtDate(p.tgl_po)}</span>
           <span class="k">Target Kirim</span><span class="v" style="${ov?'color:var(--red);font-weight:700':''}">${fmtDate(p.tgl_kirim)||'—'}</span>
-          <span class="k">Nilai PO</span><span class="v">${p.nilai_po?fmtRp(p.nilai_po):'—'}</span>
+
           <span class="k">FAT/Ins./Com.</span><span class="v">${fatInfo}</span>
           ${p.linked_request_id?`<span class="k">Pre-Project</span><span class="v" style="color:var(--blue)">${p.linked_request_id}</span>`:''}
         </div>
