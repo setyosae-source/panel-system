@@ -638,41 +638,65 @@ tr:hover td{background:var(--bg)}
 
 <!-- ══ PO MODALS ══ -->
 <div class="overlay" id="poFormModal" style="display:none">
-  <div class="modal">
-    <div class="modal-header"><h2 id="poFormTitle">PO Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('poFormModal')">&#x2715;</button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" placeholder="No. Purchase Order"></div>
-        <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO"></div>
-        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" placeholder="Nama customer"></div>
-        <div class="form-row"><label>Project</label><input type="text" id="pfProject" placeholder="Nama project / lokasi"></div>
-        <div class="form-row"><label>Tgl. Kirim Target</label><input type="date" id="pfTglKirim"></div>
-        <div class="form-row"><label>No. Project</label><input type="text" id="pfNoProject" placeholder="No. urut project"></div>
-      </div>
-      <div class="form-row"><label>Nilai PO (Rp)</label><input type="text" id="pfNilai" placeholder="Contoh: 150000000"></div>
-      <div class="form-row"><label>Linked Pre-Project (opsional)</label>
-        <select id="pfLinked"><option value="">— Tidak ada —</option></select>
-      </div>
-      <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:13px">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT"> FAT</label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi"> Instalasi</label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning"> Commissioning</label>
-      </div>
-      <div class="form-row"><label>Catatan</label><textarea id="pfCatatan" placeholder="Catatan tambahan..."></textarea></div>
-      <hr style="border:none;border-top:1px solid var(--border)">
-      <div class="form-row">
-        <label>File PO &amp; Dokumen Support</label>
-        <div class="upload-zone" onclick="document.getElementById('pfDocs').click()">
-          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          Upload File PO, File Support, dll
-          <input type="file" id="pfDocs" multiple style="display:none" onchange="handlePOFormFiles(this)">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div>
+        <h2 id="poFormTitle">PO Baru</h2>
+        <div style="display:flex;gap:6px;margin-top:6px" id="poFormSteps">
+          <span id="step1Ind" style="font-size:11px;padding:2px 10px;border-radius:20px;background:var(--blue);color:#fff;font-weight:600">1 Info PO</span>
+          <span id="step2Ind" style="font-size:11px;padding:2px 10px;border-radius:20px;background:var(--border);color:var(--text3);font-weight:600">2 Item Produk</span>
         </div>
-        <div class="file-list" id="pfDocList"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('poFormModal')">&#x2715;</button>
+    </div>
+
+    <!-- Step 1: Info PO -->
+    <div id="poFormStep1">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" placeholder="No. Purchase Order"></div>
+          <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO"></div>
+          <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" placeholder="Nama customer"></div>
+          <div class="form-row"><label>Project / Lokasi</label><input type="text" id="pfProject" placeholder="Nama project / lokasi"></div>
+          <div class="form-row"><label>Tgl. Kirim Target</label><input type="date" id="pfTglKirim"></div>
+          <div class="form-row"><label>No. Project</label>
+            <input type="text" id="pfNoProject" placeholder="Auto" readonly style="background:var(--surface2);color:var(--text2)">
+          </div>
+        </div>
+        <div class="form-row"><label>Linked Pre-Project (opsional)</label>
+          <select id="pfLinked"><option value="">— Tidak ada —</option></select>
+        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:13px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT"> FAT</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi"> Instalasi</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning"> Commissioning</label>
+        </div>
+        <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="pfCatatan" placeholder="Catatan tambahan..."></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('poFormModal')">Batal</button>
+        <button class="btn btn-primary" onclick="goToStep2()">Selanjutnya &#x2192;</button>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('poFormModal')">Batal</button>
-      <button class="btn btn-primary" id="btnSavePO" onclick="savePO()">Simpan</button>
+
+    <!-- Step 2: Item Produk -->
+    <div id="poFormStep2" style="display:none">
+      <div class="modal-body">
+        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:13px;color:var(--text2)">Tambahkan item/unit yang akan diproduksi</div>
+          <button class="btn btn-sm btn-primary" onclick="addItemRow()">+ Tambah Item</button>
+        </div>
+        <div id="itemRowsContainer">
+          <!-- Item rows added dynamically -->
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px">
+          ⚠ Item yang tidak diproduksi akan skip tahapan Engineering, Produksi, QC, FAT, SAT.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="backToStep1()">&#x2190; Kembali</button>
+        <button class="btn btn-primary" id="btnSavePO" onclick="savePO()">Simpan PO</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1230,6 +1254,14 @@ function renderPOTable(){
 async function openPOForm(id){
   editPOId=id||null;poTmpFiles=[];
   document.getElementById('poFormTitle').textContent=id?'Edit PO':'PO Baru';
+  // Reset wizard
+  poFormItems=[];
+  document.getElementById('poFormStep1').style.display='block';
+  document.getElementById('poFormStep2').style.display='none';
+  const stepsEl=document.getElementById('poFormSteps');
+  if(stepsEl) stepsEl.style.display=id?'none':'flex';
+  document.getElementById('step1Ind').style.cssText='font-size:11px;padding:2px 10px;border-radius:20px;background:var(--blue);color:#fff;font-weight:600';
+  document.getElementById('step2Ind').style.cssText='font-size:11px;padding:2px 10px;border-radius:20px;background:var(--border);color:var(--text3);font-weight:600';
   const sel=document.getElementById('pfLinked');
   sel.innerHTML='<option value="">— Tidak ada —</option>';
   if(!allReqs.length)await loadRequests();
@@ -1245,9 +1277,11 @@ async function openPOForm(id){
     document.getElementById('pfCommissioning').checked=!!p.commissioning;
     poTmpFiles=(p.po_docs||[]).map(f=>({...f,existing:true}));
   }else{
-    ['pfNoPO','pfCustomer','pfProject','pfNoProject','pfNilai','pfCatatan'].forEach(x=>sv(x,''));
+    ['pfNoPO','pfCustomer','pfProject','pfCatatan'].forEach(x=>sv(x,''));
     sv('pfTglPO',today());sv('pfTglKirim','');
     ['pfFAT','pfInstalasi','pfCommissioning'].forEach(x=>{document.getElementById(x).checked=false;});
+    // Auto No. Project
+    getNextProjectNumber().then(n=>sv('pfNoProject',n));
   }
   renderPOFormFiles();
   document.getElementById('poFormModal').style.display='flex';
@@ -1263,13 +1297,30 @@ async function savePO(){
   const btn=document.getElementById('btnSavePO');btn.disabled=true;btn.textContent='Menyimpan...';
   try{
     const payload={no_po,tgl_po,customer,project:gv('pfProject').trim()||null,tgl_kirim:gv('pfTglKirim')||null,
-      no_project:gv('pfNoProject').trim()||null,nilai_po:gv('pfNilai')?parseFloat(gv('pfNilai').replace(/[^0-9]/g,'')):null,
+      no_project:gv('pfNoProject').trim()||null,
       catatan:gv('pfCatatan').trim()||null,linked_request_id:gv('pfLinked')||null,
       fat:document.getElementById('pfFAT').checked,instalasi:document.getElementById('pfInstalasi').checked,
-      commissioning:document.getElementById('pfCommissioning').checked};
+      commissioning:document.getElementById('pfCommissioning').checked,
+      status:'Terima PO'};
     let pid=editPOId;
     if(editPOId){await sb.from('purchase_orders').update(payload).eq('id',editPOId);}
-    else{pid='PO-'+Date.now().toString(36).slice(-6).toUpperCase();await sb.from('purchase_orders').insert({...payload,id:pid,status:'Terima PO'});await logPO(pid,'PO Masuk','PO baru diterima');}
+    else{pid='PO-'+Date.now().toString(36).slice(-6).toUpperCase();await sb.from('purchase_orders').insert({...payload,id:pid});await logPO(pid,'PO Masuk','PO baru diterima');
+    // Insert items from wizard (new PO only)
+    if(!editPOId && poFormItems.length){
+      const itemRows = poFormItems.map((it,i)=>({
+        id:'item-'+Date.now().toString(36)+i,
+        po_id:pid,
+        no_urut:i+1,
+        item_category:it.category||null,
+        item_type:it.type||null,
+        spesifikasi:it.spec||null,
+        qty:it.qty||1,
+        is_produksi:!!it.is_produksi,
+        status_produksi:it.is_produksi?'Belum Produksi':'Tidak Diproduksi',
+        status_pengiriman:'Belum Dikirim'
+      }));
+      if(itemRows.length) await sb.from('po_items').insert(itemRows);
+    }}
     for(const f of poTmpFiles.filter(x=>!x.existing)){const path=`${pid}/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f.file);if(!error)await sb.from('po_docs').insert({po_id:pid,file_name:f.file.name,file_path:path,file_size:f.file.size,doc_type:'File PO'});}
     toast(editPOId?'PO diperbarui':'PO disimpan');closeModal('poFormModal');await loadPOs();
     if(editPOId)openPODetail(editPOId);
@@ -2642,6 +2693,118 @@ async function refreshPICSection(poId){
   if(picContainer){
     picContainer.innerHTML = buildPICSection(p);
   }
+}
+
+// ════ PO FORM WIZARD ════
+let poFormItems = []; // [{category, type, spec, qty, is_produksi}]
+
+async function goToStep2(){
+  const no_po=gv('pfNoPO').trim(), tgl_po=gv('pfTglPO'), customer=gv('pfCustomer').trim();
+  if(!no_po||!tgl_po||!customer){toast('Lengkapi field wajib (No. PO, Tgl. PO, Customer)');return;}
+  // Show step 2
+  document.getElementById('poFormStep1').style.display='none';
+  document.getElementById('poFormStep2').style.display='block';
+  document.getElementById('step1Ind').style.background='var(--green)';
+  document.getElementById('step2Ind').style.background='var(--blue)';
+  document.getElementById('step2Ind').style.color='#fff';
+  // Init items if empty
+  if(poFormItems.length===0) addItemRow();
+  renderItemRows();
+}
+
+function backToStep1(){
+  document.getElementById('poFormStep2').style.display='none';
+  document.getElementById('poFormStep1').style.display='block';
+  document.getElementById('step1Ind').style.background='var(--blue)';
+  document.getElementById('step2Ind').style.background='var(--border)';
+  document.getElementById('step2Ind').style.color='var(--text3)';
+}
+
+function addItemRow(){
+  poFormItems.push({category:'',type:'',spec:'',qty:1,is_produksi:true});
+  renderItemRows();
+}
+
+function removeItemRow(i){
+  poFormItems.splice(i,1);
+  renderItemRows();
+}
+
+function updateItemRow(i, field, value){
+  poFormItems[i][field] = field==='qty' ? parseInt(value)||1 : field==='is_produksi' ? value : value;
+  if(field==='is_produksi') renderItemRows(); // re-render to show/hide produksi indicator
+}
+
+function renderItemRows(){
+  const container = document.getElementById('itemRowsContainer');
+  if(!poFormItems.length){
+    container.innerHTML='<div style="text-align:center;padding:1rem;color:var(--text3);font-size:13px">Belum ada item. Klik &quot;+ Tambah Item&quot;</div>';
+    return;
+  }
+  const rows = poFormItems.map((it,i)=>{
+    const div=document.createElement('div');
+    div.style.cssText='border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;background:var(--surface)';
+    div.innerHTML=''
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<span style="font-size:12px;font-weight:700;color:var(--text3)">Item '+(i+1)+'</span>'
+      +'<button onclick="removeItemRow('+i+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px">✕ Hapus</button>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori</label>'
+      +'<input id="pfi_cat_'+i+'" type="text" value="" placeholder="Rectifier, UPS, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Tipe / Model</label>'
+      +'<input id="pfi_typ_'+i+'" type="text" value="" placeholder="S-PRO1, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:2fr 80px;gap:8px;margin-bottom:8px">'
+      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>'
+      +'<input id="pfi_spc_'+i+'" type="text" value="" placeholder="110-75A, 3 Phase, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>'
+      +'<input id="pfi_qty_'+i+'" type="number" value="1" min="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'</div>'
+      +'<label id="pfi_lbl_'+i+'" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:'+(it.is_produksi?'var(--amber-bg)':'var(--surface2)')+'">'
+      +'<input id="pfi_prd_'+i+'" type="checkbox" '+(it.is_produksi?'checked':'')+'>'
+      +(it.is_produksi?'<span style="color:var(--amber);font-weight:600">🏭 Diproduksi</span>':'<span style="color:var(--text3)">🔧 Tidak diproduksi</span>')
+      +'</label>';
+    return div;
+  });
+  container.innerHTML='';
+  rows.forEach((div,i)=>{
+    // Set values
+    div.querySelector('#pfi_cat_'+i).value = poFormItems[i].category||'';
+    div.querySelector('#pfi_typ_'+i).value = poFormItems[i].type||'';
+    div.querySelector('#pfi_spc_'+i).value = poFormItems[i].spec||'';
+    div.querySelector('#pfi_qty_'+i).value = poFormItems[i].qty||1;
+    // Add event listeners
+    div.querySelector('#pfi_cat_'+i).oninput=e=>{poFormItems[i].category=e.target.value};
+    div.querySelector('#pfi_typ_'+i).oninput=e=>{poFormItems[i].type=e.target.value};
+    div.querySelector('#pfi_spc_'+i).oninput=e=>{poFormItems[i].spec=e.target.value};
+    div.querySelector('#pfi_qty_'+i).oninput=e=>{poFormItems[i].qty=parseInt(e.target.value)||1};
+    div.querySelector('#pfi_prd_'+i).onchange=e=>{
+      poFormItems[i].is_produksi=e.target.checked;
+      const lbl=div.querySelector('#pfi_lbl_'+i);
+      lbl.style.background=e.target.checked?'var(--amber-bg)':'var(--surface2)';
+      lbl.querySelector('span').style.color=e.target.checked?'var(--amber)':'var(--text3)';
+      lbl.querySelector('span').style.fontWeight=e.target.checked?'600':'400';
+      lbl.querySelector('span').textContent=e.target.checked?'🏭 Diproduksi':'🔧 Tidak diproduksi';
+    };
+    container.appendChild(div);
+  });
+}
+
+async function getNextProjectNumber(){
+  // Get max no_project from DB
+  const{data}=await sb.from('purchase_orders').select('no_project').not('no_project','is',null).order('no_project',{ascending:false}).limit(1);
+  const last = data&&data.length?data[0].no_project:'';
+  // Extract number from format PRJ-YYYY-XXXX or plain number
+  let num = 0;
+  if(last){
+    const match=last.match(/(\d+)$/);
+    if(match) num=parseInt(match[1]);
+  }
+  // If no records yet, start from 108 (after Excel import 71-107)
+  if(num===0) num=107;
+  const year=new Date().getFullYear();
+  return 'PRJ-'+year+'-'+(num+1).toString().padStart(4,'0');
 }
 
 // ════ UTILS ════
