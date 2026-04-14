@@ -1319,10 +1319,25 @@ async function openPODetail(id){
     const list = (docsByType[typeKey]||[]);
     const _isAdmin = !!(currentUser && currentUser.role === 'admin');
     const _isPIC = isPIC(p, stageStatus);
-    const _canViewDoc = _isAdmin || can('doc_view');
-    const _canUpDoc   = can('doc_upload') && (_isAdmin || _isPIC);
-    const _canEditDoc = can('doc_edit')   && (_isAdmin || _isPIC);
-    const _canDelDoc  = can('doc_delete') && (_isAdmin || _isPIC);
+    // Map doc type to permission keys
+    const DOC_PERM_MAP = {
+      'File PO':        {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'Approval Drawing':{add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'Drawing Approved':{add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'BOM':            {add:'bom_doc_add', edit:'bom_doc_edit', erase:'bom_doc_erase', read:'bom_doc_read'},
+      'Laporan Produksi':{add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'Routine Test Report':{add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'FAT Report':     {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'Surat Jalan':    {add:'logistik_doc_add', edit:'logistik_doc_edit', erase:'logistik_doc_erase', read:'logistik_doc_read'},
+      'SAT':            {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'BAST':           {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+      'Tambahan':       {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
+    };
+    const _pmap = DOC_PERM_MAP[typeKey] || {add:'po_doc_add',edit:'po_doc_edit',erase:'po_doc_erase',read:'po_doc_read'};
+    const _canViewDoc = _isAdmin || can(_pmap.read) || can(_pmap.add);
+    const _canUpDoc   = _isAdmin || (can(_pmap.add) && (_isAdmin || _isPIC));
+    const _canEditDoc = _isAdmin || (can(_pmap.edit) && (_isAdmin || _isPIC));
+    const _canDelDoc  = _isAdmin || (can(_pmap.erase) && (_isAdmin || _isPIC));
     if(adminOnly && !_isAdmin) return '';
     if(!_canViewDoc) return '';
     const canUp   = adminOnly ? _isAdmin : _canUpDoc;
@@ -1435,6 +1450,35 @@ async function openPODetail(id){
         ${p.catatan?`<div class="desc-box">${p.catatan}</div>`:''}
       </div>
 
+      <!-- Dokumen PO -->
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">📄 Dokumen PO</div>
+          ${can('po_doc_add')||isAdmin()?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPO_'+p.id+'\').click()">+ Tambah</button>'+'<input type="file" id="upDocPO_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'File PO\',this)">':''}
+        </div>
+        ${buildStandaloneDocList(p, 'File PO', 'po_doc')}
+      </div>
+
+      <!-- Dokumen BOM -->
+      ${(can('bom_doc_read')||can('bom_doc_add')||isAdmin())?'<div class="detail-section">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<div class="sect-title" style="margin-bottom:0">📋 Dokumen BOM</div>'
+        +(isAdmin()||can('bom_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocBOM_'+p.id+'\').click()">+ Tambah</button>'
+          +'<input type="file" id="upDocBOM_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'BOM\',this)">':'')
+        +'</div>'
+        +buildStandaloneDocList(p,'BOM','bom_doc')
+        +'</div>':''}
+
+      <!-- Dokumen PK -->
+      ${(can('pk_doc_read')||can('pk_doc_add')||isAdmin())?'<div class="detail-section">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<div class="sect-title" style="margin-bottom:0">💰 Dokumen PK</div>'
+        +(isAdmin()||can('pk_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPK_'+p.id+'\').click()">+ Tambah</button>'
+          +'<input type="file" id="upDocPK_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'Dokumen PK\',this)">':'')
+        +'</div>'
+        +buildStandaloneDocList(p,'Dokumen PK','pk_doc')
+        +'</div>':''}
+
       <!-- Progress -->
       <div class="detail-section">
         <div class="sect-title">Progress Status</div>
@@ -1458,7 +1502,7 @@ async function openPODetail(id){
             ${docSection('Approval Drawing','Approval Drawing','Engineering-Drawing','📤')}
             ${docSection('Drawing Approved','Drawing Approved','Engineering-Drawing','✅')}
           </div>
-          ${docSection('BOM','BOM','Engineering-BOM','📋',true)}
+
           ${engTip}
         </div>
 
@@ -1515,7 +1559,7 @@ async function openPODetail(id){
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">
             <span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--text3)">File PO & Lainnya</span>
           </div>
-          ${docSection('File PO','File PO','Terima PO','📄')}
+          
           ${docSection('Tambahan','Dokumen Tambahan','','📎')}
           <button class="upload-more-btn" onclick="document.getElementById('docup_Tambahan_extra_${p.id}').click()">
             <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Upload lainnya
@@ -2280,10 +2324,19 @@ const PIC_STAGES = ['Engineering-Drawing','Engineering-BOM','Produksi','QC','Pen
 
 function isPIC(po, stage){
   if(!stage||!currentUser) return false;
-  // Handle Engineering sub-stages
-  const checkStages = [stage];
-  if(stage==='Engineering') checkStages.push('Engineering-Drawing','Engineering-BOM');
-  const pics = (po.po_pic||[]).filter(x=>checkStages.includes(x.stage));
+  // Map stageStatus to doc keys
+  const stageDocMap = {
+    'Engineering-Drawing': ['Approval Drawing','Drawing Approved'],
+    'Engineering-BOM':     ['BOM'],
+    'Produksi':            ['Laporan Produksi'],
+    'QC':                  ['Routine Test Report'],
+    'FAT':                 ['FAT Report'],
+    'Pengiriman':          ['Surat Jalan'],
+    'Instalasi':           ['SAT'],
+    'Commissioning':       ['BAST'],
+  };
+  const checkKeys = stageDocMap[stage] || [stage];
+  const pics = (po.po_pic||[]).filter(x=>checkKeys.includes(x.stage));
   return pics.some(x=>x.user_id===currentUser.id);
 }
 
@@ -2295,32 +2348,41 @@ function getPICNames(po, stage){
 }
 
 function buildPICSection(p){
-  const stagesForPO = ['Engineering-Drawing','Engineering-BOM','Produksi','QC',...(p.fat?['FAT']:[]),
-    ...(p.instalasi?['Instalasi']:[]), ...(p.commissioning?['Commissioning']:[])];
-  const rows = stagesForPO.map(stage=>{
-    const pics = (p.po_pic||[]).filter(x=>x.stage===stage);
+  // Documents that need PIC assignment (based on PO config)
+  const PIC_DOCS = [
+    {key:'Approval Drawing', label:'📤 Approval Drawing', always:true},
+    {key:'Drawing Approved', label:'✅ Drawing Approved', always:true},
+
+    {key:'Laporan Produksi', label:'🏭 Laporan Produksi Harian', always:true},
+    {key:'Routine Test Report', label:'🔍 Routine Test Report', always:true},
+    {key:'FAT Report', label:'📋 FAT Report', show: p.fat},
+    {key:'Surat Jalan', label:'🚚 Surat Jalan / DO / DN', always:true},
+    {key:'SAT', label:'🔧 SAT', show: p.instalasi},
+    {key:'BAST', label:'📝 BAST', show: p.commissioning||p.instalasi},
+  ].filter(d=>d.always||d.show);
+
+  const rows = PIC_DOCS.map(doc=>{
+    const pics = (p.po_pic||[]).filter(x=>x.stage===doc.key);
     const names = pics.map(x=>{
       const name = x.app_users?.full_name||'?';
       return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-right:4px">'
         +name
-        +'<button onclick="removePIC(\''+x.id+'\',\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:11px;padding:0 2px;line-height:1">&#x2715;</button></span>';
+        +'<button onclick="removePIC(\''+x.id+'\',\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:11px;padding:0 2px">&#x2715;</button></span>';
     }).join('');
     return '<tr>'
-      +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:130px">'
-      +(stage==='Engineering-Drawing'?'📐 Drawing':stage==='Engineering-BOM'?'📋 BOM':stage)
-      +'</td>'
-      +'<td style="padding:7px 10px">'+(names||'<span style="font-size:12px;color:var(--text3)">Belum ada PIC</span>')+'</td>'
-      +'<td style="padding:7px 10px;width:120px">'
-      +'<button class="btn btn-sm" onclick="openAssignPIC(\''+p.id+'\',\''+stage+'\')">+ Assign</button>'
+      +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:180px">'+doc.label+'</td>'
+      +'<td style="padding:7px 10px">'+(names||'<span style="font-size:12px;color:var(--text3)">Belum ada</span>')+'</td>'
+      +'<td style="padding:7px 10px;width:100px">'
+      +'<button class="btn btn-sm" onclick="openAssignPIC(\''+p.id+'\',\''+doc.key+'\')">+ Assign</button>'
       +'</td>'
       +'</tr>';
   }).join('');
 
   return '<div class="detail-section">'
-    +'<div class="sect-title">PIC Tahapan Pabrikasi &amp; Service</div>'
+    +'<div class="sect-title">PIC Upload Dokumen</div>'
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr>'
-    +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">Tahapan</th>'
+    +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">Dokumen</th>'
     +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">PIC</th>'
     +'<th style="padding:6px 10px;border-bottom:1px solid var(--border)"></th>'
     +'</tr></thead>'
@@ -2328,6 +2390,7 @@ function buildPICSection(p){
     +'</table>'
     +'</div>';
 }
+
 
 function buildPICReadOnly(p){
   // Non-admin: only show their own assigned stages
@@ -2422,7 +2485,7 @@ async function openAssignPIC(poId, stage){
   el.className = 'overlay';
   el.style.zIndex = '300';
   el.innerHTML = '<div class="modal" style="max-width:420px">'
-    +'<div class="modal-header"><h2>Assign PIC — '+stage+'</h2><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'assignPICOverlay\').remove()">&#x2715;</button></div>'
+    +'<div class="modal-header"><h2>Assign PIC Upload: '+stage+'</h2><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'assignPICOverlay\').remove()">&#x2715;</button></div>'
     +'<div class="modal-body" style="max-height:60vh;overflow-y:auto">'
     +'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Centang user yang menjadi PIC untuk tahapan <strong>'+stage+'</strong>'+(existingIds.length===0&&lastUsedIds.length>0?' <span style="color:var(--amber);font-size:11px">(&#x21BA; dari PO sebelumnya)</span>':'')+'</div>'
     +userOpts
@@ -2480,6 +2543,52 @@ async function approveProduksiSelesai(poId){
   await updatePOStatus(poId,'QC');
   await logPO(poId,'Produksi Disetujui','Status pindah ke QC');
   toast('Produksi disetujui → QC');
+}
+
+// ════ STANDALONE DOC SECTIONS (PO, BOM, PK) ════
+function buildStandaloneDocList(p, docType, permPrefix){
+  const docs = (p.po_docs||[]).filter(d=>d.doc_type===docType);
+  const canEdit  = isAdmin() || can(permPrefix+'_edit');
+  const canErase = isAdmin() || can(permPrefix+'_erase');
+  const canRead  = isAdmin() || can(permPrefix+'_read') || can(permPrefix+'_add');
+  if(!canRead) return '<span style="font-size:12px;color:var(--text3)">Tidak ada akses</span>';
+  if(!docs.length) return '<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
+  return '<div class="file-list">'
+    +docs.map(f=>{
+      const url=poFileUrl(f.file_path);
+      const fn=f.file_name.replace(/'/g,'&#39;');
+      const fp=f.file_path.replace(/'/g,'&#39;');
+      return '<div class="file-item">'
+        +'<a class="fname" href="javascript:void(0)" onclick="openDoc(\''+url+'\',\''+fn+'\')">'+f.file_name+'</a>'
+        +'<span class="fsize">'+fmtSize(f.file_size)+'</span>'
+        +'<div class="file-actions">'
+        +'<button class="file-act-btn" onclick="openDoc(\''+url+'\',\''+fn+'\')">&#x1F441;</button>'
+        +(canEdit?'<button class="file-act-btn" onclick="openDocEdit(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fn+'\',\''+fp+'\')">&#x270F;</button>':'')
+        +(canErase?'<button class="file-act-btn del" onclick="deleteDoc(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fp+'\',\''+fn+'\')">&#x1F5D1;</button>':'')
+        +'</div></div>';
+    }).join('')
+    +'</div>';
+}
+
+async function uploadStandaloneDoc(poId, docType, input){
+  const files = Array.from(input.files);
+  if(!files.length){input.value='';return;}
+  for(const f of files){
+    const path=poId+'/'+docType.replace(/\s/g,'_')+'/'+Date.now()+'_'+f.name;
+    const{error}=await sb.storage.from('po-docs').upload(path,f);
+    if(!error){
+      await sb.from('po_docs').insert({po_id:poId,file_name:f.name,file_path:path,file_size:f.size,doc_type:docType});
+      await logPO(poId,'Upload '+docType,f.name);
+      toast(f.name+' diupload');
+    } else {
+      toast('Gagal: '+f.name);
+    }
+  }
+  input.value='';
+  // Trigger status check for File PO
+  if(docType==='File PO') await checkDocTrigger(poId, 'File PO');
+  await loadPOs();
+  openPODetail(poId);
 }
 
 // ════ UTILS ════
