@@ -1334,12 +1334,14 @@ async function openPODetail(id){
       'Tambahan':       {add:'po_doc_add', edit:'po_doc_edit', erase:'po_doc_erase', read:'po_doc_read'},
     };
     const _pmap = DOC_PERM_MAP[typeKey] || {add:'po_doc_add',edit:'po_doc_edit',erase:'po_doc_erase',read:'po_doc_read'};
-    const _canViewDoc = _isAdmin || can(_pmap.read) || can(_pmap.add);
-    const _canUpDoc   = _isAdmin || (can(_pmap.add) && (_isAdmin || _isPIC));
-    const _canEditDoc = _isAdmin || (can(_pmap.edit) && (_isAdmin || _isPIC));
-    const _canDelDoc  = _isAdmin || (can(_pmap.erase) && (_isAdmin || _isPIC));
+    const _canViewDoc = _isAdmin || can(_pmap.read) || can(_pmap.add) || can('po_view');
+    // For tahapan docs: upload/edit/delete controlled by PIC assignment (not doc permissions)
+    // Doc permissions (po_doc_add etc) only apply to standalone sections (PO/BOM/PK)
+    const _canUpDoc   = _isAdmin || _isPIC;
+    const _canEditDoc = _isAdmin || (_isPIC && can(_pmap.edit));
+    const _canDelDoc  = _isAdmin || (_isPIC && can(_pmap.erase));
     if(adminOnly && !_isAdmin) return '';
-    if(!_canViewDoc) return '';
+    if(!_canViewDoc && !_isPIC) return '';
     const canUp   = adminOnly ? _isAdmin : _canUpDoc;
     const canEdit = adminOnly ? _isAdmin : _canEditDoc;
     const fileHtml = list.length
@@ -1549,7 +1551,7 @@ async function openPODetail(id){
       </div>
 
       <!-- PIC Assignment -->
-      ${(isAdmin()||can('fabrication')) ? buildPICSection(p) : ''}
+      ${isAdmin() ? buildPICSection(p) : ''}
 
       <!-- Item -->
       <div class="detail-section">
