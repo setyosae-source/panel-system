@@ -2054,7 +2054,10 @@ function openUserForm(userId){
     document.getElementById('ufRole').value=u.role;
     document.getElementById('ufActive').checked=u.is_active;
     // Load custom perms
-    window._editPerms = u.permissions||null;
+    const rawPerms = u.permissions;
+    window._editPerms = rawPerms 
+      ? (typeof rawPerms === 'string' ? JSON.parse(rawPerms) : rawPerms) 
+      : null;
   }else{
     ['ufUsername','ufFullName'].forEach(x=>sv(x,''));
     document.getElementById('ufRole').value='';
@@ -2102,7 +2105,7 @@ function renderPermEditor(){
     if(group.keys){
       group.keys.forEach(key=>{
         const label=PERM_LABELS[key]||key;
-        const checked=hasCustom?(key in custom?custom[key]:!!defaults[key]):!!defaults[key];
+        const checked=hasCustom ? !!custom[key] : !!defaults[key];
         html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0">'
           +'<input type="checkbox" name="perm_'+key+'" '+(checked?'checked':'')+'>'
           +'<span style="font-size:13px">'+label+'</span></label>';
@@ -2110,7 +2113,7 @@ function renderPermEditor(){
     }
     if(group.children){
       group.children.forEach(child=>{
-        const checked=hasCustom?(child.key in custom?custom[child.key]:!!defaults[child.key]):!!defaults[child.key];
+        const checked=hasCustom ? !!custom[child.key] : !!defaults[child.key];
         html+='<div style="margin-bottom:4px">'
           +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0">'
           +'<input type="checkbox" name="perm_'+child.key+'" '+(checked?'checked':'')+' onchange="toggleSubPerms(\''+child.key+'\',this.checked)">'
@@ -2119,7 +2122,7 @@ function renderPermEditor(){
           html+='<div id="subperm_'+child.key+'" style="margin-left:24px;'+(checked?'':'display:none')+'">';
           child.subKeys.forEach(sk=>{
             const slabel=PERM_LABELS[sk]||sk;
-            const schecked=hasCustom?(sk in custom?custom[sk]:!!defaults[sk]):!!defaults[sk];
+            const schecked=hasCustom ? !!custom[sk] : !!defaults[sk];
             html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0">'
               +'<input type="checkbox" name="perm_'+sk+'" '+(schecked?'checked':'')+'>'
               +'<span style="font-size:12px;color:var(--text2)">'+slabel+'</span></label>';
@@ -2410,14 +2413,14 @@ async function openAssignPIC(poId, stage){
   // Load all users
   if(!allUsers.length){
     const{data}=await sb.from('app_users').select('*').eq('is_active',true).order('full_name');
+    allUsers=data||[];
+  }
   // Filter: only show users with fabrication permission or admin role
-  const fabricUsers = (data||[]).filter(u=>
-    u.role==='admin' || 
+  const fabricUsers = allUsers.filter(u=>
+    u.role==='admin' ||
     (u.permissions && u.permissions['fabrication']) ||
     ROLE_PERMS[u.role]?.fabrication
   );
-    allUsers=data||[];
-  }
   const po = allPOs.find(x=>x.id===poId);
   const existingIds = (po?.po_pic||[]).filter(x=>x.stage===stage).map(x=>x.user_id);
 
