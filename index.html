@@ -1315,7 +1315,7 @@ async function openPODetail(id){
   const docsByType = {};
   docs.forEach(d=>{ if(!docsByType[d.doc_type]) docsByType[d.doc_type]=[]; docsByType[d.doc_type].push(d); });
 
-  function docSection(typeKey, label, stageStatus, icon, adminOnly){
+  function docSection(typeKey, label, stageStatus, icon, adminOnly, disableUpload){
     const list = (docsByType[typeKey]||[]);
     const _isAdmin = !!(currentUser && currentUser.role === 'admin');
     const _isPIC = isPIC(p, stageStatus);
@@ -1342,7 +1342,15 @@ async function openPODetail(id){
     const _canDelDoc  = _isAdmin || (_isPIC && can(_pmap.erase));
     if(adminOnly && !_isAdmin) return '';
     if(!_canViewDoc && !_isPIC) return '';
-    const canUp   = adminOnly ? _isAdmin : _canUpDoc;
+    // Show locked state if upload disabled
+    if(disableUpload && !list.length){
+      return '<div style="padding:8px 0">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">'+icon+' '+label+'</div>'
+        +'<div style="font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px">'
+        +'<span style="font-size:14px">🔒</span> Upload Approval Drawing dulu</div>'
+        +'</div>';
+    }
+    const canUp   = (adminOnly ? _isAdmin : _canUpDoc) && !disableUpload;
     const canEdit = adminOnly ? _isAdmin : _canEditDoc;
     const fileHtml = list.length
       ? list.map(f=>{
@@ -1482,7 +1490,7 @@ async function openPODetail(id){
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             ${docSection('Approval Drawing','Approval Drawing','Engineering-Drawing','📤')}
-            ${docSection('Drawing Approved','Drawing Approved','Engineering-Drawing','✅')}
+            ${docSection('Drawing Approved','Drawing Approved','Engineering-Drawing','✅',false,!hasApprovalDrw)}
           </div>
 
           ${engTip}
