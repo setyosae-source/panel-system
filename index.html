@@ -1289,7 +1289,8 @@ async function openPOForm(id){
 }
 function handlePOFormFiles(input){Array.from(input.files).forEach(f=>poTmpFiles.push({file:f,name:f.name,size:f.size,existing:false}));renderPOFormFiles();input.value='';}
 function renderPOFormFiles(){
-  document.getElementById('pfDocList').innerHTML=poTmpFiles.map((f,i)=>`<div class="file-item">${f.existing?`<a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`:`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}<button class="btn btn-sm btn-danger" onclick="poTmpFiles.splice(${i},1);renderPOFormFiles()">&#x2715;</button></div>`).join('');
+  const _pfl=document.getElementById('pfDocList');if(!_pfl)return;
+  _pfl.innerHTML=poTmpFiles.map((f,i)=>`<div class="file-item">${f.existing?`<a class="fname" href="${poFileUrl(f.file_path)}" target="_blank">${f.file_name}</a><span class="fsize">${fmtSize(f.file_size)}</span>`:`<span class="fname">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span>`}<button class="btn btn-sm btn-danger" onclick="poTmpFiles.splice(${i},1);renderPOFormFiles()">&#x2715;</button></div>`).join('');
 }
 async function savePO(){
   const no_po=gv('pfNoPO').trim(),tgl_po=gv('pfTglPO'),customer=gv('pfCustomer').trim();
