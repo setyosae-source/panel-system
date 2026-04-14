@@ -1525,7 +1525,7 @@ async function openPODetail(id){
       </div>
 
       <!-- PIC Assignment -->
-      ${(currentUser && currentUser.role==='admin') ? buildPICSection(p) : buildPICReadOnly(p)}
+      ${(isAdmin()||can('fabrication')) ? buildPICSection(p) : ''}
 
       <!-- Item -->
       <div class="detail-section">
@@ -2295,7 +2295,7 @@ function getPICNames(po, stage){
 }
 
 function buildPICSection(p){
-  const stagesForPO = ['Engineering-Drawing','Engineering-BOM','Produksi','QC','Pengiriman',
+  const stagesForPO = ['Engineering-Drawing','Engineering-BOM','Produksi','QC',...(p.fat?['FAT']:[]),
     ...(p.instalasi?['Instalasi']:[]), ...(p.commissioning?['Commissioning']:[])];
   const rows = stagesForPO.map(stage=>{
     const pics = (p.po_pic||[]).filter(x=>x.stage===stage);
@@ -2307,7 +2307,7 @@ function buildPICSection(p){
     }).join('');
     return '<tr>'
       +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:130px">'
-      +(stage==='Engineering-Drawing'?'📐 Drawing':stage==='Engineering-BOM'?'📋 BOM (Admin)':stage)
+      +(stage==='Engineering-Drawing'?'📐 Drawing':stage==='Engineering-BOM'?'📋 BOM':stage)
       +'</td>'
       +'<td style="padding:7px 10px">'+(names||'<span style="font-size:12px;color:var(--text3)">Belum ada PIC</span>')+'</td>'
       +'<td style="padding:7px 10px;width:120px">'
@@ -2317,7 +2317,7 @@ function buildPICSection(p){
   }).join('');
 
   return '<div class="detail-section">'
-    +'<div class="sect-title">PIC per Tahapan</div>'
+    +'<div class="sect-title">PIC Tahapan Pabrikasi &amp; Service</div>'
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr>'
     +'<th style="padding:6px 10px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left">Tahapan</th>'
@@ -2347,6 +2347,12 @@ async function openAssignPIC(poId, stage){
   // Load all users
   if(!allUsers.length){
     const{data}=await sb.from('app_users').select('*').eq('is_active',true).order('full_name');
+  // Filter: only show users with fabrication permission or admin role
+  const fabricUsers = (data||[]).filter(u=>
+    u.role==='admin' || 
+    (u.permissions && u.permissions['fabrication']) ||
+    ROLE_PERMS[u.role]?.fabrication
+  );
     allUsers=data||[];
   }
   const po = allPOs.find(x=>x.id===poId);
@@ -2389,13 +2395,13 @@ async function openAssignPIC(poId, stage){
   // Role mapping per stage
   const stageRole = {
     'Engineering-Drawing':'engineering', 'Engineering-BOM':'engineering',
-    Produksi:'produksi', QC:'produksi',
-    Pengiriman:'logistik', Instalasi:'logistik', Commissioning:'logistik'
+    Produksi:'produksi', QC:'produksi', FAT:'produksi',
+    Instalasi:'logistik', Commissioning:'logistik'
   };
   const suggestedRole = stageRole[stage];
 
   // Build user checkboxes
-  const userOpts = allUsers.map(u=>{
+  const userOpts = fabricUsers.map(u=>{
     const checked = defaultIds.includes(u.id);
     const isSuggested = u.role === suggestedRole;
     const roleLabel = {admin:'Admin',sales:'Sales',engineering:'Engineering',produksi:'Produksi & QC',logistik:'Logistik'};
