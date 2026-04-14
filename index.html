@@ -792,6 +792,42 @@ tr:hover td{background:var(--bg)}
   </div>
 </div>
 
+
+<!-- ══ ITEM SPEC MODAL ══ -->
+<div class="overlay" id="itemSpecModal" style="display:none">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <div>
+        <h2>Spesifikasi Item</h2>
+        <div id="itemSpecSubtitle" style="font-size:12px;color:var(--text2);margin-top:2px"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('itemSpecModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="itemSpecBody">
+      <!-- Dynamic form based on category -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('itemSpecModal')">Batal</button>
+      <button class="btn btn-primary" onclick="saveItemSpec()">Simpan Spec</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GENERATE SERIAL MODAL ══ -->
+<div class="overlay" id="genSerialModal" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2>🔢 Generate Serial Number</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('genSerialModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="genSerialBody"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('genSerialModal')">Batal</button>
+      <button class="btn btn-primary" id="btnGenSerial" onclick="confirmGenerateSerials()">Generate</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <script>
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
@@ -1617,7 +1653,10 @@ async function openPODetail(id){
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${(p.po_items||[]).length})</div>
-          ${can('po_engineering')||(currentUser&&currentUser.role==='admin')?'<button class="btn btn-sm" onclick="openItemForm(\''+p.id+'\')">+ Tambah</button>':''}
+          <div style="display:flex;gap:6px">
+            ${(currentUser&&currentUser.role==='admin')&&p.status==='Produksi'?'<button class="btn btn-sm" style="background:var(--blue);color:#fff;border-color:var(--blue)" onclick="openGenerateSerials(\''+p.id+'\')">🔢 SN</button>':''}
+            ${can('po_engineering')||(currentUser&&currentUser.role==='admin')?'<button class="btn btn-sm" onclick="openItemForm(\''+p.id+'\')">+ Tambah</button>':''}
+          </div>
         </div>
         ${itemList||noFile()}
       </div>
@@ -2901,6 +2940,314 @@ async function getNextProjectNumber(){
   if(num===0) num=107;
   const year=new Date().getFullYear();
   return 'PRJ-'+year+'-'+(num+1).toString().padStart(4,'0');
+}
+
+// ════ ITEM SPEC & SERIAL NUMBER ════
+
+const SERIAL_CATEGORIES = ['Rectifier','UPS','Inverter','ACDB','DCDB'];
+
+let _specCtx = {}; // {itemId, poId, category}
+
+// Spec form fields per category
+const SPEC_FIELDS = {
+  Rectifier: [
+    {id:'model_series', label:'Model / Series', placeholder:'S-PRO1, S-PRO2, dll'},
+    {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
+    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
+    {id:'input_voltage_tolerance', label:'Toleransi Input', placeholder:'+/-15%'},
+    {id:'input_frequency', label:'Frekuensi Input (Hz)', placeholder:'50'},
+    {id:'pulse', label:'Pulse', type:'select', options:['6','12','24']},
+    {id:'output_voltage', label:'Tegangan Output (VDC)', placeholder:'24, 48, 110, 220'},
+    {id:'output_current', label:'Rating Output (A)', placeholder:'10, 20, 50'},
+    {id:'battery_voltage', label:'Tegangan Baterai (V)', placeholder:'Opsional'},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  UPS: [
+    {id:'model_series', label:'Model / Series', placeholder:''},
+    {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
+    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
+    {id:'input_frequency', label:'Frekuensi Input (Hz)', placeholder:'50'},
+    {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
+    {id:'output_kva', label:'Kapasitas Output (kVA)', placeholder:'1, 2, 5, 10'},
+    {id:'output_frequency', label:'Frekuensi Output (Hz)', placeholder:'50'},
+    {id:'battery_voltage', label:'Tegangan Baterai (V)', placeholder:'Opsional'},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  Inverter: [
+    {id:'model_series', label:'Model / Series', placeholder:''},
+    {id:'dc_input_voltage', label:'Tegangan Input DC (VDC)', placeholder:'24, 48, 110, 220'},
+    {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
+    {id:'output_kva', label:'Kapasitas Output (kVA)', placeholder:'1, 2, 5'},
+    {id:'output_frequency', label:'Frekuensi Output (Hz)', placeholder:'50'},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  ACDB: [
+    {id:'model_series', label:'Model / Series', placeholder:''},
+    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
+    {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
+    {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:''},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  DCDB: [
+    {id:'model_series', label:'Model / Series', placeholder:''},
+    {id:'input_voltage', label:'Tegangan Input (VDC)', placeholder:'24, 48, 110, 220'},
+    {id:'output_voltage', label:'Tegangan Output (VDC)', placeholder:''},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:''},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+};
+
+async function openItemSpec(itemId, poId){
+  _specCtx = {itemId, poId};
+  const item = allPOs.find(p=>p.id===poId)?.po_items?.find(i=>i.id===itemId);
+  if(!item) return;
+
+  const cat = item.item_category||'';
+  _specCtx.category = cat;
+
+  document.getElementById('itemSpecSubtitle').textContent =
+    (item.item_category||'') + (item.item_type?' — '+item.item_type:'');
+
+  // Load existing spec
+  const{data:spec} = await sb.from('item_specs').select('*').eq('item_id',itemId).single();
+
+  renderSpecForm(cat, spec||{});
+  document.getElementById('itemSpecModal').style.display='flex';
+  history.pushState({modal:'itemSpec'},'','');
+}
+
+function renderSpecForm(category, values){
+  const fields = SPEC_FIELDS[category];
+  if(!fields){
+    document.getElementById('itemSpecBody').innerHTML =
+      '<div style="color:var(--text3);font-size:13px">Spec detail tidak tersedia untuk kategori ini.</div>';
+    return;
+  }
+
+  let html = '<div class="form-grid">';
+  fields.forEach(f=>{
+    const val = values[f.id]||'';
+    if(f.type==='select'){
+      const opts = f.options.map(o=>'<option value="'+o+'"'+(val==o?' selected':'')+'>'+o+'</option>').join('');
+      html += '<div class="form-row"><label>'+f.label+'</label>'
+        +'<select id="spec_'+f.id+'">'+opts+'</select></div>';
+    } else if(f.type==='textarea'){
+      html += '<div class="form-row" style="grid-column:1/-1"><label>'+f.label+'</label>'
+        +'<textarea id="spec_'+f.id+'" placeholder="'+( f.placeholder||'')+'" rows="2">'+val+'</textarea></div>';
+    } else {
+      html += '<div class="form-row"><label>'+f.label+'</label>'
+        +'<input type="text" id="spec_'+f.id+'" value="'+val+'" placeholder="'+(f.placeholder||'')+'"></div>';
+    }
+  });
+  html += '</div>';
+  document.getElementById('itemSpecBody').innerHTML = html;
+}
+
+async function saveItemSpec(){
+  const {itemId, poId, category} = _specCtx;
+  const fields = SPEC_FIELDS[category]||[];
+  const data = {item_id: itemId, kategori: category, updated_at: new Date().toISOString()};
+  fields.forEach(f=>{
+    const el = document.getElementById('spec_'+f.id);
+    if(el) data[f.id] = el.value.trim()||null;
+  });
+
+  // Upsert
+  const{data:existing} = await sb.from('item_specs').select('id').eq('item_id',itemId).single();
+  if(existing){
+    await sb.from('item_specs').update(data).eq('item_id',itemId);
+  } else {
+    data.id = 'spec-'+Date.now().toString(36);
+    await sb.from('item_specs').insert(data);
+  }
+  toast('Spec disimpan');
+  closeModal('itemSpecModal');
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// ════ SERIAL NUMBER GENERATION ════
+
+// Month code: Jan=A, Feb=B, ... Dec=L
+const MONTH_CODES = ['A','B','C','D','E','F','G','H','I','J','K','L'];
+
+// Year code: 2025=A, 2026=B, ...
+function yearCode(y){ return String.fromCharCode(65 + (y - 2025)); }
+function monthCode(m){ return MONTH_CODES[m-1]||'A'; }
+
+// Voltage output code mapping
+function voltageCode(v){
+  const map = {'24':'24','48':'48','110':'11','220':'22','380':'38','400':'40'};
+  return map[String(v)] || String(v).padStart(2,'0').slice(-2);
+}
+
+// Rating code (current A or kVA)
+function ratingCode(r){
+  const n = parseFloat(r)||0;
+  const map = {10:'10',20:'20',30:'30',40:'40',50:'50',60:'60',70:'07',80:'08',90:'09',
+               100:'10',1:'10',2:'20',3:'30',4:'40',5:'50',6:'60'};
+  return map[n] || String(Math.round(n*10)).padStart(2,'0').slice(-2);
+}
+
+async function getNextSerialCode(){
+  const{data} = await sb.from('serial_counter').select('*').eq('id','global').single();
+  let huruf = data?.last_huruf||'A';
+  let angka = (data?.last_angka||0) + 1;
+  if(angka > 999){ huruf = String.fromCharCode(huruf.charCodeAt(0)+1); angka = 1; }
+  await sb.from('serial_counter').update({last_huruf:huruf, last_angka:angka}).eq('id','global');
+  return {huruf, angka};
+}
+
+function buildSerialNumber(spec, noProject, huruf, angka, prodDate){
+  const y = yearCode(prodDate.getFullYear());
+  const m = monthCode(prodDate.getMonth()+1);
+  const proj = (noProject||'').replace(/[^0-9]/g,'').slice(-3); // last 3 digits of project number
+  const angkaStr = String(angka).padStart(3,'0');
+  const cat = spec.kategori;
+
+  if(cat==='Rectifier'){
+    const fase = spec.input_fase||'1';
+    const pulse = spec.pulse||'06';
+    const vout = voltageCode(spec.output_voltage||'');
+    const rout = ratingCode(spec.output_current||'');
+    return 'R'+y+m+fase+pulse.padStart(2,'0')+vout+rout+proj+huruf+angkaStr;
+  } else if(cat==='UPS'){
+    const fase = spec.input_fase||'1';
+    const pulse = spec.pulse||'06';
+    const vout = voltageCode(spec.output_voltage||'');
+    const rout = ratingCode(spec.output_kva||'');
+    return 'U'+y+m+fase+pulse.padStart(2,'0')+vout+rout+proj+huruf+angkaStr;
+  } else if(cat==='Inverter'){
+    const dcin = voltageCode(spec.dc_input_voltage||'');
+    const vout = voltageCode(spec.output_voltage||'');
+    const rout = ratingCode(spec.output_kva||'');
+    return 'I'+y+m+dcin+vout+rout+proj+huruf+angkaStr;
+  } else if(cat==='DCDB'){
+    return 'D'+y+m+proj+huruf+angkaStr;
+  } else if(cat==='ACDB'){
+    return 'A'+y+m+proj+huruf+angkaStr;
+  }
+  return null;
+}
+
+async function openGenerateSerials(poId){
+  const po = allPOs.find(x=>x.id===poId);
+  if(!po) return;
+
+  // Get items that need serial numbers
+  const items = (po.po_items||[]).filter(it=>
+    SERIAL_CATEGORIES.some(c=>it.item_category?.toLowerCase().includes(c.toLowerCase()))
+    && it.is_produksi !== false
+  );
+
+  if(!items.length){
+    toast('Tidak ada item yang perlu serial number');
+    return;
+  }
+
+  // Load specs for each item
+  const specs = {};
+  for(const it of items){
+    const{data} = await sb.from('item_specs').select('*').eq('item_id',it.id).single();
+    specs[it.id] = data||null;
+  }
+
+  // Build preview
+  let html = '<div style="font-size:13px;margin-bottom:12px;color:var(--text2)">'
+    +'Serial number akan di-generate untuk <strong>'+items.reduce((a,it)=>a+(it.qty||1),0)+'</strong> unit. '
+    +'Tanggal produksi dipakai untuk kode bulan/tahun.</div>';
+
+  // Date input
+  html += '<div class="form-row" style="margin-bottom:12px"><label>Tanggal Mulai Produksi</label>'
+    +'<input type="date" id="genSerialDate" value="'+new Date().toISOString().split('T')[0]+'"></div>';
+
+  html += '<div style="border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">';
+  html += '<table style="width:100%;border-collapse:collapse">';
+  html += '<thead><tr style="background:var(--surface2)">'
+    +'<th style="padding:8px;font-size:11px;text-align:left">Item</th>'
+    +'<th style="padding:8px;font-size:11px;text-align:left">Qty</th>'
+    +'<th style="padding:8px;font-size:11px;text-align:left">Spec</th>'
+    +'<th style="padding:8px;font-size:11px;text-align:left">Status</th>'
+    +'</tr></thead><tbody>';
+
+  items.forEach(it=>{
+    const spec = specs[it.id];
+    const hasSpec = spec && (spec.output_voltage || spec.output_current || spec.output_kva);
+    const hasSN = it.serial_number;
+    html += '<tr style="border-top:1px solid var(--border)">'
+      +'<td style="padding:8px;font-size:12px"><strong>'+(it.item_category||'')+'</strong><br>'
+      +'<span style="color:var(--text3)">'+(it.item_type||'')+(it.spesifikasi?' — '+it.spesifikasi:'')+'</span></td>'
+      +'<td style="padding:8px;font-size:12px">'+(it.qty||1)+'</td>'
+      +'<td style="padding:8px;font-size:12px">'+(hasSpec?'<span style="color:var(--green)">✓ Lengkap</span>':'<span style="color:var(--red)">✗ Belum</span>')+'</td>'
+      +'<td style="padding:8px;font-size:12px">'+(hasSN?'<span style="color:var(--blue)">Sudah ada</span>':'<span style="color:var(--text3)">Belum</span>')+'</td>'
+      +'</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  const missingSpec = items.filter(it=>{
+    const s=specs[it.id];
+    return !s||(!s.output_voltage&&!s.output_current&&!s.output_kva);
+  });
+  if(missingSpec.length){
+    html += '<div style="margin-top:8px;padding:8px;background:var(--red-bg);border-radius:var(--r-sm);font-size:12px;color:var(--red)">'
+      +'⚠ '+missingSpec.length+' item belum punya spec lengkap. Isi spec dulu sebelum generate.</div>';
+  }
+
+  document.getElementById('genSerialBody').innerHTML = html;
+  document.getElementById('btnGenSerial').disabled = missingSpec.length > 0;
+  document.getElementById('genSerialModal').dataset.poId = poId;
+  document.getElementById('genSerialModal').style.display = 'flex';
+  history.pushState({modal:'genSerial'},'','');
+}
+
+async function confirmGenerateSerials(){
+  const poId = document.getElementById('genSerialModal').dataset.poId;
+  const dateStr = document.getElementById('genSerialDate').value;
+  const prodDate = new Date(dateStr);
+  const po = allPOs.find(x=>x.id===poId);
+  if(!po||!prodDate) return;
+
+  const btn = document.getElementById('btnGenSerial');
+  btn.disabled=true; btn.textContent='Generating...';
+
+  const items = (po.po_items||[]).filter(it=>
+    SERIAL_CATEGORIES.some(c=>it.item_category?.toLowerCase().includes(c.toLowerCase()))
+    && it.is_produksi !== false
+  );
+
+  const noProject = po.no_project||'';
+  let generated = 0;
+
+  for(const it of items){
+    if(it.serial_number) continue; // skip if already has SN
+    const{data:spec} = await sb.from('item_specs').select('*').eq('item_id',it.id).single();
+    if(!spec) continue;
+
+    const qty = it.qty||1;
+    const serials = [];
+    for(let i=0;i<qty;i++){
+      const{huruf,angka} = await getNextSerialCode();
+      const sn = buildSerialNumber(spec, noProject, huruf, angka, prodDate);
+      if(sn) serials.push(sn);
+    }
+
+    if(serials.length){
+      // Store all serials - first one in serial_number, rest in notes or separate
+      await sb.from('po_items').update({
+        serial_number: serials.join(', '),
+        serial_generated_at: new Date().toISOString()
+      }).eq('id',it.id);
+      await logPO(poId,'Generate Serial',it.item_category+': '+serials.join(', '));
+      generated++;
+    }
+  }
+
+  toast(generated+' item serial number di-generate');
+  closeModal('genSerialModal');
+  await loadPOs();
+  openPODetail(poId);
 }
 
 // ════ UTILS ════
