@@ -1292,6 +1292,7 @@ async function openPOForm(id){
   document.getElementById('poFormTitle').textContent=id?'Edit PO':'PO Baru';
   // Reset wizard
   poFormItems=[];
+  poFormSpecs={};
   document.getElementById('poFormStep1').style.display='block';
   document.getElementById('poFormStep2').style.display='none';
   const stepsEl=document.getElementById('poFormSteps');
@@ -1356,7 +1357,24 @@ async function savePO(){
         status_produksi:it.is_produksi?'Belum Produksi':'Tidak Diproduksi',
         status_pengiriman:'Belum Dikirim'
       }));
-      if(itemRows.length) await sb.from('po_items').insert(itemRows);
+      if(itemRows.length){
+        await sb.from('po_items').insert(itemRows);
+        // Save specs for items that have them
+        const specRows = [];
+        itemRows.forEach((row,i)=>{
+          const spec = poFormSpecs[i];
+          if(spec && row.id){
+            specRows.push({
+              id: 'spec-'+Date.now().toString(36)+i,
+              item_id: row.id,
+              ...spec,
+              updated_at: new Date().toISOString()
+            });
+          }
+        });
+        if(specRows.length) await sb.from('item_specs').insert(specRows);
+        poFormSpecs = {}; // reset
+      }
     }}
     for(const f of poTmpFiles.filter(x=>!x.existing)){const path=`${pid}/${Date.now()}_${f.file.name}`;const{error}=await sb.storage.from('po-docs').upload(path,f.file);if(!error)await sb.from('po_docs').insert({po_id:pid,file_name:f.file.name,file_path:path,file_size:f.file.size,doc_type:'File PO'});}
     toast(editPOId?'PO diperbarui':'PO disimpan');closeModal('poFormModal');await loadPOs();
@@ -2832,6 +2850,7 @@ async function refreshPICSection(poId){
 
 // ════ PO FORM WIZARD ════
 let poFormItems = []; // [{category, type, spec, qty, is_produksi}]
+let poFormSpecs = {}; // {itemIndex: {spec fields...}} - temporary before save
 
 async function goToStep2(){
   const no_po=gv('pfNoPO').trim(), tgl_po=gv('pfTglPO'), customer=gv('pfCustomer').trim();
@@ -2896,10 +2915,15 @@ function renderItemRows(){
       +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>'
       +'<input id="pfi_qty_'+i+'" type="number" value="1" min="1" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
       +'</div>'
-      +'<label id="pfi_lbl_'+i+'" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:'+(it.is_produksi?'var(--amber-bg)':'var(--surface2)')+'">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<label id="pfi_lbl_'+i+'" style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:'+(it.is_produksi?'var(--amber-bg)':'var(--surface2)')+'">'
       +'<input id="pfi_prd_'+i+'" type="checkbox" '+(it.is_produksi?'checked':'')+'>'
       +(it.is_produksi?'<span style="color:var(--amber);font-weight:600">🏭 Diproduksi</span>':'<span style="color:var(--text3)">🔧 Tidak diproduksi</span>')
-      +'</label>';
+      +'</label>'
+      +'<button id="pfi_spec_btn_'+i+'" style="display:none;align-items:center;gap:4px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);cursor:pointer;font-size:12px;font-family:inherit">⚙ Spec'
+      +(poFormSpecs[i]?'<span style="color:var(--green);font-size:10px">✓</span>':'')
+      +'</button>'
+      +'</div>';
     return div;
   });
   container.innerHTML='';
@@ -2909,6 +2933,23 @@ function renderItemRows(){
     div.querySelector('#pfi_typ_'+i).value = poFormItems[i].type||'';
     div.querySelector('#pfi_spc_'+i).value = poFormItems[i].spec||'';
     div.querySelector('#pfi_qty_'+i).value = poFormItems[i].qty||1;
+    // Add Spec button if category warrants it
+    const specCategories = ['Rectifier','UPS','Inverter','ACDB','DCDB','rectifier','ups','inverter','acdb','dcdb'];
+    const specBtn = div.querySelector('#pfi_spec_btn_'+i);
+    if(specBtn){
+      specBtn.onclick = ()=>openItemSpecForm(i);
+      // Show/hide based on category
+      const catInput = div.querySelector('#pfi_cat_'+i);
+      const toggleSpecBtn = ()=>{
+        const cat = catInput.value.trim();
+        const match = specCategories.find(c=>cat.toLowerCase().includes(c.toLowerCase()));
+        specBtn.style.display = match ? 'inline-flex' : 'none';
+        if(match) specBtn.dataset.matchCat = match.charAt(0).toUpperCase()+match.slice(1).toLowerCase();
+      };
+      toggleSpecBtn();
+      catInput.addEventListener('input', toggleSpecBtn);
+    }
+
     // Add event listeners
     div.querySelector('#pfi_cat_'+i).oninput=e=>{poFormItems[i].category=e.target.value};
     div.querySelector('#pfi_typ_'+i).oninput=e=>{poFormItems[i].type=e.target.value};
@@ -3246,6 +3287,63 @@ async function confirmGenerateSerials(){
 
   toast(generated+' item serial number di-generate');
   closeModal('genSerialModal');
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// Open spec form from Step 2 (before PO saved - uses item index)
+function openItemSpecForm(itemIdx){
+  const it = poFormItems[itemIdx];
+  if(!it) return;
+
+  // Normalize category
+  const CATS = ['Rectifier','UPS','Inverter','ACDB','DCDB'];
+  const cat = CATS.find(c=>it.category.toLowerCase().includes(c.toLowerCase()))||it.category;
+
+  _specCtx = {itemIdx, category: cat, fromForm: true};
+  document.getElementById('itemSpecSubtitle').textContent =
+    it.category + (it.type?' — '+it.type:'') + ' (belum disimpan)';
+
+  renderSpecForm(cat, poFormSpecs[itemIdx]||{});
+  document.getElementById('itemSpecModal').style.display='flex';
+  history.pushState({modal:'itemSpec'},'','');
+}
+
+// Override saveItemSpec to handle both cases
+const _origSaveItemSpec = saveItemSpec;
+async function saveItemSpec(){
+  if(_specCtx.fromForm){
+    // Save to memory only (PO not saved yet)
+    const {itemIdx, category} = _specCtx;
+    const fields = SPEC_FIELDS[category]||[];
+    const data = {kategori: category};
+    fields.forEach(f=>{
+      const el = document.getElementById('spec_'+f.id);
+      if(el) data[f.id] = el.value.trim()||null;
+    });
+    poFormSpecs[itemIdx] = data;
+    toast('Spec disimpan (akan tersimpan saat PO disimpan)');
+    closeModal('itemSpecModal');
+    renderItemRows(); // refresh to show ✓ on spec button
+    return;
+  }
+  // Original save to DB
+  const {itemId, poId, category} = _specCtx;
+  const fields = SPEC_FIELDS[category]||[];
+  const data = {item_id: itemId, kategori: category, updated_at: new Date().toISOString()};
+  fields.forEach(f=>{
+    const el = document.getElementById('spec_'+f.id);
+    if(el) data[f.id] = el.value.trim()||null;
+  });
+  const{data:existing} = await sb.from('item_specs').select('id').eq('item_id',itemId).single();
+  if(existing){
+    await sb.from('item_specs').update(data).eq('item_id',itemId);
+  } else {
+    data.id = 'spec-'+Date.now().toString(36);
+    await sb.from('item_specs').insert(data);
+  }
+  toast('Spec disimpan');
+  closeModal('itemSpecModal');
   await loadPOs();
   openPODetail(poId);
 }
