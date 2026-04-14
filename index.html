@@ -267,7 +267,8 @@ tr:hover td{background:var(--bg)}
       </div>
       <div class="form-row">
         <label>Role <span class="req">*</span></label>
-        <select id="ufRole" onchange="renderPermEditor()">
+        <select id="ufRole" onchange="onRoleChange()">
+          <option value="" disabled>-- Pilih Role --</option>
           <option value="sales">Sales</option>
           <option value="engineering">Engineering</option>
           <option value="produksi">Produksi &amp; QC</option>
@@ -787,11 +788,20 @@ history.replaceState({page:'home'},'','');
 
 // Default permissions per role
 const ROLE_PERMS = {
-  admin:       {pp_view:1,pp_manage:1,pp_upload_result:1,po_view:1,po_engineering:1,po_produksi:1,po_qc:1,po_logistik:1,po_pk:1,doc_view:1,doc_upload:1,doc_edit:1,doc_delete:1,users:1},
-  sales:       {pp_view:1,pp_input:1,pp_upload_doc:1,doc_view:1},
-  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_engineering:1,doc_view:1,doc_upload:1,doc_edit:1},
-  produksi:    {po_view:1,po_produksi:1,po_qc:1,doc_view:1,doc_upload:1,doc_edit:1},
-  logistik:    {po_view:1,po_logistik:1,doc_view:1,doc_upload:1},
+  admin: {
+    pp_view:1,pp_manage:1,pp_upload_result:1,pp_input:1,pp_upload_doc:1,
+    po_view:1,po_doc_add:1,po_doc_edit:1,po_doc_erase:1,po_doc_read:1,
+    bom_manage:1,bom_doc_add:1,bom_doc_edit:1,bom_doc_erase:1,bom_doc_read:1,
+    po_pk:1,pk_doc_add:1,pk_doc_edit:1,pk_doc_erase:1,pk_doc_read:1,
+    fabrication:1,
+    po_logistik:1,logistik_doc_add:1,logistik_doc_edit:1,logistik_doc_erase:1,logistik_doc_read:1,
+    po_engineering:1,po_produksi:1,po_qc:1,
+    users:1
+  },
+  sales:       {pp_view:1,pp_input:1,pp_upload_doc:1},
+  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_doc_read:1,po_engineering:1,fabrication:1},
+  produksi:    {po_view:1,po_doc_read:1,fabrication:1,po_produksi:1,po_qc:1},
+  logistik:    {po_view:1,po_doc_read:1,po_logistik:1,logistik_doc_add:1,logistik_doc_read:1},
 };
 
 let currentUser = null;
@@ -1920,13 +1930,39 @@ async function uploadSalesDoc(rid,input){
 
 // ════ USER MANAGEMENT ════
 const PERM_LABELS = {
-  pp_view:'Lihat Pre-Project', pp_input:'Input Request Baru', pp_upload_doc:'Upload Dok. Customer',
-  pp_upload_result:'Upload Dok. Hasil/Drawing', pp_manage:'Kelola Semua Request',
-  po_view:'Lihat PO', po_pk:'Kelola PK (Keuangan)',
-  doc_view:'Lihat Dokumen', doc_upload:'Upload Dokumen',
-  doc_edit:'Edit Dokumen', doc_delete:'Hapus Dokumen',
+  // Pre-Project
+  pp_view:'Lihat Pre-Project', pp_input:'Input Request Baru',
+  pp_upload_doc:'Upload Dok. Customer', pp_upload_result:'Upload Dok. Hasil/Drawing',
+  pp_manage:'Kelola Semua Request',
+  // Project Control
+  po_view:'Kelola PO',
+    po_doc_add:'Dok. PO: Add', po_doc_edit:'Dok. PO: Edit',
+    po_doc_erase:'Dok. PO: Erase', po_doc_read:'Dok. PO: Read-only',
+  bom_manage:'Kelola BOM',
+    bom_doc_add:'Dok. BOM: Add', bom_doc_edit:'Dok. BOM: Edit',
+    bom_doc_erase:'Dok. BOM: Erase', bom_doc_read:'Dok. BOM: Read-only',
+  po_pk:'Kelola PK (Keuangan)',
+    pk_doc_add:'Dok. PK: Add', pk_doc_edit:'Dok. PK: Edit',
+    pk_doc_erase:'Dok. PK: Erase', pk_doc_read:'Dok. PK: Read-only',
+  fabrication:'Pabrikasi & Service',
+  po_logistik:'Logistik',
+    logistik_doc_add:'Dok. Surat Jalan: Add', logistik_doc_edit:'Dok. Surat Jalan: Edit',
+    logistik_doc_erase:'Dok. Surat Jalan: Erase', logistik_doc_read:'Dok. Surat Jalan: Read-only',
   users:'Kelola User'
 };
+
+// Permission groups for UI rendering
+const PERM_GROUPS = [
+  { label:'Pre-Project', keys:['pp_view','pp_input','pp_upload_doc','pp_upload_result','pp_manage'] },
+  { label:'Project Control', children:[
+    { key:'po_view', label:'Kelola PO', subKeys:['po_doc_add','po_doc_edit','po_doc_erase','po_doc_read'] },
+    { key:'bom_manage', label:'Kelola BOM', subKeys:['bom_doc_add','bom_doc_edit','bom_doc_erase','bom_doc_read'] },
+    { key:'po_pk', label:'Kelola PK (Keuangan)', subKeys:['pk_doc_add','pk_doc_edit','pk_doc_erase','pk_doc_read'] },
+    { key:'fabrication', label:'Pabrikasi & Service', subKeys:[] },
+    { key:'po_logistik', label:'Logistik', subKeys:['logistik_doc_add','logistik_doc_edit','logistik_doc_erase','logistik_doc_read'] },
+  ]},
+  { label:'Administrasi', keys:['users'] }
+];
 
 let allUsers=[], editUserId=null;
 
@@ -1977,13 +2013,30 @@ function openUserForm(userId){
     window._editPerms = u.permissions||null;
   }else{
     ['ufUsername','ufFullName'].forEach(x=>sv(x,''));
-    document.getElementById('ufRole').value='sales';
+    document.getElementById('ufRole').value='';
     document.getElementById('ufActive').checked=true;
-    window._editPerms=null;
+    window._editPerms={};  // Force custom perms for new user
+    document.getElementById('useCustomPerms').checked=true;
   }
   renderPermEditor();
   document.getElementById('userFormModal').style.display='flex';
   history.pushState({modal:'userForm'},'','');
+}
+
+function onRoleChange(){
+  const role = document.getElementById('ufRole').value;
+  if(!role) return;
+  if(role === 'admin'){
+    // Admin: check all permissions, no need for custom
+    window._editPerms = null;
+    document.getElementById('useCustomPerms').checked = false;
+  } else {
+    // Non-admin: force custom perms, start empty
+    window._editPerms = {};
+    document.getElementById('useCustomPerms').checked = true;
+  }
+  renderPermEditor();
+  toggleCustomPerms();
 }
 
 function renderPermEditor(){
@@ -1999,12 +2052,40 @@ function renderPermEditor(){
   </label>`;
   html+=`<div id="permCheckboxes" style="${hasCustom?'':'display:none'}">`;
   html+=`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Default role: <strong>${Object.keys(defaults).map(k=>PERM_LABELS[k]||k).join(', ')||'—'}</strong></div>`;
-  Object.entries(PERM_LABELS).forEach(([key,label])=>{
-    const checked=hasCustom?(key in custom?custom[key]:!!defaults[key]):!!defaults[key];
-    html+=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0">
-      <input type="checkbox" name="perm_${key}" ${checked?'checked':''}>
-      <span>${label}</span>
-    </label>`;
+  // Render grouped permissions
+  PERM_GROUPS.forEach(group=>{
+    html+='<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">'+group.label+'</div>';
+    if(group.keys){
+      group.keys.forEach(key=>{
+        const label=PERM_LABELS[key]||key;
+        const checked=hasCustom?(key in custom?custom[key]:!!defaults[key]):!!defaults[key];
+        html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0">'
+          +'<input type="checkbox" name="perm_'+key+'" '+(checked?'checked':'')+'>'
+          +'<span style="font-size:13px">'+label+'</span></label>';
+      });
+    }
+    if(group.children){
+      group.children.forEach(child=>{
+        const checked=hasCustom?(child.key in custom?custom[child.key]:!!defaults[child.key]):!!defaults[child.key];
+        html+='<div style="margin-bottom:4px">'
+          +'<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:3px 0">'
+          +'<input type="checkbox" name="perm_'+child.key+'" '+(checked?'checked':'')+' onchange="toggleSubPerms(\''+child.key+'\',this.checked)">'
+          +'<span style="font-size:13px;font-weight:600">'+child.label+'</span></label>';
+        if(child.subKeys && child.subKeys.length){
+          html+='<div id="subperm_'+child.key+'" style="margin-left:24px;'+(checked?'':'display:none')+'">';
+          child.subKeys.forEach(sk=>{
+            const slabel=PERM_LABELS[sk]||sk;
+            const schecked=hasCustom?(sk in custom?custom[sk]:!!defaults[sk]):!!defaults[sk];
+            html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 0">'
+              +'<input type="checkbox" name="perm_'+sk+'" '+(schecked?'checked':'')+'>'
+              +'<span style="font-size:12px;color:var(--text2)">'+slabel+'</span></label>';
+          });
+          html+='</div>';
+        }
+        html+='</div>';
+      });
+    }
+    html+='</div>';
   });
   html+='</div>';
   document.getElementById('permEditor').innerHTML=html;
@@ -2015,9 +2096,25 @@ function toggleCustomPerms(){
   document.getElementById('permCheckboxes').style.display=on?'block':'none';
 }
 
+function toggleSubPerms(parentKey, show){
+  const el=document.getElementById('subperm_'+parentKey);
+  if(el) el.style.display=show?'block':'none';
+  // Uncheck subs if parent unchecked
+  if(!show && el){
+    el.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+  }
+}
+
 async function saveUser(){
   const username=gv('ufUsername').trim(), fullName=gv('ufFullName').trim(), role=document.getElementById('ufRole').value;
   if(!username||!fullName){toast('Lengkapi field wajib');return;}
+  if(!role){toast('Pilih role terlebih dahulu');return;}
+  // Validate min 1 permission for non-admin custom
+  const useCustom=document.getElementById('useCustomPerms').checked;
+  if(useCustom && role !== 'admin'){
+    const anyChecked=document.querySelectorAll('#permCheckboxes input[type=checkbox]:checked').length > 0;
+    if(!anyChecked){toast('Minimal 1 permission harus dipilih');return;}
+  }
   const btn=document.getElementById('btnSaveUser');btn.disabled=true;btn.textContent='Menyimpan...';
   try{
     // Build permissions
@@ -2025,7 +2122,13 @@ async function saveUser(){
     let perms=null;
     if(useCustom){
       perms={};
-      Object.keys(PERM_LABELS).forEach(key=>{
+      // Collect all keys including sub-keys from PERM_GROUPS
+      const allPermKeys=[];
+      PERM_GROUPS.forEach(g=>{
+        if(g.keys) g.keys.forEach(k=>allPermKeys.push(k));
+        if(g.children) g.children.forEach(c=>{allPermKeys.push(c.key);if(c.subKeys)c.subKeys.forEach(sk=>allPermKeys.push(sk));});
+      });
+      allPermKeys.forEach(key=>{
         const cb=document.querySelector(`input[name="perm_${key}"]`);
         if(cb&&cb.checked) perms[key]=1;
       });
