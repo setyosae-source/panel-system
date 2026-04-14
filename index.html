@@ -1285,8 +1285,8 @@ async function openPODetail(id){
   if(!p){toast('Gagal memuat detail');return;}
   const today2=new Date().toISOString().split('T')[0];
   const ov=p.status!=='Selesai'&&p.tgl_kirim&&p.tgl_kirim<today2;
-  const BASE_FLOW=['Terima PO','Engineering','Produksi','QC','Pengiriman'];
-  const EXTRA=[...(p.instalasi?['Instalasi']:[]),...(p.commissioning?['Commissioning']:[]),'Selesai'];
+  const BASE_FLOW=['Terima PO','Engineering','Produksi','QC'];
+  const EXTRA=[...(p.fat?['FAT']:[]),'Pengiriman',...(p.instalasi?['Instalasi']:[]),...(p.commissioning?['Commissioning']:[]),'Selesai'];
   const FLOW=[...BASE_FLOW,...EXTRA];
   const curIdx=FLOW.indexOf(p.status);
   const nextSt=FLOW[curIdx+1];
@@ -1391,13 +1391,15 @@ async function openPODetail(id){
   const fatInfo=[p.fat?'FAT':'',p.instalasi?'Instalasi':'',p.commissioning?'Commissioning':''].filter(Boolean).join(', ')||'—';
 
   // Check drawing & BOM status for engineering section
-  const hasDrw = (docsByType['Drawing']||[]).length > 0;
+  const hasApprovalDrw = (docsByType['Approval Drawing']||[]).length > 0;
+  const hasDrwApproved = (docsByType['Drawing Approved']||[]).length > 0;
   const hasBOM = (docsByType['BOM']||[]).length > 0;
   const engTip = p.status==='Engineering'
-    ? `<div style="font-size:11px;margin-top:8px;padding:6px 10px;border-radius:var(--r-sm);background:${hasDrw&&hasBOM?'var(--green-bg)':'var(--amber-bg)'};color:${hasDrw&&hasBOM?'var(--green)':'var(--amber)'}">
-        ${hasDrw?'✓':'○'} Drawing &nbsp; ${hasBOM?'✓':'○'} BOM &nbsp;
-        ${hasDrw&&hasBOM?'Keduanya lengkap — siap pindah ke Produksi':'Perlu keduanya untuk lanjut ke Produksi'}
-      </div>` : '';
+    ? '<div style="font-size:11px;margin-top:8px;padding:6px 10px;border-radius:var(--r-sm);background:'+(hasDrwApproved?'var(--green-bg)':hasApprovalDrw?'var(--blue-bg)':'var(--amber-bg)')+';color:'+(hasDrwApproved?'var(--green)':hasApprovalDrw?'var(--blue)':'var(--amber)')+'">'
+      +(hasApprovalDrw?'✓':'○')+' Approval Drawing &nbsp; '
+      +(hasDrwApproved?'✓':'○')+' Drawing Approved &nbsp; '
+      +(hasDrwApproved?'Siap pindah ke Produksi':hasApprovalDrw?'Tunggu Drawing Approved dari customer':'Upload Approval Drawing dulu')
+      +'</div>' : '';
 
   document.getElementById('poDetailContent').innerHTML=`
     <div class="modal-header">
@@ -1439,31 +1441,38 @@ async function openPODetail(id){
 
         <!-- Engineering -->
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
-          <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
             <span style="background:${p.status==='Engineering'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='Engineering'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Engineering</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            ${docSection('Drawing','Drawing','Engineering-Drawing','📐')}
-            ${docSection('BOM','BOM','Engineering-BOM','📋',true)}
+            ${docSection('Approval Drawing','Approval Drawing','Engineering-Drawing','📤')}
+            ${docSection('Drawing Approved','Drawing Approved','Engineering-Drawing','✅')}
           </div>
+          ${docSection('BOM','BOM','Engineering-BOM','📋',true)}
           ${engTip}
         </div>
 
         <!-- Produksi -->
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
-          <div style="font-size:12px;font-weight:700;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px">
             <span style="background:${p.status==='Produksi'?'var(--amber-bg)':'var(--surface)'};color:${p.status==='Produksi'?'var(--amber)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Produksi</span>
+            ${p.status==='Produksi'&&(isPIC(p,'Produksi')||isAdmin())?'<button class="btn btn-sm" style="font-size:11px" onclick="requestProduksiSelesai(\''+p.id+'\')">✓ Selesai Produksi</button>':''}
+            ${p.produksi_approval_pending&&isAdmin()?'<button class="btn btn-sm btn-primary" style="font-size:11px" onclick="approveProduksiSelesai(\''+p.id+'\')">✓ Approve ke QC</button>':''}
+            ${p.produksi_approval_pending?'<span style="font-size:11px;color:var(--amber)">⏳ Menunggu approval admin</span>':''}
           </div>
-          ${docSection('Laporan Produksi','Laporan Produksi','Produksi','🏭')}
+          ${docSection('Laporan Produksi','Laporan Produksi Harian','Produksi','🏭')}
         </div>
 
         <!-- QC -->
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">
-            <span style="background:${p.status==='QC'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='QC'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">QC / FAT In-House</span>
+            <span style="background:${p.status==='QC'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='QC'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">QC</span>
           </div>
-          ${docSection('FAT Report','FAT In-House Report','QC','✅')}
+          ${docSection('Routine Test Report','Routine Test Report','QC','🔍')}
         </div>
+
+        <!-- FAT (opsional) -->
+        ${p.fat?'<div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px"><div style="font-size:12px;font-weight:700;margin-bottom:8px"><span style="background:'+(p.status==='FAT'?'var(--amber-bg)':'var(--surface)')+';color:'+(p.status==='FAT'?'var(--amber)':'var(--text3)')+';padding:2px 8px;border-radius:20px;font-size:11px">FAT</span></div>'+docSection('FAT Report','FAT Report','FAT','📋')+'</div>':''}
 
         <!-- Pengiriman -->
         <div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px">
@@ -1496,7 +1505,7 @@ async function openPODetail(id){
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">
             <span style="padding:2px 8px;border-radius:20px;font-size:11px;color:var(--text3)">File PO & Lainnya</span>
           </div>
-          ${docSection('File PO','File PO','','📄')}
+          ${docSection('File PO','File PO','Terima PO','📄')}
           ${docSection('Tambahan','Dokumen Tambahan','','📎')}
           <button class="upload-more-btn" onclick="document.getElementById('docup_Tambahan_extra_${p.id}').click()">
             <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Upload lainnya
@@ -1547,12 +1556,20 @@ async function updatePOStatus(id,status){
 }
 // Doc type → trigger rules
 const DOC_TRIGGERS = {
-  'Drawing':  { requireAlso:'BOM',   nextStatus:'Produksi', currentStatus:'Engineering', label:'Drawing' },
-  'BOM':      { requireAlso:'Drawing', nextStatus:'Produksi', currentStatus:'Engineering', label:'BOM' },
-  'FAT Report': { nextStatus:'Pengiriman', currentStatus:'QC',         label:'FAT In-House Report' },
-  'Surat Jalan':{ nextStatus:null,    currentStatus:'Pengiriman',    label:'Surat Jalan/DO/DN' }, // next determined dynamically
-  'SAT':        { nextStatus:null,    currentStatus:'Instalasi',     label:'SAT' },
-  'BAST':       { nextStatus:'Selesai', currentStatus:'Commissioning', label:'BAST' },
+  // Terima PO → Engineering
+  'File PO': { nextStatus:'Engineering', currentStatus:'Terima PO', label:'File PO' },
+  // Engineering → Produksi (Drawing Approved, requires Approval Drawing first)
+  'Drawing Approved': { requireAlso:'Approval Drawing', nextStatus:'Produksi', currentStatus:'Engineering', label:'Drawing Approved' },
+  // QC → FAT or Pengiriman
+  'Routine Test Report': { nextStatus:null, currentStatus:'QC', label:'Routine Test Report' },
+  // FAT → Pengiriman
+  'FAT Report': { nextStatus:'Pengiriman', currentStatus:'FAT', label:'FAT Report' },
+  // Pengiriman → Instalasi/Commissioning/Selesai
+  'Surat Jalan': { nextStatus:null, currentStatus:'Pengiriman', label:'Surat Jalan/DO/DN' },
+  // Instalasi → Commissioning/Selesai
+  'SAT':  { nextStatus:null, currentStatus:'Instalasi', label:'SAT' },
+  // Commissioning → Selesai
+  'BAST': { nextStatus:'Selesai', currentStatus:'Commissioning', label:'BAST' },
 };
 
 async function uploadDocByType(poId, docType, triggerStatus, input){
@@ -1591,7 +1608,7 @@ async function checkDocTrigger(poId, docType){
   if(!p) return;
 
   // Only trigger if PO is at the right current status or earlier
-  const STATUS_ORDER = ['Terima PO','Engineering','Produksi','QC','Pengiriman','Instalasi','Commissioning','Selesai'];
+  const STATUS_ORDER = ['Terima PO','Engineering','Produksi','QC','FAT','Pengiriman','Instalasi','Commissioning','Selesai'];
   const curIdx = STATUS_ORDER.indexOf(p.status);
   const trigIdx = STATUS_ORDER.indexOf(trigger.currentStatus);
   // Allow trigger if current status <= trigger status (doc uploaded before/during stage)
@@ -1600,22 +1617,29 @@ async function checkDocTrigger(poId, docType){
   // Determine next status
   let nextStatus = trigger.nextStatus;
   if(!nextStatus){
-    // Dynamic: Surat Jalan → Instalasi jika ada, else Selesai
-    // SAT → Commissioning jika ada, else Selesai
-    if(docType==='Surat Jalan'){
+    if(docType==='Routine Test Report'){
+      // QC → FAT jika ada FAT di PO, else Pengiriman
+      nextStatus = p.fat ? 'FAT' : 'Pengiriman';
+    } else if(docType==='Surat Jalan'){
+      // Pengiriman → Instalasi jika ada, else Commissioning, else Selesai
       nextStatus = p.instalasi ? 'Instalasi' : (p.commissioning ? 'Commissioning' : 'Selesai');
     } else if(docType==='SAT'){
+      // Instalasi → Commissioning jika ada, else Selesai
       nextStatus = p.commissioning ? 'Commissioning' : 'Selesai';
     }
   }
   if(!nextStatus) return;
 
-  // Special case: Drawing & BOM both required
+  // Special case: requireAlso means the other doc must exist first
   if(trigger.requireAlso){
     const docs = p.po_docs||[];
-    const hasThis = docs.some(d=>d.doc_type===docType);
     const hasOther = docs.some(d=>d.doc_type===trigger.requireAlso);
-    if(!hasThis||!hasOther) return; // not ready yet
+    if(!hasOther){
+      toast(trigger.requireAlso+' harus diupload terlebih dahulu');
+      return;
+    }
+    const hasThis = docs.some(d=>d.doc_type===docType);
+    if(!hasThis) return;
   }
 
   // Show confirmation popup
@@ -2329,6 +2353,24 @@ async function removePIC(picId, poId){
   toast('PIC dihapus');
   await loadPOs();
   openPODetail(poId);
+}
+
+// ════ PRODUKSI APPROVAL FLOW ════
+async function requestProduksiSelesai(poId){
+  if(!confirm('Tandai produksi selesai? Request akan dikirim ke Admin untuk approval.')) return;
+  await sb.from('purchase_orders').update({produksi_approval_pending:true}).eq('id',poId);
+  await logPO(poId,'Request Selesai Produksi','Menunggu approval admin');
+  toast('Request terkirim ke Admin');
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function approveProduksiSelesai(poId){
+  if(!confirm('Approve produksi selesai? Status akan pindah ke QC.')) return;
+  await sb.from('purchase_orders').update({produksi_approval_pending:false}).eq('id',poId);
+  await updatePOStatus(poId,'QC');
+  await logPO(poId,'Produksi Disetujui','Status pindah ke QC');
+  toast('Produksi disetujui → QC');
 }
 
 // ════ UTILS ════
