@@ -2905,9 +2905,12 @@ function renderItemRows(){
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
       +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori</label>'
-      +'<input id="pfi_cat_'+i+'" type="text" value="" placeholder="Rectifier, UPS, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
-      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Tipe / Model</label>'
-      +'<input id="pfi_typ_'+i+'" type="text" value="" placeholder="S-PRO1, dll" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit"></div>'
+      +'<select id="pfi_cat_'+i+'" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit">'
+      +'<option value="">-- Pilih --</option>'
+      +ITEM_CATEGORIES.map(c=>'<option value="'+c+'">'+c+'</option>').join('')
+      +'</select></div>'
+      +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Tipe / Model <span style="font-size:10px;color:var(--text3)">(auto)</span></label>'
+      +'<input id="pfi_typ_'+i+'" type="text" value="" placeholder="Otomatis atau isi manual" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:var(--surface2);" readonly></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:2fr 80px;gap:8px;margin-bottom:8px">'
       +'<div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>'
@@ -2931,6 +2934,7 @@ function renderItemRows(){
     // Set values
     div.querySelector('#pfi_cat_'+i).value = poFormItems[i].category||'';
     div.querySelector('#pfi_typ_'+i).value = poFormItems[i].type||'';
+    div.querySelector('#pfi_typ_'+i).readOnly = true; // auto from spec
     div.querySelector('#pfi_spc_'+i).value = poFormItems[i].spec||'';
     div.querySelector('#pfi_qty_'+i).value = poFormItems[i].qty||1;
     // Add Spec button if category warrants it
@@ -2951,7 +2955,16 @@ function renderItemRows(){
     }
 
     // Add event listeners
-    div.querySelector('#pfi_cat_'+i).oninput=e=>{poFormItems[i].category=e.target.value};
+    div.querySelector('#pfi_cat_'+i).onchange=e=>{
+      poFormItems[i].category=e.target.value;
+      // Clear type when category changes
+      div.querySelector('#pfi_typ_'+i).value='';
+      poFormItems[i].type='';
+      // Reset spec for this item
+      delete poFormSpecs[i];
+      // Re-render to update spec button
+      renderItemRows();
+    };
     div.querySelector('#pfi_typ_'+i).oninput=e=>{poFormItems[i].type=e.target.value};
     div.querySelector('#pfi_spc_'+i).oninput=e=>{poFormItems[i].spec=e.target.value};
     div.querySelector('#pfi_qty_'+i).oninput=e=>{poFormItems[i].qty=parseInt(e.target.value)||1};
@@ -3004,8 +3017,8 @@ const SPEC_FIELDS = {
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
   UPS: [
-    {id:'model_series', label:'Model / Series', placeholder:''},
     {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
+    {id:'output_fase', label:'Fase Output', type:'select', options:['1','3']},
     {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
     {id:'input_frequency', label:'Frekuensi Input (Hz)', placeholder:'50'},
     {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
@@ -3022,19 +3035,26 @@ const SPEC_FIELDS = {
     {id:'output_frequency', label:'Frekuensi Output (Hz)', placeholder:'50'},
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
-  ACDB: [
-    {id:'model_series', label:'Model / Series', placeholder:''},
-    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
+  'Panel ACDB': [
+    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'400/230, 380, 220'},
     {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
-    {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
-    {id:'output_current', label:'Rating Arus (A)', placeholder:''},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:'63, 100, 160'},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  ACDB: [
+    {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'400/230, 380, 220'},
+    {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:'63, 100, 160'},
+    {id:'notes', label:'Catatan', type:'textarea'},
+  ],
+  'Panel DCDB': [
+    {id:'input_voltage', label:'Tegangan Input (VDC)', placeholder:'24, 48, 110, 220'},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:'50, 100, 200'},
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
   DCDB: [
-    {id:'model_series', label:'Model / Series', placeholder:''},
     {id:'input_voltage', label:'Tegangan Input (VDC)', placeholder:'24, 48, 110, 220'},
-    {id:'output_voltage', label:'Tegangan Output (VDC)', placeholder:''},
-    {id:'output_current', label:'Rating Arus (A)', placeholder:''},
+    {id:'output_current', label:'Rating Arus (A)', placeholder:'50, 100, 200'},
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
 };
@@ -3322,9 +3342,12 @@ async function saveItemSpec(){
       if(el) data[f.id] = el.value.trim()||null;
     });
     poFormSpecs[itemIdx] = data;
-    toast('Spec disimpan (akan tersimpan saat PO disimpan)');
+    // Auto-update model name
+    const modelName = buildModelName(_specCtx.category, data);
+    if(modelName) poFormItems[itemIdx].type = modelName;
+    toast('Spec disimpan');
     closeModal('itemSpecModal');
-    renderItemRows(); // refresh to show ✓ on spec button
+    renderItemRows(); // refresh to show ✓ and updated model
     return;
   }
   // Original save to DB
@@ -3346,6 +3369,44 @@ async function saveItemSpec(){
   closeModal('itemSpecModal');
   await loadPOs();
   openPODetail(poId);
+}
+
+// ════ ITEM CATEGORY & MODEL FORMAT ════
+const ITEM_CATEGORIES = [
+  'Rectifier','Inverter','UPS','Battery','Baterai',
+  'Panel ACDB','Panel DCDB','PANEL BOX','Rak Baterai','Lainnya'
+];
+
+// Categories that need serial number
+const SERIAL_CATS_MAP = {
+  'Rectifier':'Rectifier','Inverter':'Inverter','UPS':'UPS',
+  'Panel ACDB':'ACDB','Panel DCDB':'DCDB'
+};
+
+// Auto-generate model name from spec inputs
+function buildModelName(cat, specData){
+  const v = f=>specData[f]||'';
+  if(cat==='Rectifier'){
+    // S-Pro[fase] [vout]-[rout]
+    return 'S-Pro'+(v('input_fase')||'1')+' '+(v('output_voltage')||'')+(v('output_current')?'-'+v('output_current')+'A':'');
+  }
+  if(cat==='UPS'){
+    // A-Pro[fin]/[fout] [kva]K
+    const kva = v('output_kva');
+    return 'A-Pro'+(v('input_fase')||'3')+'/'+(v('output_fase')||'1')+' '+(kva?kva+'K':'');
+  }
+  if(cat==='Inverter'){
+    // INV [kva]K
+    const kva = v('output_kva');
+    return 'INV '+(kva?kva+'K':'');
+  }
+  if(cat==='ACDB'||cat==='Panel ACDB'){
+    return 'ACDB '+(v('input_voltage')||'')+'V-'+(v('output_current')||'')+'A';
+  }
+  if(cat==='DCDB'||cat==='Panel DCDB'){
+    return 'DCDB '+(v('input_voltage')||'')+'V-'+(v('output_current')||'')+'A';
+  }
+  return '';
 }
 
 // ════ UTILS ════
