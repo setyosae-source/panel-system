@@ -1435,8 +1435,8 @@ async function openPODetail(id){
             <span style="background:${p.status==='Engineering'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='Engineering'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Engineering</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            ${docSection('Drawing','Drawing','Engineering','📐')}
-            ${docSection('BOM','BOM','Engineering','📋')}
+            ${docSection('Drawing','Drawing','Engineering-Drawing','📐')}
+            ${docSection('BOM','BOM','Engineering-BOM','📋',true)}
           </div>
           ${engTip}
         </div>
@@ -1582,8 +1582,12 @@ async function checkDocTrigger(poId, docType){
     .eq('id',poId).single();
   if(!p) return;
 
-  // Only trigger if PO is at the right current status
-  if(p.status !== trigger.currentStatus) return;
+  // Only trigger if PO is at the right current status or earlier
+  const STATUS_ORDER = ['Terima PO','Engineering','Produksi','QC','Pengiriman','Instalasi','Commissioning','Selesai'];
+  const curIdx = STATUS_ORDER.indexOf(p.status);
+  const trigIdx = STATUS_ORDER.indexOf(trigger.currentStatus);
+  // Allow trigger if current status <= trigger status (doc uploaded before/during stage)
+  if(curIdx > trigIdx) return;
 
   // Determine next status
   let nextStatus = trigger.nextStatus;
@@ -2136,11 +2140,14 @@ async function deletePPDoc(docId, reqId, table, filePath, fileName){
 }
 
 // ════ PIC MANAGEMENT ════
-const PIC_STAGES = ['Engineering','Produksi','QC','Pengiriman','Instalasi','Commissioning'];
+const PIC_STAGES = ['Engineering-Drawing','Engineering-BOM','Produksi','QC','Pengiriman','Instalasi','Commissioning'];
 
 function isPIC(po, stage){
   if(!stage||!currentUser) return false;
-  const pics = (po.po_pic||[]).filter(x=>x.stage===stage);
+  // Handle Engineering sub-stages
+  const checkStages = [stage];
+  if(stage==='Engineering') checkStages.push('Engineering-Drawing','Engineering-BOM');
+  const pics = (po.po_pic||[]).filter(x=>checkStages.includes(x.stage));
   return pics.some(x=>x.user_id===currentUser.id);
 }
 
@@ -2152,7 +2159,7 @@ function getPICNames(po, stage){
 }
 
 function buildPICSection(p){
-  const stagesForPO = ['Engineering','Produksi','QC','Pengiriman',
+  const stagesForPO = ['Engineering-Drawing','Engineering-BOM','Produksi','QC','Pengiriman',
     ...(p.instalasi?['Instalasi']:[]), ...(p.commissioning?['Commissioning']:[])];
   const rows = stagesForPO.map(stage=>{
     const pics = (p.po_pic||[]).filter(x=>x.stage===stage);
@@ -2163,7 +2170,9 @@ function buildPICSection(p){
         +'<button onclick="removePIC(\''+x.id+'\',\''+p.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:11px;padding:0 2px;line-height:1">&#x2715;</button></span>';
     }).join('');
     return '<tr>'
-      +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:130px">'+stage+'</td>'
+      +'<td style="padding:7px 10px;font-size:13px;font-weight:500;width:130px">'
+      +(stage==='Engineering-Drawing'?'📐 Drawing':stage==='Engineering-BOM'?'📋 BOM (Admin)':stage)
+      +'</td>'
       +'<td style="padding:7px 10px">'+(names||'<span style="font-size:12px;color:var(--text3)">Belum ada PIC</span>')+'</td>'
       +'<td style="padding:7px 10px;width:120px">'
       +'<button class="btn btn-sm" onclick="openAssignPIC(\''+p.id+'\',\''+stage+'\')">+ Assign</button>'
@@ -2243,7 +2252,8 @@ async function openAssignPIC(poId, stage){
 
   // Role mapping per stage
   const stageRole = {
-    Engineering:'engineering', Produksi:'produksi', QC:'produksi',
+    'Engineering-Drawing':'engineering', 'Engineering-BOM':'engineering',
+    Produksi:'produksi', QC:'produksi',
     Pengiriman:'logistik', Instalasi:'logistik', Commissioning:'logistik'
   };
   const suggestedRole = stageRole[stage];
