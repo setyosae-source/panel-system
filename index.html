@@ -1540,7 +1540,7 @@ async function openPODetail(id){
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">
             <span style="background:${p.status==='Engineering'?'var(--blue-bg)':'var(--surface)'};color:${p.status==='Engineering'?'var(--blue)':'var(--text3)'};padding:2px 8px;border-radius:20px;font-size:11px">Engineering</span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="display:flex;flex-direction:column;gap:10px">
             ${docSection('Approval Drawing','Approval Drawing','Engineering-Drawing','📤')}
             ${docSection('Drawing Approved','Drawing Approved','Engineering-Drawing','✅',false,!hasApprovalDrw)}
           </div>
@@ -2345,13 +2345,108 @@ async function saveDocEdit(){
 }
 
 async function deleteDoc(docId, poId, table, filePath, fileName){
-  if(!confirm('Hapus dokumen "'+fileName+'"? Tindakan ini tidak bisa dibatalkan.')) return;
+  if(!confirm('Hapus dokumen "'+fileName+'"?')) return;
+
+  // Delete from storage and DB
   await sb.storage.from('po-docs').remove([filePath]);
   await sb.from(table).delete().eq('id',docId);
   await logPO(poId,'Hapus Dokumen',fileName);
   toast('Dokumen dihapus');
+
+  // Check if deleted doc was a status trigger
+  await checkDeleteTrigger(poId, fileName, filePath);
+}
+
+async function checkDeleteTrigger(poId, fileName, filePath){
+  // Get doc type from file path or match to trigger keys
+  const docType = Object.keys(DOC_TRIGGERS).find(k=>
+    filePath.includes(k.replace(/\s/g,'_')) || fileName.includes(k)
+  );
+
+  const trigger = docType ? DOC_TRIGGERS[docType] : null;
+
+  // Reload fresh PO data
+  const{data:p} = await sb.from('purchase_orders')
+    .select('*,po_docs(*)')
+    .eq('id',poId).single();
+  if(!p) return;
+
+  const STATUS_ORDER = ['Terima PO','Engineering','Produksi','QC','FAT','Pengiriman','Instalasi','Commissioning','Selesai'];
+  const curIdx = STATUS_ORDER.indexOf(p.status);
+
+  // Find what status the current PO should be at based on remaining docs
+  let warningStatus = null;
+  if(trigger){
+    const trigIdx = STATUS_ORDER.indexOf(trigger.currentStatus);
+    // If PO has advanced past the trigger status, warn user
+    if(curIdx > trigIdx){
+      warningStatus = trigger.currentStatus;
+    }
+  }
+
+  // Also check: Drawing Approved deleted → warn if status >= Produksi
+  if(filePath.includes('Drawing_Approved') || fileName.includes('Drawing Approved')){
+    if(curIdx >= STATUS_ORDER.indexOf('Produksi')){
+      warningStatus = 'Engineering';
+    }
+  }
+
+  if(!warningStatus){
+    await loadPOs();
+    openPODetail(poId);
+    return;
+  }
+
+  // Show warning popup
+  showDeleteWarning(p, docType||fileName, warningStatus);
+}
+
+function showDeleteWarning(p, docName, revertStatus){
+  const existing = document.getElementById('deleteWarningOverlay');
+  if(existing) existing.remove();
+
+  const el = document.createElement('div');
+  el.id = 'deleteWarningOverlay';
+  el.className = 'overlay';
+  el.style.zIndex = '300';
+  el.innerHTML = '<div class="modal" style="max-width:440px">'
+    +'<div class="modal-header"><h2>⚠️ Dokumen Trigger Dihapus</h2></div>'
+    +'<div class="modal-body">'
+    +'<div style="text-align:center;padding:.5rem 0">'
+    +'<div style="font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:1rem">'
+    +'Dokumen <strong>'+docName+'</strong> telah dihapus.<br>'
+    +'Status PO saat ini: <strong>'+p.status+'</strong><br>'
+    +'<span style="color:var(--amber)">Dokumen trigger untuk status ini sudah tidak ada.</span>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<div style="background:var(--surface2);border-radius:var(--r-sm);padding:10px;text-align:left;font-size:13px">'
+    +'<strong>Lanjutkan</strong> — Status tetap di <em>'+p.status+'</em>, upload dokumen baru untuk menggantikan'
+    +'</div>'
+    +'<div style="background:var(--amber-bg);border-radius:var(--r-sm);padding:10px;text-align:left;font-size:13px">'
+    +'<strong>Sesuaikan Status</strong> — Status mundur ke <em>'+revertStatus+'</em> menyesuaikan dokumen yang ada'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+    +'</div>'
+    +'<div class="modal-footer" style="justify-content:center;gap:12px">'
+    +'<button class="btn btn-primary" onclick="dismissDeleteWarning(\''+p.id+'\')">Lanjutkan</button>'
+    +'<button class="btn" style="background:var(--amber);color:#fff;border-color:var(--amber)" onclick="revertStatusAfterDelete(\''+p.id+'\',\''+revertStatus+'\')">Sesuaikan Status</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(el);
+}
+
+async function dismissDeleteWarning(poId){
+  document.getElementById('deleteWarningOverlay')?.remove();
   await loadPOs();
   openPODetail(poId);
+}
+
+async function revertStatusAfterDelete(poId, revertStatus){
+  document.getElementById('deleteWarningOverlay')?.remove();
+  await updatePOStatus(poId, revertStatus);
+  await logPO(poId,'Status Disesuaikan','Status mundur ke '+revertStatus+' setelah dokumen trigger dihapus');
+  toast('Status disesuaikan → '+revertStatus);
 }
 
 // Also for pre-project docs
