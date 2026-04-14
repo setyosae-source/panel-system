@@ -1451,13 +1451,16 @@ async function openPODetail(id){
       </div>
 
       <!-- Dokumen PO -->
-      <div class="detail-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div class="sect-title" style="margin-bottom:0">📄 Dokumen PO</div>
-          ${can('po_doc_add')||isAdmin()?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPO_'+p.id+'\').click()">+ Tambah</button>'+'<input type="file" id="upDocPO_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'File PO\',this)">':''}
-        </div>
-        ${buildStandaloneDocList(p, 'File PO', 'po_doc')}
-      </div>
+      ${(isAdmin()||can('po_doc_read')||can('po_doc_add'))?
+        '<div class="detail-section">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<div class="sect-title" style="margin-bottom:0">📄 Dokumen PO</div>'
+        +(isAdmin()||can('po_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPO_'+p.id+'\').click()">+ Tambah</button>'
+          +'<input type="file" id="upDocPO_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'File PO\',this)">':'')
+        +'</div>'
+        +buildStandaloneDocList(p,'File PO','po_doc')
+        +'</div>'
+        :''}
 
       <!-- Dokumen BOM -->
       ${(can('bom_doc_read')||can('bom_doc_add')||isAdmin())?'<div class="detail-section">'
