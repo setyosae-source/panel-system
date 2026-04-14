@@ -787,11 +787,11 @@ history.replaceState({page:'home'},'','');
 
 // Default permissions per role
 const ROLE_PERMS = {
-  admin:       {pp_view:1,pp_manage:1,pp_upload_result:1,po_view:1,po_engineering:1,po_produksi:1,po_qc:1,po_logistik:1,po_pk:1,users:1},
-  sales:       {pp_view:1,pp_input:1,pp_upload_doc:1},
-  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_engineering:1},
-  produksi:    {po_view:1,po_produksi:1,po_qc:1},
-  logistik:    {po_view:1,po_logistik:1},
+  admin:       {pp_view:1,pp_manage:1,pp_upload_result:1,po_view:1,po_engineering:1,po_produksi:1,po_qc:1,po_logistik:1,po_pk:1,doc_view:1,doc_upload:1,doc_edit:1,doc_delete:1,users:1},
+  sales:       {pp_view:1,pp_input:1,pp_upload_doc:1,doc_view:1},
+  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_engineering:1,doc_view:1,doc_upload:1,doc_edit:1},
+  produksi:    {po_view:1,po_produksi:1,po_qc:1,doc_view:1,doc_upload:1,doc_edit:1},
+  logistik:    {po_view:1,po_logistik:1,doc_view:1,doc_upload:1},
 };
 
 let currentUser = null;
@@ -1305,10 +1305,18 @@ async function openPODetail(id){
   const docsByType = {};
   docs.forEach(d=>{ if(!docsByType[d.doc_type]) docsByType[d.doc_type]=[]; docsByType[d.doc_type].push(d); });
 
-  function docSection(typeKey, label, stageStatus, icon){
+  function docSection(typeKey, label, stageStatus, icon, adminOnly){
     const list = (docsByType[typeKey]||[]);
-    const canUp = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
-    const canEdit = !!(currentUser && currentUser.role === 'admin') || isPIC(p, stageStatus);
+    const _isAdmin = !!(currentUser && currentUser.role === 'admin');
+    const _isPIC = isPIC(p, stageStatus);
+    const _canViewDoc = _isAdmin || can('doc_view');
+    const _canUpDoc   = can('doc_upload') && (_isAdmin || _isPIC);
+    const _canEditDoc = can('doc_edit')   && (_isAdmin || _isPIC);
+    const _canDelDoc  = can('doc_delete') && (_isAdmin || _isPIC);
+    if(adminOnly && !_isAdmin) return '';
+    if(!_canViewDoc) return '';
+    const canUp   = adminOnly ? _isAdmin : _canUpDoc;
+    const canEdit = adminOnly ? _isAdmin : _canEditDoc;
     const fileHtml = list.length
       ? list.map(f=>{
           const url = poFileUrl(f.file_path);
@@ -1318,7 +1326,7 @@ async function openPODetail(id){
           const editBtn = (canEdit && !isOld)
             ? '<button class="file-act-btn" onclick="openDocEdit(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fn+'\',\''+fp+'\')">&#x270F;</button>'
             : '';
-          const delBtn = canEdit
+          const delBtn = _canDelDoc
             ? '<button class="file-act-btn del" onclick="deleteDoc(\''+f.id+'\',\''+p.id+'\',\'po_docs\',\''+fp+'\',\''+fn+'\')">&#x1F5D1;</button>'
             : '';
           return '<div class="file-item" style="'+(isOld?'opacity:.5':'')+'">'
@@ -1891,6 +1899,8 @@ const PERM_LABELS = {
   pp_view:'Lihat Pre-Project', pp_input:'Input Request Baru', pp_upload_doc:'Upload Dok. Customer',
   pp_upload_result:'Upload Dok. Hasil/Drawing', pp_manage:'Kelola Semua Request',
   po_view:'Lihat PO', po_pk:'Kelola PK (Keuangan)',
+  doc_view:'Lihat Dokumen', doc_upload:'Upload Dokumen',
+  doc_edit:'Edit Dokumen', doc_delete:'Hapus Dokumen',
   users:'Kelola User'
 };
 
