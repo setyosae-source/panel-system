@@ -1412,7 +1412,7 @@ async function openPODetail(id){
       <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
         ${itemBadge(it.status_produksi)}
         ${it.status_pengiriman==='Sudah Dikirim'?'<span class="badge b-done" style="font-size:10px">Dikirim</span>':''}
-        <button class="btn btn-sm" onclick="updateItemStatus('${it.id}','${p.id}')">Ubah</button>
+        ${(isAdmin()||isPIC(p,'Laporan Produksi'))?'<button class="btn btn-sm" onclick="updateItemStatus(\''+it.id+'\',\''+p.id+'\')"  >Ubah</button>':''}
       </div>
     </div>`).join('');
 
