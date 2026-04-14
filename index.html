@@ -2933,8 +2933,13 @@ function renderItemRows(){
   rows.forEach((div,i)=>{
     // Set values
     div.querySelector('#pfi_cat_'+i).value = poFormItems[i].category||'';
-    div.querySelector('#pfi_typ_'+i).value = poFormItems[i].type||'';
-    div.querySelector('#pfi_typ_'+i).readOnly = true; // auto from spec
+    const autoCats = ['Rectifier','Inverter','UPS','Panel ACDB','Panel DCDB','ACDB','DCDB'];
+    const isAutoCat = autoCats.some(c=>( poFormItems[i].category||'').includes(c));
+    const typEl = div.querySelector('#pfi_typ_'+i);
+    typEl.value = poFormItems[i].type||'';
+    typEl.readOnly = isAutoCat;
+    typEl.style.background = isAutoCat ? 'var(--surface2)' : 'var(--surface)';
+    typEl.placeholder = isAutoCat ? 'Otomatis dari spec' : 'Isi tipe / model';
     div.querySelector('#pfi_spc_'+i).value = poFormItems[i].spec||'';
     div.querySelector('#pfi_qty_'+i).value = poFormItems[i].qty||1;
     // Add Spec button if category warrants it
@@ -3005,7 +3010,7 @@ let _specCtx = {}; // {itemId, poId, category}
 // Spec form fields per category
 const SPEC_FIELDS = {
   Rectifier: [
-    {id:'model_series', label:'Model / Series', placeholder:'S-PRO1, S-PRO2, dll'},
+    
     {id:'input_fase', label:'Fase Input', type:'select', options:['1','3']},
     {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
     {id:'input_voltage_tolerance', label:'Toleransi Input', placeholder:'+/-15%'},
@@ -3028,7 +3033,7 @@ const SPEC_FIELDS = {
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
   Inverter: [
-    {id:'model_series', label:'Model / Series', placeholder:''},
+    
     {id:'dc_input_voltage', label:'Tegangan Input DC (VDC)', placeholder:'24, 48, 110, 220'},
     {id:'output_voltage', label:'Tegangan Output (VAC)', placeholder:'220, 380'},
     {id:'output_kva', label:'Kapasitas Output (kVA)', placeholder:'1, 2, 5'},
