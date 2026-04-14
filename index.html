@@ -799,9 +799,9 @@ const ROLE_PERMS = {
     users:1
   },
   sales:       {pp_view:1,pp_input:1,pp_upload_doc:1},
-  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_doc_read:1,po_engineering:1,fabrication:1},
-  produksi:    {po_view:1,po_doc_read:1,fabrication:1,po_produksi:1,po_qc:1},
-  logistik:    {po_view:1,po_doc_read:1,po_logistik:1,logistik_doc_add:1,logistik_doc_read:1},
+  engineering: {pp_view:1,pp_upload_result:1,po_view:1,po_engineering:1,fabrication:1},
+  produksi:    {po_view:1,fabrication:1,po_produksi:1,po_qc:1},
+  logistik:    {po_view:1,po_logistik:1,logistik_doc_add:1,logistik_doc_read:1},
 };
 
 let currentUser = null;
@@ -1451,36 +1451,13 @@ async function openPODetail(id){
       </div>
 
       <!-- Dokumen PO -->
-      ${(isAdmin()||can('po_doc_read')||can('po_doc_add'))?
-        '<div class="detail-section">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-        +'<div class="sect-title" style="margin-bottom:0">📄 Dokumen PO</div>'
-        +(isAdmin()||can('po_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPO_'+p.id+'\').click()">+ Tambah</button>'
-          +'<input type="file" id="upDocPO_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'File PO\',this)">':'')
-        +'</div>'
-        +buildStandaloneDocList(p,'File PO','po_doc')
-        +'</div>'
-        :''}
+      ${buildDocPOSection(p)}
 
       <!-- Dokumen BOM -->
-      ${(can('bom_doc_read')||can('bom_doc_add')||isAdmin())?'<div class="detail-section">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-        +'<div class="sect-title" style="margin-bottom:0">📋 Dokumen BOM</div>'
-        +(isAdmin()||can('bom_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocBOM_'+p.id+'\').click()">+ Tambah</button>'
-          +'<input type="file" id="upDocBOM_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'BOM\',this)">':'')
-        +'</div>'
-        +buildStandaloneDocList(p,'BOM','bom_doc')
-        +'</div>':''}
+      ${buildDocBOMSection(p)}
 
       <!-- Dokumen PK -->
-      ${(can('pk_doc_read')||can('pk_doc_add')||isAdmin())?'<div class="detail-section">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-        +'<div class="sect-title" style="margin-bottom:0">💰 Dokumen PK</div>'
-        +(isAdmin()||can('pk_doc_add')?'<button class="btn btn-sm" onclick="document.getElementById(\'upDocPK_'+p.id+'\').click()">+ Tambah</button>'
-          +'<input type="file" id="upDocPK_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'Dokumen PK\',this)">':'')
-        +'</div>'
-        +buildStandaloneDocList(p,'Dokumen PK','pk_doc')
-        +'</div>':''}
+      ${buildDocPKSection(p)}
 
       <!-- Progress -->
       <div class="detail-section">
@@ -2595,6 +2572,48 @@ async function uploadStandaloneDoc(poId, docType, input){
   if(docType==='File PO') await checkDocTrigger(poId, 'File PO');
   await loadPOs();
   openPODetail(poId);
+}
+
+function buildDocPOSection(p){
+  if(!isAdmin()&&!can('po_doc_read')&&!can('po_doc_add')) return '';
+  const canAdd = isAdmin()||can('po_doc_add');
+  const addBtn = canAdd
+    ? '<button class="btn btn-sm" onclick="document.getElementById(\'upDocPO_'+p.id+'\').click()">+ Tambah</button>'
+      +'<input type="file" id="upDocPO_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'File PO\',this)">'
+    : '';
+  return '<div class="detail-section">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div class="sect-title" style="margin-bottom:0">📄 Dokumen PO</div>'+addBtn+'</div>'
+    +buildStandaloneDocList(p,'File PO','po_doc')
+    +'</div>';
+}
+
+function buildDocBOMSection(p){
+  if(!isAdmin()&&!can('bom_doc_read')&&!can('bom_doc_add')) return '';
+  const canAdd = isAdmin()||can('bom_doc_add');
+  const addBtn = canAdd
+    ? '<button class="btn btn-sm" onclick="document.getElementById(\'upDocBOM_'+p.id+'\').click()">+ Tambah</button>'
+      +'<input type="file" id="upDocBOM_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'BOM\',this)">'
+    : '';
+  return '<div class="detail-section">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div class="sect-title" style="margin-bottom:0">📋 Dokumen BOM</div>'+addBtn+'</div>'
+    +buildStandaloneDocList(p,'BOM','bom_doc')
+    +'</div>';
+}
+
+function buildDocPKSection(p){
+  if(!isAdmin()&&!can('pk_doc_read')&&!can('pk_doc_add')) return '';
+  const canAdd = isAdmin()||can('pk_doc_add');
+  const addBtn = canAdd
+    ? '<button class="btn btn-sm" onclick="document.getElementById(\'upDocPK_'+p.id+'\').click()">+ Tambah</button>'
+      +'<input type="file" id="upDocPK_'+p.id+'" multiple style="display:none" onchange="uploadStandaloneDoc(\''+p.id+'\',\'Dokumen PK\',this)">'
+    : '';
+  return '<div class="detail-section">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div class="sect-title" style="margin-bottom:0">💰 Dokumen PK</div>'+addBtn+'</div>'
+    +buildStandaloneDocList(p,'Dokumen PK','pk_doc')
+    +'</div>';
 }
 
 // ════ UTILS ════
