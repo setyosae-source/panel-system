@@ -2021,7 +2021,7 @@ async function loadUsers() {
       <td><span class="role-badge ${ROLE_CLASSES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span></td>
       <td><span style="font-size:11px;font-weight:600;color:${u.is_active ? 'var(--green)' : 'var(--text3)'}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
       <td style="color:var(--text3);font-size:12px">${u.last_login ? fmtDateTime(u.last_login) : '—'}</td>
-      <td><button class="btn btn-sm" onclick="openUserForm('${u.id}')">Edit</button></td>
+      <td><button class="btn btn-sm" data-uid="${u.id}" onclick="openUserForm(this.dataset.uid)">Edit</button></td>
     </tr>`).join('');
 }
 
@@ -2049,7 +2049,7 @@ async function openUserForm(userId) {
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
-      <button class="btn btn-primary" onclick="saveUser('${userId || ''}')">Simpan</button>
+      <button class="btn btn-primary" data-uid="${userId || ''}" onclick="saveUser(this.dataset.uid)">Simpan</button>
     </div>
   </div>`);
 }
