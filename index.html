@@ -1403,10 +1403,13 @@ function renderPOItems() {
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>
           <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
-        <input type="checkbox" ${it.is_produksi ? 'checked' : ''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
-        <span style="color:${it.is_produksi ? 'var(--amber)' : 'var(--text3)'}">🏭 ${it.is_produksi ? 'Diproduksi internal' : 'Tidak diproduksi'}</span>
-      </label>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
+          <input type="checkbox" ${it.is_produksi ? 'checked' : ''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
+          <span style="color:${it.is_produksi ? 'var(--amber)' : 'var(--text3)'}">🏭 ${it.is_produksi ? 'Diproduksi internal' : 'Tidak diproduksi'}</span>
+        </label>
+        ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? `<button type="button" onclick="openItemSpecFromForm(${i})" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:${poFormSpecs[i]?'var(--green-bg)':'var(--surface)'};color:${poFormSpecs[i]?'var(--green)':'var(--text2)'};cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">⚙ Spec${poFormSpecs[i]?' ✓':''}</button>` : ''}
+      </div>
     </div>`).join('');
 }
 
