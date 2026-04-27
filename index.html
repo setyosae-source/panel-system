@@ -1092,7 +1092,7 @@ async function openPODetail(id) {
     const docs = docsByType[ds.key] || [];
     const isCurrentStage = p.status === ds.stage;
     const canUpload = canManage || (ds.stage === 'Engineering' && can('po_engineering')) || (ds.stage === 'Produksi' && can('po_produksi')) || (ds.stage === 'QC' && can('po_qc')) || (ds.stage === 'Pengiriman' && can('po_logistik')) || (['Instalasi'].includes(ds.stage) && (can('po_instalasi'))) || (ds.stage === 'Commissioning' && (can('po_commissioning')));
-    const isRestricted = ds.key === 'File PO';
+    const isRestricted = ['File PO', 'BOM', 'Dokumen PK'].includes(ds.key);
     const uploadBtn = canUpload ? `<button class="btn btn-sm" onclick="document.getElementById('poup_${ds.key.replace(/\s/g,'_')}_${p.id}').click()">+ Upload</button><input type="file" id="poup_${ds.key.replace(/\s/g,'_')}_${p.id}" multiple style="display:none" onchange="uploadPODoc('${p.id}','${ds.key}',${isRestricted},this)">` : '';
     return `<div style="margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
