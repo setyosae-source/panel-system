@@ -1113,7 +1113,8 @@ async function openPODetail(id) {
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
-        ${SPEC_CATEGORIES && SPEC_CATEGORIES.some(c=>it.category===c) ? `<button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">⚙ Spec</button>` : ''}
+        ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? '<button class="btn btn-sm" style="font-size:11px" data-iid="'+it.id+'" data-pid="'+p.id+'" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">⚙ Spec</button>' : ''}
+        <button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
       </div>
     </div>`).join('') : noData('Belum ada item');
 
@@ -1476,6 +1477,63 @@ async function saveItem(poId) {
   await sb.from('po_items').insert({ po_id: poId, category: gv('itCat'), model_name: gv('itModel') || null, spec_summary: gv('itSpec') || null, qty: parseInt(gv('itQty')) || 1, serial_number: gv('itSN') || null, catatan: gv('itCatatan') || null, is_produksi: document.getElementById('itProd').checked });
   await logPO(poId, 'Tambah Item', gv('itCat'));
   toast('Item ditambahkan');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// EDIT ITEM FORM
+async function openEditItemForm(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const it = po?.po_items?.find(x=>x.id===itemId);
+  if(!it) return;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Edit Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Kategori</label><select id="itCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
+        <div class="form-row"><label>Model / Tipe</label><input type="text" id="itModel" value="${it.model_name||''}" placeholder="Model name"></div>
+      </div>
+      <div class="form-row"><label>Spesifikasi</label><input type="text" id="itSpec" value="${it.spec_summary||''}" placeholder="Misal: 110VDC - 60A"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty</label><input type="number" id="itQty" value="${it.qty||1}" min="1"></div>
+        <div class="form-row"><label>Serial Number</label><input type="text" id="itSN" value="${it.serial_number||''}" placeholder="Kosongkan jika belum ada"></div>
+      </div>
+      <div class="form-row" style="margin-top:4px"><label>Catatan Item</label><input type="text" id="itCatatan" value="${it.catatan||''}" placeholder="Catatan tambahan..."></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:8px"><input type="checkbox" id="itProd" ${it.is_produksi?'checked':''}><span>Diproduksi internal</span></label>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-sm btn-danger" data-iid="${itemId}" data-pid="${poId}" onclick="deleteItem(this.dataset.iid,this.dataset.pid)">Hapus</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeAllModals()">Batal</button>
+        <button class="btn btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="saveEditItem(this.dataset.iid,this.dataset.pid)">Simpan</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+async function saveEditItem(itemId, poId) {
+  await sb.from('po_items').update({
+    category: gv('itCat'),
+    model_name: gv('itModel')||null,
+    spec_summary: gv('itSpec')||null,
+    qty: parseInt(gv('itQty'))||1,
+    serial_number: gv('itSN')||null,
+    catatan: gv('itCatatan')||null,
+    is_produksi: document.getElementById('itProd').checked
+  }).eq('id', itemId);
+  await logPO(poId, 'Edit Item', gv('itCat'));
+  toast('Item diperbarui');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function deleteItem(itemId, poId) {
+  if(!confirm('Hapus item ini?')) return;
+  await sb.from('po_items').delete().eq('id', itemId);
+  await logPO(poId, 'Hapus Item', itemId);
+  toast('Item dihapus');
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
