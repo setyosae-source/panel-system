@@ -1278,7 +1278,7 @@ function renderPOTable(){
     return`<tr style="cursor:pointer${ov?';background:#fff8f8':''}" onclick="openPODetail('${p.id}')">
       <td class="mono" style="font-size:11px">${p.no_po}</td>
       <td>${fmtDate(p.tgl_po)}</td>
-      <td style="font-weight:600">${p.customer}</td>
+      <td style="font-weight:600">${p.customer||'—'}</td>
       <td style="color:var(--text2)">${p.project||'—'}</td>
       <td style="${ov?'color:var(--red);font-weight:600':''}">${fmtDate(p.tgl_kirim)||'—'}</td>
       <td>${poBadge(p.status)}</td>
@@ -2933,6 +2933,8 @@ function renderItemRows(){
   });
   container.innerHTML='';
   rows.forEach((div,i)=>{
+    // Read isAutoCatItem from dataset (set during map)
+    const isAutoCatItem = div.dataset.isAutoCat === '1';
     // Set values
     div.querySelector('#pfi_cat_'+i).value = poFormItems[i].category||'';
     const autoCats = ['Rectifier','Inverter','UPS','Panel ACDB','Panel DCDB','ACDB','DCDB'];
