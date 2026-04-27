@@ -1719,34 +1719,56 @@ function openWebpageModal(itemId, noProject){
   const baseUrl = window.location.origin + window.location.pathname.replace('index.html','') + 'product.html';
   const url = baseUrl + '?id=' + itemId + '&proj=' + encodeURIComponent(noProject||'');
   const pwd = 'sae' + (noProject||'').replace(/[^0-9]/g,'').slice(-3);
+  const inputId = 'dlFileInput_' + itemId;
+  const listId = 'dlFileList_' + itemId;
 
-  openModal('<div class="modal" style="max-width:560px">'
-    +'<div class="modal-header"><h2>Webpage Produk</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
-    +'<div class="modal-body">'
-    +'<div style="font-size:13px;color:var(--text2);margin-bottom:1rem">Webpage produk ini bisa diakses via QR code yang akan tampil di nameplate.</div>'
-    +'<div class="form-row" style="margin-bottom:.875rem"><label>URL Produk</label>'
-    +'<div style="display:flex;gap:8px">'
-    +'<input type="text" value="'+url+'" readonly id="webpageUrl" style="background:var(--surface2);font-size:12px">'
-    +'<button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('webpageUrl').value).then(()=>toast('URL disalin'))">Salin</button>'
-    +'</div></div>'
-    +'<div class="form-row" style="margin-bottom:1rem"><label>Password Akses</label>'
-    +'<div style="display:flex;align-items:center;gap:10px">'
-    +'<code style="font-family:var(--font-mono,monospace);font-size:16px;font-weight:700;background:var(--surface2);padding:8px 16px;border-radius:var(--r-sm);letter-spacing:2px">'+pwd+'</code>'
-    +'<span style="font-size:12px;color:var(--text3)">sae + no. project</span>'
-    +'</div></div>'
-    +'<div style="border-top:1px solid var(--border);padding-top:.875rem">'
-    +'<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Upload File Download (opsional)</div>'
-    +'<div id="dlFileList_'+itemId+'" style="margin-bottom:8px"></div>'
-    +'<button class="btn btn-sm" onclick="document.getElementById('dlFileInput_'+itemId+'').click()">+ Upload File</button>'
-    +'<input type="file" id="dlFileInput_'+itemId+'" multiple style="display:none" onchange="uploadDownloadFile(''+itemId+'',this)">'
-    +'</div>'
-    +'</div>'
-    +'<div class="modal-footer" style="justify-content:space-between">'
-    +'<a href="'+url+'" target="_blank" class="btn btn-sm">🔗 Preview Webpage</a>'
-    +'<button class="btn btn-sm btn-primary" data-iid="'+itemId+'" data-proj="'+noProject+'" onclick="generateNameplate(this.dataset.iid,this.dataset.proj)">🖨 Generate Nameplate PDF</button>'
-    +'</div>'
-    +'</div>');
-  // Load existing download files
+  const modalEl = document.createElement('div');
+  modalEl.className = 'overlay';
+  modalEl.id = 'dynamicModal';
+  modalEl.innerHTML = `<div class="modal" style="max-width:560px">
+    <div class="modal-header"><h2>Webpage Produk</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem">Webpage produk bisa diakses via QR code di nameplate.</div>
+      <div class="form-row" style="margin-bottom:.875rem">
+        <label>URL Produk</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" value="${url}" readonly id="webpageUrl" style="background:var(--surface2);font-size:12px">
+          <button class="btn btn-sm" id="btnCopyUrl">Salin</button>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:1rem">
+        <label>Password Akses</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <code style="font-family:monospace;font-size:16px;font-weight:700;background:var(--surface2);padding:8px 16px;border-radius:var(--r-sm);letter-spacing:2px">${pwd}</code>
+          <span style="font-size:12px;color:var(--text3)">sae + no. project</span>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:.875rem">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Upload File Download (opsional)</div>
+        <div id="${listId}" style="margin-bottom:8px"></div>
+        <button class="btn btn-sm" id="btnUploadDl">+ Upload File</button>
+        <input type="file" id="${inputId}" multiple style="display:none">
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <a href="${url}" target="_blank" class="btn btn-sm">🔗 Preview Webpage</a>
+      <button class="btn btn-sm btn-primary" id="btnGenNameplate">🖨 Generate Nameplate PDF</button>
+    </div>
+  </div>`;
+
+  closeAllModals();
+  document.getElementById('modalContainer').appendChild(modalEl);
+  history.pushState({modal:'webpage'},'','');
+
+  document.getElementById('btnCopyUrl').onclick = () =>
+    navigator.clipboard.writeText(url).then(()=>toast('URL disalin'));
+  document.getElementById('btnUploadDl').onclick = () =>
+    document.getElementById(inputId).click();
+  document.getElementById(inputId).onchange = (e) =>
+    uploadDownloadFile(itemId, e.target);
+  document.getElementById('btnGenNameplate').onclick = () =>
+    generateNameplate(itemId, noProject);
+
   loadDownloadFiles(itemId);
 }
 
