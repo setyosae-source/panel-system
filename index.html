@@ -1839,13 +1839,13 @@ async function generateAllNameplates(poId){
     specsMap[it.id] = spec || {};
   }
 
-  const baseUrl = window.location.origin + window.location.pathname.replace('index.html','') + 'product.html';
+  const baseUrl = 'https://sae-energy.site/product.html';
   const noProject = po.no_project||'';
 
   // Generate QR codes for all items
   const qrMap = {};
   for(const it of items){
-    const webUrl = baseUrl + '?id=' + it.id + '&proj=' + encodeURIComponent(noProject);
+    const webUrl = baseUrl + '?id=' + poId + '&proj=' + encodeURIComponent(noProject);
     const qrDiv = document.createElement('div');
     qrDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
     document.body.appendChild(qrDiv);
@@ -1876,7 +1876,7 @@ function buildAllNameplatesHTML(po, items, specsMap, qrMap, baseUrl, noProject){
     const cat = it.category;
     const model = it.model_name||'';
     const qrImg = qrMap[it.id]||'';
-    const webUrl = baseUrl + '?id=' + it.id + '&proj=' + encodeURIComponent(noProject);
+    const webUrl = baseUrl + '?id=' + poId + '&proj=' + encodeURIComponent(noProject);
 
     let inputSpec='', outputSpec='', productType='', seriesName='';
     if(cat==='Rectifier'){
