@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Panel System — Divisi Pabrikasi & Service</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#F5F4F0;--surface:#FFFFFF;--surface2:#EFEDE8;--surface3:#E8E6E0;
+  --border:#E0DDD6;--border2:#CCCAC3;
+  --text:#1A1A18;--text2:#5A5956;--text3:#9A9893;
+  --blue:#1C4ED8;--blue-bg:#EFF6FF;--blue-text:#1E40AF;
+  --amber:#92400E;--amber-bg:#FFFBEB;
+  --green:#15803D;--green-bg:#F0FDF4;
+  --red:#991B1B;--red-bg:#FEF2F2;--red-border:#FECACA;
+  --coral:#C2410C;--coral-bg:#FFF7ED;
+  --purple:#6D28D9;--purple-bg:#F5F3FF;
+  --teal:#0F766E;--teal-bg:#F0FDFA;
+  --r:10px;--r-sm:7px;--r-lg:14px;--r-xl:20px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 16px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+/* ── LAYOUT ── */
+.app-shell{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;z-index:50;transition:transform .25s}
+.main{flex:1;overflow-y:auto;min-width:0}
+
+/* ── SIDEBAR ── */
+.sb-logo{padding:1.25rem 1rem 1rem;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sb-logo-icon{width:34px;height:34px;background:var(--text);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-logo-icon svg{width:16px;height:16px;stroke:#fff;fill:none}
+.sb-logo-text{font-size:13px;font-weight:600;line-height:1.2}
+.sb-logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.sb-nav{padding:.75rem .625rem;flex:1;display:flex;flex-direction:column;gap:2px}
+.sb-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:.5rem .5rem .25rem}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all .15s}
+.sb-item svg{width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0}
+.sb-item:hover{background:var(--surface2);color:var(--text)}
+.sb-item.active{background:var(--text);color:#fff}
+.sb-item.active svg{stroke:#fff}
+.sb-badge{margin-left:auto;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;background:var(--surface2);color:var(--text3)}
+.sb-item.active .sb-badge{background:rgba(255,255,255,.2);color:#fff}
+.sb-divider{height:1px;background:var(--border);margin:.5rem .625rem}
+.sb-user{padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0}
+.sb-user-name{font-size:12px;font-weight:600;line-height:1.3}
+.sb-user-role{font-size:11px;color:var(--text3)}
+.sb-logout{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--text3);padding:4px}
+.sb-logout:hover{color:var(--red)}
+.sb-logout svg{width:14px;height:14px;stroke:currentColor;fill:none;display:block}
+
+/* ── TOPBAR ── */
+.topbar{padding:1.25rem 1.5rem .75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.page-title{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.page-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:4px;color:var(--text)}
+.hamburger svg{width:20px;height:20px;stroke:currentColor;fill:none;display:block}
+
+/* ── CONTENT PADDING ── */
+.page-body{padding:0 1.5rem 2rem}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.875rem 1rem;cursor:pointer;transition:all .15s}
+.stat-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.stat-card.active-filter{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+.stat-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.stat-val{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.stat-val.blue{color:var(--blue)}.stat-val.amber{color:var(--amber)}.stat-val.green{color:var(--green)}.stat-val.red{color:var(--red)}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3);stroke:currentColor;fill:none;pointer-events:none}
+.search-wrap input{width:100%;padding:8px 10px 8px 32px}
+
+/* ── INPUTS ── */
+input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
+  outline:none;transition:border-color .15s;box-sizing:border-box;width:100%
+}
+input:focus,select:focus,textarea:focus{border-color:var(--border2)}
+select{padding:8px 10px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9893' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;appearance:none}
+input[type=text],input[type=date],input[type=number],input[type=password]{padding:8px 10px}
+textarea{resize:vertical;min-height:76px;padding:8px 10px;line-height:1.6}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0}
+.btn:hover{background:var(--surface2)}.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--text);color:#fff;border-color:var(--text)}.btn-primary:hover{background:#333;color:#fff}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-danger{color:var(--red);border-color:var(--red-border)}.btn-danger:hover{background:var(--red-bg)}
+.btn-ghost{border-color:transparent;background:transparent}.btn-ghost:hover{background:var(--surface2)}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-blue:hover{background:var(--blue-text);color:#fff}
+.btn-coral{background:var(--coral);color:#fff;border-color:var(--coral)}.btn-coral:hover{opacity:.9;color:#fff}
+
+/* ── TABLE ── */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead{background:var(--surface2)}
+th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden}
+td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg);cursor:pointer}
+.sort-th{cursor:pointer;user-select:none}.sort-th:hover{color:var(--text2)}
+.sort-arrow{font-size:10px;margin-left:2px;opacity:.35}.sort-arrow.active{opacity:1;color:var(--blue)}
+.empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);white-space:normal}
+.mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.b-open{background:var(--blue-bg);color:var(--blue-text)}.b-open::before{background:var(--blue)}
+.b-inprog{background:var(--amber-bg);color:var(--amber)}.b-inprog::before{background:var(--amber)}
+.b-done{background:var(--green-bg);color:var(--green)}.b-done::before{background:var(--green)}
+.b-masuk{background:var(--blue-bg);color:var(--blue-text)}.b-masuk::before{background:var(--blue)}
+.b-proses{background:var(--amber-bg);color:var(--amber)}.b-proses::before{background:var(--amber)}
+.b-selesai{background:var(--green-bg);color:var(--green)}.b-selesai::before{background:var(--green)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:var(--shadow-lg);margin:auto}
+.modal-sm{max-width:460px}
+.modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.modal-header h2{font-size:15px;font-weight:600}
+.modal-body{padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem;max-height:75vh;overflow-y:auto}
+.modal-footer{padding:.875rem 1.375rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+.form-row label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.req{color:var(--red)}
+.form-hint{font-size:11px;color:var(--text3);margin-top:3px}
+.form-section{padding-bottom:.875rem;margin-bottom:.875rem;border-bottom:1px solid var(--border)}
+.form-section:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}
+.form-section-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:.75rem}
+
+/* ── UPLOAD ── */
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--r-sm);padding:.875rem;text-align:center;cursor:pointer;color:var(--text3);font-size:13px;transition:all .15s}
+.upload-zone:hover{background:var(--surface2);border-color:var(--text3)}
+.upload-zone svg{width:18px;height:18px;stroke:currentColor;fill:none;display:block;margin:0 auto 5px}
+.file-list{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+.file-item{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:var(--r-sm);padding:6px 10px;font-size:12px}
+.file-item .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.file-item .fsize{color:var(--text3);font-size:11px;flex-shrink:0}
+.file-actions{display:flex;gap:3px;flex-shrink:0;opacity:0;transition:opacity .15s}
+.file-item:hover .file-actions{opacity:1}
+.file-act-btn{background:none;border:none;cursor:pointer;padding:2px 5px;border-radius:4px;color:var(--text3);font-size:11px}
+.file-act-btn:hover{background:var(--border);color:var(--text)}
+.file-act-btn.del:hover{background:var(--red-bg);color:var(--red)}
+
+/* ── DETAIL SECTIONS ── */
+.detail-section{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
+.detail-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.sect-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;font-size:13px}
+.kv .k{color:var(--text3)}.kv .v{font-weight:500}
+.desc-box{margin-top:8px;font-size:13px;color:var(--text2);line-height:1.65;background:var(--surface2);padding:10px 12px;border-radius:var(--r-sm)}
+
+/* ── STATUS STEPPER ── */
+.stepper{display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px;margin-bottom:1rem}
+.step-item{display:flex;align-items:center;gap:0;flex-shrink:0}
+.step-pill{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text3);background:var(--surface);white-space:nowrap}
+.step-pill.done{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.step-pill.active{background:var(--text);color:#fff;border-color:var(--text)}
+.step-arrow{width:20px;height:1px;background:var(--border);flex-shrink:0}
+
+/* ── PO BADGE ── */
+.po-badge{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* ── ROLE BADGE ── */
+.role-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.role-owner{background:#EDE9FE;color:#5B21B6}
+.role-admin{background:#F3F4F6;color:#374151}
+.role-sales{background:var(--blue-bg);color:var(--blue-text)}
+.role-engineering{background:var(--amber-bg);color:var(--amber)}
+.role-produksi{background:var(--green-bg);color:var(--green)}
+.role-logistik{background:var(--teal-bg);color:var(--teal)}
+.role-teknisi{background:var(--coral-bg);color:var(--coral)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid var(--border);border-top-color:var(--text2);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── DOC VIEWER ── */
+.doc-viewer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:flex;flex-direction:column}
+.doc-viewer-bar{background:#1A1917;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.doc-viewer-bar .fname{color:#fff;font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-viewer-frame{flex:1;width:100%;border:none;background:#fff}
+.doc-viewer-img{max-width:100%;max-height:100%;object-fit:contain;margin:auto;display:block;padding:16px}
+.doc-viewer-fallback{color:#aaa;text-align:center;padding:3rem;font-size:14px}
+
+/* ── PK CARD ── */
+.pk-card{background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px;border:1px solid var(--border)}
+.pk-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+
+/* ── SERVICE LOG CARD ── */
+.log-card{border-left:3px solid var(--border2);padding:8px 12px;margin-bottom:8px;background:var(--surface);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.log-card.remote{border-color:var(--blue)}
+.log-card.visit{border-color:var(--purple)}
+.log-card.eskalasi{border-color:var(--amber)}
+.log-card.sparepart{border-color:var(--coral)}
+.log-card.retrofit{border-color:var(--teal)}
+.log-card.gantiunit{border-color:var(--red)}
+.log-card.resolved{border-color:var(--green)}
+
+/* ── KB CARD ── */
+.kb-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.125rem;cursor:pointer;transition:all .15s}
+.kb-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+
+/* ── MOBILE ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:49}
+@media(max-width:768px){
+  .sidebar{position:fixed;height:100vh;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-overlay.show{display:block}
+  .hamburger{display:flex}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .form-grid{grid-template-columns:1fr}
+  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:100%;margin:auto 0 0}
+  .overlay{align-items:flex-end;padding:0}
+  .modal-body{max-height:70vh}
+  .kv{grid-template-columns:100px 1fr}
+  .page-body{padding:0 1rem 2rem}
+  .topbar{padding:1rem 1rem .75rem}
+}
+
+/* ── LOGIN ── */
+.login-shell{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.5rem 2rem;width:100%;max-width:360px;box-shadow:var(--shadow-lg)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:2rem}
+.login-logo-icon{width:38px;height:38px;background:var(--text);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.login-logo-icon svg{width:18px;height:18px;stroke:#fff;fill:none}
+.login-logo-text{font-size:15px;font-weight:600}
+.login-logo-sub{font-size:11px;color:var(--text3)}
+.login-card h2{font-size:18px;font-weight:600;margin-bottom:4px}
+.login-card p{font-size:13px;color:var(--text2);margin-bottom:1.5rem}
+.login-field{margin-bottom:.875rem}
+.login-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.login-field input{width:100%;padding:10px 12px;font-size:14px}
+.login-error{background:var(--red-bg);color:var(--red);font-size:13px;padding:8px 12px;border-radius:var(--r-sm);margin-bottom:.875rem;display:none}
+
+/* ── PERIOD TABS ── */
+.period-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;flex-wrap:wrap;margin-bottom:1rem}
+.period-btn{padding:5px 11px;font-size:12px;font-weight:500;border-radius:5px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s;white-space:nowrap}
+.period-btn.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+/* ── SALES SHELL ── */
+.sales-shell{min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.sales-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:50}
+.sales-body{flex:1;padding:1.5rem 1rem;max-width:700px;margin:0 auto;width:100%}
+.tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;margin-bottom:1.25rem}
+.tab-btn{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;border-radius:5px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s}
+.tab-btn.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.sales-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.125rem;margin-bottom:10px}
+
+/* ── USER MANAGEMENT ── */
+.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
+.user-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.user-table tr:last-child td{border-bottom:none}
+
+/* ── STEP WIZARD ── */
+.wizard-steps{display:flex;gap:6px;margin-bottom:1.25rem}
+.wizard-step{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--border);color:var(--text3);background:var(--surface)}
+.wizard-step.done{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.wizard-step.active{background:var(--text);color:#fff;border-color:var(--text)}
+
+/* ── ASSIGN PIC ── */
+.pic-chip{display:inline-flex;align-items:center;gap:4px;background:var(--blue-bg);color:var(--blue-text);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin:2px}
+.pic-chip button{background:none;border:none;cursor:pointer;color:var(--blue-text);font-size:11px;padding:0 1px;line-height:1}
+
+/* ── ITEM CARD (produksi) ── */
+.item-card{background:var(--surface2);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:5px;border:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* ── KNOWLEDGE BASE ── */
+.kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.kb-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--text2);margin-right:4px;margin-bottom:4px}
+
+/* ── PHOTO GRID ── */
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:8px}
+.photo-thumb{aspect-ratio:1;border-radius:var(--r-sm);overflow:hidden;cursor:pointer;border:1px solid var(--border)}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+
+/* ── RESTRICTED ── */
+.restricted-blur{filter:blur(5px);user-select:none;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div id="loginShell" style="display:none">
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v6h6"/></svg></div>
+        <div><div class="login-logo-text">Panel System</div><div class="login-logo-sub">Pabrikasi &amp; Service</div></div>
+      </div>
+      <h2>Masuk</h2>
+      <p>Gunakan username dan password yang diberikan admin</p>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-field">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="Username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;margin-top:.5rem;font-size:14px" onclick="doLogin()" id="btnLogin">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<!-- SALES SHELL -->
+<div id="salesShell" style="display:none">
+  <div class="sales-shell">
+    <header class="sales-header">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="login-logo-icon" style="width:30px;height:30px;border-radius:8px"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z"/></svg></div>
+        <div><div style="font-size:13px;font-weight:600">Panel System</div><div style="font-size:11px;color:var(--text3)">Request Drawing &amp; BOM</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="salesUserBadge" style="font-size:12px;color:var(--text2)"></span>
+        <button class="btn btn-sm btn-ghost" onclick="doLogout()" style="font-size:11px;color:var(--red)">Keluar</button>
+      </div>
+    </header>
+    <div class="sales-body">
+      <div id="salesApp">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tabNewBtn" onclick="switchSalesTab('new')">+ Request Baru</button>
+          <button class="tab-btn" id="tabMyBtn" onclick="switchSalesTab('my')">Request Saya</button>
+        </div>
+        <div id="tabNew">
+          <div class="sales-card">
+            <div style="font-size:15px;font-weight:600;margin-bottom:1rem">Form Request Drawing / BOM</div>
+            <div class="form-grid" style="margin-bottom:.875rem">
+              <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="sDate"></div>
+              <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="sCustomer" placeholder="Nama customer"></div>
+            </div>
+            <div class="form-row" style="margin-bottom:.875rem"><label>Project / No. PO</label><input type="text" id="sProject" placeholder="Nama project atau nomor PO (opsional)"></div>
+            <div class="form-row" style="margin-bottom:.875rem">
+              <label>Jenis Output <span class="req">*</span></label>
+              <select id="sOutput" onchange="if(this.value==='Lainnya')document.getElementById('sOtherRow').style.display='block';else document.getElementById('sOtherRow').style.display='none'">
+                <option value="">-- Pilih --</option>
+                <option>Drawing</option><option>BOM</option><option>Drawing &amp; BOM</option><option>Lainnya</option>
+              </select>
+            </div>
+            <div class="form-row" id="sOtherRow" style="display:none;margin-bottom:.875rem"><label>Keterangan</label><input type="text" id="sOutputOther" placeholder="Jelaskan jenis output"></div>
+            <div class="form-row" style="margin-bottom:.875rem"><label>Deskripsi / Catatan</label><textarea id="sDesc" placeholder="Deskripsi kebutuhan, spec singkat, referensi..."></textarea></div>
+            <div class="form-row" style="margin-bottom:1rem">
+              <label>Dokumen dari Customer (Spec, SLD, dll)</label>
+              <div class="upload-zone" onclick="document.getElementById('sDocInput').click()">
+                <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                Klik untuk upload (bisa beberapa file)
+                <input type="file" id="sDocInput" multiple style="display:none" onchange="handleSalesFiles(this)">
+              </div>
+              <div class="file-list" id="sDocList"></div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitSalesRequest()" id="btnSalesSubmit">Kirim Request</button>
+          </div>
+        </div>
+        <div id="tabMy" style="display:none">
+          <div id="myReqList"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP SHELL -->
+<div id="appShell" style="display:none">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <div class="app-shell">
+    <aside class="sidebar" id="mainSidebar">
+      <div class="sb-logo">
+        <div class="sb-logo-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v6h6"/></svg></div>
+        <div><div class="sb-logo-text">Panel System</div><div class="sb-logo-sub">Pabrikasi &amp; Service</div></div>
+      </div>
+      <nav class="sb-nav" id="mainNav"></nav>
+      <div class="sb-user" id="sidebarUser"></div>
+    </aside>
+    <div class="main" id="mainContent">
+      <!-- content rendered here -->
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- DOC VIEWER -->
+<div class="doc-viewer-overlay" id="docViewer" style="display:none">
+  <div class="doc-viewer-bar">
+    <span class="fname" id="dvFileName">—</span>
+    <a id="dvDownload" href="#" download class="btn btn-sm" style="border-color:#444;color:#ccc;background:transparent">&#x2B07; Download</a>
+    <button class="btn btn-sm" style="border-color:#444;color:#ccc;background:transparent" onclick="closeDocViewer()">&#x2715; Tutup</button>
+  </div>
+  <div id="dvBody" style="flex:1;display:flex;overflow:hidden"></div>
+</div>
+
+<!-- MODALS (dynamic) -->
+<div id="modalContainer"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const SB_URL = 'https://sswslwddemackxrrbpre.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let currentUser = null;
+let currentModule = null;
+let allPPs = [], allPOs = [], allServices = [], allKBs = [], allUsers = [], allCustomers = [];
+let salesFiles = [];
+
+// ═══════════════════════════════════════════════════════════
+// PERMISSIONS
+// ═══════════════════════════════════════════════════════════
+const ROLE_PERMS = {
+  owner: { all: 1, nilai_po: 1, users: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
+  admin: { nilai_po: 1, users: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
+  sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1 },
+  engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
+  produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
+  logistik: { po_view: 1, po_logistik: 1 },
+  teknisi: { service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 }
+};
+
+function getPerms() {
+  if (!currentUser) return {};
+  const base = ROLE_PERMS[currentUser.role] || {};
+  const custom = currentUser.permissions || {};
+  return { ...base, ...custom };
+}
+function can(perm) { return !!(getPerms()[perm] || getPerms()['all']); }
+function isOwner() { return currentUser?.role === 'owner'; }
+function isAdmin() { return currentUser?.role === 'admin' || isOwner(); }
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) { showLoginError('Username dan password wajib diisi'); return; }
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true; btn.textContent = 'Memuat...';
+  try {
+    const hash = await sha256(password);
+    const { data: users, error } = await sb.from('app_users').select('*').eq('username', username).eq('is_active', true);
+    if (error || !users?.length) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
+    const user = users.find(u => u.password_hash === hash);
+    if (!user) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
+    currentUser = user;
+    sessionStorage.setItem('panelUser', JSON.stringify(user));
+    await sb.from('app_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
+    startApp();
+  } catch (e) { showLoginError('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Masuk';
+}
+
+function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.style.display = 'block'; }
+
+function doLogout() {
+  currentUser = null;
+  sessionStorage.removeItem('panelUser');
+  ['appShell', 'salesShell'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.getElementById('loginShell').style.display = 'block';
+  document.getElementById('loginPassword').value = '';
+}
+
+function startApp() {
+  document.getElementById('loginShell').style.display = 'none';
+  if (currentUser.role === 'sales') {
+    document.getElementById('salesShell').style.display = 'block';
+    document.getElementById('salesUserBadge').textContent = 'Halo, ' + currentUser.full_name;
+    document.getElementById('sDate').value = today();
+    loadMyRequests();
+    return;
+  }
+  document.getElementById('appShell').style.display = 'block';
+  buildSidebar();
+  // default module
+  if (can('po_view')) switchModule('po');
+  else if (can('pp_view')) switchModule('pp');
+  else if (can('service_view')) switchModule('service');
+  else if (can('kb_view')) switchModule('kb');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('panelUser');
+  if (saved) { try { currentUser = JSON.parse(saved); startApp(); return; } catch (e) {} }
+  document.getElementById('loginShell').style.display = 'block';
+});
+
+// ═══════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════
+function buildSidebar() {
+  const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'Engineering', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
+  const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
+
+  let nav = '<div class="sb-label">Modul</div>';
+  if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
+  if (can('po_view')) nav += navItem('po', poIcon(), 'Pabrikasi / PO', 'nbPO');
+  if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
+  if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
+  if (can('users')) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; nav += navItem('users', usersIcon(), 'Kelola User', ''); }
+
+  document.getElementById('mainNav').innerHTML = nav;
+
+  const initials = currentUser.full_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const userBtn = can('users') ? `<button class="btn btn-sm btn-ghost" onclick="switchModule('users')" style="font-size:11px">Kelola User</button>` : '';
+  document.getElementById('sidebarUser').innerHTML = `
+    <div class="sb-avatar">${initials}</div>
+    <div style="flex:1;min-width:0">
+      <div class="sb-user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentUser.full_name}</div>
+      <div class="sb-user-role"><span class="role-badge ${roleClass[currentUser.role] || ''}">${roleLabel[currentUser.role] || currentUser.role}</span></div>
+    </div>
+    <button class="sb-logout" onclick="doLogout()" title="Keluar"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></button>`;
+}
+
+function navItem(mod, icon, label, badgeId) {
+  const badge = badgeId ? `<span class="sb-badge" id="${badgeId}">0</span>` : '';
+  return `<button class="sb-item" id="nav_${mod}" onclick="switchModule('${mod}')">${icon}${label}${badge}</button>`;
+}
+
+function ppIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`; }
+function poIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`; }
+function svcIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`; }
+function kbIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`; }
+function usersIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`; }
+
+function switchModule(mod) {
+  currentModule = mod;
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById('nav_' + mod);
+  if (navEl) navEl.classList.add('active');
+  closeSidebar();
+  const content = document.getElementById('mainContent');
+  content.scrollTop = 0;
+  if (mod === 'pp') renderPPModule();
+  else if (mod === 'po') renderPOModule();
+  else if (mod === 'service') renderServiceModule();
+  else if (mod === 'kb') renderKBModule();
+  else if (mod === 'users') renderUsersModule();
+}
+
+function openSidebar() { document.getElementById('mainSidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
+function closeSidebar() { document.getElementById('mainSidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+const gv = id => document.getElementById(id)?.value || '';
+const sv = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+const today = () => new Date().toISOString().split('T')[0];
+const genId = (prefix) => prefix + '-' + Date.now().toString(36).slice(-5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 4).toUpperCase();
+const fmtRp = n => n ? 'Rp ' + Number(n).toLocaleString('id-ID') : '—';
+const fmtDate = d => { if (!d) return '—'; const x = new Date(d + 'T00:00:00'); return x.getDate().toString().padStart(2, '0') + '/' + (x.getMonth() + 1).toString().padStart(2, '0') + '/' + x.getFullYear(); };
+const fmtDateTime = s => { if (!s) return ''; const d = new Date(s); return fmtDate(d.toISOString().split('T')[0]) + ' ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); };
+const fmtSize = b => { if (!b) return ''; if (b < 1024) return b + 'B'; if (b < 1048576) return (b / 1024).toFixed(1) + 'KB'; return (b / 1048576).toFixed(1) + 'MB'; };
+const noDoc = () => '<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
+const noData = (msg) => `<div style="text-align:center;padding:2.5rem;color:var(--text3);font-size:13px">${msg || 'Belum ada data'}</div>`;
+const loading = () => `<div style="text-align:center;padding:2.5rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div>`;
+
+function toast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2800); }
+
+function badge(s) {
+  const m = { 'Open': 'b-open', 'In Progress': 'b-inprog', 'Done': 'b-done', 'Masuk': 'b-masuk', 'Proses': 'b-proses', 'Selesai': 'b-selesai' };
+  return `<span class="badge ${m[s] || ''}">${s}</span>`;
+}
+
+const PO_STATUS_COLORS = {
+  'Terima PO': { bg: '#EFF6FF', color: '#1E40AF' }, 'Engineering': { bg: '#FFFBEB', color: '#92400E' },
+  'Produksi': { bg: '#F5F3FF', color: '#6D28D9' }, 'QC': { bg: '#E0F2FE', color: '#0369A1' },
+  'FAT': { bg: '#FEF3C7', color: '#B45309' }, 'Pengiriman': { bg: '#F0FDFA', color: '#0F766E' },
+  'Instalasi': { bg: '#FFF7ED', color: '#C2410C' }, 'Commissioning': { bg: '#EDE9FE', color: '#6D28D9' },
+  'Selesai': { bg: '#F0FDF4', color: '#15803D' }
+};
+function poBadge(s) {
+  const c = PO_STATUS_COLORS[s] || { bg: '#F3F4F6', color: '#374151' };
+  return `<span class="po-badge" style="background:${c.bg};color:${c.color}">${s}</span>`;
+}
+
+const SVC_TAHAPAN_COLORS = { 'Remote': 'var(--blue)', 'Visit': 'var(--purple)', 'Eskalasi Turki': 'var(--amber)', 'Spare Part': 'var(--coral)', 'Retrofit': 'var(--teal)', 'Ganti Unit': 'var(--red)' };
+const svcTahapanBadge = t => `<span style="display:inline-flex;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);color:${SVC_TAHAPAN_COLORS[t] || 'var(--text2)'}">${t}</span>`;
+
+const SVC_LOG_CLASS = { 'Remote': 'remote', 'Visit': 'visit', 'Eskalasi Turki': 'eskalasi', 'Spare Part': 'sparepart', 'Retrofit': 'retrofit', 'Ganti Unit': 'gantiunit' };
+
+const fileUrl = (bucket, path) => `${SB_URL}/storage/v1/object/public/${bucket}/${path}`;
+
+function openDoc(url, fileName) {
+  const ext = fileName.split('.').pop().toLowerCase();
+  const dvBody = document.getElementById('dvBody');
+  document.getElementById('dvFileName').textContent = fileName;
+  document.getElementById('dvDownload').href = url;
+  document.getElementById('dvDownload').download = fileName;
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+    dvBody.innerHTML = `<img class="doc-viewer-img" src="${url}" alt="${fileName}">`;
+  } else if (ext === 'pdf') {
+    dvBody.innerHTML = `<iframe class="doc-viewer-frame" src="${url}"></iframe>`;
+  } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+    dvBody.innerHTML = `<iframe class="doc-viewer-frame" src="https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(url)}"></iframe>`;
+  } else {
+    dvBody.innerHTML = `<div class="doc-viewer-fallback"><div style="font-size:2rem;margin-bottom:1rem">📄</div><div>Format .${ext} tidak bisa ditampilkan.</div><div style="margin-top:1rem"><a href="${url}" target="_blank" class="btn btn-sm btn-primary">Buka di Tab Baru</a></div></div>`;
+  }
+  document.getElementById('docViewer').style.display = 'flex';
+}
+function closeDocViewer() { document.getElementById('docViewer').style.display = 'none'; document.getElementById('dvBody').innerHTML = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDocViewer(); closeAllModals(); } });
+
+function renderFileList(docs, bucket, canDelete, onDelete) {
+  if (!docs?.length) return noDoc();
+  return '<div class="file-list">' + docs.map(f => {
+    const url = fileUrl(bucket, f.file_path);
+    const restricted = f.is_restricted && !can('nilai_po');
+    if (restricted) return `<div class="file-item"><span class="fname" style="color:var(--text3);text-decoration:none;cursor:default">🔒 ${f.file_name}</span><span class="fsize">${fmtSize(f.file_size)}</span></div>`;
+    const delBtn = canDelete ? `<button class="file-act-btn del" onclick="event.stopPropagation();${onDelete}('${f.id}','${f.file_path}','${f.file_name.replace(/'/g,"\\'")}')">🗑</button>` : '';
+    return `<div class="file-item"><span class="fname" onclick="openDoc('${url}','${f.file_name.replace(/'/g, "\\'")}')">${f.file_name}</span><span class="fsize">${fmtSize(f.file_size)}</span><div class="file-actions"><button class="file-act-btn" onclick="openDoc('${url}','${f.file_name.replace(/'/g, "\\'")}')">👁</button>${delBtn}</div></div>`;
+  }).join('') + '</div>';
+}
+
+function openModal(html, id) {
+  closeAllModals();
+  const container = document.getElementById('modalContainer');
+  const div = document.createElement('div');
+  div.className = 'overlay';
+  div.id = id || 'dynamicModal';
+  div.innerHTML = html;
+  container.appendChild(div);
+  history.pushState({ modal: id }, '', '');
+}
+function closeAllModals() {
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = '';
+}
+window.addEventListener('popstate', () => closeAllModals());
+
+// ═══════════════════════════════════════════════════════════
+// PP MODULE
+// ═══════════════════════════════════════════════════════════
+let ppFilter = '', ppSearch = '';
+
+async function renderPPModule() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Pre-Project</div><div class="page-sub">Request Drawing &amp; BOM</div></div>
+      </div>
+      <div class="topbar-right">
+        ${can('pp_input') ? '<button class="btn btn-primary" onclick="openPPForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Request Baru</button>' : ''}
+        ${can('pp_manage') ? '<button class="btn btn-ghost btn-sm" onclick="copySalesLink()" style="font-size:12px">📋 Link Sales</button>' : ''}
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="stats-grid" id="ppStats"><div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="ppTotal">—</div></div><div class="stat-card" onclick="setPPFilter('Open',this)"><div class="stat-label">Open</div><div class="stat-val blue" id="ppOpen">—</div></div><div class="stat-card" onclick="setPPFilter('In Progress',this)"><div class="stat-label">In Progress</div><div class="stat-val amber" id="ppInprog">—</div></div><div class="stat-card" onclick="setPPFilter('Done',this)"><div class="stat-label">Done</div><div class="stat-val green" id="ppDone">—</div></div></div>
+      <div class="toolbar">
+        <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari ID, requester, customer..." oninput="ppSearch=this.value;renderPPTable()"></div>
+        <select onchange="ppFilter=this.value;renderPPTable()"><option value="">Semua Status</option><option>Open</option><option>In Progress</option><option>Done</option></select>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table><colgroup><col style="width:18%"><col style="width:16%"><col style="width:22%"><col style="width:20%"><col style="width:13%"><col style="width:11%"></colgroup>
+          <thead><tr><th>No. Request</th><th>Tanggal</th><th>Customer</th><th>Project</th><th>Output</th><th>Status</th></tr></thead>
+          <tbody id="ppTableBody">${loading()}</tbody></table>
+        </div>
+      </div>
+    </div>`;
+  await loadPPs();
+}
+
+async function loadPPs() {
+  const { data } = await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').order('created_at', { ascending: false });
+  allPPs = data || [];
+  renderPPStats();
+  renderPPTable();
+  const nbPP = document.getElementById('nbPP');
+  if (nbPP) nbPP.textContent = allPPs.filter(r => r.status !== 'Done').length;
+}
+
+function renderPPStats() {
+  const total = allPPs.length, open = allPPs.filter(r => r.status === 'Open').length, ip = allPPs.filter(r => r.status === 'In Progress').length, done = allPPs.filter(r => r.status === 'Done').length;
+  const s = id => document.getElementById(id);
+  if (s('ppTotal')) { s('ppTotal').textContent = total; s('ppOpen').textContent = open; s('ppInprog').textContent = ip; s('ppDone').textContent = done; }
+}
+
+function setPPFilter(status, el) {
+  ppFilter = ppFilter === status ? '' : status;
+  document.querySelectorAll('#ppStats .stat-card').forEach(c => c.classList.remove('active-filter'));
+  if (ppFilter) el.classList.add('active-filter');
+  renderPPTable();
+}
+
+function renderPPTable() {
+  const q = ppSearch.toLowerCase();
+  let rows = allPPs.filter(r => {
+    const match = [r.id, r.requester_id, r.customer_name, r.project_name].join(' ').toLowerCase().includes(q);
+    return match && (!ppFilter || r.status === ppFilter);
+  });
+  const tbody = document.getElementById('ppTableBody');
+  if (!tbody) return;
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada request')}</td></tr>`; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr onclick="openPPDetail('${r.id}')">
+      <td class="mono">${r.id}</td>
+      <td>${fmtDate(r.date)}</td>
+      <td style="font-weight:500">${r.customer_name || '—'}</td>
+      <td style="color:var(--text2)">${r.project_name || '—'}</td>
+      <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span></td>
+      <td>${badge(r.status)}</td>
+    </tr>`).join('');
+}
+
+async function openPPDetail(id) {
+  const r = allPPs.find(x => x.id === id) || (await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').eq('id', id).single()).data;
+  if (!r) return;
+  const canManage = can('pp_manage');
+  const canUploadResult = can('pp_upload_result');
+  const statusBtns = canManage ? `
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${['Open', 'In Progress', 'Done'].map(s => `<button class="btn btn-sm ${r.status === s ? 'btn-primary' : ''}" onclick="updatePPStatus('${r.id}','${s}')">${s}</button>`).join('')}
+    </div>` : '';
+
+  openModal(`<div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div><h2>${r.customer_name || '—'}${r.project_name ? ' — ' + r.project_name : ''}</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">${r.id} &middot; ${fmtDate(r.date)}</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <div class="sect-title">Info Request</div>
+        <div class="kv">
+          <span class="k">Status</span><span class="v">${badge(r.status)}</span>
+          <span class="k">Output</span><span class="v">${r.output_type}${r.output_other ? ' — ' + r.output_other : ''}</span>
+          <span class="k">Customer</span><span class="v">${r.customer_name || '—'}</span>
+          <span class="k">Project</span><span class="v">${r.project_name || '—'}</span>
+        </div>
+        ${r.description ? `<div class="desc-box">${r.description}</div>` : ''}
+        ${statusBtns ? '<div style="margin-top:10px">' + statusBtns + '</div>' : ''}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Dokumen Customer (${(r.pp_docs_customer || []).length})</div>
+          ${can('pp_upload_doc') ? `<button class="btn btn-sm" onclick="document.getElementById('ppUpCustomer_${r.id}').click()">+ Upload</button><input type="file" id="ppUpCustomer_${r.id}" multiple style="display:none" onchange="uploadPPDoc('${r.id}','customer',this)">` : ''}
+        </div>
+        ${renderFileList(r.pp_docs_customer, 'pp-docs', canManage, `deletePPDoc`)}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Dokumen Hasil Engineering (${(r.pp_docs_result || []).length})</div>
+          ${canUploadResult ? `<button class="btn btn-sm" onclick="document.getElementById('ppUpResult_${r.id}').click()">+ Upload</button><input type="file" id="ppUpResult_${r.id}" multiple style="display:none" onchange="uploadPPDoc('${r.id}','result',this)">` : ''}
+        </div>
+        ${renderFileList(r.pp_docs_result, 'pp-docs', canManage, `deletePPDoc`)}
+      </div>
+      ${canManage ? `<div style="display:flex;gap:8px;justify-content:space-between">
+        <button class="btn btn-sm btn-danger" onclick="deletePP('${r.id}')">Hapus Request</button>
+        <button class="btn btn-sm" onclick="closeAllModals();openPPForm('${r.id}')">Edit</button>
+      </div>` : ''}
+    </div>
+  </div>`);
+}
+
+async function updatePPStatus(id, status) {
+  await sb.from('pp_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  toast('Status → ' + status);
+  await loadPPs();
+  openPPDetail(id);
+}
+
+async function uploadPPDoc(reqId, type, input) {
+  const bucket = 'pp-docs';
+  const table = type === 'customer' ? 'pp_docs_customer' : 'pp_docs_result';
+  for (const f of Array.from(input.files)) {
+    const path = `${reqId}/${type}/${Date.now()}_${f.name}`;
+    const { error } = await sb.storage.from(bucket).upload(path, f);
+    if (!error) {
+      await sb.from(table).insert({ request_id: reqId, file_name: f.name, file_path: path, file_size: f.size, uploaded_by: currentUser.id });
+      toast(f.name + ' diupload');
+    } else toast('Gagal: ' + f.name);
+  }
+  input.value = '';
+  await loadPPs();
+  openPPDetail(reqId);
+}
+
+async function deletePPDoc(docId, filePath, fileName) {
+  if (!confirm('Hapus dokumen "' + fileName + '"?')) return;
+  const table = filePath.includes('/customer/') ? 'pp_docs_customer' : 'pp_docs_result';
+  await sb.storage.from('pp-docs').remove([filePath]);
+  await sb.from(table).delete().eq('id', docId);
+  toast('Dokumen dihapus');
+  const reqId = filePath.split('/')[0];
+  await loadPPs();
+  openPPDetail(reqId);
+}
+
+async function deletePP(id) {
+  if (!confirm('Hapus request ini beserta semua dokumen?')) return;
+  const r = allPPs.find(x => x.id === id);
+  const docs = [...(r?.pp_docs_customer || []), ...(r?.pp_docs_result || [])];
+  if (docs.length) await sb.storage.from('pp-docs').remove(docs.map(d => d.file_path));
+  await sb.from('pp_requests').delete().eq('id', id);
+  closeAllModals();
+  toast('Request dihapus');
+  await loadPPs();
+}
+
+function openPPForm(id) {
+  const r = id ? allPPs.find(x => x.id === id) : null;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${r ? 'Edit Request' : 'Request Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="ppDate" value="${r?.date || today()}"></div>
+        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="ppCustomer" placeholder="Nama customer" value="${r?.customer_name || ''}"></div>
+      </div>
+      <div class="form-row"><label>Project / No. PO</label><input type="text" id="ppProject" placeholder="Opsional" value="${r?.project_name || ''}"></div>
+      <div class="form-row"><label>Jenis Output <span class="req">*</span></label>
+        <select id="ppOutput" onchange="if(this.value==='Lainnya')document.getElementById('ppOtherRow').style.display='block';else document.getElementById('ppOtherRow').style.display='none'">
+          <option value="">-- Pilih --</option>${['Drawing','BOM','Drawing & BOM','Lainnya'].map(o => `<option ${r?.output_type === o ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row" id="ppOtherRow" style="display:${r?.output_other ? 'block' : 'none'}"><label>Keterangan</label><input type="text" id="ppOutputOther" value="${r?.output_other || ''}"></div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="ppDesc">${r?.description || ''}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="savePP('${id || ''}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function savePP(editId) {
+  const customer = gv('ppCustomer').trim(), date = gv('ppDate'), output = gv('ppOutput');
+  if (!customer || !date || !output) { toast('Lengkapi field wajib'); return; }
+  const payload = { customer_name: customer, date, output_type: output, output_other: gv('ppOutputOther').trim() || null, project_name: gv('ppProject').trim() || null, description: gv('ppDesc').trim() || null, updated_at: new Date().toISOString() };
+  if (editId) {
+    await sb.from('pp_requests').update(payload).eq('id', editId);
+    toast('Request diperbarui');
+  } else {
+    const id = genId('REQ');
+    await sb.from('pp_requests').insert({ ...payload, id, requester_id: currentUser.id, status: 'Open' });
+    toast('Request dibuat: ' + id);
+  }
+  closeAllModals();
+  await loadPPs();
+}
+
+function copySalesLink() {
+  const url = window.location.origin + window.location.pathname + '?mode=sales';
+  navigator.clipboard.writeText(url).then(() => toast('Link sales disalin')).catch(() => toast(url));
+}
+
+// ─────────────────────────────────────────────────────────────
+// SALES MODE (URL ?mode=sales)
+// ─────────────────────────────────────────────────────────────
+const isSalesMode = new URLSearchParams(location.search).get('mode') === 'sales';
+
+function switchSalesTab(tab) {
+  document.getElementById('tabNew').style.display = tab === 'new' ? 'block' : 'none';
+  document.getElementById('tabMy').style.display = tab === 'my' ? 'block' : 'none';
+  document.getElementById('tabNewBtn').classList.toggle('active', tab === 'new');
+  document.getElementById('tabMyBtn').classList.toggle('active', tab === 'my');
+  if (tab === 'my') loadMyRequests();
+}
+
+let salesFilesData = [];
+function handleSalesFiles(input) {
+  salesFilesData = [...salesFilesData, ...Array.from(input.files)];
+  renderSalesFileList();
+  input.value = '';
+}
+function renderSalesFileList() {
+  document.getElementById('sDocList').innerHTML = salesFilesData.map((f, i) =>
+    `<div class="file-item"><span class="fname" style="cursor:default;color:var(--text);text-decoration:none">${f.name}</span><span class="fsize">${fmtSize(f.size)}</span><div class="file-actions" style="opacity:1"><button class="file-act-btn del" onclick="salesFilesData.splice(${i},1);renderSalesFileList()">✕</button></div></div>`
+  ).join('');
+}
+
+async function submitSalesRequest() {
+  const customer = gv('sCustomer').trim(), date = gv('sDate'), output = gv('sOutput');
+  if (!customer || !date || !output) { toast('Lengkapi field wajib'); return; }
+  const btn = document.getElementById('btnSalesSubmit');
+  btn.disabled = true; btn.textContent = 'Mengirim...';
+  try {
+    const id = genId('REQ');
+    await sb.from('pp_requests').insert({ id, date, customer_name: customer, project_name: gv('sProject').trim() || null, output_type: output, output_other: gv('sOutputOther').trim() || null, description: gv('sDesc').trim() || null, requester_id: currentUser.id, status: 'Open' });
+    for (const f of salesFilesData) {
+      const path = `${id}/customer/${Date.now()}_${f.name}`;
+      const { error } = await sb.storage.from('pp-docs').upload(path, f);
+      if (!error) await sb.from('pp_docs_customer').insert({ request_id: id, file_name: f.name, file_path: path, file_size: f.size, uploaded_by: currentUser.id });
+    }
+    toast('Request terkirim: ' + id);
+    sv('sCustomer', ''); sv('sProject', ''); sv('sDesc', ''); document.getElementById('sOutput').value = '';
+    salesFilesData = []; renderSalesFileList();
+    switchSalesTab('my');
+  } catch (e) { toast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Kirim Request';
+}
+
+async function loadMyRequests() {
+  const el = document.getElementById('myReqList');
+  el.innerHTML = loading();
+  const { data } = await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').eq('requester_id', currentUser.id).order('created_at', { ascending: false });
+  if (!data?.length) { el.innerHTML = noData('Belum ada request dari Anda'); return; }
+  el.innerHTML = data.map(r => `
+    <div class="sales-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div><div style="font-size:14px;font-weight:600">${r.customer_name}${r.project_name ? ' — ' + r.project_name : ''}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">${r.id} &middot; ${fmtDate(r.date)}</div></div>
+        ${badge(r.status)}
+      </div>
+      <div style="font-size:13px;color:var(--text2)"><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span>${r.description ? `<div style="margin-top:5px">${r.description}</div>` : ''}</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div style="font-size:12px;color:var(--text3)">${(r.pp_docs_customer || []).length} dok. customer &middot; ${(r.pp_docs_result || []).length} dok. hasil</div>
+        <div style="display:flex;gap:6px">
+          ${(r.pp_docs_result || []).length ? r.pp_docs_result.map(f => `<a href="${fileUrl('pp-docs', f.file_path)}" target="_blank" class="btn btn-sm">📄 ${f.file_name}</a>`).join('') : ''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PO MODULE
+// ═══════════════════════════════════════════════════════════
+let poFilter = [], poSearch = '', poSort = { field: 'tgl_po', dir: 'desc' };
+const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'Pengiriman', 'Instalasi', 'Commissioning', 'Selesai'];
+
+async function renderPOModule() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Pabrikasi / PO</div><div class="page-sub">Purchase Order tracking</div></div>
+      </div>
+      <div class="topbar-right">
+        ${isAdmin() ? '<button class="btn btn-primary" onclick="openPOForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>PO Baru</button>' : ''}
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="stats-grid" id="poStats">
+        <div class="stat-card"><div class="stat-label">Total Aktif</div><div class="stat-val blue" id="poActive">—</div></div>
+        <div class="stat-card"><div class="stat-label">Engineering</div><div class="stat-val amber" id="poEng">—</div></div>
+        <div class="stat-card"><div class="stat-label">Produksi / QC</div><div class="stat-val" id="poProd">—</div></div>
+        <div class="stat-card"><div class="stat-label">Selesai</div><div class="stat-val green" id="poDone">—</div></div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari No. PO, customer, project..." oninput="poSearch=this.value;renderPOTable()"></div>
+        <select onchange="poFilter=this.value?[this.value]:[];renderPOTable()">
+          <option value="">Semua Status</option>
+          ${PO_STATUS_ORDER.map(s => `<option>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table><colgroup><col style="width:18%"><col style="width:10%"><col style="width:22%"><col style="width:20%"><col style="width:12%"><col style="width:18%"></colgroup>
+          <thead><tr>
+            <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
+            <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. <span class="sort-arrow" id="sarr_tgl_po">▼</span></th>
+            <th class="sort-th" onclick="sortPO('customer_name')">Customer <span class="sort-arrow" id="sarr_customer_name"></span></th>
+            <th>Project</th>
+            <th class="sort-th" onclick="sortPO('tgl_target_kirim')">Target <span class="sort-arrow" id="sarr_tgl_target_kirim"></span></th>
+            <th class="sort-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
+          </tr></thead>
+          <tbody id="poTableBody">${loading()}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  await loadPOs();
+}
+
+async function loadPOs() {
+  const { data } = await sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false });
+  allPOs = data || [];
+  renderPOStats();
+  renderPOTable();
+  const nbPO = document.getElementById('nbPO');
+  if (nbPO) nbPO.textContent = allPOs.filter(p => p.status !== 'Selesai').length;
+}
+
+function renderPOStats() {
+  const active = allPOs.filter(p => p.status !== 'Selesai').length;
+  const eng = allPOs.filter(p => p.status === 'Engineering').length;
+  const prod = allPOs.filter(p => ['Produksi', 'QC'].includes(p.status)).length;
+  const done = allPOs.filter(p => p.status === 'Selesai').length;
+  const s = id => document.getElementById(id);
+  if (s('poActive')) { s('poActive').textContent = active; s('poEng').textContent = eng; s('poProd').textContent = prod; s('poDone').textContent = done; }
+}
+
+function sortPO(field) {
+  if (poSort.field === field) poSort.dir = poSort.dir === 'asc' ? 'desc' : 'asc';
+  else { poSort.field = field; poSort.dir = 'asc'; }
+  document.querySelectorAll('.sort-arrow').forEach(el => { el.textContent = ''; el.classList.remove('active'); });
+  const arr = document.getElementById('sarr_' + field);
+  if (arr) { arr.textContent = poSort.dir === 'asc' ? '▲' : '▼'; arr.classList.add('active'); }
+  renderPOTable();
+}
+
+function renderPOTable() {
+  const q = poSearch.toLowerCase();
+  let rows = allPOs.filter(p => [p.no_po, p.customer_name, p.project_name, p.no_project].join(' ').toLowerCase().includes(q) && (!poFilter.length || poFilter.includes(p.status)));
+  rows.sort((a, b) => {
+    const av = a[poSort.field] || '', bv = b[poSort.field] || '';
+    if (poSort.field === 'status') { return (PO_STATUS_ORDER.indexOf(av) - PO_STATUS_ORDER.indexOf(bv)) * (poSort.dir === 'asc' ? 1 : -1); }
+    return av.localeCompare(bv) * (poSort.dir === 'asc' ? 1 : -1);
+  });
+  const tbody = document.getElementById('poTableBody');
+  if (!tbody) return;
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada PO')}</td></tr>`; return; }
+  tbody.innerHTML = rows.map(p => {
+    const overdue = p.tgl_target_kirim && p.tgl_target_kirim < today() && p.status !== 'Selesai';
+    return `<tr onclick="openPODetail('${p.id}')">
+      <td class="mono">${p.no_po}</td>
+      <td>${fmtDate(p.tgl_po)}</td>
+      <td style="font-weight:500">${p.customer_name || '—'}</td>
+      <td style="color:var(--text2)">${p.project_name || '—'}</td>
+      <td style="color:${overdue ? 'var(--red)' : 'var(--text2)'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</td>
+      <td>${poBadge(p.status)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// PO DETAIL
+async function openPODetail(id) {
+  let p = allPOs.find(x => x.id === id);
+  if (!p) {
+    const { data } = await sb.from('purchase_orders').select('*,po_items(*,item_specs(*)),po_docs(*),po_pk(*,pk_docs(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').eq('id', id).single();
+    p = data;
+  }
+  if (!p) return;
+
+  const canManage = isAdmin();
+  const statusIdx = PO_STATUS_ORDER.indexOf(p.status);
+
+  // Stepper
+  const activeStepper = PO_STATUS_ORDER.filter(s => {
+    if (s === 'FAT' && !p.has_fat) return false;
+    if (s === 'Instalasi' && !p.has_instalasi) return false;
+    if (s === 'Commissioning' && !p.has_commissioning) return false;
+    return true;
+  });
+  const stepperHtml = `<div class="stepper">${activeStepper.map((s, i) => {
+    const sIdx = PO_STATUS_ORDER.indexOf(s);
+    const cls = sIdx < statusIdx ? 'done' : sIdx === statusIdx ? 'active' : '';
+    return (i > 0 ? '<div class="step-arrow"></div>' : '') + `<div class="step-pill ${cls}">${s}</div>`;
+  }).join('')}</div>`;
+
+  // Docs by type
+  const docsByType = {};
+  (p.po_docs || []).forEach(d => { if (!docsByType[d.doc_type]) docsByType[d.doc_type] = []; docsByType[d.doc_type].push(d); });
+
+  const DOC_STAGES = [
+    { key: 'File PO', label: 'File PO', stage: 'Terima PO' },
+    { key: 'Approval Drawing', label: 'Approval Drawing', stage: 'Engineering' },
+    { key: 'Drawing Approved', label: 'Drawing Approved', stage: 'Engineering' },
+    { key: 'BOM', label: 'Dokumen BOM', stage: 'Engineering' },
+    { key: 'Laporan Produksi', label: 'Laporan Produksi', stage: 'Produksi' },
+    { key: 'Routine Test Report', label: 'Routine Test Report', stage: 'QC' },
+    ...(p.has_fat ? [{ key: 'FAT Report', label: 'FAT Report', stage: 'FAT' }] : []),
+    { key: 'Surat Jalan', label: 'Surat Jalan / DO / DN', stage: 'Pengiriman' },
+    ...(p.has_instalasi ? [{ key: 'SAT', label: 'SAT Report', stage: 'Instalasi' }] : []),
+    ...(p.has_commissioning ? [{ key: 'BAST', label: 'BAST', stage: 'Commissioning' }] : []),
+    { key: 'Tambahan', label: 'Dokumen Lainnya', stage: '' },
+  ];
+
+  const docsHtml = DOC_STAGES.map(ds => {
+    const docs = docsByType[ds.key] || [];
+    const isCurrentStage = p.status === ds.stage;
+    const canUpload = canManage || (ds.stage === 'Engineering' && can('po_engineering')) || (ds.stage === 'Produksi' && can('po_produksi')) || (ds.stage === 'QC' && can('po_qc')) || (ds.stage === 'Pengiriman' && can('po_logistik')) || (['Instalasi'].includes(ds.stage) && (can('po_instalasi'))) || (ds.stage === 'Commissioning' && (can('po_commissioning')));
+    const isRestricted = ds.key === 'File PO';
+    const uploadBtn = canUpload ? `<button class="btn btn-sm" onclick="document.getElementById('poup_${ds.key.replace(/\s/g,'_')}_${p.id}').click()">+ Upload</button><input type="file" id="poup_${ds.key.replace(/\s/g,'_')}_${p.id}" multiple style="display:none" onchange="uploadPODoc('${p.id}','${ds.key}',${isRestricted},this)">` : '';
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-size:12px;font-weight:600;color:${isCurrentStage ? 'var(--text)' : 'var(--text3)'}">${ds.label}</span>${isCurrentStage ? '<span style="font-size:10px;background:var(--amber-bg);color:var(--amber);padding:1px 6px;border-radius:4px;font-weight:700">Stage aktif</span>' : ''}${isRestricted ? '<span style="font-size:10px;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:4px;font-weight:700">🔒</span>' : ''}</div>
+        ${uploadBtn}
+      </div>
+      ${renderFileList(docs, 'po-docs', canManage, 'deletePODoc')}
+    </div>`;
+  }).join('');
+
+  // Items
+  const items = p.po_items || [];
+  const itemsHtml = items.length ? items.map(it => `
+    <div class="item-card">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>
+        <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}${it.serial_number ? ' &middot; SN: ' + it.serial_number : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
+      </div>
+    </div>`).join('') : noData('Belum ada item');
+
+  // PK
+  const pks = p.po_pk || [];
+  const totalPK = pks.reduce((s, k) => s + (k.nilai_pengajuan || 0), 0);
+  const pksHtml = pks.length ? pks.map(k => `
+    <div class="pk-card">
+      <div class="pk-header"><div style="font-size:13px;font-weight:600">${k.keperluan}</div><span style="font-size:11px;font-weight:600;background:var(--surface2);padding:2px 8px;border-radius:20px">${k.status}</span></div>
+      <div style="font-size:12px;color:var(--text2)">Pengajuan: <strong>${fmtRp(k.nilai_pengajuan)}</strong>${k.nilai_realisasi ? ' &middot; Realisasi: ' + fmtRp(k.nilai_realisasi) : ''} &middot; ${fmtDate(k.tgl_pengajuan)}</div>
+      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button><button class="btn btn-sm" onclick="openPKForm('${p.id}','${k.id}')">Edit</button></div>` : ''}
+    </div>`) .join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
+
+  // Logs
+  const logs = (p.po_logs || []).slice().reverse();
+  const logsHtml = logs.length ? logs.map(l => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text3);flex-shrink:0;min-width:110px">${fmtDateTime(l.created_at)}</span><span style="font-weight:500">${l.action}</span>${l.detail ? '<span style="color:var(--text2)"> — ' + l.detail + '</span>' : ''}</div>`).join('') : '<div style="font-size:12px;color:var(--text3)">Belum ada riwayat</div>';
+
+  openModal(`<div class="modal" style="max-width:780px">
+    <div class="modal-header">
+      <div>
+        <h2>${p.no_po}${p.project_name ? ' — ' + p.project_name : ''}</h2>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${p.customer_name || '—'} &middot; ${fmtDate(p.tgl_po)}${p.no_project ? ' &middot; ' + p.no_project : ''}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      ${stepperHtml}
+      <div class="detail-section">
+        <div class="sect-title">Info PO</div>
+        <div class="kv">
+          <span class="k">Status</span><span class="v">${poBadge(p.status)}</span>
+          <span class="k">Customer</span><span class="v">${p.customer_name || '—'}</span>
+          <span class="k">Target Kirim</span><span class="v">${fmtDate(p.tgl_target_kirim)}</span>
+          <span class="k">Nilai PO</span><span class="v">${can('nilai_po') ? fmtRp(p.nilai_po) : '<span class="restricted-blur">Rp 999.999.999</span>'}</span>
+          <span class="k">FAT / Instalasi / Comm</span><span class="v">${[p.has_fat && 'FAT', p.has_instalasi && 'Instalasi', p.has_commissioning && 'Commissioning'].filter(Boolean).join(' &middot; ') || '—'}</span>
+        </div>
+        ${p.catatan ? `<div class="desc-box">${p.catatan}</div>` : ''}
+        ${canManage ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+          <select id="poStatusSelect_${p.id}" style="width:auto;padding:6px 10px">
+            ${PO_STATUS_ORDER.map(s => `<option ${p.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="manualUpdatePOStatus('${p.id}')">Update Status</button>
+        </div>` : ''}
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Dokumen</div>
+        ${docsHtml}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Item / Unit (${items.length})</div>
+          ${(can('po_engineering') || canManage) ? `<button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>` : ''}
+          ${(canManage && p.status === 'Produksi') ? `<button class="btn btn-sm btn-blue" onclick="openGenSerialModal('${p.id}')">🔢 Generate SN</button>` : ''}
+        </div>
+        ${itemsHtml}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${pks.length})</div>
+          ${can('po_pk') ? `<button class="btn btn-sm" onclick="openPKForm('${p.id}')">+ Ajukan PK</button>` : ''}
+        </div>
+        ${pksHtml}
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Riwayat</div>
+        ${logsHtml}
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deletePO('${p.id}')">Hapus PO</button>` : '<div></div>'}
+      ${canManage ? `<button class="btn btn-sm" onclick="closeAllModals();openPOForm('${p.id}')">Edit PO</button>` : ''}
+    </div>
+  </div>`);
+}
+
+async function uploadPODoc(poId, docType, isRestricted, input) {
+  for (const f of Array.from(input.files)) {
+    const path = `${poId}/${docType.replace(/\s/g, '_')}/${Date.now()}_${f.name}`;
+    const { error } = await sb.storage.from('po-docs').upload(path, f);
+    if (!error) {
+      await sb.from('po_docs').insert({ po_id: poId, doc_type: docType, file_name: f.name, file_path: path, file_size: f.size, is_restricted: isRestricted, uploaded_by: currentUser.id });
+      await logPO(poId, 'Upload Dokumen', docType + ': ' + f.name);
+      toast(f.name + ' diupload');
+    } else toast('Gagal: ' + f.name);
+  }
+  input.value = '';
+  await checkDocTrigger(poId, docType);
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function deletePODoc(docId, filePath, fileName) {
+  if (!confirm('Hapus dokumen "' + fileName + '"?')) return;
+  await sb.storage.from('po-docs').remove([filePath]);
+  await sb.from('po_docs').delete().eq('id', docId);
+  const poId = filePath.split('/')[0];
+  await logPO(poId, 'Hapus Dokumen', fileName);
+  toast('Dokumen dihapus');
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function manualUpdatePOStatus(poId) {
+  const sel = document.getElementById('poStatusSelect_' + poId);
+  if (!sel) return;
+  const newStatus = sel.value;
+  await sb.from('purchase_orders').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', poId);
+  await logPO(poId, 'Status Berubah', '→ ' + newStatus);
+  toast('Status → ' + newStatus);
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// DOC TRIGGER
+const DOC_TRIGGERS = {
+  'File PO': { nextStatus: 'Engineering', currentStatus: 'Terima PO' },
+  'Drawing Approved': { nextStatus: 'Produksi', currentStatus: 'Engineering', requireAlso: 'Approval Drawing' },
+  'Routine Test Report': { nextStatus: null, currentStatus: 'QC' },
+  'FAT Report': { nextStatus: 'Pengiriman', currentStatus: 'FAT' },
+  'Surat Jalan': { nextStatus: null, currentStatus: 'Pengiriman' },
+  'SAT': { nextStatus: null, currentStatus: 'Instalasi' },
+  'BAST': { nextStatus: 'Selesai', currentStatus: 'Commissioning' },
+};
+
+async function checkDocTrigger(poId, docType) {
+  const trigger = DOC_TRIGGERS[docType];
+  if (!trigger) return;
+  const { data: p } = await sb.from('purchase_orders').select('*,po_docs(*)').eq('id', poId).single();
+  if (!p) return;
+  const curIdx = PO_STATUS_ORDER.indexOf(p.status);
+  const trigIdx = PO_STATUS_ORDER.indexOf(trigger.currentStatus);
+  if (curIdx > trigIdx) return;
+  if (trigger.requireAlso) {
+    const docs = p.po_docs || [];
+    if (!docs.some(d => d.doc_type === trigger.requireAlso)) { toast('Upload ' + trigger.requireAlso + ' terlebih dahulu'); return; }
+  }
+  let nextStatus = trigger.nextStatus;
+  if (!nextStatus) {
+    if (docType === 'Routine Test Report') nextStatus = p.has_fat ? 'FAT' : 'Pengiriman';
+    else if (docType === 'Surat Jalan') nextStatus = p.has_instalasi ? 'Instalasi' : (p.has_commissioning ? 'Commissioning' : 'Selesai');
+    else if (docType === 'SAT') nextStatus = p.has_commissioning ? 'Commissioning' : 'Selesai';
+  }
+  if (!nextStatus) return;
+  if (confirm(`Dokumen "${docType}" diupload.\nPindah status ke "${nextStatus}"?`)) {
+    await sb.from('purchase_orders').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('id', poId);
+    await logPO(poId, 'Status Otomatis', '→ ' + nextStatus + ' (via upload ' + docType + ')');
+    toast('Status → ' + nextStatus);
+  }
+}
+
+async function logPO(poId, action, detail) {
+  await sb.from('po_logs').insert({ po_id: poId, action, detail, user_id: currentUser.id });
+}
+
+async function deletePO(id) {
+  if (!confirm('Hapus PO ini? Semua data terkait akan dihapus.')) return;
+  const p = allPOs.find(x => x.id === id);
+  const docs = p?.po_docs || [];
+  if (docs.length) await sb.storage.from('po-docs').remove(docs.map(d => d.file_path));
+  await sb.from('purchase_orders').delete().eq('id', id);
+  closeAllModals();
+  toast('PO dihapus');
+  await loadPOs();
+}
+
+// PO FORM
+let poFormItems = [], poFormSpecs = {};
+const ITEM_CATEGORIES = ['Rectifier', 'Inverter', 'UPS', 'Battery', 'Baterai', 'Panel ACDB', 'Panel DCDB', 'Panel Box', 'Rak Baterai', 'Lainnya'];
+
+async function openPOForm(editId) {
+  const p = editId ? allPOs.find(x => x.id === editId) : null;
+  if (!editId) { poFormItems = []; poFormSpecs = {}; }
+  // Load next no_project
+  let nextNoProject = '';
+  if (!editId) {
+    const { data } = await sb.from('purchase_orders').select('no_project').not('no_project', 'is', null).order('no_project', { ascending: false }).limit(1);
+    const last = data?.[0]?.no_project || 'PRJ-000';
+    const num = parseInt(last.replace(/\D/g, '')) + 1;
+    nextNoProject = 'PRJ-' + num.toString().padStart(3, '0');
+  }
+  // Load PP requests for linking
+  const { data: ppList } = await sb.from('pp_requests').select('id,customer_name,project_name').eq('status', 'Done').order('created_at', { ascending: false }).limit(50);
+
+  openModal(`<div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div>
+        <h2>${p ? 'Edit PO' : 'PO Baru'}</h2>
+        <div style="display:flex;gap:6px;margin-top:6px" id="poWizardSteps">
+          <span class="wizard-step active" id="ws1">1 Info PO</span>
+          <span class="wizard-step" id="ws2">2 Item Produk</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div id="poFormStep1">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" value="${p?.no_po || ''}" placeholder="No. Purchase Order"></div>
+          <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO" value="${p?.tgl_po || today()}"></div>
+          <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" value="${p?.customer_name || ''}" placeholder="Nama customer"></div>
+          <div class="form-row"><label>Project / Lokasi</label><input type="text" id="pfProject" value="${p?.project_name || ''}" placeholder="Nama project"></div>
+          <div class="form-row"><label>Target Kirim</label><input type="date" id="pfTglKirim" value="${p?.tgl_target_kirim || ''}"></div>
+          <div class="form-row"><label>No. Project</label><input type="text" id="pfNoProject" value="${p?.no_project || nextNoProject}" placeholder="Auto" ${!p ? 'readonly style="background:var(--surface2)"' : ''}></div>
+          <div class="form-row"><label>Nilai PO (Rp)</label><input type="text" id="pfNilai" value="${p?.nilai_po || ''}" placeholder="Opsional — hanya owner/admin"></div>
+        </div>
+        <div class="form-row" style="margin-top:.25rem">
+          <label>Link Pre-Project (opsional)</label>
+          <select id="pfLinkedPP">
+            <option value="">— Tidak ada —</option>
+            ${(ppList || []).map(r => `<option value="${r.id}" ${p?.pp_request_id === r.id ? 'selected' : ''}>${r.id} — ${r.customer_name}${r.project_name ? ' / ' + r.project_name : ''}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:13px;margin-top:.75rem">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT" ${p?.has_fat ? 'checked' : ''}> FAT</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi" ${p?.has_instalasi ? 'checked' : ''}> Instalasi / SAT</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning" ${p?.has_commissioning ? 'checked' : ''}> Commissioning / BAST</label>
+        </div>
+        <div class="form-row" style="margin-top:.75rem"><label>Catatan</label><textarea id="pfCatatan">${p?.catatan || ''}</textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAllModals()">Batal</button>
+        <button class="btn btn-primary" onclick="goToPOStep2()">Selanjutnya →</button>
+      </div>
+    </div>
+    <div id="poFormStep2" style="display:none">
+      <div class="modal-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div style="font-size:13px;color:var(--text2)">Item / unit yang akan diproduksi</div>
+          <button class="btn btn-sm btn-primary" onclick="addPOItem()">+ Tambah Item</button>
+        </div>
+        <div id="poItemContainer"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="backToPOStep1()">← Kembali</button>
+        <button class="btn btn-primary" id="btnSavePO" onclick="savePO('${editId || ''}')">Simpan PO</button>
+      </div>
+    </div>
+  </div>`);
+
+  if (p && p.po_items?.length) {
+    poFormItems = p.po_items.map(it => ({ id: it.id, category: it.category, model_name: it.model_name || '', spec_summary: it.spec_summary || '', qty: it.qty, is_produksi: it.is_produksi }));
+    renderPOItems();
+  }
+}
+
+function goToPOStep2() {
+  if (!gv('pfNoPO').trim() || !gv('pfTglPO') || !gv('pfCustomer').trim()) { toast('Lengkapi field wajib'); return; }
+  document.getElementById('poFormStep1').style.display = 'none';
+  document.getElementById('poFormStep2').style.display = 'block';
+  document.getElementById('ws1').className = 'wizard-step done';
+  document.getElementById('ws2').className = 'wizard-step active';
+  if (!poFormItems.length) addPOItem();
+  renderPOItems();
+}
+
+function backToPOStep1() {
+  document.getElementById('poFormStep2').style.display = 'none';
+  document.getElementById('poFormStep1').style.display = 'block';
+  document.getElementById('ws1').className = 'wizard-step active';
+  document.getElementById('ws2').className = 'wizard-step';
+}
+
+function addPOItem() { poFormItems.push({ category: '', model_name: '', spec_summary: '', qty: 1, is_produksi: true }); renderPOItems(); }
+function removePOItem(i) { poFormItems.splice(i, 1); renderPOItems(); }
+
+function renderPOItems() {
+  const container = document.getElementById('poItemContainer');
+  if (!container) return;
+  if (!poFormItems.length) { container.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--text3);font-size:13px">Belum ada item</div>`; return; }
+  container.innerHTML = poFormItems.map((it, i) => `
+    <div style="border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600;color:var(--text3)">Item ${i + 1}</span>
+        <button onclick="removePOItem(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px">✕ Hapus</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori <span class="req">*</span></label>
+          <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;renderPOItems()" style="width:100%;padding:6px 8px">
+            <option value="">-- Pilih --</option>${ITEM_CATEGORIES.map(c => `<option value="${c}" ${it.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+          </select></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Model / Tipe</label>
+          <input type="text" id="piModel_${i}" value="${it.model_name}" placeholder="Auto atau isi manual" style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].model_name=this.value"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:8px">
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>
+          <input type="text" id="piSpec_${i}" value="${it.spec_summary}" placeholder="Misal: 110VDC - 60A, 3ph, 10kVA..." style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].spec_summary=this.value"></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>
+          <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
+        <input type="checkbox" ${it.is_produksi ? 'checked' : ''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
+        <span style="color:${it.is_produksi ? 'var(--amber)' : 'var(--text3)'}">🏭 ${it.is_produksi ? 'Diproduksi internal' : 'Tidak diproduksi'}</span>
+      </label>
+    </div>`).join('');
+}
+
+async function savePO(editId) {
+  const btn = document.getElementById('btnSavePO');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  try {
+    const payload = {
+      no_po: gv('pfNoPO').trim(), tgl_po: gv('pfTglPO'), customer_name: gv('pfCustomer').trim(),
+      project_name: gv('pfProject').trim() || null, tgl_target_kirim: gv('pfTglKirim') || null,
+      no_project: gv('pfNoProject').trim() || null, nilai_po: gv('pfNilai').replace(/[^0-9.]/g, '') || null,
+      has_fat: document.getElementById('pfFAT').checked, has_instalasi: document.getElementById('pfInstalasi').checked,
+      has_commissioning: document.getElementById('pfCommissioning').checked,
+      pp_request_id: gv('pfLinkedPP') || null, catatan: gv('pfCatatan').trim() || null,
+      updated_at: new Date().toISOString()
+    };
+    let poId;
+    if (editId) {
+      await sb.from('purchase_orders').update(payload).eq('id', editId);
+      poId = editId;
+      await logPO(poId, 'Edit PO', 'Data PO diperbarui');
+    } else {
+      const { data } = await sb.from('purchase_orders').insert({ ...payload, created_by: currentUser.id }).select().single();
+      poId = data.id;
+      await logPO(poId, 'PO Dibuat', payload.no_po);
+    }
+    // Save items
+    if (!editId) {
+      for (const it of poFormItems) {
+        if (!it.category) continue;
+        await sb.from('po_items').insert({ po_id: poId, category: it.category, model_name: it.model_name || null, spec_summary: it.spec_summary || null, qty: it.qty, is_produksi: it.is_produksi });
+      }
+    }
+    toast(editId ? 'PO diperbarui' : 'PO dibuat');
+    closeAllModals();
+    await loadPOs();
+    if (poId) openPODetail(poId);
+  } catch (e) { toast('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Simpan PO';
+}
+
+// ITEM FORM
+async function openItemForm(poId) {
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Tambah Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Kategori</label><select id="itCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c => `<option>${c}</option>`).join('')}</select></div>
+        <div class="form-row"><label>Model / Tipe</label><input type="text" id="itModel" placeholder="Model name"></div>
+      </div>
+      <div class="form-row"><label>Spesifikasi</label><input type="text" id="itSpec" placeholder="Misal: 110VDC - 60A"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty</label><input type="number" id="itQty" value="1" min="1"></div>
+        <div class="form-row"><label>Serial Number</label><input type="text" id="itSN" placeholder="Kosongkan jika belum ada"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:4px"><input type="checkbox" id="itProd" checked><span>Diproduksi internal</span></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveItem('${poId}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function saveItem(poId) {
+  await sb.from('po_items').insert({ po_id: poId, category: gv('itCat'), model_name: gv('itModel') || null, spec_summary: gv('itSpec') || null, qty: parseInt(gv('itQty')) || 1, serial_number: gv('itSN') || null, is_produksi: document.getElementById('itProd').checked });
+  await logPO(poId, 'Tambah Item', gv('itCat'));
+  toast('Item ditambahkan');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// PK FORM
+async function openPKForm(poId, pkId) {
+  const p = allPOs.find(x => x.id === poId);
+  const k = pkId ? (p?.po_pk || []).find(x => x.id === pkId) : null;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${k ? 'Edit PK' : 'Pengajuan PK Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>No. PK</label><input type="text" id="pkNo" value="${k?.no_pk || ''}" placeholder="No. Permohonan Keuangan"></div>
+        <div class="form-row"><label>Tgl. Pengajuan <span class="req">*</span></label><input type="date" id="pkTgl" value="${k?.tgl_pengajuan || today()}"></div>
+      </div>
+      <div class="form-row"><label>Keperluan <span class="req">*</span></label><input type="text" id="pkKep" value="${k?.keperluan || ''}" placeholder="Keperluan pembelian material..."></div>
+      <div class="form-row"><label>Nilai Pengajuan (Rp) <span class="req">*</span></label><input type="text" id="pkNilai" value="${k?.nilai_pengajuan || ''}" placeholder="Contoh: 50000000"></div>
+      <div class="form-row"><label>Catatan</label><textarea id="pkCat">${k?.catatan || ''}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="savePK('${poId}','${pkId || ''}')">Simpan PK</button>
+    </div>
+  </div>`);
+}
+
+async function savePK(poId, pkId) {
+  const kep = gv('pkKep').trim(), tgl = gv('pkTgl'), nilai = gv('pkNilai').replace(/[^0-9.]/g, '');
+  if (!kep || !tgl || !nilai) { toast('Lengkapi field wajib'); return; }
+  const payload = { keperluan: kep, tgl_pengajuan: tgl, nilai_pengajuan: parseFloat(nilai), no_pk: gv('pkNo').trim() || null, catatan: gv('pkCat').trim() || null };
+  if (pkId) { await sb.from('po_pk').update(payload).eq('id', pkId); }
+  else { await sb.from('po_pk').insert({ ...payload, id: genId('PK'), po_id: poId, status: 'Diajukan', created_by: currentUser.id }); await logPO(poId, 'PK Diajukan', kep + ' — ' + fmtRp(parseFloat(nilai))); }
+  toast('PK disimpan');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function openPKStatusModal(pkId, poId) {
+  const p = allPOs.find(x => x.id === poId);
+  const k = (p?.po_pk || []).find(x => x.id === pkId);
+  const statuses = ['Diajukan', 'Disetujui', 'Ditolak', 'Pengadaan', 'Realisasi', 'Selesai'];
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Update Status PK</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:.875rem">${k?.keperluan} — ${fmtRp(k?.nilai_pengajuan)}</div>
+      <div class="form-row"><label>Status Baru <span class="req">*</span></label>
+        <select id="pkNewStatus" style="width:100%;padding:6px 8px">
+          ${statuses.map(s => `<option ${k?.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div id="pkRealisasiFields" style="${['Realisasi','Selesai'].includes(k?.status) ? '' : 'display:none'}">
+        <div class="form-grid" style="margin-top:.875rem">
+          <div class="form-row"><label>Nilai Realisasi (Rp)</label><input type="text" id="pkNilaiReal" value="${k?.nilai_realisasi || ''}" placeholder="0"></div>
+          <div class="form-row"><label>Tgl. Realisasi</label><input type="date" id="pkTglReal" value="${k?.tgl_realisasi || today()}"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="savePKStatus('${pkId}','${poId}')">Simpan</button>
+    </div>
+  </div>`);
+  document.getElementById('pkNewStatus').addEventListener('change', function() {
+    document.getElementById('pkRealisasiFields').style.display = ['Realisasi','Selesai'].includes(this.value) ? 'block' : 'none';
+  });
+}
+
+async function savePKStatus(pkId, poId) {
+  const status = gv('pkNewStatus');
+  const upd = { status };
+  if (status === 'Disetujui') upd.tgl_approval = today();
+  if (['Realisasi','Selesai'].includes(status)) {
+    const nr = gv('pkNilaiReal').replace(/[^0-9.]/g,'');
+    if (nr) upd.nilai_realisasi = parseFloat(nr);
+    upd.tgl_realisasi = gv('pkTglReal') || today();
+  }
+  await sb.from('po_pk').update(upd).eq('id', pkId);
+  await logPO(poId, 'PK Update', '→ ' + status);
+  toast('Status PK → ' + status);
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// GENERATE SERIAL
+async function openGenSerialModal(poId) {
+  const p = allPOs.find(x => x.id === poId);
+  const items = (p?.po_items || []).filter(it => it.is_produksi && ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) && !it.serial_number);
+  if (!items.length) { toast('Tidak ada item yang perlu generate SN'); return; }
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Tanggal Produksi <span class="req">*</span></label><input type="date" id="snProdDate" value="${today()}"></div>
+      <div style="margin-top:.875rem;font-size:13px;color:var(--text2)">Item yang akan di-generate (${items.length}):</div>
+      ${items.map(it => `<div class="item-card" style="margin-top:6px"><span style="font-size:13px;font-weight:600">${it.category}</span>${it.model_name ? '<span style="font-size:12px;color:var(--text3)"> — ' + it.model_name + '</span>' : ''}</div>`).join('')}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="doGenerateSerials('${poId}')">Generate</button>
+    </div>
+  </div>`);
+}
+
+async function doGenerateSerials(poId) {
+  const prodDate = gv('snProdDate');
+  if (!prodDate) { toast('Pilih tanggal produksi'); return; }
+  const p = allPOs.find(x => x.id === poId);
+  const items = (p?.po_items || []).filter(it => it.is_produksi && ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) && !it.serial_number);
+  // Atomic serial via RPC — fallback to simple increment
+  const year = new Date(prodDate).getFullYear().toString().slice(-2);
+  const month = (new Date(prodDate).getMonth() + 1).toString().padStart(2, '0');
+  let generated = 0;
+  for (const it of items) {
+    const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
+    let { huruf, angka } = counter;
+    const sn = `SAE/${it.category.replace(/Panel /,'').replace(/\s/g,'')}-${huruf}${angka.toString().padStart(3,'0')}/${month}${year}`;
+    angka++;
+    if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
+    await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
+    await sb.from('po_items').update({ serial_number: sn, serial_generated_at: new Date().toISOString() }).eq('id', it.id);
+    generated++;
+  }
+  await logPO(poId, 'Generate Serial', generated + ' item');
+  toast(generated + ' serial number di-generate');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SERVICE MODULE
+// ═══════════════════════════════════════════════════════════
+let svcFilter = '', svcSearch = '';
+
+async function renderServiceModule() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Service</div><div class="page-sub">Penanganan after-sales & laporan service</div></div>
+      </div>
+      <div class="topbar-right">
+        ${can('service_manage') ? '<button class="btn btn-coral" onclick="openSvcForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tiket Baru</button>' : ''}
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="svcTotal">—</div></div>
+        <div class="stat-card" onclick="setSvcFilter('Masuk',this)"><div class="stat-label">Masuk</div><div class="stat-val blue" id="svcMasuk">—</div></div>
+        <div class="stat-card" onclick="setSvcFilter('Proses',this)"><div class="stat-label">Proses</div><div class="stat-val amber" id="svcProses">—</div></div>
+        <div class="stat-card" onclick="setSvcFilter('Selesai',this)"><div class="stat-label">Selesai</div><div class="stat-val green" id="svcSelesai">—</div></div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari ID, customer, masalah..." oninput="svcSearch=this.value;renderSvcTable()"></div>
+        <select onchange="svcFilter=this.value;renderSvcTable()"><option value="">Semua Status</option><option>Masuk</option><option>Proses</option><option>Selesai</option></select>
+      </div>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table><colgroup><col style="width:16%"><col style="width:12%"><col style="width:20%"><col style="width:22%"><col style="width:16%"><col style="width:14%"></colgroup>
+          <thead><tr><th>No. Tiket</th><th>Tanggal</th><th>Customer</th><th>Masalah</th><th>PIC Teknisi</th><th>Status</th></tr></thead>
+          <tbody id="svcTableBody">${loading()}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  await loadServices();
+}
+
+async function loadServices() {
+  const { data } = await sb.from('service_tickets').select('*,service_logs(*),service_docs(*),app_users!service_tickets_pic_id_fkey(id,full_name)').order('created_at', { ascending: false });
+  allServices = data || [];
+  renderSvcStats();
+  renderSvcTable();
+  const nbSVC = document.getElementById('nbSVC');
+  if (nbSVC) nbSVC.textContent = allServices.filter(s => s.status !== 'Selesai').length;
+}
+
+function renderSvcStats() {
+  const total = allServices.length, masuk = allServices.filter(s => s.status === 'Masuk').length, proses = allServices.filter(s => s.status === 'Proses').length, selesai = allServices.filter(s => s.status === 'Selesai').length;
+  const el = id => document.getElementById(id);
+  if (el('svcTotal')) { el('svcTotal').textContent = total; el('svcMasuk').textContent = masuk; el('svcProses').textContent = proses; el('svcSelesai').textContent = selesai; }
+}
+
+function setSvcFilter(status, el) {
+  svcFilter = svcFilter === status ? '' : status;
+  document.querySelectorAll('#svcStats .stat-card').forEach(c => c.classList.remove('active-filter'));
+  if (svcFilter) el.classList.add('active-filter');
+  renderSvcTable();
+}
+
+function renderSvcTable() {
+  const q = svcSearch.toLowerCase();
+  let rows = allServices.filter(s => [s.id, s.customer_name, s.deskripsi_masalah, s.site_location].join(' ').toLowerCase().includes(q) && (!svcFilter || s.status === svcFilter));
+  const tbody = document.getElementById('svcTableBody');
+  if (!tbody) return;
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada tiket service')}</td></tr>`; return; }
+  tbody.innerHTML = rows.map(s => `
+    <tr onclick="openSvcDetail('${s.id}')">
+      <td class="mono">${s.id}</td>
+      <td>${fmtDate(s.tgl_laporan)}</td>
+      <td style="font-weight:500">${s.customer_name || '—'}</td>
+      <td style="color:var(--text2)">${s.deskripsi_masalah}</td>
+      <td>${s.app_users?.full_name || '—'}</td>
+      <td>${badge(s.status)}</td>
+    </tr>`).join('');
+}
+
+async function openSvcDetail(id) {
+  const { data: s } = await sb.from('service_tickets').select('*,service_logs(*),service_docs(*),app_users!service_tickets_pic_id_fkey(id,full_name,role),po_items(id,category,model_name,serial_number,po_id)').eq('id', id).single();
+  if (!s) return;
+  const isCreator = s.created_by === currentUser.id;
+  const isPIC = s.pic_id === currentUser.id;
+  const canEdit = can('service_manage') && (isAdmin() || isCreator || isPIC);
+  const canAddLog = canEdit;
+
+  // Logs
+  const logs = s.service_logs || [];
+  const logsHtml = logs.length ? logs.map(l => {
+    const cls = SVC_LOG_CLASS[l.tahapan] || '';
+    const resolved = l.is_resolved ? ' resolved' : '';
+    return `<div class="log-card ${cls}${resolved}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px">${svcTahapanBadge(l.tahapan)}${l.is_resolved ? '<span style="font-size:11px;color:var(--green);font-weight:600">✓ Terselesaikan</span>' : ''}</div>
+        <span style="font-size:11px;color:var(--text3)">${fmtDateTime(l.created_at)}</span>
+      </div>
+      ${l.catatan ? `<div style="font-size:13px;font-weight:500;margin-bottom:2px">${l.catatan}</div>` : ''}
+      ${l.hasil ? `<div style="font-size:12px;color:var(--text2)">${l.hasil}</div>` : ''}
+    </div>`;
+  }).join('') : noData('Belum ada log penanganan');
+
+  // Docs/Photos
+  const docs = s.service_docs || [];
+  const photos = docs.filter(d => d.file_type === 'photo');
+  const otherDocs = docs.filter(d => d.file_type !== 'photo');
+  const photoHtml = photos.length ? `<div class="photo-grid">${photos.map(p => `<div class="photo-thumb" onclick="openDoc('${fileUrl('service-docs', p.file_path)}','${p.file_name}')"><img src="${fileUrl('service-docs', p.file_path)}" alt="${p.file_name}" onerror="this.parentElement.style.display='none'"></div>`).join('')}</div>` : '';
+
+  openModal(`<div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <div>
+        <h2>${s.customer_name || '—'}${s.site_location ? ' — ' + s.site_location : ''}</h2>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${s.id} &middot; ${fmtDate(s.tgl_laporan)} &middot; PIC: ${s.app_users?.full_name || '—'}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <div class="kv">
+          <span class="k">Status</span><span class="v">${badge(s.status)}</span>
+          <span class="k">Masalah</span><span class="v">${s.deskripsi_masalah}</span>
+          ${s.po_items ? `<span class="k">Unit</span><span class="v">${s.po_items.category} — ${s.po_items.model_name || ''}${s.po_items.serial_number ? ' (SN: ' + s.po_items.serial_number + ')' : ''}</span>` : ''}
+          ${s.unit_info && !s.po_items ? `<span class="k">Info Unit</span><span class="v">${s.unit_info}</span>` : ''}
+        </div>
+        ${canEdit ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+          ${['Masuk','Proses','Selesai'].map(st => `<button class="btn btn-sm ${s.status === st ? 'btn-primary' : ''}" onclick="updateSvcStatus('${s.id}','${st}')">${st}</button>`).join('')}
+        </div>` : ''}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Log Penanganan (${logs.length})</div>
+          ${canAddLog ? `<button class="btn btn-sm btn-coral" onclick="openSvcLogForm('${s.id}')">+ Tambah Log</button>` : ''}
+        </div>
+        ${logsHtml}
+      </div>
+      <div class="detail-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="sect-title" style="margin-bottom:0">Foto & Dokumen (${docs.length})</div>
+          ${canAddLog ? `<div style="display:flex;gap:6px">
+            <button class="btn btn-sm" onclick="document.getElementById('svcUpPhoto_${s.id}').click()">📷 Foto</button><input type="file" id="svcUpPhoto_${s.id}" accept="image/*" multiple style="display:none" onchange="uploadSvcDoc('${s.id}','photo',this)">
+            <button class="btn btn-sm" onclick="document.getElementById('svcUpDoc_${s.id}').click()">📄 Dok.</button><input type="file" id="svcUpDoc_${s.id}" multiple style="display:none" onchange="uploadSvcDoc('${s.id}','document',this)">
+          </div>` : ''}
+        </div>
+        ${photoHtml}
+        ${renderFileList(otherDocs, 'service-docs', canEdit, 'deleteSvcDoc')}
+      </div>
+      ${canEdit ? `<div style="display:flex;justify-content:space-between">
+        <button class="btn btn-sm btn-danger" onclick="deleteSvcTicket('${s.id}')">Hapus Tiket</button>
+        <button class="btn btn-sm" onclick="closeAllModals();openSvcForm('${s.id}')">Edit</button>
+      </div>` : ''}
+    </div>
+  </div>`);
+}
+
+async function updateSvcStatus(id, status) {
+  const upd = { status, updated_at: new Date().toISOString() };
+  if (status === 'Selesai') {
+    upd.closed_at = new Date().toISOString();
+    // Auto-create KB entry
+    const { data: ticket } = await sb.from('service_tickets').select('*,service_logs(*)').eq('id', id).single();
+    if (ticket) {
+      const tahapanList = [...new Set((ticket.service_logs || []).map(l => l.tahapan))];
+      await sb.from('kb_entries').insert({ ticket_id: id, judul: ticket.deskripsi_masalah?.substring(0, 100) || 'Service Report', kategori_unit: ticket.unit_info || '', ringkasan_masalah: ticket.deskripsi_masalah, ringkasan_solusi: (ticket.service_logs || []).filter(l => l.is_resolved).map(l => l.hasil).filter(Boolean).join('\n') || null, tahapan_digunakan: tahapanList, created_by: currentUser.id });
+    }
+  }
+  await sb.from('service_tickets').update(upd).eq('id', id);
+  toast('Status → ' + status);
+  await loadServices();
+  openSvcDetail(id);
+}
+
+async function openSvcForm(editId) {
+  const s = editId ? allServices.find(x => x.id === editId) : null;
+  // Load users for PIC selection
+  const { data: users } = await sb.from('app_users').select('id,full_name,role').eq('is_active', true).order('full_name');
+  const techUsers = (users || []).filter(u => ['teknisi','produksi','admin','owner'].includes(u.role));
+  // Load PO items for unit linking
+  const { data: poItems } = await sb.from('po_items').select('id,category,model_name,serial_number,po_id,purchase_orders(no_po,customer_name)').limit(100);
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${s ? 'Edit Tiket' : 'Tiket Service Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="svcDate" value="${s?.tgl_laporan || today()}"></div>
+        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="svcCustomer" value="${s?.customer_name || ''}" placeholder="Nama customer"></div>
+      </div>
+      <div class="form-row"><label>Lokasi / Site</label><input type="text" id="svcSite" value="${s?.site_location || ''}" placeholder="Alamat atau nama site"></div>
+      <div class="form-row"><label>Deskripsi Masalah <span class="req">*</span></label><textarea id="svcDesc">${s?.deskripsi_masalah || ''}</textarea></div>
+      <div class="form-row"><label>PIC Teknisi <span class="req">*</span></label>
+        <select id="svcPIC" style="width:100%;padding:6px 8px">
+          <option value="">-- Pilih --</option>
+          ${techUsers.map(u => `<option value="${u.id}" ${s?.pic_id === u.id ? 'selected' : ''}>${u.full_name} (${u.role})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row"><label>Link ke Unit dari PO (opsional)</label>
+        <select id="svcUnit" style="width:100%;padding:6px 8px">
+          <option value="">— Unit tidak ada di sistem —</option>
+          ${(poItems || []).map(it => `<option value="${it.id}" ${s?.po_item_id === it.id ? 'selected' : ''}>${it.purchase_orders?.no_po} — ${it.category}${it.model_name ? ' ' + it.model_name : ''}${it.serial_number ? ' (SN: ' + it.serial_number + ')' : ''}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row"><label>Info Unit (jika tidak ada di PO)</label><input type="text" id="svcUnitInfo" value="${s?.unit_info || ''}" placeholder="Merk, tipe, serial jika bukan dari PO"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-coral" onclick="saveSvcTicket('${editId || ''}')">Simpan Tiket</button>
+    </div>
+  </div>`);
+}
+
+async function saveSvcTicket(editId) {
+  const customer = gv('svcCustomer').trim(), date = gv('svcDate'), desc = gv('svcDesc').trim(), pic = gv('svcPIC');
+  if (!customer || !date || !desc || !pic) { toast('Lengkapi field wajib'); return; }
+  const payload = { customer_name: customer, tgl_laporan: date, deskripsi_masalah: desc, pic_id: pic, site_location: gv('svcSite').trim() || null, po_item_id: gv('svcUnit') || null, unit_info: gv('svcUnitInfo').trim() || null, updated_at: new Date().toISOString() };
+  if (editId) {
+    await sb.from('service_tickets').update(payload).eq('id', editId);
+    toast('Tiket diperbarui');
+  } else {
+    const id = genId('SVC');
+    await sb.from('service_tickets').insert({ ...payload, id, status: 'Masuk', created_by: currentUser.id });
+    toast('Tiket dibuat: ' + id);
+  }
+  closeAllModals();
+  await loadServices();
+}
+
+function openSvcLogForm(ticketId) {
+  const TAHAPAN = ['Remote', 'Visit', 'Eskalasi Turki', 'Spare Part', 'Retrofit', 'Ganti Unit'];
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Tambah Log Penanganan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();openSvcDetail('${ticketId}')">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Tahapan <span class="req">*</span></label>
+        <select id="logTahapan" style="width:100%;padding:6px 8px">
+          ${TAHAPAN.map(t => `<option>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row"><label>Catatan / Temuan</label><textarea id="logCatatan" placeholder="Deskripsi temuan, langkah yang dilakukan..."></textarea></div>
+      <div class="form-row"><label>Hasil Tindakan</label><textarea id="logHasil" placeholder="Hasil atau kesimpulan tindakan..."></textarea></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px;background:var(--green-bg);border-radius:var(--r-sm)">
+        <input type="checkbox" id="logResolved"><span style="color:var(--green)">✓ Masalah terselesaikan di tahapan ini</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals();openSvcDetail('${ticketId}')">Batal</button>
+      <button class="btn btn-coral" onclick="saveSvcLog('${ticketId}')">Simpan Log</button>
+    </div>
+  </div>`);
+}
+
+async function saveSvcLog(ticketId) {
+  const tahapan = gv('logTahapan'), catatan = gv('logCatatan').trim(), hasil = gv('logHasil').trim();
+  if (!tahapan) { toast('Pilih tahapan'); return; }
+  const isResolved = document.getElementById('logResolved').checked;
+  await sb.from('service_logs').insert({ ticket_id: ticketId, tahapan, catatan: catatan || null, hasil: hasil || null, is_resolved: isResolved, user_id: currentUser.id });
+  // Update ticket to Proses if still Masuk
+  const ticket = allServices.find(s => s.id === ticketId);
+  if (ticket?.status === 'Masuk') await sb.from('service_tickets').update({ status: 'Proses', updated_at: new Date().toISOString() }).eq('id', ticketId);
+  toast('Log ditambahkan');
+  await loadServices();
+  openSvcDetail(ticketId);
+}
+
+async function uploadSvcDoc(ticketId, type, input) {
+  for (const f of Array.from(input.files)) {
+    const path = `${ticketId}/${type}/${Date.now()}_${f.name}`;
+    const { error } = await sb.storage.from('service-docs').upload(path, f);
+    if (!error) { await sb.from('service_docs').insert({ ticket_id: ticketId, file_name: f.name, file_path: path, file_size: f.size, file_type: type, uploaded_by: currentUser.id }); toast(f.name + ' diupload'); }
+    else toast('Gagal: ' + f.name);
+  }
+  input.value = '';
+  await loadServices();
+  openSvcDetail(ticketId);
+}
+
+async function deleteSvcDoc(docId, filePath, fileName) {
+  if (!confirm('Hapus "' + fileName + '"?')) return;
+  await sb.storage.from('service-docs').remove([filePath]);
+  await sb.from('service_docs').delete().eq('id', docId);
+  toast('Dihapus');
+  const ticketId = filePath.split('/')[0];
+  await loadServices();
+  openSvcDetail(ticketId);
+}
+
+async function deleteSvcTicket(id) {
+  if (!confirm('Hapus tiket ini beserta semua log dan dokumen?')) return;
+  const s = allServices.find(x => x.id === id);
+  const docs = s?.service_docs || [];
+  if (docs.length) await sb.storage.from('service-docs').remove(docs.map(d => d.file_path));
+  await sb.from('service_tickets').delete().eq('id', id);
+  closeAllModals();
+  toast('Tiket dihapus');
+  await loadServices();
+}
+
+// ═══════════════════════════════════════════════════════════
+// KNOWLEDGE BASE MODULE
+// ═══════════════════════════════════════════════════════════
+let kbSearch = '';
+
+async function renderKBModule() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Knowledge Base</div><div class="page-sub">Referensi cara penanganan masalah dari riwayat service</div></div>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari masalah, solusi, kategori unit..." oninput="kbSearch=this.value;renderKBCards()"></div></div>
+      <div id="kbContainer">${loading()}</div>
+    </div>`;
+  await loadKBs();
+}
+
+async function loadKBs() {
+  const { data } = await sb.from('kb_entries').select('*,app_users!kb_entries_created_by_fkey(full_name),service_tickets(id,tgl_laporan,customer_name)').order('created_at', { ascending: false });
+  allKBs = data || [];
+  renderKBCards();
+}
+
+function renderKBCards() {
+  const q = kbSearch.toLowerCase();
+  const rows = allKBs.filter(k => [k.judul, k.kategori_unit, k.ringkasan_masalah, k.ringkasan_solusi].join(' ').toLowerCase().includes(q));
+  const container = document.getElementById('kbContainer');
+  if (!container) return;
+  if (!rows.length) { container.innerHTML = noData('Belum ada entry knowledge base. Entry akan muncul otomatis ketika tiket service diselesaikan.'); return; }
+  container.innerHTML = `<div class="kb-grid">${rows.map(k => `
+    <div class="kb-card" onclick="openKBDetail('${k.id}')">
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px;line-height:1.4">${k.judul}</div>
+      ${k.kategori_unit ? `<div class="kb-tag">${k.kategori_unit}</div>` : ''}
+      ${(k.tahapan_digunakan || []).map(t => `<div class="kb-tag" style="color:${SVC_TAHAPAN_COLORS[t] || 'var(--text2)'}">${t}</div>`).join('')}
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">${fmtDate(k.service_tickets?.tgl_laporan)} &middot; ${k.app_users?.full_name || '—'}</div>
+    </div>`).join('')}</div>`;
+}
+
+async function openKBDetail(id) {
+  const k = allKBs.find(x => x.id === id);
+  if (!k) return;
+  const isCreator = k.created_by === currentUser.id;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Detail Knowledge Base</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="detail-section">
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px">${k.judul}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${k.kategori_unit ? `<span class="kb-tag">${k.kategori_unit}</span>` : ''}${(k.tahapan_digunakan || []).map(t => `<span class="kb-tag" style="color:${SVC_TAHAPAN_COLORS[t] || 'var(--text2)'}">${t}</span>`).join('')}</div>
+        <div style="font-size:12px;color:var(--text3)">${fmtDateTime(k.created_at)} &middot; ${k.app_users?.full_name || '—'}</div>
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Masalah</div>
+        <div class="desc-box">${k.ringkasan_masalah || '—'}</div>
+      </div>
+      <div class="detail-section">
+        <div class="sect-title">Solusi / Penanganan</div>
+        ${isCreator ? `<textarea id="kbSolusiEdit" style="width:100%">${k.ringkasan_solusi || ''}</textarea>` : `<div class="desc-box">${k.ringkasan_solusi || 'Belum ada catatan solusi'}</div>`}
+      </div>
+      <div style="font-size:12px;color:var(--text3)">Ref: Tiket ${k.ticket_id} — ${fmtDate(k.service_tickets?.tgl_laporan)}</div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      ${isCreator ? `<button class="btn btn-sm btn-danger" onclick="deleteKB('${k.id}')">Hapus</button><button class="btn btn-sm btn-primary" onclick="saveKBSolusi('${k.id}')">Simpan Solusi</button>` : '<div></div><button class="btn btn-sm" onclick="closeAllModals()">Tutup</button>'}
+    </div>
+  </div>`);
+}
+
+async function saveKBSolusi(id) {
+  const solusi = document.getElementById('kbSolusiEdit')?.value.trim();
+  await sb.from('kb_entries').update({ ringkasan_solusi: solusi, updated_at: new Date().toISOString() }).eq('id', id);
+  toast('Solusi disimpan');
+  closeAllModals();
+  await loadKBs();
+}
+
+async function deleteKB(id) {
+  if (!confirm('Hapus entry ini?')) return;
+  await sb.from('kb_entries').delete().eq('id', id);
+  toast('Entry dihapus');
+  closeAllModals();
+  await loadKBs();
+}
+
+// ═══════════════════════════════════════════════════════════
+// USER MANAGEMENT MODULE
+// ═══════════════════════════════════════════════════════════
+const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'Engineering', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
+const ROLE_CLASSES = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
+
+async function renderUsersModule() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Kelola User</div><div class="page-sub">Manajemen akun dan permission</div></div>
+      </div>
+      <div class="topbar-right"><button class="btn btn-primary" onclick="openUserForm()">+ User Baru</button></div>
+    </div>
+    <div class="page-body">
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="user-table">
+            <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Status</th><th>Login Terakhir</th><th></th></tr></thead>
+            <tbody id="userTableBody">${loading()}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  await loadUsers();
+}
+
+async function loadUsers() {
+  const { data } = await sb.from('app_users').select('*').order('role').order('full_name');
+  allUsers = data || [];
+  const tbody = document.getElementById('userTableBody');
+  if (!tbody) return;
+  if (!allUsers.length) { tbody.innerHTML = `<tr><td colspan="6">${noData()}</td></tr>`; return; }
+  tbody.innerHTML = allUsers.map(u => `
+    <tr>
+      <td class="mono">${u.username}</td>
+      <td style="font-weight:500">${u.full_name}</td>
+      <td><span class="role-badge ${ROLE_CLASSES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span></td>
+      <td><span style="font-size:11px;font-weight:600;color:${u.is_active ? 'var(--green)' : 'var(--text3)'}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+      <td style="color:var(--text3);font-size:12px">${u.last_login ? fmtDateTime(u.last_login) : '—'}</td>
+      <td><button class="btn btn-sm" onclick="openUserForm('${u.id}')">Edit</button></td>
+    </tr>`).join('');
+}
+
+async function openUserForm(userId) {
+  const u = userId ? allUsers.find(x => x.id === userId) : null;
+  const roles = Object.keys(ROLE_LABELS).filter(r => isOwner() || r !== 'owner');
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${u ? 'Edit User' : 'User Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Username <span class="req">*</span></label><input type="text" id="ufUsername" value="${u?.username || ''}" placeholder="username" autocomplete="off"></div>
+        <div class="form-row"><label>Nama Lengkap <span class="req">*</span></label><input type="text" id="ufFullName" value="${u?.full_name || ''}" placeholder="Nama lengkap"></div>
+      </div>
+      <div class="form-row"><label>Role <span class="req">*</span></label>
+        <select id="ufRole" style="width:100%;padding:6px 8px">
+          <option value="">-- Pilih Role --</option>
+          ${roles.map(r => `<option value="${r}" ${u?.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Password${u ? ' <span style="font-weight:400;color:var(--text3)">(kosongkan jika tidak diubah)</span>' : ' <span class="req">*</span>'}</label>
+        <input type="password" id="ufPassword" placeholder="Password" autocomplete="new-password">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="ufActive" ${u?.is_active !== false ? 'checked' : ''}><span>Aktif</span></label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveUser('${userId || ''}')">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function saveUser(editId) {
+  const username = gv('ufUsername').trim(), fullName = gv('ufFullName').trim(), role = gv('ufRole'), pw = gv('ufPassword');
+  if (!username || !fullName || !role) { toast('Lengkapi field wajib'); return; }
+  if (!editId && !pw) { toast('Password wajib untuk user baru'); return; }
+  const payload = { username, full_name: fullName, role, is_active: document.getElementById('ufActive').checked };
+  if (pw) payload.password_hash = await sha256(pw);
+  if (editId) {
+    if (!pw) delete payload.password_hash;
+    await sb.from('app_users').update(payload).eq('id', editId);
+  } else {
+    payload.id = 'usr-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5);
+    await sb.from('app_users').insert(payload);
+  }
+  toast(editId ? 'User diperbarui' : 'User baru dibuat');
+  closeAllModals();
+  await loadUsers();
+}
+</script>
+</body>
+</html>
