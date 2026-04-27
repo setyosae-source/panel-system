@@ -687,11 +687,12 @@ async function renderPPModule() {
         <div class="table-wrap">
           <table><colgroup><col style="width:18%"><col style="width:16%"><col style="width:22%"><col style="width:20%"><col style="width:13%"><col style="width:11%"></colgroup>
           <thead><tr><th>No. Request</th><th>Tanggal</th><th>Customer</th><th>Project</th><th>Output</th><th>Status</th></tr></thead>
-          <tbody id="ppTableBody">${loading()}</tbody></table>
+          <tbody id="ppTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
     </div>`;
   await loadPPs();
+  renderPPTable();
 }
 
 async function loadPPs() {
@@ -985,11 +986,12 @@ async function renderPOModule() {
             <th class="sort-th" onclick="sortPO('tgl_target_kirim')">Target <span class="sort-arrow" id="sarr_tgl_target_kirim"></span></th>
             <th class="sort-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
           </tr></thead>
-          <tbody id="poTableBody">${loading()}</tbody>
+          <tbody id="poTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>
     </div>`;
   await loadPOs();
+  renderPOTable();
 }
 
 async function loadPOs() {
@@ -1634,11 +1636,12 @@ async function renderServiceModule() {
         <div class="table-wrap">
           <table><colgroup><col style="width:16%"><col style="width:12%"><col style="width:20%"><col style="width:22%"><col style="width:16%"><col style="width:14%"></colgroup>
           <thead><tr><th>No. Tiket</th><th>Tanggal</th><th>Customer</th><th>Masalah</th><th>PIC Teknisi</th><th>Status</th></tr></thead>
-          <tbody id="svcTableBody">${loading()}</tbody>
+          <tbody id="svcTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>
     </div>`;
   await loadServices();
+  renderSvcTable();
 }
 
 async function loadServices() {
@@ -2000,7 +2003,7 @@ async function renderUsersModule() {
         <div class="table-wrap">
           <table class="user-table">
             <thead><tr><th>Username</th><th>Nama</th><th>Role</th><th>Status</th><th>Login Terakhir</th><th></th></tr></thead>
-            <tbody id="userTableBody">${loading()}</tbody>
+            <tbody id="userTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
           </table>
         </div>
       </div>
