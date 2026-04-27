@@ -1723,9 +1723,9 @@ async function openPOWebpageModal(poId){
   const items = (po.po_items||[]).filter(it=>it.serial_number && it.is_produksi);
   if(!items.length){ toast('Belum ada item dengan serial number'); return; }
 
-  const baseUrl = window.location.origin + window.location.pathname.replace('index.html','').replace('index.html','') + 'product.html';
   const noProject = po.no_project||'';
   const pwd = 'sae' + noProject.replace(/[^0-9]/g,'').slice(-3);
+  const poUrl = 'https://sae-energy.site/product.html?id=' + poId + '&proj=' + encodeURIComponent(noProject);
 
   const itemRows = items.map(it=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
@@ -1733,7 +1733,6 @@ async function openPOWebpageModal(poId){
         <div style="font-size:13px;font-weight:600">${it.category} — ${it.model_name||'—'}</div>
         <div style="font-size:11px;color:var(--text3);font-family:monospace">${it.serial_number}</div>
       </div>
-      <a href="${baseUrl}?id=${it.id}&proj=${encodeURIComponent(noProject)}" target="_blank" class="btn btn-sm btn-ghost" style="font-size:11px">🔗 Preview</a>
     </div>`).join('');
 
   const modalEl = document.createElement('div');
@@ -1760,6 +1759,14 @@ async function openPOWebpageModal(poId){
         <input type="file" id="dlFileInputPO_${poId}" multiple style="display:none">
       </div>
     </div>
+    <div style="padding:.875rem 0 0;border-top:1px solid var(--border);margin-top:.5rem">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">URL Webpage (per PO)</div>
+      <div style="display:flex;gap:6px">
+        <input type="text" value="${poUrl}" readonly id="webpageUrlField" style="flex:1;font-size:11px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2)">
+        <button class="btn btn-sm" id="btnCopyUrl">Salin</button>
+        <a href="${poUrl}" target="_blank" class="btn btn-sm">🔗 Buka</a>
+      </div>
+    </div>
     <div class="modal-footer" style="justify-content:space-between">
       <div style="font-size:12px;color:var(--text3)">${items.length} item akan di-generate</div>
       <button class="btn btn-sm btn-primary" id="btnGenAllNameplate">🖨 Generate Semua Nameplate PDF</button>
@@ -1770,6 +1777,8 @@ async function openPOWebpageModal(poId){
   document.getElementById('modalContainer').appendChild(modalEl);
   history.pushState({modal:'webpage'},'','');
 
+  document.getElementById('btnCopyUrl').onclick = () =>
+    navigator.clipboard.writeText(poUrl).then(()=>toast('URL disalin'));
   document.getElementById('btnUploadDlPO').onclick = () =>
     document.getElementById('dlFileInputPO_'+poId).click();
   document.getElementById('dlFileInputPO_'+poId).onchange = (e) =>
