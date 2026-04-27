@@ -1858,11 +1858,12 @@ async function generateAllNameplates(poId){
   }
 
   // Build PDF HTML
-  const w = window.open('','_blank','width=1000,height=800');
-  w.document.write(buildAllNameplatesHTML(po, items, specsMap, qrMap, baseUrl, noProject));
-  w.document.close();
-  w.focus();
-  setTimeout(()=>w.print(), 1000);
+  const htmlContent = buildAllNameplatesHTML(po, items, specsMap, qrMap, baseUrl, noProject);
+  const blob = new Blob([htmlContent], {type:'text/html'});
+  const blobUrl = URL.createObjectURL(blob);
+  const w = window.open(blobUrl, '_blank');
+  if(!w){ toast('Aktifkan popup untuk sae-energy.site di browser'); return; }
+  setTimeout(()=>{ URL.revokeObjectURL(blobUrl); }, 60000);
 }
 
 function buildAllNameplatesHTML(po, items, specsMap, qrMap, baseUrl, noProject){
