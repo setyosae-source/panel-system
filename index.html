@@ -1109,11 +1109,10 @@ async function openPODetail(id) {
     <div class="item-card">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>
-        <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}${it.serial_number ? ' &middot; SN: ' + it.serial_number : ''}</div>
+        <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}${it.spec_summary ? ' &middot; ' + it.spec_summary : ''}${it.serial_number ? ' &middot; SN: ' + it.serial_number : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
-        ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? '<button class="btn btn-sm" style="font-size:11px" data-iid="'+it.id+'" data-pid="'+p.id+'" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">⚙ Spec</button>' : ''}
         <button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
       </div>
     </div>`).join('') : noData('Belum ada item');
@@ -1540,7 +1539,7 @@ async function openEditItemForm(itemId, poId) {
   </div>`);
 }
 
-async function saveEditItem(itemId, poId) {
+async function saveEditItem(itemId, poId, openSpec=false) {
   await sb.from('po_items').update({
     category: gv('itCat'),
     model_name: gv('itModel')||null,
@@ -1552,9 +1551,9 @@ async function saveEditItem(itemId, poId) {
   }).eq('id', itemId);
   await logPO(poId, 'Edit Item', gv('itCat'));
   toast('Item diperbarui');
-  closeAllModals();
   await loadPOs();
-  openPODetail(poId);
+  if(openSpec) { openItemSpec(itemId, poId); }
+  else { closeAllModals(); openPODetail(poId); }
 }
 
 async function deleteItem(itemId, poId) {
