@@ -1482,6 +1482,34 @@ async function saveItem(poId) {
   openPODetail(poId);
 }
 
+// SPEC FROM PO FORM (Step 2 - before PO saved)
+function openItemSpecFromForm(idx){
+  const it = poFormItems[idx];
+  if(!it) return;
+  const cat = it.category;
+  _specFormCtx = {idx, category: cat};
+  const existing = poFormSpecs[idx]||{};
+  openModal('<div class="modal modal-sm">'
+    +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+    +'<div class="modal-body">'+renderSpecForm(cat, existing)+'</div>'
+    +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveItemSpecFromForm()">Simpan Spec</button></div>'
+    +'</div>');
+}
+
+function saveItemSpecFromForm(){
+  const {idx, category} = _specFormCtx;
+  const fields = SPEC_FIELDS[category]||[];
+  const data = {kategori: category};
+  fields.forEach(f=>{ const el=document.getElementById('spec_'+f.id); if(el) data[f.id]=el.value.trim()||null; });
+  poFormSpecs[idx] = data;
+  // Auto-update model name
+  const modelName = buildModelName(category, data);
+  if(modelName) poFormItems[idx].model_name = modelName;
+  toast('Spec disimpan');
+  closeAllModals();
+  renderPOItems();
+}
+
 // EDIT ITEM FORM
 async function openEditItemForm(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
@@ -2237,7 +2265,18 @@ function renderSpecForm(category, values){
   return html;
 }
 
+function buildModelName(cat, spec){
+  const v=f=>spec[f]||'';
+  if(cat==='Rectifier') return 'S-Pro'+(v('input_fase')||'1')+' '+(v('output_voltage')||'')+(v('output_current')?'-'+v('output_current')+'A':'');
+  if(cat==='UPS'){ const kva=v('output_kva'); return 'A-Pro'+(v('input_fase')||'3')+'/'+(v('output_fase')||'1')+' '+(kva?kva+'K':''); }
+  if(cat==='Inverter'){ const kva=v('output_kva'); return 'INV '+(kva?kva+'K':''); }
+  if(cat==='Panel ACDB') return 'ACDB '+(v('input_voltage')||'')+'V-'+(v('output_current')||'')+'A';
+  if(cat==='Panel DCDB') return 'DCDB '+(v('input_voltage')||'')+'V-'+(v('output_current')||'')+'A';
+  return '';
+}
+
 let _specCtx = {};
+let _specFormCtx = {}; // for PO form step 2
 
 async function openItemSpec(itemId, poId){
   _specCtx = {itemId, poId};
