@@ -644,8 +644,8 @@ function renderFileList(docs, bucket, canDelete, onDelete) {
   }).join('') + '</div>';
 }
 
-function openModal(html, id) {
-  closeAllModals();
+function openModal(html, id, stack=false) {
+  if(!stack) closeAllModals();
   const container = document.getElementById('modalContainer');
   const div = document.createElement('div');
   div.className = 'overlay';
@@ -653,6 +653,10 @@ function openModal(html, id) {
   div.innerHTML = html;
   container.appendChild(div);
   history.pushState({ modal: id }, '', '');
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if(el) el.remove();
 }
 function closeAllModals() {
   const container = document.getElementById('modalContainer');
@@ -1491,11 +1495,12 @@ function openItemSpecFromForm(idx){
   const cat = it.category;
   _specFormCtx = {idx, category: cat};
   const existing = poFormSpecs[idx]||{};
-  openModal('<div class="modal modal-sm">'
-    +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+  const specHtml = '<div class="modal modal-sm">'
+    +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'specModal\').remove()">&#x2715;</button></div>'
     +'<div class="modal-body">'+renderSpecForm(cat, existing)+'</div>'
-    +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveItemSpecFromForm()">Simpan Spec</button></div>'
-    +'</div>');
+    +'<div class="modal-footer"><button class="btn" onclick="document.getElementById(\'specModal\').remove()">Batal</button><button class="btn btn-primary" onclick="saveItemSpecFromForm()">Simpan Spec</button></div>'
+    +'</div>';
+  openModal(specHtml, 'specModal', true);
 }
 
 function saveItemSpecFromForm(){
@@ -1504,11 +1509,10 @@ function saveItemSpecFromForm(){
   const data = {kategori: category};
   fields.forEach(f=>{ const el=document.getElementById('spec_'+f.id); if(el) data[f.id]=el.value.trim()||null; });
   poFormSpecs[idx] = data;
-  // Auto-update model name
   const modelName = buildModelName(category, data);
   if(modelName) poFormItems[idx].model_name = modelName;
   toast('Spec disimpan');
-  closeAllModals();
+  closeModal('specModal');
   renderPOItems();
 }
 
