@@ -1173,7 +1173,7 @@ async function openPODetail(id) {
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${(can('po_engineering') || canManage) ? `<button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>` : ''}
             ${(canManage && p.status === 'Produksi') ? `<button class="btn btn-sm btn-blue" onclick="openGenSerialModal('${p.id}')">🔢 Generate SN</button>` : ''}
-            ${items.some(it=>it.serial_number) ? `<button class="btn btn-sm" style="background:var(--coral);color:#fff;border-color:var(--coral)" data-pid="${p.id}" onclick="openPOWebpageModal(this.dataset.pid)">🌐 Webpage & Nameplate</button>` : ''}
+            ${canManage ? `<button class="btn btn-sm" style="background:var(--coral);color:#fff;border-color:var(--coral)" data-pid="${p.id}" onclick="openPOWebpageModal(this.dataset.pid)">🌐 Webpage & Nameplate</button>` : ''}
           </div>
         </div>
         ${itemsHtml}
