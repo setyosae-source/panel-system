@@ -6,6 +6,7 @@
 <title>SAE Energy — Product Information</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--red:#CC0000;--green:#1a7a3c;--border:#e0e0e0;--text:#1a1a1a;--muted:#666;--offwhite:#f7f7f7}
@@ -95,7 +96,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--offwhite);color:var(--tex
         autocomplete="off" autocorrect="off" autocapitalize="characters"
         onkeydown="if(event.key==='Enter')findBySN()">
     </div>
-    <button class="scan-btn" onclick="findBySN()">Cari Unit</button>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="scan-btn" onclick="findBySN()" style="flex:1">Cari Unit</button>
+      <button class="scan-btn" onclick="startCamera()" id="btnCamera" style="flex:0;padding:13px 16px;background:#fff;color:#1a7a3c;border:2px solid #1a7a3c" title="Scan dengan kamera">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+    </div>
+    <!-- Camera scanner -->
+    <div id="cameraContainer" style="display:none;margin-bottom:12px;border-radius:12px;overflow:hidden;position:relative">
+      <video id="cameraVideo" style="width:100%;border-radius:12px" playsinline></video>
+      <button onclick="stopCamera()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">&#x2715;</button>
+      <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:12px;color:#fff;background:rgba(0,0,0,.4);padding:4px">Arahkan kamera ke QR code atau barcode</div>
+    </div>
     <div class="scan-error" id="scanError"></div>
 
   </div>
@@ -136,6 +148,34 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const MONTH_ID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 let currentItem=null, currentPO=null;
+
+let codeReader = null;
+
+async function startCamera(){
+  document.getElementById('cameraContainer').style.display='block';
+  document.getElementById('btnCamera').style.display='none';
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    const videoEl = document.getElementById('cameraVideo');
+    await codeReader.decodeFromVideoDevice(null, videoEl, (result, err) => {
+      if(result) {
+        const text = result.getText();
+        document.getElementById('snInput').value = text.toUpperCase();
+        stopCamera();
+        findBySN();
+      }
+    });
+  } catch(e) {
+    stopCamera();
+    showError('Kamera tidak dapat diakses. Pastikan izin kamera sudah diberikan.');
+  }
+}
+
+function stopCamera(){
+  if(codeReader) { codeReader.reset(); codeReader = null; }
+  document.getElementById('cameraContainer').style.display='none';
+  document.getElementById('btnCamera').style.display='flex';
+}
 
 // Auto-focus input on load
 window.onload = () => {
