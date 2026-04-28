@@ -1571,12 +1571,12 @@ async function openDetailSpecModal(itemId, poId) {
   if(!item) return;
 
   // Load existing detail spec
-  const {data: ds} = await sb.from('item_detail_specs').select('*').eq('item_id', itemId).single().catch(()=>({data:{}}));
+  let ds = null; try { const r = await sb.from('item_detail_specs').select('*').eq('item_id', itemId).single(); ds = r.data; } catch(e) { ds = {}; }
   const spec = ds || {};
   const cat = item.category;
 
   // Load autocomplete data from previous specs
-  const {data: prevSpecs} = await sb.from('item_detail_specs').select('*').limit(50).catch(()=>({data:[]}));
+  let prevSpecs = []; try { const r = await sb.from('item_detail_specs').select('*').limit(50); prevSpecs = r.data || []; } catch(e) { prevSpecs = []; }
   const prev = prevSpecs || [];
 
   // Build autocomplete suggestions per field
@@ -1723,7 +1723,7 @@ function dsUpload(field, itemId) {
 
 async function dsHandleUpload(field, itemId, input) {
   const files = Array.from(input.files);
-  const {data: existing} = await sb.from('item_detail_specs').select(field).eq('item_id', itemId).single().catch(()=>({data:{}}));
+  let existing = {}; try { const r = await sb.from('item_detail_specs').select(field).eq('item_id', itemId).single(); existing = r.data||{}; } catch(e) {}
   const arr = existing?.[field] || [];
   for(const f of files) {
     const path = 'item-docs/'+itemId+'/'+field+'/'+Date.now()+'_'+f.name;
@@ -1738,7 +1738,7 @@ async function dsHandleUpload(field, itemId, input) {
   update[field] = arr;
   await sb.from('item_detail_specs').upsert({item_id: itemId, ...update}, {onConflict:'item_id'});
   input.value = '';
-  dsRenderFiles({...((await sb.from('item_detail_specs').select('*').eq('item_id',itemId).single().catch(()=>({data:{}})))?.data||{})});
+  try { const r = await sb.from('item_detail_specs').select('*').eq('item_id',itemId).single(); dsRenderFiles(r.data||{}); } catch(e) { dsRenderFiles({}); }
 }
 
 function gvds(id) {
@@ -1979,7 +1979,7 @@ async function doGenerateSerials(poId) {
   const dateObj = new Date(prodDate);
   let generated = 0, skipped = 0;
   for (const it of items) {
-    const { data: spec } = await sb.from('item_specs').select('*').eq('item_id', it.id).single().catch(()=>({data:null}));
+    let spec = null; try { const _r = await sb.from('item_specs').select('*').eq('item_id', it.id).single(); spec = _r.data; } catch(e) {}
     if (!spec) { skipped++; continue; }
     const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
     let { huruf, angka } = counter;
@@ -2126,7 +2126,7 @@ async function generateAllNameplates(poId){
   // Load specs for all items
   const specsMap = {};
   for(const it of items){
-    const {data:spec} = await sb.from('item_specs').select('*').eq('item_id',it.id).single().catch(()=>({data:{}}));
+    let spec = {}; try { const _r = await sb.from('item_specs').select('*').eq('item_id',it.id).single(); spec = _r.data||{}; } catch(e) {}
     specsMap[it.id] = spec || {};
   }
 
@@ -2871,7 +2871,7 @@ async function openItemSpec(itemId, poId){
   if(!item) return;
   const cat = item.category||'';
   _specCtx.category = cat;
-  const {data:spec} = await sb.from('item_specs').select('*').eq('item_id',itemId).single().catch(()=>({data:null}));
+  let spec = null; try { const _r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = _r.data; } catch(e) {}
   openModal('<div class="modal modal-sm">'
     +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
     +'<div class="modal-body">'+renderSpecForm(cat, spec||{})+'</div>'
@@ -2884,7 +2884,7 @@ async function saveItemSpec(){
   const fields = SPEC_FIELDS[category]||[];
   const data = {item_id: itemId, kategori: category, updated_at: new Date().toISOString()};
   fields.forEach(f=>{ const el=document.getElementById('spec_'+f.id); if(el) data[f.id]=el.value.trim()||null; });
-  const {data:existing} = await sb.from('item_specs').select('id').eq('item_id',itemId).single().catch(()=>({data:null}));
+  let existing = null; try { const _r = await sb.from('item_specs').select('id').eq('item_id',itemId).single(); existing = _r.data; } catch(e) {}
   if(existing){ await sb.from('item_specs').update(data).eq('item_id',itemId); }
   else { data.id='spec-'+Date.now().toString(36); await sb.from('item_specs').insert(data); }
   toast('Spec disimpan');
