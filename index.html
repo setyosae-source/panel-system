@@ -529,6 +529,7 @@ function buildSidebar() {
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
   if (can('po_view')) nav += navItem('po', poIcon(), 'Kelola PO', 'nbPO');
   if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
+  if (can('assign') || can('po_manage')) nav += navItem('assign', assignIcon(), 'Assign', 'nbASSIGN');
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
@@ -552,6 +553,7 @@ function navItem(mod, icon, label, badgeId) {
   return `<button class="sb-item" id="nav_${mod}" onclick="switchModule('${mod}')">${icon}${label}${badge}</button>`;
 }
 
+function assignIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM21 12h-6m3-3v6"/></svg>'; }
 function homeIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'; }
 function etsIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'; }
 function prodIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.121 2.121 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'; }
@@ -574,6 +576,7 @@ function switchModule(mod) {
   else if (mod === 'pp') renderPPModule();
   else if (mod === 'po') renderPOModule();
   else if (mod === 'ets') renderETSModule();
+  else if (mod === 'assign') renderAssignModule();
   else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
   else if (mod === 'kb') renderKBModule();
@@ -965,6 +968,199 @@ async function loadMyRequests() {
 let poFilter = [], poSearch = '', poSort = { field: 'tgl_po', dir: 'desc' };
 const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'Pengiriman', 'Instalasi', 'Commissioning', 'Selesai'];
 
+
+
+// ═══════════════════════════════════════════════════════════
+// ASSIGN MODULE - Owner/Admin/Direktur
+// ═══════════════════════════════════════════════════════════
+let assignTab = 'produksi'; // produksi | service
+
+async function renderAssignModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar">
+    <button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><div class="page-title">Assign PIC</div><div class="page-sub">Tentukan personel untuk tugas produksi & service</div></div>
+  </div>
+  <div class="page-body" id="assignBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+  
+  await loadPOs();
+  await renderAssignList();
+}
+
+async function renderAssignList() {
+  // Load tickets for service tab
+  const {data: tickets} = await sb.from('service_tickets').select('*,app_users:assigned_to(full_name)').neq('status','Selesai').order('created_at',{ascending:false});
+
+  // Count items needing PIC produksi
+  let prodNeedAssign = 0, prodTotal = 0;
+  allPOs.forEach(p => {
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      prodTotal++;
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi');
+      if(pics.length===0) prodNeedAssign++;
+    });
+  });
+
+  const svcNeedAssign = (tickets||[]).filter(t=>!t.assigned_to).length;
+  const svcTotal = (tickets||[]).length;
+
+  const tabBtn = (key, label, count) =>
+    `<button onclick="assignTab='${key}';renderAssignList()" style="padding:8px 16px;background:${assignTab===key?'var(--text)':'var(--surface)'};color:${assignTab===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer;font-weight:500">${label}${count?` <span style="opacity:.6;margin-left:4px">(${count})</span>`:''}</button>`;
+
+  let body = `<div style="display:flex;gap:6px;margin-bottom:1.25rem">
+    ${tabBtn('produksi','Produksi',prodNeedAssign)}
+    ${tabBtn('service','Service',svcNeedAssign)}
+  </div>`;
+
+  if(assignTab==='produksi') {
+    body += renderAssignProduksi();
+  } else {
+    body += renderAssignService(tickets||[]);
+  }
+
+  document.getElementById('assignBody').innerHTML = body;
+}
+
+function renderAssignProduksi() {
+  const items = [];
+  allPOs.forEach(p => {
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi');
+      items.push({po:p, item:it, pics});
+    });
+  });
+
+  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Belum ada item produksi</div>';
+
+  return `<div style="display:flex;flex-direction:column;gap:8px">
+    ${items.map(({po,item,pics})=>`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+            <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+            <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''}</div>
+            <div style="font-size:12px;margin-top:6px">
+              ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderAssignService(tickets) {
+  if(!tickets.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tiket aktif</div>';
+
+  return `<div style="display:flex;flex-direction:column;gap:8px">
+    ${tickets.map(t=>`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:var(--text3);font-family:monospace">${t.ticket_no||t.id}</div>
+            <div style="font-size:14px;font-weight:600;margin:2px 0">${t.customer_name||'—'}</div>
+            <div style="font-size:11px;color:var(--text2)">${t.unit_type||''}${t.complaint?' · '+t.complaint.substring(0,60):''}</div>
+            <div style="font-size:12px;margin-top:6px">
+              ${t.assigned_to ? `<span style="color:var(--text2)">PIC: <strong>${t.app_users?.full_name||'?'}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum di-assign</span>'}
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" data-tid="${t.id}" onclick="openAssignServiceModal(this.dataset.tid)">${t.assigned_to?'Ubah PIC':'Assign PIC'}</button>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+async function openAssignProduksiModal(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) return;
+
+  const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
+  const list = teknisi||[];
+
+  const {data: existing} = await sb.from('po_pic').select('user_id').eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
+  const picIds = (existing||[]).map(p=>p.user_id);
+
+  const cbs = list.map(t=>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px;background:${picIds.includes(t.id)?'var(--amber-bg)':'var(--surface2)'};border-radius:var(--r-sm);cursor:pointer">
+      <input type="checkbox" class="apicCb" value="${t.id}" ${picIds.includes(t.id)?'checked':''} onchange="apicCount()">
+      <span>${t.full_name} <span style="color:var(--text3);font-size:11px">(${t.role==='engineering'?'ET Support':t.role})</span></span>
+    </label>`
+  ).join('');
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Assign PIC Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${item.category} — ${item.model_name||'—'}<br><span style="color:var(--text3)">${po.no_po}</span></div>
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Pilih Teknisi <span style="color:var(--text3);font-weight:400">(maks. 3 orang)</span> <span id="apicCounter" style="float:right;font-size:11px;color:var(--text3)">${picIds.length}/3</span></label>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto">${cbs||'<span style="font-size:12px;color:var(--text3)">Belum ada teknisi</span>'}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="saveAssignProduksi(this.dataset.iid,this.dataset.pid)">Simpan</button>
+    </div>
+  </div>`);
+}
+
+function apicCount() {
+  const checked = document.querySelectorAll('.apicCb:checked');
+  document.getElementById('apicCounter').textContent = checked.length+'/3';
+  if(checked.length>3) {
+    event.target.checked = false;
+    toast('Maksimal 3 orang');
+    document.getElementById('apicCounter').textContent = '3/3';
+  }
+  document.querySelectorAll('.apicCb').forEach(cb=>{
+    cb.parentElement.style.background = cb.checked?'var(--amber-bg)':'var(--surface2)';
+  });
+}
+
+async function saveAssignProduksi(itemId, poId) {
+  const ids = Array.from(document.querySelectorAll('.apicCb:checked')).map(cb=>cb.value);
+  await sb.from('po_pic').delete().eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
+  if(ids.length) {
+    await sb.from('po_pic').insert(ids.map(uid=>({po_id:poId, item_id:itemId, stage:'Produksi', user_id:uid})));
+  }
+  await logPO(poId, 'Assign PIC Produksi', ids.length+' orang');
+  toast('PIC tersimpan');
+  closeAllModals();
+  await loadPOs();
+  await renderAssignList();
+}
+
+async function openAssignServiceModal(ticketId) {
+  const {data: t} = await sb.from('service_tickets').select('*').eq('id',ticketId).single();
+  if(!t) return;
+  const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
+  const list = teknisi||[];
+
+  const opts = list.map(u=>`<option value="${u.id}" ${t.assigned_to===u.id?'selected':''}>${u.full_name} (${u.role==='engineering'?'ET Support':u.role})</option>`).join('');
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Assign PIC Service</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${t.customer_name||'—'}<br><span style="color:var(--text3)">${t.complaint||''}</span></div>
+      <div class="form-row"><label>Pilih Teknisi</label>
+        <select id="asvcUser" style="width:100%;padding:6px 8px"><option value="">-- Tidak di-assign --</option>${opts}</select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" data-tid="${ticketId}" onclick="saveAssignService(this.dataset.tid)">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function saveAssignService(ticketId) {
+  const userId = gv('asvcUser') || null;
+  await sb.from('service_tickets').update({assigned_to: userId}).eq('id',ticketId);
+  toast('PIC service tersimpan');
+  closeAllModals();
+  await renderAssignList();
+}
 
 // ═══════════════════════════════════════════════════════════
 // HOME DASHBOARD
