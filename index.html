@@ -1238,6 +1238,52 @@ function renderAuditList() {
       </div>`}`;
 }
 
+
+// ═══ Group items by customer + project_name ═══
+window._groupCollapsed = {};
+
+function groupItemsByProject(items) {
+  // items: array of {po, item, ...rest}
+  const groups = {};
+  items.forEach(it => {
+    const key = (it.po.customer_name||'—') + ' ⁞ ' + (it.po.project_name || it.po.no_project || '(tanpa project)');
+    if(!groups[key]) groups[key] = {key, customer:it.po.customer_name||'—', project:it.po.project_name||it.po.no_project||'(tanpa project)', items:[]};
+    groups[key].items.push(it);
+  });
+  return Object.values(groups).sort((a,b)=>a.key.localeCompare(b.key));
+}
+
+function toggleGroup(groupKey, prefix='g') {
+  const id = prefix + '_' + btoa(unescape(encodeURIComponent(groupKey))).replace(/[^a-z0-9]/gi,'').substring(0,20);
+  const body = document.getElementById(id+'_body');
+  const arrow = document.getElementById(id+'_arrow');
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if(arrow) arrow.textContent = isOpen ? '▶' : '▼';
+  window._groupCollapsed[groupKey] = isOpen;
+}
+
+function groupId(groupKey, prefix='g') {
+  return prefix + '_' + btoa(unescape(encodeURIComponent(groupKey))).replace(/[^a-z0-9]/gi,'').substring(0,20);
+}
+
+function groupHeaderHTML(group, prefix='g', extraInfo='') {
+  const collapsed = window._groupCollapsed[group.key] || false;
+  const id = groupId(group.key, prefix);
+  return `
+    <div onclick="toggleGroup('${group.key.replace(/'/g,"\\'")}','${prefix}')" style="cursor:pointer;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.625rem .875rem;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;user-select:none">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+        <span id="${id}_arrow" style="font-size:10px;color:var(--text3);width:10px">${collapsed?'▶':'▼'}</span>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:600;line-height:1.3">${group.customer}</div>
+          <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${group.project}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:8px">${group.items.length} item${extraInfo?' · '+extraInfo:''}</div>
+    </div>`;
+}
+
 // ═══════════════════════════════════════════════════════════
 // ASSIGN MODULE - Owner/Admin/Direktur
 // ═══════════════════════════════════════════════════════════
@@ -1309,23 +1355,31 @@ function renderAssignProduksi() {
 
   if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Belum ada item produksi</div>';
 
-  return `<div style="display:flex;flex-direction:column;gap:8px">
-    ${items.map(({po,item,pics})=>`
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-            <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-            <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''}</div>
-            <div style="font-size:12px;margin-top:6px">
-              ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+  return groupItemsByProject(items).map(group=>{
+    const id = groupId(group.key, 'aprod');
+    const collapsed = window._groupCollapsed[group.key] || false;
+    const noPicCount = group.items.filter(x=>x.pics.length===0).length;
+    return `<div style="margin-bottom:6px">
+      ${groupHeaderHTML(group, 'aprod', noPicCount?noPicCount+' belum di-assign':'')}
+      <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+        ${group.items.map(({po,item,pics})=>`
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+                <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: '+item.serial_number:''}</div>
+                <div style="font-size:12px;margin-top:6px">
+                  ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+                </div>
+              </div>
+              <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
             </div>
           </div>
-          <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
-        </div>
+        `).join('')}
       </div>
-    `).join('')}
-  </div>`;
+    </div>`;
+  }).join('');
 }
 
 function renderAssignService(tickets) {
@@ -1452,25 +1506,33 @@ function renderAssignInstalasi() {
 
   if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item untuk instalasi/commissioning<br><span style="font-size:11px">Hanya PO dengan flag Instalasi atau Commissioning yang muncul</span></div>';
 
-  return `<div style="display:flex;flex-direction:column;gap:8px">
-    ${items.map(({po,item,pics})=>{
-      const flags = [p=>p.has_instalasi?'Instalasi':'',p=>p.has_commissioning?'Commissioning':''].map(f=>f(po)).filter(Boolean).join(' + ');
-      return `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-            <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-            <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''} <span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px">${flags}</span></div>
-            <div style="font-size:12px;margin-top:6px">
-              ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+  return groupItemsByProject(items).map(group=>{
+    const id = groupId(group.key, 'ainst');
+    const collapsed = window._groupCollapsed[group.key] || false;
+    const noPicCount = group.items.filter(x=>x.pics.length===0).length;
+    return `<div style="margin-bottom:6px">
+      ${groupHeaderHTML(group, 'ainst', noPicCount?noPicCount+' belum di-assign':'')}
+      <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+        ${group.items.map(({po,item,pics})=>{
+          const flags = [p=>p.has_instalasi?'Instalasi':'',p=>p.has_commissioning?'Commissioning':''].map(f=>f(po)).filter(Boolean).join(' + ');
+          return `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+                <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: '+item.serial_number:''} <span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px">${flags}</span></div>
+                <div style="font-size:12px;margin-top:6px">
+                  ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+                </div>
+              </div>
+              <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
             </div>
-          </div>
-          <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function openAssignInstalasiModal(itemId, poId) {
@@ -1669,29 +1731,36 @@ async function renderETSList() {
       ${filterBtn('done', 'Lengkap', doneCount)}
     </div>
     ${filtered.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item</div>' :
-      `<div style="display:flex;flex-direction:column;gap:8px">
-        ${filtered.map(({po,item,hasSpec,hasDetailSpec})=>{
-          const badges = [];
-          badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
-          badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec ✕</span>');
-          return `
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-                <div style="font-size:11px;color:var(--text2)">${po.customer_name}${po.project_name?' · '+po.project_name:''}${item.serial_number?' · SN: <span style="font-family:monospace">'+item.serial_number+'</span>':''}</div>
-                <div style="display:flex;gap:4px;margin-top:6px">${badges.join('')}</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit Item</button>
-              ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec & Generate SN</button>` : ''}
-              <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`}`;
+      groupItemsByProject(filtered).map(group=>{
+        const id = groupId(group.key, 'ets');
+        const collapsed = window._groupCollapsed[group.key] || false;
+        return `<div style="margin-bottom:6px">
+          ${groupHeaderHTML(group, 'ets')}
+          <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+            ${group.items.map(({po,item,hasSpec,hasDetailSpec})=>{
+              const badges = [];
+              badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
+              badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec ✕</span>');
+              return `
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                    <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+                    <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: <span style="font-family:monospace">'+item.serial_number+'</span>':'Belum ada SN'}</div>
+                    <div style="display:flex;gap:4px;margin-top:6px">${badges.join('')}</div>
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit Item</button>
+                  ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec & Generate SN</button>` : ''}
+                  <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1728,24 +1797,31 @@ async function renderProduksiModule() {
   document.getElementById('produksiBody').innerHTML = `
     <div style="margin-bottom:1rem"><div class="page-sub">Item produksi aktif (${tasks.length})</div></div>
     ${tasks.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tugas produksi aktif</div>' :
-      `<div style="display:flex;flex-direction:column;gap:8px">
-        ${tasks.map(({po,item})=>{
-          const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
-          const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
-          return `
-          <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem;cursor:pointer" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'—'}</div>
-                <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?` · SN: ${item.serial_number}`:''}</div>
-                ${myPics.length?`<div style="font-size:10px;color:var(--text3);margin-top:3px">👷 ${myPics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:''}
-              </div>
-              <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${item.item_status}</span>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>`}`;
+      groupItemsByProject(tasks).map(group=>{
+        const id = groupId(group.key, 'prod');
+        const collapsed = window._groupCollapsed[group.key] || false;
+        return `<div style="margin-bottom:6px">
+          ${groupHeaderHTML(group, 'prod')}
+          <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+            ${group.items.map(({po,item})=>{
+              const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
+              const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
+              return `
+              <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;cursor:pointer;margin-bottom:6px" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                    <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'—'}</div>
+                    <div style="font-size:11px;color:var(--text2)">${item.serial_number?`SN: ${item.serial_number}`:''}</div>
+                    ${myPics.length?`<div style="font-size:10px;color:var(--text3);margin-top:3px">👷 ${myPics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:''}
+                  </div>
+                  <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${item.item_status}</span>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}`;
 }
 
 
