@@ -1055,41 +1055,75 @@ async function renderHomeModule() {
 // ═══════════════════════════════════════════════════════════
 // ETS MODULE
 // ═══════════════════════════════════════════════════════════
+let etsFilter = 'all'; // all | pending | done
+
 async function renderETSModule() {
   const main = document.getElementById('mainContent');
-  main.innerHTML = `<div class="topbar"><button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="page-title">ETS</div><div class="page-sub">Engineering & Technical Support</div></div></div>
-    <div class="page-body" id="etsBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+  main.innerHTML = `<div class="topbar">
+    <button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><div class="page-title">ETS</div><div class="page-sub">Engineering & Technical Support</div></div>
+  </div>
+  <div class="page-body" id="etsBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
 
   await loadPOs();
+  await renderETSList();
+}
 
-  // Build list of items needing ETS attention
-  const tasks = [];
+async function renderETSList() {
+  // Load detail_specs to know which items have full webpage spec
+  const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
+  const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
+
+  // Build all items
+  const allItems = [];
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
-      const issues = [];
-      if(!it.serial_number) issues.push('Belum ada SN');
-      // Could check for detail_specs but separate query is heavy; just show items
-      if(issues.length || !it.serial_number) {
-        tasks.push({po:p, item:it, issues});
-      }
+      const hasSpec = !!it.serial_number; // SN means spec was input
+      const hasDetailSpec = dsItemIds.has(it.id);
+      const isPending = !hasSpec || !hasDetailSpec;
+      allItems.push({po:p, item:it, hasSpec, hasDetailSpec, isPending});
     }
   }
 
+  let filtered = allItems;
+  if(etsFilter === 'pending') filtered = allItems.filter(x=>x.isPending);
+  else if(etsFilter === 'done') filtered = allItems.filter(x=>!x.isPending);
+
+  const pendingCount = allItems.filter(x=>x.isPending).length;
+  const doneCount = allItems.length - pendingCount;
+
+  const filterBtn = (key, label, count) =>
+    `<button onclick="etsFilter='${key}';renderETSList()" style="padding:6px 14px;background:${etsFilter===key?'var(--text)':'var(--surface)'};color:${etsFilter===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer">${label} <span style="opacity:.7">(${count})</span></button>`;
+
   document.getElementById('etsBody').innerHTML = `
-    <div style="margin-bottom:1rem"><div class="page-sub">Item yang membutuhkan perhatian ETS (${tasks.length})</div></div>
-    ${tasks.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">✓ Semua item sudah lengkap</div>' :
+    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
+      ${filterBtn('all', 'Semua', allItems.length)}
+      ${filterBtn('pending', 'Belum Lengkap', pendingCount)}
+      ${filterBtn('done', 'Lengkap', doneCount)}
+    </div>
+    ${filtered.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item</div>' :
       `<div style="display:flex;flex-direction:column;gap:8px">
-        ${tasks.map(({po,item,issues})=>`
-          <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:12px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-              <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-              <div style="font-size:11px;color:var(--text2)">${po.customer_name} · ${po.project_name||''}</div>
-              ${issues.length?`<div style="font-size:11px;color:var(--coral);margin-top:4px">⚠ ${issues.join(', ')}</div>`:''}
+        ${filtered.map(({po,item,hasSpec,hasDetailSpec})=>{
+          const badges = [];
+          badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
+          badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec ✕</span>');
+          return `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+                <div style="font-size:11px;color:var(--text2)">${po.customer_name}${po.project_name?' · '+po.project_name:''}${item.serial_number?' · SN: <span style="font-family:monospace">'+item.serial_number+'</span>':''}</div>
+                <div style="display:flex;gap:4px;margin-top:6px">${badges.join('')}</div>
+              </div>
             </div>
-            <div style="font-size:11px;color:var(--text3)">→</div>
-          </div>
-        `).join('')}
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit Item</button>
+              ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec & Generate SN</button>` : ''}
+              <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
+            </div>
+          </div>`;
+        }).join('')}
       </div>`}`;
 }
 
@@ -1304,13 +1338,10 @@ async function openPODetail(id) {
     <div class="item-card">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>
-        <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}${it.spec_summary ? ' &middot; ' + it.spec_summary : ''}${it.serial_number ? ' &middot; SN: ' + it.serial_number : ''}</div>
-        ${(()=>{const pics=(p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi'); return pics.length?`<div style="font-size:10px;color:var(--text2);margin-top:3px">👷 PIC: ${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:'';})()}
+        <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
-        <button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
-        ${(canManage || can('po_engineering')) ? `<button class="btn btn-sm" style="font-size:11px;background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${it.id}" data-pid="${p.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>` : ''}
+        ${canManage ? `<button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openSimpleItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>` : ''}
       </div>
     </div>`).join('') : noData('Belum ada item');
 
@@ -1356,8 +1387,8 @@ async function openPODetail(id) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${items.length})</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${(can('po_engineering') || canManage) ? `<button class="btn btn-sm" onclick="openItemForm('${p.id}')">+ Tambah</button>` : ''}
-            ${(canManage && p.status === 'Produksi') ? `<button class="btn btn-sm btn-blue" onclick="openGenSerialModal('${p.id}')">🔢 Generate SN</button>` : ''}
+            ${canManage ? `<button class="btn btn-sm" onclick="openSimpleItemForm(null,'${p.id}')">+ Tambah Item</button>` : ''}
+            
           </div>
         </div>
         ${itemsHtml}
@@ -2009,6 +2040,58 @@ async function saveDetailSpec(itemId, poId) {
 }
 
 // EDIT ITEM FORM
+
+// Simple item form for Kelola PO (no spec, no SN, no PIC)
+async function openSimpleItemForm(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const it = itemId ? po?.po_items?.find(x=>x.id===itemId) : null;
+  const isEdit = !!it;
+  
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${isEdit?'Edit':'Tambah'} Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Kategori</label><select id="sitCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it?.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
+        <div class="form-row"><label>Qty</label><input type="number" id="sitQty" value="${it?.qty||1}" min="1"></div>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Model / Tipe (sesuai PO)</label><input type="text" id="sitModel" value="${it?.model_name||''}" placeholder="Contoh: S-PRO1 110-10A"></div>
+      <div class="form-row" style="margin-top:4px"><label>Catatan</label><input type="text" id="sitCatatan" value="${it?.catatan||''}" placeholder="Opsional"></div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:10px"><input type="checkbox" id="sitProd" ${it?(it.is_produksi?'checked':''):'checked'}><span>Diproduksi internal</span></label>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      ${isEdit ? `<button class="btn btn-sm btn-danger" data-iid="${itemId}" data-pid="${poId}" onclick="deleteItem(this.dataset.iid,this.dataset.pid)">Hapus</button>` : '<div></div>'}
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeAllModals()">Batal</button>
+        <button class="btn btn-primary" data-iid="${itemId||''}" data-pid="${poId}" onclick="saveSimpleItem(this.dataset.iid,this.dataset.pid)">Simpan</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+async function saveSimpleItem(itemId, poId) {
+  const data = {
+    category: gv('sitCat'),
+    model_name: gv('sitModel')||null,
+    qty: parseInt(gv('sitQty'))||1,
+    catatan: gv('sitCatatan')||null,
+    is_produksi: document.getElementById('sitProd').checked
+  };
+  if(itemId) {
+    await sb.from('po_items').update(data).eq('id', itemId);
+    await logPO(poId, 'Edit Item', data.category);
+    toast('Item diperbarui');
+  } else {
+    data.po_id = poId;
+    data.item_status = 'Belum Produksi';
+    await sb.from('po_items').insert(data);
+    await logPO(poId, 'Tambah Item', data.category);
+    toast('Item ditambahkan');
+  }
+  await loadPOs();
+  closeAllModals();
+  openPODetail(poId);
+}
+
 async function openEditItemForm(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
   const it = po?.po_items?.find(x=>x.id===itemId);
