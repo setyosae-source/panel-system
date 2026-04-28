@@ -527,7 +527,7 @@ function buildSidebar() {
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
   if (can('po_view')) nav += navItem('po', poIcon(), 'Pabrikasi / PO', 'nbPO');
   if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
-  if (can('teknisi') || canManage) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
+  if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('users')) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; nav += navItem('users', usersIcon(), 'Kelola User', ''); }
@@ -979,7 +979,7 @@ async function renderHomeModule() {
   const cards = [];
 
   // PRODUKSI tasks (assigned to me as PIC)
-  if(can('teknisi') || canManage) {
+  if(can('teknisi') || can('po_manage')) {
     let prodCount = 0;
     allPOs.forEach(p => {
       (p.po_items||[]).forEach(it => {
@@ -1005,7 +1005,7 @@ async function renderHomeModule() {
   // SERVICE tickets assigned to me
   if(can('service_view')) {
     const {data: svcAssigned} = await sb.from('service_tickets').select('id,status,assigned_to').neq('status','Selesai');
-    const myTickets = (svcAssigned||[]).filter(t => t.assigned_to===me.id || canManage);
+    const myTickets = (svcAssigned||[]).filter(t => t.assigned_to===me.id || can('po_manage'));
     cards.push({mod:'service', icon:'🔧', title:'Service', desc:'Tiket service aktif', count:myTickets.length, color:'#dc2626'});
   }
 
@@ -1109,7 +1109,7 @@ async function renderProduksiModule() {
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
       const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
-      if(canManage || isMyPic) {
+      if(can('po_manage') || isMyPic) {
         if(it.item_status !== 'Selesai Produksi') {
           tasks.push({po:p, item:it});
         }
