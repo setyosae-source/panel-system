@@ -1119,6 +1119,7 @@ async function openPODetail(id) {
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
         <button class="btn btn-sm" style="font-size:11px" data-iid="${it.id}" data-pid="${p.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
+        ${(canManage || can('po_engineering')) ? `<button class="btn btn-sm" style="font-size:11px;background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${it.id}" data-pid="${p.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>` : ''}
       </div>
     </div>`).join('') : noData('Belum ada item');
 
@@ -1530,6 +1531,287 @@ function saveItemSpecFromForm(){
   toast('Spec disimpan');
   closeModal('specModal');
   renderPOItems();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ETS DETAIL SPEC MODULE
+// ═══════════════════════════════════════════════════════════
+
+const BRAND_OPTIONS = ['SAEPOWER', 'SAE ENERGY'];
+const COLOUR_OPTIONS = ['Powder Coating RAL7035', 'Powder Coating RAL7032'];
+const IP_OPTIONS = ['IP 21', 'IP 23', 'IP 41', 'IP 54', 'IP 55'];
+const PHASE_OPTIONS = ['1 Phase', '1 Phase + N', '3 Phase', '3 Phase + N'];
+const CABLE_OPTIONS = ['Front Bottom', 'Front Top', 'Bottom', 'Top'];
+const PULSE_OPTIONS = ['2', '6', '12', '24'];
+
+function dsDocsSection(itemId) {
+  const fields = [
+    {key:'photos', label:'Foto Unit', accept:'image/*'},
+    {key:'doc_drawing_approval', label:'Drawing Approval', accept:'*'},
+    {key:'doc_asbuilt', label:'As-Built Drawing', accept:'*'},
+    {key:'doc_fat', label:'Dokumen FAT', accept:'*'},
+  ];
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    + fields.map(f=>
+      '<div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">'+f.label+'</div>'
+      + '<div id="ds_'+f.key+'_list"></div>'
+      + '<button class="btn btn-sm" id="dsbtn_'+f.key+'">+ Upload</button>'
+      + '<input type="file" id="ds_'+f.key+'_input" data-field="'+f.key+'" data-iid="'+itemId+'" '
+      + (f.accept==='image/*'?'accept="image/*" ':'') + 'multiple style="display:none">'
+      + '</div>'
+    ).join('')
+    + '</div>';
+}
+
+async function openDetailSpecModal(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(i=>i.id===itemId);
+  if(!item) return;
+
+  // Load existing detail spec
+  const {data: ds} = await sb.from('item_detail_specs').select('*').eq('item_id', itemId).single().catch(()=>({data:{}}));
+  const spec = ds || {};
+  const cat = item.category;
+
+  // Load autocomplete data from previous specs
+  const {data: prevSpecs} = await sb.from('item_detail_specs').select('*').limit(50).catch(()=>({data:[]}));
+  const prev = prevSpecs || [];
+
+  // Build autocomplete suggestions per field
+  const suggestions = {};
+  const acFields = ['r_input_voltage','r_output_voltage','r_output_current','r_voltage_adjustable',
+    'u_rect_input_voltage','u_dc_bus_voltage','u_dc_bus_current','u_inv_output_voltage',
+    'u_capacity_kva','u_capacity_kw','i_capacity_kva','i_capacity_kw',
+    'i_input_voltage','i_output_voltage','i_topology',
+    'p_input_voltage','p_current_rating','p_feeder_count','p_feeder_rating','custom_notes'];
+  acFields.forEach(f => {
+    suggestions[f] = [...new Set(prev.map(p=>p[f]).filter(Boolean))];
+  });
+
+  window._dsItemId = itemId;
+  window._dsSuggestions = suggestions;
+
+  function sel(id, opts, val, placeholder='') {
+    return '<select id="ds_'+id+'" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'
+      + (placeholder?'<option value="">'+placeholder+'</option>':'')
+      + opts.map(o=>'<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>').join('')
+      + '</select>';
+  }
+
+  function inp(id, val, placeholder='') {
+    const sugg = (suggestions[id]||[]);
+    const listId = 'list_'+id;
+    let html = '<input type="text" id="ds_'+id+'" value="'+(val||'')+'" placeholder="'+placeholder+'" '
+      + 'style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" '
+      + (sugg.length?'list="'+listId+'"':'') + '>';
+    if(sugg.length) html += '<datalist id="'+listId+'">'+sugg.map(s=>'<option value="'+s+'">').join('')+'</datalist>';
+    return html;
+  }
+
+  function row(label, inputHtml) {
+    return '<div class="form-row" style="margin-bottom:8px"><label style="font-size:12px;color:var(--text2);margin-bottom:4px;display:block">'+label+'</label>'+inputHtml+'</div>';
+  }
+
+  function section(title, html) {
+    return '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">'
+      + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">'+title+'</div>'
+      + html + '</div>';
+  }
+
+  // Common fields
+  let commonHtml = '<div class="form-grid">'
+    + row('Brand', sel('brand', BRAND_OPTIONS, spec.brand||'SAEPOWER'))
+    + row('IP Protection', sel('ip_protection', IP_OPTIONS, spec.ip_protection||'IP 23'))
+    + row('Colour', sel('colour', COLOUR_OPTIONS, spec.colour||'Powder Coating RAL7035'))
+    + row('Cable Entry', sel('cable_entry', CABLE_OPTIONS, spec.cable_entry||''))
+    + '</div>';
+
+  // Category specific
+  let catHtml = '';
+  if(cat === 'Rectifier') {
+    catHtml = section('INPUT', '<div class="form-grid">'
+      + row('Parallel Input', '<label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="ds_r_parallel_input"'+(spec.r_parallel_input?' checked':'')+'>  <span style="font-size:13px">2 Input (Parallel System)</span></label>')
+      + row('Input Voltage', inp('r_input_voltage', spec.r_input_voltage, '220 / 380 VAC'))
+      + row('Input Phase', sel('r_input_phase', PHASE_OPTIONS, spec.r_input_phase||'1 Phase'))
+      + row('Pulse', sel('r_pulse', PULSE_OPTIONS, spec.r_pulse||'6'))
+      + '</div>')
+    + section('OUTPUT', '<div class="form-grid">'
+      + row('Output Voltage', inp('r_output_voltage', spec.r_output_voltage, '110 VDC'))
+      + row('Output Current', inp('r_output_current', spec.r_output_current, '10 A'))
+      + row('Voltage Adjustable', inp('r_voltage_adjustable', spec.r_voltage_adjustable, '100~160 VDC via front panel'))
+      + '</div>');
+  } else if(cat === 'UPS') {
+    catHtml = section('RECTIFIER', '<div class="form-grid">'
+      + row('Capacity', inp('u_capacity_kva', spec.u_capacity_kva, 'kVA') + '<div style="margin-top:4px">'+inp('u_capacity_kw', spec.u_capacity_kw, 'kW')+'</div>')
+      + row('Input Voltage', inp('u_rect_input_voltage', spec.u_rect_input_voltage, '380 VAC'))
+      + row('Input Phase', sel('u_rect_input_phase', PHASE_OPTIONS, spec.u_rect_input_phase||'3 Phase + N'))
+      + row('DC Bus Voltage', inp('u_dc_bus_voltage', spec.u_dc_bus_voltage, '110 VDC'))
+      + row('DC Bus Current', inp('u_dc_bus_current', spec.u_dc_bus_current, '200A'))
+      + '</div>')
+    + section('INVERTER OUTPUT', '<div class="form-grid">'
+      + row('Output Voltage', inp('u_inv_output_voltage', spec.u_inv_output_voltage, '220 VAC'))
+      + row('Output Phase', sel('u_inv_output_phase', PHASE_OPTIONS, spec.u_inv_output_phase||'1 Phase + N'))
+      + row('Bypass Voltage', inp('u_bypass_voltage', spec.u_bypass_voltage, '380/220 VAC'))
+      + '</div>');
+  } else if(cat === 'Inverter') {
+    catHtml = section('INVERTER', '<div class="form-grid">'
+      + row('Capacity kVA', inp('i_capacity_kva', spec.i_capacity_kva, 'kVA'))
+      + row('Capacity kW', inp('i_capacity_kw', spec.i_capacity_kw, 'kW'))
+      + row('DC Input Voltage', inp('i_input_voltage', spec.i_input_voltage, '110 VDC'))
+      + row('Voltage Tolerance', inp('i_input_tolerance', spec.i_input_tolerance||'+/- 20%', '+/- 20%'))
+      + row('AC Output Voltage', inp('i_output_voltage', spec.i_output_voltage, '220 VAC'))
+      + row('Output Phase', sel('i_output_phase', PHASE_OPTIONS, spec.i_output_phase||'1 Phase'))
+      + row('Topology', inp('i_topology', spec.i_topology, 'Full Bridge IGBT'))
+      + '</div>');
+  } else if(cat === 'Panel ACDB' || cat === 'Panel DCDB') {
+    catHtml = section('PANEL', '<div class="form-grid">'
+      + row('Input Voltage', inp('p_input_voltage', spec.p_input_voltage, cat==='Panel ACDB'?'380 VAC':'110 VDC'))
+      + (cat==='Panel ACDB'?row('Input Phase', sel('p_input_phase', PHASE_OPTIONS, spec.p_input_phase||'3 Phase')):'')
+      + row('Current Rating', inp('p_current_rating', spec.p_current_rating, '100 A'))
+      + row('Feeder Count', inp('p_feeder_count', spec.p_feeder_count, '10'))
+      + row('Feeder Rating', inp('p_feeder_rating', spec.p_feeder_rating, '6A / 10A'))
+      + '</div>');
+  }
+
+  // Docs & photos section
+  const docsHtml = section('FOTO & DOKUMEN', dsDocsSection(itemId));
+
+    const customHtml = section('KUSTOMISASI',
+    row('Catatan Custom / Tambahan', '<textarea id="ds_custom_notes" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'+(spec.custom_notes||'')+'</textarea>'));
+
+  openModal('<div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">'
+    + '<div class="modal-header"><div><h2>Detail Spec — '+item.model_name+'</h2><div style="font-size:12px;color:var(--text3)">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+    + '<div class="modal-body">'
+    + commonHtml + catHtml + docsHtml + customHtml
+    + '</div>'
+    + '<div class="modal-footer">'
+    + '<button class="btn" onclick="closeAllModals()">Batal</button>'
+    + '<button class="btn btn-primary" data-iid="'+itemId+'" data-pid="'+poId+'" onclick="saveDetailSpec(this.dataset.iid,this.dataset.pid)">Simpan Detail Spec</button>'
+    + '</div>'
+    + '</div>');
+
+  // Bind upload buttons after modal renders
+  setTimeout(()=>{
+    dsRenderFiles(spec);
+    ['photos','doc_drawing_approval','doc_asbuilt','doc_fat'].forEach(key=>{
+      const btn = document.getElementById('dsbtn_'+key);
+      const inp = document.getElementById('ds_'+key+'_input');
+      if(btn && inp) {
+        btn.onclick = ()=>inp.click();
+        inp.onchange = (e)=>dsHandleUpload(key, itemId, e.target);
+      }
+    });
+  }, 200);
+}
+
+function dsRenderFiles(spec) {
+  ['photos','doc_drawing_approval','doc_asbuilt','doc_fat'].forEach(key => {
+    const el = document.getElementById('ds_'+key+'_list');
+    if(!el) return;
+    const files = spec[key] || [];
+    el.innerHTML = files.length
+      ? files.map((f,i)=>'<div style="font-size:11px;padding:3px 0;display:flex;align-items:center;gap:6px"><a href="'+f.url+'" target="_blank" style="color:var(--blue);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.name+'</a></div>').join('')
+      : '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Belum ada</div>';
+  });
+}
+
+function dsUpload(field, itemId) {
+  document.getElementById('ds_'+field+'_input').click();
+}
+
+async function dsHandleUpload(field, itemId, input) {
+  const files = Array.from(input.files);
+  const {data: existing} = await sb.from('item_detail_specs').select(field).eq('item_id', itemId).single().catch(()=>({data:{}}));
+  const arr = existing?.[field] || [];
+  for(const f of files) {
+    const path = 'item-docs/'+itemId+'/'+field+'/'+Date.now()+'_'+f.name;
+    const {error} = await sb.storage.from('item-docs').upload(path, f);
+    if(!error) {
+      const url = SB_URL+'/storage/v1/object/public/item-docs/'+path;
+      arr.push({name: f.name, url, path});
+      toast(f.name+' diupload');
+    } else toast('Gagal: '+f.name);
+  }
+  const update = {};
+  update[field] = arr;
+  await sb.from('item_detail_specs').upsert({item_id: itemId, ...update}, {onConflict:'item_id'});
+  input.value = '';
+  dsRenderFiles({...((await sb.from('item_detail_specs').select('*').eq('item_id',itemId).single().catch(()=>({data:{}})))?.data||{})});
+}
+
+function gvds(id) {
+  const el = document.getElementById('ds_'+id);
+  return el ? el.value.trim() : null;
+}
+
+async function saveDetailSpec(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(i=>i.id===itemId);
+  const cat = item?.category;
+
+  const data = {
+    item_id: itemId,
+    brand: gvds('brand'),
+    ip_protection: gvds('ip_protection'),
+    colour: gvds('colour'),
+    cable_entry: gvds('cable_entry'),
+    custom_notes: gvds('custom_notes'),
+    updated_at: new Date().toISOString()
+  };
+
+  if(cat === 'Rectifier') {
+    Object.assign(data, {
+      r_parallel_input: document.getElementById('ds_r_parallel_input')?.checked || false,
+      r_input_voltage: gvds('r_input_voltage'),
+      r_input_phase: gvds('r_input_phase'),
+      r_pulse: gvds('r_pulse'),
+      r_output_voltage: gvds('r_output_voltage'),
+      r_output_current: gvds('r_output_current'),
+      r_voltage_adjustable: gvds('r_voltage_adjustable'),
+    });
+    // Auto power factor based on pulse
+    const pulse = parseInt(data.r_pulse||'6');
+    data.r_power_factor = pulse >= 12 ? '>0.9' : pulse === 6 ? '>0.8' : '>0.7';
+  } else if(cat === 'UPS') {
+    Object.assign(data, {
+      u_capacity_kva: gvds('u_capacity_kva'),
+      u_capacity_kw: gvds('u_capacity_kw'),
+      u_rect_input_voltage: gvds('u_rect_input_voltage'),
+      u_rect_input_phase: gvds('u_rect_input_phase'),
+      u_dc_bus_voltage: gvds('u_dc_bus_voltage'),
+      u_dc_bus_current: gvds('u_dc_bus_current'),
+      u_inv_output_voltage: gvds('u_inv_output_voltage'),
+      u_inv_output_phase: gvds('u_inv_output_phase'),
+      u_bypass_voltage: gvds('u_bypass_voltage'),
+    });
+  } else if(cat === 'Inverter') {
+    Object.assign(data, {
+      i_capacity_kva: gvds('i_capacity_kva'),
+      i_capacity_kw: gvds('i_capacity_kw'),
+      i_input_voltage: gvds('i_input_voltage'),
+      i_input_tolerance: gvds('i_input_tolerance'),
+      i_output_voltage: gvds('i_output_voltage'),
+      i_output_phase: gvds('i_output_phase'),
+      i_topology: gvds('i_topology'),
+    });
+  } else if(cat === 'Panel ACDB' || cat === 'Panel DCDB') {
+    Object.assign(data, {
+      p_input_voltage: gvds('p_input_voltage'),
+      p_input_phase: gvds('p_input_phase'),
+      p_current_rating: gvds('p_current_rating'),
+      p_feeder_count: gvds('p_feeder_count'),
+      p_feeder_rating: gvds('p_feeder_rating'),
+    });
+  }
+
+  const {error} = await sb.from('item_detail_specs').upsert(data, {onConflict:'item_id'});
+  if(error) { toast('Error: '+error.message); return; }
+  toast('Detail spec disimpan');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
 }
 
 // EDIT ITEM FORM
