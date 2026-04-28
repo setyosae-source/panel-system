@@ -3330,9 +3330,30 @@ async function loadUsers() {
     </tr>`).join('');
 }
 
+const MODULE_LIST = [
+  {key:'pp', label:'Pre-Project'},
+  {key:'po', label:'Kelola PO'},
+  {key:'ets', label:'ETS'},
+  {key:'produksi', label:'Produksi (assign-only)'},
+  {key:'logistik', label:'Logistik'},
+  {key:'service', label:'Service (assign-only)'},
+  {key:'kb', label:'Knowledge Base'},
+];
+
 async function openUserForm(userId) {
   const u = userId ? allUsers.find(x => x.id === userId) : null;
   const roles = Object.keys(ROLE_LABELS).filter(r => isOwner() || r !== 'owner');
+  const userPerms = u?.permissions || {};
+
+  const isFixedRole = u && ['owner','admin','sales'].includes(u.role);
+
+  const moduleCheckboxes = MODULE_LIST.map(m => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:${userPerms[m.key]?'var(--amber-bg)':'var(--surface2)'};border-radius:var(--r-sm);cursor:pointer;font-size:13px" id="lblMod_${m.key}">
+      <input type="checkbox" class="modCb" data-key="${m.key}" ${userPerms[m.key]?'checked':''} onchange="toggleModBg('${m.key}')">
+      <span>${m.label}</span>
+    </label>
+  `).join('');
+
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>${u ? 'Edit User' : 'User Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -3341,7 +3362,7 @@ async function openUserForm(userId) {
         <div class="form-row"><label>Nama Lengkap <span class="req">*</span></label><input type="text" id="ufFullName" value="${u?.full_name || ''}" placeholder="Nama lengkap"></div>
       </div>
       <div class="form-row"><label>Role <span class="req">*</span></label>
-        <select id="ufRole" style="width:100%;padding:6px 8px">
+        <select id="ufRole" style="width:100%;padding:6px 8px" onchange="onRoleChange()">
           <option value="">-- Pilih Role --</option>
           ${roles.map(r => `<option value="${r}" ${u?.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`).join('')}
         </select>
@@ -3350,20 +3371,56 @@ async function openUserForm(userId) {
         <label>Password${u ? ' <span style="font-weight:400;color:var(--text3)">(kosongkan jika tidak diubah)</span>' : ' <span class="req">*</span>'}</label>
         <input type="password" id="ufPassword" placeholder="Password" autocomplete="new-password">
       </div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="ufActive" ${u?.is_active !== false ? 'checked' : ''}><span>Aktif</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:10px"><input type="checkbox" id="ufActive" ${u?.is_active !== false ? 'checked' : ''}><span>Aktif</span></label>
+      
+      <div id="permsSection" style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Akses Modul Custom</label>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.5">
+          Owner, Admin, Sales, dan Direktur sudah otomatis akses sesuai role.<br>
+          Untuk role lain, centang modul yang bisa diakses.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${moduleCheckboxes}</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
       <button class="btn btn-primary" data-uid="${userId || ''}" onclick="saveUser(this.dataset.uid)">Simpan</button>
     </div>
   </div>`);
+
+  setTimeout(()=>onRoleChange(), 50);
+}
+
+function toggleModBg(key) {
+  const cb = document.querySelector(`.modCb[data-key="${key}"]`);
+  const lbl = document.getElementById('lblMod_'+key);
+  if(cb && lbl) lbl.style.background = cb.checked ? 'var(--amber-bg)' : 'var(--surface2)';
+}
+
+function onRoleChange() {
+  const role = gv('ufRole');
+  const sec = document.getElementById('permsSection');
+  if(!sec) return;
+  const isFixed = ['owner','admin','sales','direktur'].includes(role);
+  sec.style.opacity = isFixed ? '.4' : '1';
+  sec.style.pointerEvents = isFixed ? 'none' : 'auto';
 }
 
 async function saveUser(editId) {
   const username = gv('ufUsername').trim(), fullName = gv('ufFullName').trim(), role = gv('ufRole'), pw = gv('ufPassword');
   if (!username || !fullName || !role) { toast('Lengkapi field wajib'); return; }
   if (!editId && !pw) { toast('Password wajib untuk user baru'); return; }
-  const payload = { username, full_name: fullName, role, is_active: document.getElementById('ufActive').checked };
+
+  // Collect custom permissions (only for non-fixed roles)
+  const isFixed = ['owner','admin','sales','direktur'].includes(role);
+  let permissions = {};
+  if(!isFixed) {
+    document.querySelectorAll('.modCb:checked').forEach(cb => {
+      permissions[cb.dataset.key] = true;
+    });
+  }
+
+  const payload = { username, full_name: fullName, role, is_active: document.getElementById('ufActive').checked, permissions };
   if (pw) payload.password_hash = await sha256(pw);
   if (editId) {
     if (!pw) delete payload.password_hash;
