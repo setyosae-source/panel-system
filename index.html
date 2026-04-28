@@ -2024,6 +2024,7 @@ async function openEditItemForm(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
   const it = po?.po_items?.find(x=>x.id===itemId);
   if(!it) return;
+  const canManage = can('po_manage');
 
   // Load teknisi list
   const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
@@ -2086,6 +2087,7 @@ function picCountCheck() {
 }
 
 async function saveEditItem(itemId, poId, openSpec=false) {
+  const canManage = can('po_manage');
   await sb.from('po_items').update({
     category: gv('itCat'),
     model_name: gv('itModel')||null,
