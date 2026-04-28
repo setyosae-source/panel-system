@@ -436,13 +436,13 @@ let salesFiles = [];
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════
 const ROLE_PERMS = {
-  owner: { all: 1, nilai_po: 1, users: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
-  admin: { nilai_po: 1, users: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
+  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
+  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
   sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1 },
   engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
   produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
   logistik: { po_view: 1, po_logistik: 1 },
-  teknisi: { service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 }
+  teknisi: { teknisi: 1,  service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 }
 };
 
 function getPerms() {
@@ -505,10 +505,7 @@ function startApp() {
   document.getElementById('appShell').style.display = 'block';
   buildSidebar();
   // default module
-  if (can('po_view')) switchModule('po');
-  else if (can('pp_view')) switchModule('pp');
-  else if (can('service_view')) switchModule('service');
-  else if (can('kb_view')) switchModule('kb');
+  switchModule('home');
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -524,9 +521,13 @@ function buildSidebar() {
   const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'Engineering', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
   const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
 
-  let nav = '<div class="sb-label">Modul</div>';
+  let nav = '<div class="sb-label">Beranda</div>';
+  nav += navItem('home', homeIcon(), 'Home', 'nbHome');
+  nav += '<div class="sb-divider"></div><div class="sb-label">Modul</div>';
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
   if (can('po_view')) nav += navItem('po', poIcon(), 'Pabrikasi / PO', 'nbPO');
+  if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
+  if (can('teknisi') || canManage) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('users')) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; nav += navItem('users', usersIcon(), 'Kelola User', ''); }
@@ -549,6 +550,10 @@ function navItem(mod, icon, label, badgeId) {
   return `<button class="sb-item" id="nav_${mod}" onclick="switchModule('${mod}')">${icon}${label}${badge}</button>`;
 }
 
+function homeIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'; }
+function etsIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'; }
+function prodIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.121 2.121 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'; }
+
 function ppIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`; }
 function poIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`; }
 function svcIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`; }
@@ -563,8 +568,11 @@ function switchModule(mod) {
   closeSidebar();
   const content = document.getElementById('mainContent');
   content.scrollTop = 0;
-  if (mod === 'pp') renderPPModule();
+  if (mod === 'home') renderHomeModule();
+  else if (mod === 'pp') renderPPModule();
   else if (mod === 'po') renderPOModule();
+  else if (mod === 'ets') renderETSModule();
+  else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
   else if (mod === 'kb') renderKBModule();
   else if (mod === 'users') renderUsersModule();
@@ -955,6 +963,191 @@ async function loadMyRequests() {
 let poFilter = [], poSearch = '', poSort = { field: 'tgl_po', dir: 'desc' };
 const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'Pengiriman', 'Instalasi', 'Commissioning', 'Selesai'];
 
+
+// ═══════════════════════════════════════════════════════════
+// HOME DASHBOARD
+// ═══════════════════════════════════════════════════════════
+async function renderHomeModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar"><button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()" id="hamburgerBtn"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><div class="page-title">Home</div></div>
+    <div class="page-body" id="homeBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+
+  await loadPOs();
+  const me = currentUser;
+  const role = me.role;
+
+  const cards = [];
+
+  // PRODUKSI tasks (assigned to me as PIC)
+  if(can('teknisi') || canManage) {
+    let prodCount = 0;
+    allPOs.forEach(p => {
+      (p.po_items||[]).forEach(it => {
+        const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
+        const notDone = it.item_status !== 'Selesai Produksi';
+        if(isMyPic && notDone && it.is_produksi) prodCount++;
+      });
+    });
+    cards.push({mod:'produksi', icon:'🏭', title:'Produksi', desc:'Tugas produksi yang di-assign ke saya', count:prodCount, color:'#a855f7'});
+  }
+
+  // ETS tasks (item belum selesai flow ETS)
+  if(can('po_engineering')) {
+    let etsCount = 0;
+    allPOs.forEach(p => {
+      (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+        if(!it.serial_number) etsCount++;
+      });
+    });
+    cards.push({mod:'ets', icon:'⚙️', title:'ETS', desc:'Item belum lengkap spec / SN / dokumen', count:etsCount, color:'#0891b2'});
+  }
+
+  // SERVICE tickets assigned to me
+  if(can('service_view')) {
+    const {data: svcAssigned} = await sb.from('service_tickets').select('id,status,assigned_to').neq('status','Selesai');
+    const myTickets = (svcAssigned||[]).filter(t => t.assigned_to===me.id || canManage);
+    cards.push({mod:'service', icon:'🔧', title:'Service', desc:'Tiket service aktif', count:myTickets.length, color:'#dc2626'});
+  }
+
+  // PO module (owner/admin)
+  if(can('po_manage')) {
+    const aktif = allPOs.filter(p=>p.status!=='Selesai').length;
+    cards.push({mod:'po', icon:'📋', title:'Pabrikasi / PO', desc:'Manajemen Purchase Order', count:aktif, color:'#1e40af'});
+  }
+
+  // PP requests
+  if(can('pp_view')) {
+    const {data: pps} = await sb.from('pp_requests').select('id,status').neq('status','Done');
+    cards.push({mod:'pp', icon:'📐', title:'Pre-Project', desc:'Request Drawing & BOM', count:(pps||[]).length, color:'#16a34a'});
+  }
+
+  // Knowledge Base
+  if(can('kb_view')) {
+    cards.push({mod:'kb', icon:'📚', title:'Knowledge Base', desc:'Catatan service & solusi', count:null, color:'#64748b'});
+  }
+
+  const initials = me.full_name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const greeting = (()=>{const h=new Date().getHours(); return h<11?'Selamat pagi':h<15?'Selamat siang':h<18?'Selamat sore':'Selamat malam';})();
+
+  document.getElementById('homeBody').innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">${initials}</div>
+      <div>
+        <div style="font-size:18px;font-weight:600">${greeting}, ${me.full_name.split(' ')[0]}!</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+      ${cards.map(c=>`
+        <div onclick="switchModule('${c.mod}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.125rem;cursor:pointer;transition:all .15s;position:relative" onmouseover="this.style.borderColor='${c.color}';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.5rem">
+            <div style="width:42px;height:42px;border-radius:10px;background:${c.color}22;display:flex;align-items:center;justify-content:center;font-size:22px">${c.icon}</div>
+            ${c.count!==null && c.count>0 ? `<div style="background:${c.color};color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px">${c.count}</div>` : ''}
+          </div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:2px">${c.title}</div>
+          <div style="font-size:12px;color:var(--text3);line-height:1.4">${c.desc}</div>
+          ${c.count!==null ? `<div style="font-size:11px;color:${c.count>0?c.color:'var(--text3)'};margin-top:8px;font-weight:600">${c.count===0?'✓ Tidak ada tugas':c.count+' tugas pending'}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ETS MODULE
+// ═══════════════════════════════════════════════════════════
+async function renderETSModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar"><button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="page-title">ETS</div><div class="page-sub">Engineering & Technical Support</div></div></div>
+    <div class="page-body" id="etsBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+
+  await loadPOs();
+
+  // Build list of items needing ETS attention
+  const tasks = [];
+  for(const p of allPOs) {
+    for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
+      const issues = [];
+      if(!it.serial_number) issues.push('Belum ada SN');
+      // Could check for detail_specs but separate query is heavy; just show items
+      if(issues.length || !it.serial_number) {
+        tasks.push({po:p, item:it, issues});
+      }
+    }
+  }
+
+  document.getElementById('etsBody').innerHTML = `
+    <div style="margin-bottom:1rem"><div class="page-sub">Item yang membutuhkan perhatian ETS (${tasks.length})</div></div>
+    ${tasks.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">✓ Semua item sudah lengkap</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${tasks.map(({po,item,issues})=>`
+          <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+              <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+              <div style="font-size:11px;color:var(--text2)">${po.customer_name} · ${po.project_name||''}</div>
+              ${issues.length?`<div style="font-size:11px;color:var(--coral);margin-top:4px">⚠ ${issues.join(', ')}</div>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--text3)">→</div>
+          </div>
+        `).join('')}
+      </div>`}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRODUKSI MODULE
+// ═══════════════════════════════════════════════════════════
+async function renderProduksiModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar"><button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="page-title">Produksi</div><div class="page-sub">Tugas produksi yang di-assign</div></div></div>
+    <div class="page-body" id="produksiBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+
+  await loadPOs();
+  const me = currentUser;
+
+  // Get items where I am PIC
+  const tasks = [];
+  for(const p of allPOs) {
+    for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
+      const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
+      if(canManage || isMyPic) {
+        if(it.item_status !== 'Selesai Produksi') {
+          tasks.push({po:p, item:it});
+        }
+      }
+    }
+  }
+
+  const STATUS_COLORS = {
+    'Belum Produksi': {bg:'#f1f5f9', color:'#475569'},
+    'Proses Produksi': {bg:'#fef3c7', color:'#92400e'},
+    'QC': {bg:'#dbeafe', color:'#1e40af'},
+    'Selesai Produksi': {bg:'#d1fae5', color:'#065f46'}
+  };
+
+  document.getElementById('produksiBody').innerHTML = `
+    <div style="margin-bottom:1rem"><div class="page-sub">Item produksi aktif (${tasks.length})</div></div>
+    ${tasks.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tugas produksi aktif</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${tasks.map(({po,item})=>{
+          const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
+          const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
+          return `
+          <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem;cursor:pointer" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'—'}</div>
+                <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?` · SN: ${item.serial_number}`:''}</div>
+                ${myPics.length?`<div style="font-size:10px;color:var(--text3);margin-top:3px">👷 ${myPics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:''}
+              </div>
+              <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${item.item_status}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`}`;
+}
+
+
 async function renderPOModule() {
   document.getElementById('mainContent').innerHTML = `
     <div class="topbar">
@@ -1115,6 +1308,7 @@ async function openPODetail(id) {
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>
         <div style="font-size:11px;color:var(--text3)">Qty: ${it.qty} &middot; ${it.is_produksi ? '🏭 Diproduksi' : '📦 Non-produksi'}${it.spec_summary ? ' &middot; ' + it.spec_summary : ''}${it.serial_number ? ' &middot; SN: ' + it.serial_number : ''}</div>
+        ${(()=>{const pics=(p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi'); return pics.length?`<div style="font-size:10px;color:var(--text2);margin-top:3px">👷 PIC: ${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:'';})()}
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <span style="font-size:11px;background:var(--surface);border:1px solid var(--border);padding:2px 8px;border-radius:4px">${it.item_status}</span>
@@ -1600,9 +1794,19 @@ async function openDetailSpecModal(itemId, poId) {
       + '</select>';
   }
 
-  function inp(id, val, placeholder='') {
+  function inp(id, val, placeholder='', unit='') {
     const sugg = (suggestions[id]||[]);
     const listId = 'list_'+id;
+    if(unit) {
+      let html = '<div style="display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">'
+        + '<input type="text" id="ds_'+id+'" value="'+(val||'')+'" placeholder="'+placeholder+'" '
+        + 'style="flex:1;padding:6px 8px;border:none;outline:none;background:transparent" '
+        + (sugg.length?'list="'+listId+'"':'') + '>'
+        + '<span style="padding:6px 10px;background:var(--surface2);color:var(--text2);font-size:13px;border-left:1px solid var(--border)">'+unit+'</span>'
+        + '</div>';
+      if(sugg.length) html += '<datalist id="'+listId+'">'+sugg.map(s=>'<option value="'+s+'">').join('')+'</datalist>';
+      return html;
+    }
     let html = '<input type="text" id="ds_'+id+'" value="'+(val||'')+'" placeholder="'+placeholder+'" '
       + 'style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" '
       + (sugg.length?'list="'+listId+'"':'') + '>';
@@ -1633,45 +1837,46 @@ async function openDetailSpecModal(itemId, poId) {
   if(cat === 'Rectifier') {
     catHtml = section('INPUT', '<div class="form-grid">'
       + row('Parallel Input', '<label style="display:flex;align-items:center;gap:8px;margin-top:4px"><input type="checkbox" id="ds_r_parallel_input"'+(spec.r_parallel_input?' checked':'')+'>  <span style="font-size:13px">2 Input (Parallel System)</span></label>')
-      + row('Input Voltage', inp('r_input_voltage', spec.r_input_voltage, '220 / 380 VAC'))
+      + row('Input Voltage', inp('r_input_voltage', spec.r_input_voltage, '220 / 380', 'VAC'))
       + row('Input Phase', sel('r_input_phase', PHASE_OPTIONS, spec.r_input_phase||'1 Phase'))
       + row('Pulse', sel('r_pulse', PULSE_OPTIONS, spec.r_pulse||'6'))
       + '</div>')
     + section('OUTPUT', '<div class="form-grid">'
-      + row('Output Voltage', inp('r_output_voltage', spec.r_output_voltage, '110 VDC'))
-      + row('Output Current', inp('r_output_current', spec.r_output_current, '10 A'))
-      + row('Voltage Adjustable', inp('r_voltage_adjustable', spec.r_voltage_adjustable, '100~160 VDC via front panel'))
+      + row('Output Voltage', inp('r_output_voltage', spec.r_output_voltage, '110', 'VDC'))
+      + row('Output Current', inp('r_output_current', spec.r_output_current, '10', 'A'))
+      + row('Voltage Adjustable', inp('r_voltage_adjustable', spec.r_voltage_adjustable, '100~160 via front panel', 'VDC'))
       + '</div>');
   } else if(cat === 'UPS') {
     catHtml = section('RECTIFIER', '<div class="form-grid">'
-      + row('Capacity', inp('u_capacity_kva', spec.u_capacity_kva, 'kVA') + '<div style="margin-top:4px">'+inp('u_capacity_kw', spec.u_capacity_kw, 'kW')+'</div>')
-      + row('Input Voltage', inp('u_rect_input_voltage', spec.u_rect_input_voltage, '380 VAC'))
+      + row('Capacity kVA', inp('u_capacity_kva', spec.u_capacity_kva, '20', 'kVA'))
+      + row('Capacity kW', inp('u_capacity_kw', spec.u_capacity_kw, '16', 'kW'))
+      + row('Input Voltage', inp('u_rect_input_voltage', spec.u_rect_input_voltage, '380', 'VAC'))
       + row('Input Phase', sel('u_rect_input_phase', PHASE_OPTIONS, spec.u_rect_input_phase||'3 Phase + N'))
-      + row('DC Bus Voltage', inp('u_dc_bus_voltage', spec.u_dc_bus_voltage, '110 VDC'))
-      + row('DC Bus Current', inp('u_dc_bus_current', spec.u_dc_bus_current, '200A'))
+      + row('DC Bus Voltage', inp('u_dc_bus_voltage', spec.u_dc_bus_voltage, '110', 'VDC'))
+      + row('DC Bus Current', inp('u_dc_bus_current', spec.u_dc_bus_current, '200', 'A'))
       + '</div>')
     + section('INVERTER OUTPUT', '<div class="form-grid">'
-      + row('Output Voltage', inp('u_inv_output_voltage', spec.u_inv_output_voltage, '220 VAC'))
+      + row('Output Voltage', inp('u_inv_output_voltage', spec.u_inv_output_voltage, '220', 'VAC'))
       + row('Output Phase', sel('u_inv_output_phase', PHASE_OPTIONS, spec.u_inv_output_phase||'1 Phase + N'))
-      + row('Bypass Voltage', inp('u_bypass_voltage', spec.u_bypass_voltage, '380/220 VAC'))
+      + row('Bypass Voltage', inp('u_bypass_voltage', spec.u_bypass_voltage, '380/220', 'VAC'))
       + '</div>');
   } else if(cat === 'Inverter') {
     catHtml = section('INVERTER', '<div class="form-grid">'
-      + row('Capacity kVA', inp('i_capacity_kva', spec.i_capacity_kva, 'kVA'))
-      + row('Capacity kW', inp('i_capacity_kw', spec.i_capacity_kw, 'kW'))
-      + row('DC Input Voltage', inp('i_input_voltage', spec.i_input_voltage, '110 VDC'))
+      + row('Capacity kVA', inp('i_capacity_kva', spec.i_capacity_kva, '5', 'kVA'))
+      + row('Capacity kW', inp('i_capacity_kw', spec.i_capacity_kw, '4', 'kW'))
+      + row('DC Input Voltage', inp('i_input_voltage', spec.i_input_voltage, '110', 'VDC'))
       + row('Voltage Tolerance', inp('i_input_tolerance', spec.i_input_tolerance||'+/- 20%', '+/- 20%'))
-      + row('AC Output Voltage', inp('i_output_voltage', spec.i_output_voltage, '220 VAC'))
+      + row('AC Output Voltage', inp('i_output_voltage', spec.i_output_voltage, '220', 'VAC'))
       + row('Output Phase', sel('i_output_phase', PHASE_OPTIONS, spec.i_output_phase||'1 Phase'))
       + row('Topology', inp('i_topology', spec.i_topology, 'Full Bridge IGBT'))
       + '</div>');
   } else if(cat === 'Panel ACDB' || cat === 'Panel DCDB') {
     catHtml = section('PANEL', '<div class="form-grid">'
-      + row('Input Voltage', inp('p_input_voltage', spec.p_input_voltage, cat==='Panel ACDB'?'380 VAC':'110 VDC'))
+      + row('Input Voltage', inp('p_input_voltage', spec.p_input_voltage, cat==='Panel ACDB'?'380':'110', cat==='Panel ACDB'?'VAC':'VDC'))
       + (cat==='Panel ACDB'?row('Input Phase', sel('p_input_phase', PHASE_OPTIONS, spec.p_input_phase||'3 Phase')):'')
-      + row('Current Rating', inp('p_current_rating', spec.p_current_rating, '100 A'))
-      + row('Feeder Count', inp('p_feeder_count', spec.p_feeder_count, '10'))
-      + row('Feeder Rating', inp('p_feeder_rating', spec.p_feeder_rating, '6A / 10A'))
+      + row('Current Rating', inp('p_current_rating', spec.p_current_rating, '100', 'A'))
+      + row('Feeder Count', inp('p_feeder_count', spec.p_feeder_count, '10', 'pcs'))
+      + row('Feeder Rating', inp('p_feeder_rating', spec.p_feeder_rating, '6 / 10', 'A'))
       + '</div>');
   }
 
@@ -1819,6 +2024,22 @@ async function openEditItemForm(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
   const it = po?.po_items?.find(x=>x.id===itemId);
   if(!it) return;
+
+  // Load teknisi list
+  const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
+  const teknisiList = teknisi || [];
+
+  // Load existing PIC for this item
+  const {data: existingPics} = await sb.from('po_pic').select('user_id').eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
+  const picIds = (existingPics||[]).map(p=>p.user_id);
+
+  const picCheckboxes = teknisiList.map(t=>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 8px;background:${picIds.includes(t.id)?'var(--amber-bg)':'var(--surface2)'};border-radius:var(--r-sm);cursor:pointer">
+      <input type="checkbox" class="picCb" value="${t.id}" ${picIds.includes(t.id)?'checked':''} onchange="picCountCheck()">
+      <span>${t.full_name} <span style="color:var(--text3);font-size:11px">(${t.role})</span></span>
+    </label>`
+  ).join('');
+
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Edit Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -1833,6 +2054,11 @@ async function openEditItemForm(itemId, poId) {
       </div>
       <div class="form-row" style="margin-top:4px"><label>Catatan Item</label><input type="text" id="itCatatan" value="${it.catatan||''}" placeholder="Catatan tambahan..."></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:8px"><input type="checkbox" id="itProd" ${it.is_produksi?'checked':''}><span>Diproduksi internal</span></label>
+      ${canManage ? `
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">PIC Produksi <span style="color:var(--text3);font-weight:400">(maks. 3 orang)</span> <span id="picCount" style="float:right;font-size:11px;color:var(--text3)">${picIds.length}/3</span></label>
+        <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm)">${picCheckboxes||'<span style="font-size:12px;color:var(--text3);padding:4px">Belum ada teknisi</span>'}</div>
+      </div>` : ''}
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn btn-sm btn-danger" data-iid="${itemId}" data-pid="${poId}" onclick="deleteItem(this.dataset.iid,this.dataset.pid)">Hapus</button>
@@ -1842,6 +2068,21 @@ async function openEditItemForm(itemId, poId) {
       </div>
     </div>
   </div>`);
+}
+
+function picCountCheck() {
+  const checked = document.querySelectorAll('.picCb:checked');
+  const counter = document.getElementById('picCount');
+  if(counter) counter.textContent = checked.length + '/3';
+  if(checked.length > 3) {
+    event.target.checked = false;
+    toast('Maksimal 3 orang PIC');
+    document.getElementById('picCount').textContent = '3/3';
+  }
+  // Update background
+  document.querySelectorAll('.picCb').forEach(cb => {
+    cb.parentElement.style.background = cb.checked ? 'var(--amber-bg)' : 'var(--surface2)';
+  });
 }
 
 async function saveEditItem(itemId, poId, openSpec=false) {
@@ -1854,6 +2095,17 @@ async function saveEditItem(itemId, poId, openSpec=false) {
     catatan: gv('itCatatan')||null,
     is_produksi: document.getElementById('itProd').checked
   }).eq('id', itemId);
+
+  // Save PIC Produksi
+  if(canManage) {
+    const newPicIds = Array.from(document.querySelectorAll('.picCb:checked')).map(cb=>cb.value);
+    await sb.from('po_pic').delete().eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
+    if(newPicIds.length){
+      const inserts = newPicIds.map(uid=>({po_id:poId, item_id:itemId, stage:'Produksi', user_id:uid}));
+      await sb.from('po_pic').insert(inserts);
+    }
+  }
+
   await logPO(poId, 'Edit Item', gv('itCat'));
   toast('Item diperbarui');
   await loadPOs();
