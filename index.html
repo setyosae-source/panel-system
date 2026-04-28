@@ -188,6 +188,7 @@ tr:hover td{background:var(--bg);cursor:pointer}
 .role-produksi{background:var(--green-bg);color:var(--green)}
 .role-logistik{background:var(--teal-bg);color:var(--teal)}
 .role-teknisi{background:var(--coral-bg);color:var(--coral)}
+.role-direktur{background:#fef3c7;color:#854d0e}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px;box-shadow:var(--shadow-lg)}
@@ -442,7 +443,8 @@ const ROLE_PERMS = {
   engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
   produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
   logistik: { po_view: 1, po_logistik: 1 },
-  teknisi: { teknisi: 1,  service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 }
+  teknisi: { teknisi: 1,  service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 },
+  direktur: { direktur: 1, nilai_po: 1, pp_view: 1, po_view: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, kb_view: 1, assign: 1, statistik: 1 }
 };
 
 function getPerms() {
@@ -518,8 +520,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
 function buildSidebar() {
-  const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'Engineering', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
-  const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
+  const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', direktur: 'Direktur' };
+  const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', direktur: 'role-direktur' };
 
   let nav = '<div class="sb-label">Beranda</div>';
   nav += navItem('home', homeIcon(), 'Home', 'nbHome');
@@ -2750,8 +2752,8 @@ async function deleteKB(id) {
 // ═══════════════════════════════════════════════════════════
 // USER MANAGEMENT MODULE
 // ═══════════════════════════════════════════════════════════
-const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'Engineering', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
-const ROLE_CLASSES = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
+const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', direktur: 'Direktur', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
+const ROLE_CLASSES = { owner: 'role-owner', admin: 'role-admin', direktur: 'role-direktur', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
 
 async function renderUsersModule() {
   document.getElementById('mainContent').innerHTML = `
