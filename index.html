@@ -529,11 +529,14 @@ function buildSidebar() {
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
   if (can('po_view')) nav += navItem('po', poIcon(), 'Kelola PO', 'nbPO');
   if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
+  if (can('statistik') || can('po_manage')) nav += navItem('statistik', statIcon(), 'Dashboard Statistik', '');
   if (can('assign') || can('po_manage')) nav += navItem('assign', assignIcon(), 'Assign', 'nbASSIGN');
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
-  if (can('users')) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; nav += navItem('users', usersIcon(), 'Kelola User', ''); }
+  if (can('users') || isOwner()) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; }
+  if (isOwner()) nav += navItem('audit', auditIcon(), 'Audit Log', '');
+  if (can('users')) nav += navItem('users', usersIcon(), 'Kelola User', '');
 
   document.getElementById('mainNav').innerHTML = nav;
 
@@ -554,6 +557,8 @@ function navItem(mod, icon, label, badgeId) {
 }
 
 function assignIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM21 12h-6m3-3v6"/></svg>'; }
+function auditIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>'; }
+function statIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>'; }
 function homeIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'; }
 function etsIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'; }
 function prodIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.121 2.121 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'; }
@@ -576,10 +581,12 @@ function switchModule(mod) {
   else if (mod === 'pp') renderPPModule();
   else if (mod === 'po') renderPOModule();
   else if (mod === 'ets') renderETSModule();
+  else if (mod === 'statistik') renderStatistikModule();
   else if (mod === 'assign') renderAssignModule();
   else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
   else if (mod === 'kb') renderKBModule();
+  else if (mod === 'audit') renderAuditModule();
   else if (mod === 'users') renderUsersModule();
 }
 
@@ -970,6 +977,267 @@ const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'P
 
 
 
+
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD STATISTIK - Direktur/Owner/Admin
+// ═══════════════════════════════════════════════════════════
+async function renderStatistikModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar">
+    <button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><div class="page-title">Dashboard Statistik</div><div class="page-sub">Ringkasan kinerja & laporan</div></div>
+  </div>
+  <div class="page-body" id="statBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat data...</div></div>`;
+
+  await loadPOs();
+  
+  // Fetch additional data
+  const [ticketsRes, pksRes, usersRes] = await Promise.all([
+    sb.from('service_tickets').select('id,status,assigned_to,created_at,closed_at,app_users:assigned_to(full_name)'),
+    sb.from('po_pk').select('po_id,nilai_pengajuan,nilai_realisasi,status,created_at'),
+    sb.from('app_users').select('id,full_name,role').eq('is_active',true)
+  ]);
+
+  const tickets = ticketsRes.data||[];
+  const pks = pksRes.data||[];
+  const users = usersRes.data||[];
+
+  renderStatContent(tickets, pks, users);
+}
+
+function renderStatContent(tickets, pks, users) {
+  // ── Calculate stats ──
+  const now = new Date();
+  const thisYear = now.getFullYear();
+
+  // PO counts
+  const totalPO = allPOs.length;
+  const activePO = allPOs.filter(p=>p.status!=='Selesai').length;
+  const donePO = allPOs.filter(p=>p.status==='Selesai').length;
+  const totalNilai = allPOs.reduce((s,p)=>s+(p.nilai_po||0), 0);
+
+  // PO per month (this year)
+  const poPerMonth = Array(12).fill(0);
+  const nilaiPerMonth = Array(12).fill(0);
+  allPOs.forEach(p=>{
+    if(!p.tgl_po) return;
+    const d = new Date(p.tgl_po);
+    if(d.getFullYear()===thisYear) {
+      poPerMonth[d.getMonth()]++;
+      nilaiPerMonth[d.getMonth()] += p.nilai_po||0;
+    }
+  });
+
+  // Service stats per technician
+  const tekStats = {};
+  tickets.forEach(t=>{
+    if(!t.assigned_to) return;
+    if(!tekStats[t.assigned_to]) tekStats[t.assigned_to] = {name: t.app_users?.full_name||'?', total:0, aktif:0, selesai:0, totalDays:0, count:0};
+    tekStats[t.assigned_to].total++;
+    if(t.status==='Selesai') {
+      tekStats[t.assigned_to].selesai++;
+      if(t.closed_at && t.created_at) {
+        const days = Math.round((new Date(t.closed_at) - new Date(t.created_at)) / (1000*60*60*24));
+        tekStats[t.assigned_to].totalDays += days;
+        tekStats[t.assigned_to].count++;
+      }
+    } else {
+      tekStats[t.assigned_to].aktif++;
+    }
+  });
+
+  // Overall SLA
+  const closedTickets = tickets.filter(t=>t.status==='Selesai' && t.closed_at && t.created_at);
+  const avgSLA = closedTickets.length ? Math.round(closedTickets.reduce((s,t)=>s+((new Date(t.closed_at)-new Date(t.created_at))/(1000*60*60*24)),0) / closedTickets.length) : 0;
+
+  // PK stats
+  const totalPengajuan = pks.reduce((s,k)=>s+(k.nilai_pengajuan||0),0);
+  const totalRealisasi = pks.reduce((s,k)=>s+(k.nilai_realisasi||0),0);
+  const sisaBudget = totalPengajuan - totalRealisasi;
+
+  // ── Render ──
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const maxPO = Math.max(...poPerMonth, 1);
+
+  const card = (label, value, sub='', color='') => 
+    `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem 1.25rem">
+      <div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${label}</div>
+      <div style="font-size:24px;font-weight:600${color?';color:'+color:''}">${value}</div>
+      ${sub?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>`:''}
+    </div>`;
+
+  document.getElementById('statBody').innerHTML = `
+    <!-- Top metrics -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:1.5rem">
+      ${card('Total PO', totalPO, `${activePO} aktif · ${donePO} selesai`)}
+      ${card('Nilai Total PO', fmtRp(totalNilai), `${thisYear}`)}
+      ${card('Tiket Service', tickets.length, `${tickets.filter(t=>t.status!=='Selesai').length} aktif`)}
+      ${card('Rata-rata SLA Service', avgSLA+' hari', closedTickets.length+' tiket selesai', avgSLA>14?'var(--coral)':'var(--green)')}
+    </div>
+
+    <!-- Chart: PO per month -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:1.25rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:1rem">Jumlah PO per Bulan (${thisYear})</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:160px;border-bottom:1px solid var(--border);padding-bottom:4px">
+        ${poPerMonth.map((cnt,i)=>{
+          const h = maxPO>0 ? (cnt/maxPO)*140 : 0;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+            <div style="font-size:10px;color:var(--text3);font-weight:600">${cnt||''}</div>
+            <div style="width:100%;height:${h}px;background:${cnt?'var(--brand)':'var(--surface2)'};border-radius:3px 3px 0 0;min-height:${cnt?4:0}px"></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        ${months.map(m=>`<div style="flex:1;text-align:center;font-size:11px;color:var(--text3)">${m}</div>`).join('')}
+      </div>
+    </div>
+
+    <!-- PK Keuangan -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:1.25rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:1rem">Laporan Keuangan PK</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        <div style="background:var(--surface2);padding:12px 16px;border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total Pengajuan</div>
+          <div style="font-size:18px;font-weight:600">${fmtRp(totalPengajuan)}</div>
+          <div style="font-size:11px;color:var(--text3)">${pks.length} pengajuan</div>
+        </div>
+        <div style="background:var(--surface2);padding:12px 16px;border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Total Realisasi</div>
+          <div style="font-size:18px;font-weight:600;color:var(--coral)">${fmtRp(totalRealisasi)}</div>
+          <div style="font-size:11px;color:var(--text3)">${pks.filter(k=>k.nilai_realisasi).length} terealisasi</div>
+        </div>
+        <div style="background:var(--surface2);padding:12px 16px;border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px">Sisa / Belum Realisasi</div>
+          <div style="font-size:18px;font-weight:600;color:${sisaBudget>0?'var(--green)':'var(--text)'}">${fmtRp(sisaBudget)}</div>
+          <div style="font-size:11px;color:var(--text3)">${totalPengajuan>0?Math.round((totalRealisasi/totalPengajuan)*100):0}% terealisasi</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service per Teknisi -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:1rem">Tugas Service per Teknisi</div>
+      ${Object.keys(tekStats).length===0 ? '<div style="font-size:13px;color:var(--text3);text-align:center;padding:1rem">Belum ada data</div>' :
+      `<div style="display:flex;flex-direction:column;gap:6px">
+        ${Object.entries(tekStats).sort((a,b)=>b[1].total-a[1].total).map(([uid,s])=>{
+          const avg = s.count?Math.round(s.totalDays/s.count):0;
+          return `<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:var(--r-sm);align-items:center;font-size:13px">
+            <div style="font-weight:500">${s.name}</div>
+            <div style="text-align:center"><span style="font-size:11px;color:var(--text3)">Total</span><div style="font-weight:600">${s.total}</div></div>
+            <div style="text-align:center"><span style="font-size:11px;color:var(--text3)">Aktif</span><div style="font-weight:600;color:${s.aktif>0?'var(--amber)':'var(--text2)'}">${s.aktif}</div></div>
+            <div style="text-align:center"><span style="font-size:11px;color:var(--text3)">Selesai</span><div style="font-weight:600;color:var(--green)">${s.selesai}</div></div>
+            <div style="text-align:center"><span style="font-size:11px;color:var(--text3)">Avg SLA</span><div style="font-weight:600">${avg?avg+'d':'—'}</div></div>
+          </div>`;
+        }).join('')}
+      </div>`}
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIT LOG MODULE - Owner only
+// ═══════════════════════════════════════════════════════════
+let auditFilter = {modul:'all', user:'all', search:''};
+
+async function renderAuditModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar">
+    <button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><div class="page-title">Audit Log</div><div class="page-sub">Riwayat aktivitas semua user</div></div>
+  </div>
+  <div class="page-body" id="auditBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
+
+  // Fetch all logs from po_logs and service_logs
+  const [poLogsRes, svcLogsRes, usersRes] = await Promise.all([
+    sb.from('po_logs').select('*,purchase_orders(no_po,customer_name),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
+    sb.from('service_logs').select('*,service_tickets(customer_name,id),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
+    sb.from('app_users').select('id,full_name')
+  ]);
+
+  const allLogs = [];
+  (poLogsRes.data||[]).forEach(l => allLogs.push({
+    id: l.id,
+    modul: 'PO',
+    when: l.created_at,
+    user_name: l.app_users?.full_name || '—',
+    user_id: l.user_id,
+    target: l.purchase_orders?.no_po || '—',
+    target_sub: l.purchase_orders?.customer_name || '',
+    action: l.action,
+    detail: l.detail || ''
+  }));
+  (svcLogsRes.data||[]).forEach(l => allLogs.push({
+    id: l.id,
+    modul: 'Service',
+    when: l.created_at,
+    user_name: l.app_users?.full_name || '—',
+    user_id: l.user_id,
+    target: l.service_tickets?.id?.substring(0,8) || '—',
+    target_sub: l.service_tickets?.customer_name || '',
+    action: l.tahapan,
+    detail: (l.catatan||'') + (l.hasil?' ⇒ '+l.hasil:'')
+  }));
+  
+  allLogs.sort((a,b)=>new Date(b.when)-new Date(a.when));
+  window._allAuditLogs = allLogs;
+  window._allAuditUsers = usersRes.data||[];
+
+  renderAuditList();
+}
+
+function renderAuditList() {
+  const logs = window._allAuditLogs || [];
+  const users = window._allAuditUsers || [];
+
+  let filtered = logs;
+  if(auditFilter.modul !== 'all') filtered = filtered.filter(l => l.modul === auditFilter.modul);
+  if(auditFilter.user !== 'all') filtered = filtered.filter(l => l.user_id === auditFilter.user);
+  if(auditFilter.search) {
+    const s = auditFilter.search.toLowerCase();
+    filtered = filtered.filter(l => 
+      (l.target+' '+l.target_sub+' '+l.action+' '+l.detail+' '+l.user_name).toLowerCase().includes(s)
+    );
+  }
+
+  const userOpts = users.map(u=>`<option value="${u.id}" ${auditFilter.user===u.id?'selected':''}>${u.full_name}</option>`).join('');
+  const modulBadge = (m) => {
+    const colors = {'PO':{bg:'#dbeafe',color:'#1e40af'}, 'Service':{bg:'#fee2e2',color:'#991b1b'}};
+    const c = colors[m]||{bg:'#f1f5f9',color:'#475569'};
+    return `<span style="font-size:10px;background:${c.bg};color:${c.color};padding:2px 8px;border-radius:4px;font-weight:600">${m}</span>`;
+  };
+
+  document.getElementById('auditBody').innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <input type="text" placeholder="Cari aktivitas, target, user..." value="${auditFilter.search}" oninput="auditFilter.search=this.value;renderAuditList()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm)">
+      <select onchange="auditFilter.modul=this.value;renderAuditList()" style="padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)">
+        <option value="all" ${auditFilter.modul==='all'?'selected':''}>Semua Modul</option>
+        <option value="PO" ${auditFilter.modul==='PO'?'selected':''}>PO</option>
+        <option value="Service" ${auditFilter.modul==='Service'?'selected':''}>Service</option>
+      </select>
+      <select onchange="auditFilter.user=this.value;renderAuditList()" style="padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)">
+        <option value="all" ${auditFilter.user==='all'?'selected':''}>Semua User</option>
+        ${userOpts}
+      </select>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${filtered.length} aktivitas ditemukan</div>
+    ${filtered.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada aktivitas</div>' :
+      `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">
+        ${filtered.slice(0,200).map((l,i)=>`
+          <div style="padding:.75rem 1rem;${i<filtered.length-1?'border-bottom:1px solid var(--border);':''}display:flex;align-items:flex-start;gap:12px;font-size:13px">
+            <div style="font-size:11px;color:var(--text3);min-width:120px;flex-shrink:0">${fmtDateTime(l.when)}</div>
+            <div style="flex-shrink:0">${modulBadge(l.modul)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;color:var(--text)">${l.user_name}</div>
+              <div style="color:var(--text2);margin-top:2px"><strong>${l.action}</strong>${l.detail?' — '+l.detail:''}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">${l.target}${l.target_sub?' · '+l.target_sub:''}</div>
+            </div>
+          </div>
+        `).join('')}
+        ${filtered.length>200?`<div style="text-align:center;padding:12px;font-size:11px;color:var(--text3);background:var(--surface2)">Menampilkan 200 dari ${filtered.length} aktivitas. Filter untuk lihat lebih spesifik.</div>`:''}
+      </div>`}`;
+}
+
 // ═══════════════════════════════════════════════════════════
 // ASSIGN MODULE - Owner/Admin/Direktur
 // ═══════════════════════════════════════════════════════════
@@ -1007,16 +1275,25 @@ async function renderAssignList() {
   const tabBtn = (key, label, count) =>
     `<button onclick="assignTab='${key}';renderAssignList()" style="padding:8px 16px;background:${assignTab===key?'var(--text)':'var(--surface)'};color:${assignTab===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer;font-weight:500">${label}${count?` <span style="opacity:.6;margin-left:4px">(${count})</span>`:''}</button>`;
 
-  let body = `<div style="display:flex;gap:6px;margin-bottom:1.25rem">
+  // Count instalasi/commissioning items needing assign
+  let instNeedAssign = 0;
+  allPOs.forEach(p => {
+    if(!p.has_instalasi && !p.has_commissioning) return;
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Instalasi');
+      if(pics.length===0) instNeedAssign++;
+    });
+  });
+
+  let body = `<div style="display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap">
     ${tabBtn('produksi','Produksi',prodNeedAssign)}
+    ${tabBtn('instalasi','Instalasi & Commissioning',instNeedAssign)}
     ${tabBtn('service','Service',svcNeedAssign)}
   </div>`;
 
-  if(assignTab==='produksi') {
-    body += renderAssignProduksi();
-  } else {
-    body += renderAssignService(tickets||[]);
-  }
+  if(assignTab==='produksi') body += renderAssignProduksi();
+  else if(assignTab==='instalasi') body += renderAssignInstalasi();
+  else body += renderAssignService(tickets||[]);
 
   document.getElementById('assignBody').innerHTML = body;
 }
@@ -1159,6 +1436,98 @@ async function saveAssignService(ticketId) {
   await sb.from('service_tickets').update({assigned_to: userId}).eq('id',ticketId);
   toast('PIC service tersimpan');
   closeAllModals();
+  await renderAssignList();
+}
+
+
+function renderAssignInstalasi() {
+  const items = [];
+  allPOs.forEach(p => {
+    if(!p.has_instalasi && !p.has_commissioning) return;
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Instalasi');
+      items.push({po:p, item:it, pics});
+    });
+  });
+
+  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item untuk instalasi/commissioning<br><span style="font-size:11px">Hanya PO dengan flag Instalasi atau Commissioning yang muncul</span></div>';
+
+  return `<div style="display:flex;flex-direction:column;gap:8px">
+    ${items.map(({po,item,pics})=>{
+      const flags = [p=>p.has_instalasi?'Instalasi':'',p=>p.has_commissioning?'Commissioning':''].map(f=>f(po)).filter(Boolean).join(' + ');
+      return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+            <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
+            <div style="font-size:11px;color:var(--text2)">${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''} <span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px">${flags}</span></div>
+            <div style="font-size:12px;margin-top:6px">
+              ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+async function openAssignInstalasiModal(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) return;
+
+  const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
+  const list = teknisi||[];
+
+  const {data: existing} = await sb.from('po_pic').select('user_id').eq('po_id',poId).eq('item_id',itemId).eq('stage','Instalasi');
+  const picIds = (existing||[]).map(p=>p.user_id);
+
+  const cbs = list.map(t=>
+    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px;background:${picIds.includes(t.id)?'var(--amber-bg)':'var(--surface2)'};border-radius:var(--r-sm);cursor:pointer">
+      <input type="checkbox" class="ainstCb" value="${t.id}" ${picIds.includes(t.id)?'checked':''} onchange="ainstCount()">
+      <span>${t.full_name} <span style="color:var(--text3);font-size:11px">(${t.role==='engineering'?'ET Support':t.role})</span></span>
+    </label>`
+  ).join('');
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Assign PIC Instalasi & Commissioning</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${item.category} — ${item.model_name||'—'}<br><span style="color:var(--text3)">${po.no_po}</span></div>
+      <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Pilih Teknisi <span style="color:var(--text3);font-weight:400">(maks. 3 orang)</span> <span id="ainstCounter" style="float:right;font-size:11px;color:var(--text3)">${picIds.length}/3</span></label>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto">${cbs||'<span style="font-size:12px;color:var(--text3)">Belum ada teknisi</span>'}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="saveAssignInstalasi(this.dataset.iid,this.dataset.pid)">Simpan</button>
+    </div>
+  </div>`);
+}
+
+function ainstCount() {
+  const checked = document.querySelectorAll('.ainstCb:checked');
+  document.getElementById('ainstCounter').textContent = checked.length+'/3';
+  if(checked.length>3) {
+    event.target.checked = false;
+    toast('Maksimal 3 orang');
+    document.getElementById('ainstCounter').textContent = '3/3';
+  }
+  document.querySelectorAll('.ainstCb').forEach(cb=>{
+    cb.parentElement.style.background = cb.checked?'var(--amber-bg)':'var(--surface2)';
+  });
+}
+
+async function saveAssignInstalasi(itemId, poId) {
+  const ids = Array.from(document.querySelectorAll('.ainstCb:checked')).map(cb=>cb.value);
+  await sb.from('po_pic').delete().eq('po_id',poId).eq('item_id',itemId).eq('stage','Instalasi');
+  if(ids.length) {
+    await sb.from('po_pic').insert(ids.map(uid=>({po_id:poId, item_id:itemId, stage:'Instalasi', user_id:uid})));
+  }
+  await logPO(poId, 'Assign PIC Instalasi', ids.length+' orang');
+  toast('PIC tersimpan');
+  closeAllModals();
+  await loadPOs();
   await renderAssignList();
 }
 
@@ -2296,21 +2665,6 @@ async function openEditItemForm(itemId, poId) {
   if(!it) return;
   const canManage = can('po_manage');
 
-  // Load teknisi list
-  const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
-  const teknisiList = teknisi || [];
-
-  // Load existing PIC for this item
-  const {data: existingPics} = await sb.from('po_pic').select('user_id').eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
-  const picIds = (existingPics||[]).map(p=>p.user_id);
-
-  const picCheckboxes = teknisiList.map(t=>
-    `<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 8px;background:${picIds.includes(t.id)?'var(--amber-bg)':'var(--surface2)'};border-radius:var(--r-sm);cursor:pointer">
-      <input type="checkbox" class="picCb" value="${t.id}" ${picIds.includes(t.id)?'checked':''} onchange="picCountCheck()">
-      <span>${t.full_name} <span style="color:var(--text3);font-size:11px">(${t.role})</span></span>
-    </label>`
-  ).join('');
-
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Edit Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -2325,11 +2679,7 @@ async function openEditItemForm(itemId, poId) {
       </div>
       <div class="form-row" style="margin-top:4px"><label>Catatan Item</label><input type="text" id="itCatatan" value="${it.catatan||''}" placeholder="Catatan tambahan..."></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:8px"><input type="checkbox" id="itProd" ${it.is_produksi?'checked':''}><span>Diproduksi internal</span></label>
-      ${canManage ? `
-      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">PIC Produksi <span style="color:var(--text3);font-weight:400">(maks. 3 orang)</span> <span id="picCount" style="float:right;font-size:11px;color:var(--text3)">${picIds.length}/3</span></label>
-        <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm)">${picCheckboxes||'<span style="font-size:12px;color:var(--text3);padding:4px">Belum ada teknisi</span>'}</div>
-      </div>` : ''}
+
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn btn-sm btn-danger" data-iid="${itemId}" data-pid="${poId}" onclick="deleteItem(this.dataset.iid,this.dataset.pid)">Hapus</button>
@@ -2367,16 +2717,6 @@ async function saveEditItem(itemId, poId, openSpec=false) {
     catatan: gv('itCatatan')||null,
     is_produksi: document.getElementById('itProd').checked
   }).eq('id', itemId);
-
-  // Save PIC Produksi
-  if(canManage) {
-    const newPicIds = Array.from(document.querySelectorAll('.picCb:checked')).map(cb=>cb.value);
-    await sb.from('po_pic').delete().eq('po_id',poId).eq('item_id',itemId).eq('stage','Produksi');
-    if(newPicIds.length){
-      const inserts = newPicIds.map(uid=>({po_id:poId, item_id:itemId, stage:'Produksi', user_id:uid}));
-      await sb.from('po_pic').insert(inserts);
-    }
-  }
 
   await logPO(poId, 'Edit Item', gv('itCat'));
   toast('Item diperbarui');
