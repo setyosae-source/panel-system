@@ -525,7 +525,7 @@ function buildSidebar() {
   nav += navItem('home', homeIcon(), 'Home', 'nbHome');
   nav += '<div class="sb-divider"></div><div class="sb-label">Modul</div>';
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
-  if (can('po_view')) nav += navItem('po', poIcon(), 'Pabrikasi / PO', 'nbPO');
+  if (can('po_view')) nav += navItem('po', poIcon(), 'Kelola PO', 'nbPO');
   if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
@@ -1012,7 +1012,7 @@ async function renderHomeModule() {
   // PO module (owner/admin)
   if(can('po_manage')) {
     const aktif = allPOs.filter(p=>p.status!=='Selesai').length;
-    cards.push({mod:'po', icon:'📋', title:'Pabrikasi / PO', desc:'Manajemen Purchase Order', count:aktif, color:'#1e40af'});
+    cards.push({mod:'po', icon:'📋', title:'Kelola PO', desc:'Manajemen Purchase Order', count:aktif, color:'#1e40af'});
   }
 
   // PP requests
@@ -1153,7 +1153,7 @@ async function renderPOModule() {
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <div><div class="page-title">Pabrikasi / PO</div><div class="page-sub">Purchase Order tracking</div></div>
+        <div><div class="page-title">Kelola PO</div><div class="page-sub">Purchase Order tracking</div></div>
       </div>
       <div class="topbar-right">
         ${isAdmin() ? '<button class="btn btn-primary" onclick="openPOForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>PO Baru</button>' : ''}
@@ -1168,14 +1168,11 @@ async function renderPOModule() {
       </div>
       <div class="toolbar">
         <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari No. PO, customer, project..." oninput="poSearch=this.value;renderPOTable()"></div>
-        <select onchange="poFilter=this.value?[this.value]:[];renderPOTable()">
-          <option value="">Semua Status</option>
-          ${PO_STATUS_ORDER.map(s => `<option>${s}</option>`).join('')}
-        </select>
+
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table><colgroup><col style="width:18%"><col style="width:10%"><col style="width:22%"><col style="width:20%"><col style="width:12%"><col style="width:18%"></colgroup>
+          <table><colgroup><col style="width:20%"><col style="width:12%"><col style="width:25%"><col style="width:25%"><col style="width:18%"></colgroup>
           <thead><tr>
             <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
             <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. <span class="sort-arrow" id="sarr_tgl_po">▼</span></th>
@@ -1238,7 +1235,7 @@ function renderPOTable() {
       <td style="font-weight:500">${p.customer_name || '—'}</td>
       <td style="color:var(--text2)">${p.project_name || '—'}</td>
       <td style="color:${overdue ? 'var(--red)' : 'var(--text2)'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</td>
-      <td>${poBadge(p.status)}</td>
+
     </tr>`;
   }).join('');
 }
@@ -1340,23 +1337,16 @@ async function openPODetail(id) {
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
     </div>
     <div class="modal-body">
-      ${stepperHtml}
       <div class="detail-section">
         <div class="sect-title">Info PO</div>
         <div class="kv">
-          <span class="k">Status</span><span class="v">${poBadge(p.status)}</span>
           <span class="k">Customer</span><span class="v">${p.customer_name || '—'}</span>
           <span class="k">Target Kirim</span><span class="v">${fmtDate(p.tgl_target_kirim)}</span>
           <span class="k">Nilai PO</span><span class="v">${can('nilai_po') ? fmtRp(p.nilai_po) : '<span class="restricted-blur">Rp 999.999.999</span>'}</span>
           <span class="k">FAT / Instalasi / Comm</span><span class="v">${[p.has_fat && 'FAT', p.has_instalasi && 'Instalasi', p.has_commissioning && 'Commissioning'].filter(Boolean).join(' &middot; ') || '—'}</span>
         </div>
         ${p.catatan ? `<div class="desc-box">${p.catatan}</div>` : ''}
-        ${canManage ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-          <select id="poStatusSelect_${p.id}" style="width:auto;padding:6px 10px">
-            ${PO_STATUS_ORDER.map(s => `<option ${p.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-          <button class="btn btn-sm btn-primary" onclick="manualUpdatePOStatus('${p.id}')">Update Status</button>
-        </div>` : ''}
+
       </div>
       <div class="detail-section">
         <div class="sect-title">Dokumen</div>
