@@ -1593,6 +1593,437 @@ async function saveAssignInstalasi(itemId, poId) {
   await renderAssignList();
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// PRODUKSI ITEM DETAIL - Tabs: Status | Laporan | Material | QC
+// ═══════════════════════════════════════════════════════════
+let prodTab = 'status';
+
+async function openProduksiItemModal(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) return;
+
+  window._prodCurrentItem = item;
+  window._prodCurrentPO = po;
+  prodTab = 'status';
+
+  openModal(`<div class="modal" style="max-width:720px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div>
+        <h2 style="font-size:15px">${item.category} — ${item.model_name||'—'}</h2>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${po.no_po} · ${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto" id="prodTabs"></div>
+    <div class="modal-body" id="prodTabContent" style="flex:1;overflow-y:auto"></div>
+  </div>`);
+
+  renderProdTabs();
+  await switchProdTab('status');
+}
+
+function renderProdTabs() {
+  const tabs = [
+    {key:'status', label:'Status'},
+    {key:'laporan', label:'Laporan Produksi'},
+    {key:'material', label:'Material'},
+    {key:'qc', label:'QC / Test'}
+  ];
+  document.getElementById('prodTabs').innerHTML = tabs.map(t=>
+    `<button onclick="switchProdTab('${t.key}')" style="padding:10px 16px;background:${prodTab===t.key?'var(--surface)':'transparent'};border:none;border-bottom:2px solid ${prodTab===t.key?'var(--brand)':'transparent'};color:${prodTab===t.key?'var(--text)':'var(--text3)'};font-family:inherit;font-size:13px;font-weight:${prodTab===t.key?'600':'500'};cursor:pointer;white-space:nowrap">${t.label}</button>`
+  ).join('');
+}
+
+async function switchProdTab(tab) {
+  prodTab = tab;
+  renderProdTabs();
+  if(tab==='status') await renderProdStatus();
+  else if(tab==='laporan') await renderProdLaporan();
+  else if(tab==='material') await renderProdMaterial();
+  else if(tab==='qc') await renderProdQC();
+}
+
+// ─── STATUS TAB ───
+async function renderProdStatus() {
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+  const isMyPic = (window._prodCurrentPO?.po_pic||[]).some(x=>x.item_id===item.id && x.stage==='Produksi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  const STATUSES = ['Belum Produksi','Proses Produksi','QC','Selesai Produksi'];
+  const STATUS_COLORS = {
+    'Belum Produksi':{bg:'#f1f5f9',color:'#475569'},
+    'Proses Produksi':{bg:'#fef3c7',color:'#92400e'},
+    'QC':{bg:'#dbeafe',color:'#1e40af'},
+    'Selesai Produksi':{bg:'#d1fae5',color:'#065f46'}
+  };
+  const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
+
+  document.getElementById('prodTabContent').innerHTML = `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Status Saat Ini</div>
+      <div style="display:inline-block;font-size:14px;background:${sc.bg};color:${sc.color};padding:6px 14px;border-radius:6px;font-weight:600">${item.item_status||'Belum Produksi'}</div>
+    </div>
+    
+    ${canEdit ? `
+    <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">Update Status</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${STATUSES.map(s=>{
+          const _sc = STATUS_COLORS[s];
+          const isCurrent = s===item.item_status;
+          return `<button onclick="updateProdStatus('${s}')" ${isCurrent?'disabled':''} style="padding:8px 14px;background:${isCurrent?_sc.bg:'var(--surface2)'};color:${isCurrent?_sc.color:'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:${isCurrent?'default':'pointer'};opacity:${isCurrent?'.7':'1'};font-weight:${isCurrent?'600':'500'}">${s}</button>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Klik untuk mengubah status. Perubahan akan tercatat di log.</div>
+    </div>` : '<div style="font-size:12px;color:var(--text3);padding:1rem;text-align:center;background:var(--surface2);border-radius:var(--r-sm)">Anda tidak di-assign sebagai PIC untuk item ini, hanya bisa melihat.</div>'}
+  `;
+}
+
+async function updateProdStatus(newStatus) {
+  const item = window._prodCurrentItem;
+  await sb.from('po_items').update({item_status: newStatus}).eq('id', item.id);
+  await logPO(window._prodCurrentPO.id, 'Update Status Item', `${item.category} ${item.model_name||''} → ${newStatus}`);
+  toast('Status diperbarui');
+  item.item_status = newStatus;
+  await loadPOs();
+  await renderProdStatus();
+}
+
+// ─── LAPORAN PRODUKSI TAB ───
+async function renderProdLaporan() {
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+  const isMyPic = (window._prodCurrentPO?.po_pic||[]).some(x=>x.item_id===item.id && x.stage==='Produksi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  const {data: reports} = await sb.from('production_reports').select('*,app_users(full_name)').eq('item_id',item.id).order('created_at',{ascending:false});
+  const list = reports||[];
+
+  document.getElementById('prodTabContent').innerHTML = `
+    ${canEdit?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openLaporanForm()">+ Tambah Laporan</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada laporan</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(r=>`
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div style="font-size:13px;font-weight:600">${r.judul}</div>
+              <div style="font-size:11px;color:var(--text3);white-space:nowrap">${fmtDateTime(r.created_at)}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:8px">oleh <strong>${r.app_users?.full_name||'?'}</strong></div>
+            ${r.catatan?`<div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${r.catatan}</div>`:''}
+            ${(r.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">
+              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+            </div>`:''}
+          </div>
+        `).join('')}
+      </div>`
+    }`;
+}
+
+function openLaporanForm() {
+  openModal(`<div class="modal modal-sm" style="z-index:200">
+    <div class="modal-header"><h2>Laporan Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Judul / Topik <span class="req">*</span></label><input type="text" id="lpJudul" placeholder="Misal: Pemasangan komponen utama"></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Detail</label><textarea id="lpCatatan" rows="4" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Catatan progres, masalah, dll..."></textarea></div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Foto (max 10)</label>
+        <input type="file" id="lpFoto" multiple accept="image/*" style="margin-top:4px">
+        <div id="lpFotoPreview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveLaporan()">Simpan Laporan</button>
+    </div>
+  </div>`, true);
+  
+  document.getElementById('lpFoto').onchange = (e) => {
+    const files = Array.from(e.target.files).slice(0,10);
+    const preview = document.getElementById('lpFotoPreview');
+    preview.innerHTML = '';
+    files.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      preview.innerHTML += `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--border)">`;
+    });
+  };
+}
+
+async function saveLaporan() {
+  const judul = gv('lpJudul').trim();
+  if(!judul) { toast('Judul wajib diisi'); return; }
+  const catatan = gv('lpCatatan').trim();
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+
+  toast('Mengupload foto...');
+  const fileInput = document.getElementById('lpFoto');
+  const files = Array.from(fileInput.files).slice(0,10);
+  const photos = [];
+  for(const f of files) {
+    const path = `${item.id}/${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('production-photos').upload(path, f);
+    if(!error) {
+      const url = SB_URL+'/storage/v1/object/public/production-photos/'+path;
+      photos.push({name:f.name, url, path});
+    }
+  }
+
+  await sb.from('production_reports').insert({
+    item_id: item.id,
+    user_id: me.id,
+    judul, catatan,
+    photos
+  });
+
+  await logPO(window._prodCurrentPO.id, 'Laporan Produksi', judul);
+  toast('Laporan tersimpan');
+  closeTopModal();
+  await renderProdLaporan();
+}
+
+// ─── MATERIAL TAB ───
+async function renderProdMaterial() {
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+  const isMyPic = (window._prodCurrentPO?.po_pic||[]).some(x=>x.item_id===item.id && x.stage==='Produksi' && x.user_id===me.id);
+  const canRequest = isMyPic || can('po_manage');
+  const canReceive = isMyPic || can('po_manage');
+
+  const {data: requests} = await sb.from('material_requests').select('*,requester:user_id(full_name),receiver:received_by(full_name)').eq('item_id',item.id).order('created_at',{ascending:false});
+  const list = requests||[];
+
+  const STATUS_COLORS = {
+    'Diajukan':{bg:'#fef3c7',color:'#92400e'},
+    'Diterima':{bg:'#d1fae5',color:'#065f46'},
+    'Ditolak':{bg:'#fee2e2',color:'#991b1b'}
+  };
+
+  document.getElementById('prodTabContent').innerHTML = `
+    ${canRequest?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openMaterialForm()">+ Permintaan Material</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada permintaan material</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(r=>{
+          const sc = STATUS_COLORS[r.status]||STATUS_COLORS['Diajukan'];
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:600">${r.material_name}</div>
+                <div style="font-size:12px;color:var(--text2);margin-top:2px">${r.qty||0} ${r.satuan||''}</div>
+              </div>
+              <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${r.status}</span>
+            </div>
+            ${r.alasan?`<div style="font-size:12px;color:var(--text);margin:6px 0">${r.alasan}</div>`:''}
+            <div style="font-size:11px;color:var(--text3)">Diajukan oleh <strong>${r.requester?.full_name||'?'}</strong> · ${fmtDateTime(r.created_at)}</div>
+            ${r.received_at?`<div style="font-size:11px;color:var(--green);margin-top:4px">✓ Diterima ${r.received_qty||r.qty} ${r.satuan||''} oleh <strong>${r.receiver?.full_name||'?'}</strong> · ${fmtDateTime(r.received_at)}${r.received_note?'<br>'+r.received_note:''}</div>`:''}
+            ${(r.status==='Diajukan' && canReceive)?`<div style="margin-top:8px"><button class="btn btn-sm" data-id="${r.id}" data-qty="${r.qty}" data-satuan="${r.satuan||''}" onclick="openReceiveMaterial(this.dataset.id,this.dataset.qty,this.dataset.satuan)">Konfirmasi Terima</button></div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`
+    }`;
+}
+
+async function openMaterialForm() {
+  // Load material master for autocomplete
+  const {data: masters} = await sb.from('material_master').select('name,satuan').order('use_count',{ascending:false}).limit(50);
+  const masterList = masters||[];
+  const datalistOpts = masterList.map(m=>`<option value="${m.name}" data-satuan="${m.satuan||''}">${m.satuan?m.satuan:''}`).join('');
+
+  openModal(`<div class="modal modal-sm" style="z-index:200">
+    <div class="modal-header"><h2>Permintaan Material</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Nama Material <span class="req">*</span></label>
+        <input type="text" id="mtName" placeholder="Misal: MCB 100A 3P" list="mtList" autocomplete="off">
+        <datalist id="mtList">${datalistOpts}</datalist>
+      </div>
+      <div class="form-grid" style="margin-top:8px">
+        <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" id="mtQty" step="0.01" min="0"></div>
+        <div class="form-row"><label>Satuan</label><input type="text" id="mtSatuan" placeholder="pcs / m / kg" list="satList" autocomplete="off"></div>
+      </div>
+      <datalist id="satList"><option value="pcs"><option value="m"><option value="meter"><option value="kg"><option value="set"><option value="lembar"><option value="roll"><option value="batang"></datalist>
+      <div class="form-row" style="margin-top:8px"><label>Alasan / Keterangan</label><textarea id="mtAlasan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Untuk apa material ini..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveMaterialRequest()">Ajukan</button>
+    </div>
+  </div>`, true);
+}
+
+async function saveMaterialRequest() {
+  const name = gv('mtName').trim();
+  const qty = parseFloat(gv('mtQty')) || 0;
+  const satuan = gv('mtSatuan').trim();
+  const alasan = gv('mtAlasan').trim();
+  if(!name || !qty) { toast('Nama dan qty wajib diisi'); return; }
+
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+
+  await sb.from('material_requests').insert({
+    item_id: item.id,
+    user_id: me.id,
+    material_name: name,
+    qty, satuan, alasan,
+    status: 'Diajukan'
+  });
+
+  // Add to material_master (upsert)
+  const {data: existing} = await sb.from('material_master').select('id,use_count').eq('name',name).maybeSingle();
+  if(existing) {
+    await sb.from('material_master').update({use_count:(existing.use_count||0)+1, last_used_at: new Date().toISOString(), satuan: satuan||null}).eq('id',existing.id);
+  } else {
+    await sb.from('material_master').insert({name, satuan: satuan||null});
+  }
+
+  await logPO(window._prodCurrentPO.id, 'Permintaan Material', `${name} ${qty} ${satuan}`);
+  toast('Permintaan diajukan');
+  closeTopModal();
+  await renderProdMaterial();
+}
+
+function openReceiveMaterial(reqId, qty, satuan) {
+  openModal(`<div class="modal modal-sm" style="z-index:200">
+    <div class="modal-header"><h2>Konfirmasi Terima Material</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Qty Diterima <span class="req">*</span></label>
+        <input type="number" id="rcvQty" step="0.01" value="${qty}" min="0"> <span style="font-size:12px;color:var(--text3)">${satuan}</span>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="rcvNote" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Kondisi material, dll..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" data-id="${reqId}" onclick="saveReceiveMaterial(this.dataset.id)">Konfirmasi</button>
+    </div>
+  </div>`, true);
+}
+
+async function saveReceiveMaterial(reqId) {
+  const rcvQty = parseFloat(gv('rcvQty')) || 0;
+  const note = gv('rcvNote').trim();
+  await sb.from('material_requests').update({
+    status: 'Diterima',
+    received_qty: rcvQty,
+    received_at: new Date().toISOString(),
+    received_by: currentUser.id,
+    received_note: note||null
+  }).eq('id', reqId);
+  toast('Material dikonfirmasi diterima');
+  closeTopModal();
+  await renderProdMaterial();
+}
+
+// ─── QC TAB ───
+async function renderProdQC() {
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+  const isMyPic = (window._prodCurrentPO?.po_pic||[]).some(x=>x.item_id===item.id && x.stage==='Produksi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  const {data: reports} = await sb.from('qc_reports').select('*,app_users(full_name)').eq('item_id',item.id).order('created_at',{ascending:false});
+  const list = reports||[];
+
+  document.getElementById('prodTabContent').innerHTML = `
+    ${canEdit?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openQCForm()">+ Laporan QC / Test</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada laporan QC</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(r=>{
+          const passColor = r.status==='Pass'?{bg:'#d1fae5',color:'#065f46'}:{bg:'#fee2e2',color:'#991b1b'};
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div style="font-size:13px;font-weight:600">${r.hasil_test||'Laporan QC'}</div>
+              <span style="font-size:11px;background:${passColor.bg};color:${passColor.color};padding:3px 10px;border-radius:4px;font-weight:600">${r.status}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:8px">oleh <strong>${r.app_users?.full_name||'?'}</strong> · ${fmtDateTime(r.created_at)}</div>
+            ${r.catatan?`<div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${r.catatan}</div>`:''}
+            ${(r.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">
+              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+            </div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`
+    }`;
+}
+
+function openQCForm() {
+  openModal(`<div class="modal modal-sm" style="z-index:200">
+    <div class="modal-header"><h2>Laporan QC / Test Internal</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Status <span class="req">*</span></label>
+        <select id="qcStatus" style="width:100%;padding:6px 8px">
+          <option value="Pass">Pass</option>
+          <option value="Fail">Fail</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Hasil Test / Item Tes</label><input type="text" id="qcHasil" placeholder="Misal: Test isolasi, test loading 100%"></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="qcCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Foto Bukti Test (max 10)</label>
+        <input type="file" id="qcFoto" multiple accept="image/*" style="margin-top:4px">
+        <div id="qcFotoPreview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveQC()">Simpan</button>
+    </div>
+  </div>`, true);
+
+  document.getElementById('qcFoto').onchange = (e) => {
+    const files = Array.from(e.target.files).slice(0,10);
+    const preview = document.getElementById('qcFotoPreview');
+    preview.innerHTML = '';
+    files.forEach(f=>{
+      const url = URL.createObjectURL(f);
+      preview.innerHTML += `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--border)">`;
+    });
+  };
+}
+
+async function saveQC() {
+  const status = gv('qcStatus');
+  const hasil = gv('qcHasil').trim();
+  const catatan = gv('qcCatatan').trim();
+  const item = window._prodCurrentItem;
+  const me = currentUser;
+
+  toast('Mengupload foto...');
+  const fileInput = document.getElementById('qcFoto');
+  const files = Array.from(fileInput.files).slice(0,10);
+  const photos = [];
+  for(const f of files) {
+    const path = `qc/${item.id}/${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('production-photos').upload(path, f);
+    if(!error) {
+      const url = SB_URL+'/storage/v1/object/public/production-photos/'+path;
+      photos.push({name:f.name, url, path});
+    }
+  }
+
+  await sb.from('qc_reports').insert({
+    item_id: item.id,
+    user_id: me.id,
+    status, hasil_test: hasil, catatan,
+    photos
+  });
+
+  await logPO(window._prodCurrentPO.id, 'Laporan QC', `${status}${hasil?' - '+hasil:''}`);
+  toast('Laporan QC tersimpan');
+  closeTopModal();
+  await renderProdQC();
+}
+
+// Helper for nested modals
+function closeTopModal() {
+  const modals = document.querySelectorAll('.modal-overlay');
+  if(modals.length) modals[modals.length-1].remove();
+}
+
 // ═══════════════════════════════════════════════════════════
 // HOME DASHBOARD
 // ═══════════════════════════════════════════════════════════
@@ -1807,7 +2238,7 @@ async function renderProduksiModule() {
               const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
               const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
               return `
-              <div onclick="openPODetail('${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;cursor:pointer;margin-bottom:6px" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div onclick="openProduksiItemModal('${item.id}','${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;cursor:pointer;margin-bottom:6px" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
                   <div style="flex:1;min-width:0">
                     <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
