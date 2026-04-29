@@ -710,9 +710,9 @@ async function renderPPModule() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table><colgroup><col style="width:18%"><col style="width:16%"><col style="width:22%"><col style="width:20%"><col style="width:13%"><col style="width:11%"></colgroup>
-          <thead><tr><th>No. Request</th><th>Tanggal</th><th>Customer</th><th>Project</th><th>Output</th><th>Status</th></tr></thead>
-          <tbody id="ppTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
+          <table><colgroup><col style="width:14%"><col style="width:11%"><col style="width:18%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup>
+          <thead><tr><th>No. Request</th><th>Tanggal</th><th>Customer</th><th>Project</th><th>Requestor</th><th>Output</th><th>Status</th></tr></thead>
+          <tbody id="ppTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
     </div>`;
@@ -721,7 +721,7 @@ async function renderPPModule() {
 }
 
 async function loadPPs() {
-  const { data } = await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').order('created_at', { ascending: false });
+  const { data } = await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*),app_users:requester_id(full_name)').order('created_at', { ascending: false });
   allPPs = data || [];
   renderPPStats();
   renderPPTable();
@@ -763,7 +763,7 @@ function renderPPTable() {
 }
 
 async function openPPDetail(id) {
-  const r = allPPs.find(x => x.id === id) || (await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').eq('id', id).single()).data;
+  const r = allPPs.find(x => x.id === id) || (await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*),app_users:requester_id(full_name)').eq('id', id).single()).data;
   if (!r) return;
   const canManage = can('pp_manage');
   const canUploadResult = can('pp_upload_result');
@@ -785,6 +785,7 @@ async function openPPDetail(id) {
           <span class="k">Output</span><span class="v">${r.output_type}${r.output_other ? ' — ' + r.output_other : ''}</span>
           <span class="k">Customer</span><span class="v">${r.customer_name || '—'}</span>
           <span class="k">Project</span><span class="v">${r.project_name || '—'}</span>
+          <span class="k">Requestor</span><span class="v">${r.app_users?.full_name || '—'}</span>
         </div>
         ${r.description ? `<div class="desc-box">${r.description}</div>` : ''}
         ${statusBtns ? '<div style="margin-top:10px">' + statusBtns + '</div>' : ''}
@@ -943,9 +944,43 @@ async function submitSalesRequest() {
     toast('Request terkirim: ' + id);
     sv('sCustomer', ''); sv('sProject', ''); sv('sDesc', ''); document.getElementById('sOutput').value = '';
     salesFilesData = []; renderSalesFileList();
+    
+    // Show WA confirmation modal
+    showWAConfirm(id, customer, gv('sProject').trim(), output);
+    
     switchSalesTab('my');
   } catch (e) { toast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Kirim Request';
+}
+
+function showWAConfirm(id, customer, project, output) {
+  const ownerWA = '6285718264782';
+  const myName = currentUser?.full_name || 'Sales';
+  const message = `Halo Pak Setyo, ada Pre-Project Request baru:%0A%0A` +
+    `*ID Request:* ${id}%0A` +
+    `*Customer:* ${customer}%0A` +
+    (project ? `*Project:* ${project}%0A` : '') +
+    `*Jenis Output:* ${output}%0A` +
+    `*Diajukan oleh:* ${myName}%0A%0A` +
+    `Mohon dicek di sistem 🙏`;
+  
+  const waUrl = `https://wa.me/${ownerWA}?text=${message}`;
+  
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Request Terkirim ✓</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body" style="text-align:center;padding:1.5rem">
+      <div style="font-size:48px;margin-bottom:1rem">✅</div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:.5rem">Request <strong>${id}</strong> berhasil dikirim</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1.25rem">Konfirmasikan ke owner via WhatsApp untuk mempercepat proses.</div>
+      <a href="${waUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#25d366;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/></svg>
+        Konfirmasi via WhatsApp
+      </a>
+      <div style="margin-top:1.25rem">
+        <button class="btn" onclick="closeAllModals()" style="font-size:13px">Tutup</button>
+      </div>
+    </div>
+  </div>`);
 }
 
 async function loadMyRequests() {
@@ -1667,11 +1702,24 @@ async function renderProdStatus() {
   };
   const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
 
+  // Timeline rows
+  const timelineHTML = `
+    <div style="background:var(--surface2);border-radius:var(--r-sm);padding:.875rem 1rem;margin:1rem 0;font-size:12px">
+      <div style="font-weight:600;color:var(--text2);margin-bottom:8px;font-size:11px;letter-spacing:.05em;text-transform:uppercase">Timeline Proses</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Mulai Produksi:</span><span>${item.prod_started_at?fmtDateTime(item.prod_started_at):'—'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Mulai QC:</span><span>${item.qc_started_at?fmtDateTime(item.qc_started_at):'—'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Selesai Produksi:</span><span>${item.prod_finished_at?fmtDateTime(item.prod_finished_at):'—'}</span></div>
+        ${item.prod_started_at?`<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:600"><span>Total Lama:</span><span style="color:var(--brand)">${fmtDuration(item.prod_started_at, item.prod_finished_at)}</span></div>`:''}
+      </div>
+    </div>`;
+
   document.getElementById('prodTabContent').innerHTML = `
     <div style="margin-bottom:1rem">
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Status Saat Ini</div>
       <div style="display:inline-block;font-size:14px;background:${sc.bg};color:${sc.color};padding:6px 14px;border-radius:6px;font-weight:600">${item.item_status||'Belum Produksi'}</div>
     </div>
+    ${timelineHTML}
     
     ${canEdit ? `
     <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
@@ -1692,10 +1740,25 @@ async function updateProdStatus(newStatus) {
   const item = window._prodCurrentItem;
   // Update local state immediately for instant UI response
   item.item_status = newStatus;
+  
+  // Track timestamps for transitions
+  const now = new Date().toISOString();
+  const updates = {item_status: newStatus};
+  if(newStatus === 'Proses Produksi' && !item.prod_started_at) {
+    updates.prod_started_at = now;
+    item.prod_started_at = now;
+  } else if(newStatus === 'QC' && !item.qc_started_at) {
+    updates.qc_started_at = now;
+    item.qc_started_at = now;
+  } else if(newStatus === 'Selesai Produksi' && !item.prod_finished_at) {
+    updates.prod_finished_at = now;
+    item.prod_finished_at = now;
+  }
+  
   renderProdStatus();
   toast('Status diperbarui');
-  // Background save - don't block UI
-  sb.from('po_items').update({item_status: newStatus}).eq('id', item.id).then(()=>{
+  
+  sb.from('po_items').update(updates).eq('id', item.id).then(()=>{
     logPO(window._prodCurrentPO.id, 'Update Status Item', `${item.category} ${item.model_name||''} → ${newStatus}`);
   });
 }
@@ -2097,14 +2160,58 @@ async function renderHomeModule() {
   const initials = me.full_name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const greeting = (()=>{const h=new Date().getHours(); return h<11?'Selamat pagi':h<15?'Selamat siang':h<18?'Selamat sore':'Selamat malam';})();
 
+  // Compute personal stats (production tasks completed by this user)
+  let myCompletedItems = [];
+  allPOs.forEach(p => {
+    (p.po_items||[]).forEach(it => {
+      const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
+      if(isMyPic && it.prod_started_at && it.prod_finished_at) {
+        const days = Math.round((new Date(it.prod_finished_at) - new Date(it.prod_started_at)) / (1000*60*60*24));
+        myCompletedItems.push({item:it, po:p, days});
+      }
+    });
+  });
+  
+  let myActiveItems = [];
+  allPOs.forEach(p => {
+    (p.po_items||[]).forEach(it => {
+      const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
+      if(isMyPic && it.is_produksi && it.item_status !== 'Selesai Produksi') {
+        myActiveItems.push({item:it, po:p, started: it.prod_started_at});
+      }
+    });
+  });
+  
+  const myAvgDays = myCompletedItems.length ? Math.round(myCompletedItems.reduce((s,x)=>s+x.days,0) / myCompletedItems.length) : 0;
+  const showPersonalStats = (can('teknisi') || can('po_manage')) && (myCompletedItems.length || myActiveItems.length);
+
   document.getElementById('homeBody').innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem">
       <div style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">${initials}</div>
-      <div>
+      <div style="flex:1">
         <div style="font-size:18px;font-weight:600">${greeting}, ${me.full_name.split(' ')[0]}!</div>
         <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div>
       </div>
     </div>
+    
+    ${showPersonalStats ? `
+    <div style="background:linear-gradient(135deg, #1e40af, #3b82f6);color:#fff;border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1.25rem">
+      <div style="font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📊 Statistik Pribadi - Produksi</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem">
+        <div>
+          <div style="font-size:24px;font-weight:700">${myCompletedItems.length}</div>
+          <div style="font-size:12px;opacity:.85">Item Selesai</div>
+        </div>
+        <div>
+          <div style="font-size:24px;font-weight:700">${myActiveItems.length}</div>
+          <div style="font-size:12px;opacity:.85">Sedang Dikerjakan</div>
+        </div>
+        ${myAvgDays>0?`<div>
+          <div style="font-size:24px;font-weight:700">${myAvgDays} hari</div>
+          <div style="font-size:12px;opacity:.85">Rata-rata Lama Produksi</div>
+        </div>`:''}
+      </div>
+    </div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
       ${cards.map(c=>`
         <div onclick="switchModule('${c.mod}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.125rem;cursor:pointer;transition:all .15s;position:relative" onmouseover="this.style.borderColor='${c.color}';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
@@ -3651,11 +3758,23 @@ async function renderInstStatus() {
   };
   const sc = COLORS[task.status]||COLORS['Belum Mulai'];
 
+  const timeline = `
+    <div style="background:var(--surface2);border-radius:var(--r-sm);padding:.875rem 1rem;margin:1rem 0;font-size:12px">
+      <div style="font-weight:600;color:var(--text2);margin-bottom:8px;font-size:11px;letter-spacing:.05em;text-transform:uppercase">Timeline</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Berangkat:</span><span>${task.berangkat_at?fmtDateTime(task.berangkat_at):'—'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Tiba di Lokasi:</span><span>${task.di_lokasi_at?fmtDateTime(task.di_lokasi_at):'—'}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Selesai:</span><span>${task.inst_selesai_at?fmtDateTime(task.inst_selesai_at):'—'}</span></div>
+        ${task.berangkat_at?`<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;font-weight:600"><span>Lama Tugas:</span><span style="color:var(--brand)">${fmtDuration(task.berangkat_at, task.inst_selesai_at)}</span></div>`:''}
+      </div>
+    </div>`;
+
   document.getElementById('instTabContent').innerHTML = `
     <div style="margin-bottom:1rem">
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Status Saat Ini</div>
       <div style="display:inline-block;font-size:14px;background:${sc.bg};color:${sc.color};padding:6px 14px;border-radius:6px;font-weight:600">${task.status}</div>
     </div>
+    ${timeline}
     
     <div class="form-grid">
       <div class="form-row"><label>Tgl Mulai</label><input type="date" id="instTglMulai" value="${task.tgl_mulai||''}" ${!canEdit?'disabled':''}></div>
@@ -3680,10 +3799,15 @@ async function renderInstStatus() {
 
 async function updateInstStatus(newStatus) {
   const {task} = window._instCurrent;
+  const now = new Date().toISOString();
   task.status = newStatus;
+  const updates = {status: newStatus, updated_at: now};
+  if(newStatus === 'Berangkat' && !task.berangkat_at) { updates.berangkat_at = now; task.berangkat_at = now; }
+  else if(newStatus === 'Di Lokasi' && !task.di_lokasi_at) { updates.di_lokasi_at = now; task.di_lokasi_at = now; }
+  else if(newStatus === 'Selesai' && !task.inst_selesai_at) { updates.inst_selesai_at = now; task.inst_selesai_at = now; }
   renderInstStatus();
   toast('Status diperbarui');
-  await sb.from('instalasi_tasks').update({status:newStatus, updated_at:new Date().toISOString()}).eq('id',task.id);
+  await sb.from('instalasi_tasks').update(updates).eq('id',task.id);
 }
 
 async function saveInstDetails() {
@@ -4242,6 +4366,9 @@ async function openSvcDetail(id) {
 
 async function updateSvcStatus(id, status) {
   const upd = { status, updated_at: new Date().toISOString() };
+  if (status === 'Proses') {
+    upd.proses_started_at = new Date().toISOString();
+  }
   if (status === 'Selesai') {
     upd.closed_at = new Date().toISOString();
     // Auto-create KB entry
