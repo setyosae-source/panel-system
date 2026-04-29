@@ -3427,18 +3427,52 @@ async function removeDownloadFilePO(poId, idx){
 // ═══════════════════════════════════════════════════════════
 let svcFilter = '', svcSearch = '';
 
+let svcSubTab = 'service'; // service | instalasi
+
 async function renderServiceModule() {
   document.getElementById('mainContent').innerHTML = `
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <div><div class="page-title">Service</div><div class="page-sub">Penanganan after-sales & laporan service</div></div>
+        <div><div class="page-title">Service</div><div class="page-sub">Service & Instalasi/Commissioning</div></div>
       </div>
-      <div class="topbar-right">
-        ${can('service_manage') ? '<button class="btn btn-coral" onclick="openSvcForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tiket Baru</button>' : ''}
-      </div>
+      <div class="topbar-right" id="svcTopActions"></div>
     </div>
-    <div class="page-body">
+    <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;display:flex;gap:4px">
+      <button onclick="setSvcSubTab('service')" id="svcTabSvc" style="padding:12px 20px;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--text2);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:-1px">Service</button>
+      <button onclick="setSvcSubTab('instalasi')" id="svcTabInst" style="padding:12px 20px;background:transparent;border:none;border-bottom:3px solid transparent;color:var(--text2);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:-1px">Instalasi & Commissioning</button>
+    </div>
+    <div class="page-body" id="svcPageBody"></div>`;
+  
+  setSvcSubTab(svcSubTab);
+}
+
+function setSvcSubTab(tab) {
+  svcSubTab = tab;
+  // Update tab buttons
+  const tabSvc = document.getElementById('svcTabSvc');
+  const tabInst = document.getElementById('svcTabInst');
+  if(tabSvc) {
+    tabSvc.style.borderBottomColor = tab==='service'?'var(--coral)':'transparent';
+    tabSvc.style.color = tab==='service'?'var(--text)':'var(--text2)';
+    tabSvc.style.fontWeight = tab==='service'?'600':'500';
+  }
+  if(tabInst) {
+    tabInst.style.borderBottomColor = tab==='instalasi'?'var(--coral)':'transparent';
+    tabInst.style.color = tab==='instalasi'?'var(--text)':'var(--text2)';
+    tabInst.style.fontWeight = tab==='instalasi'?'600':'500';
+  }
+  if(tab === 'service') {
+    document.getElementById('svcTopActions').innerHTML = can('service_manage') ? '<button class="btn btn-coral" onclick="openSvcForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Tiket Baru</button>' : '';
+    renderServiceTabContent();
+  } else {
+    document.getElementById('svcTopActions').innerHTML = '';
+    renderInstalasiTabContent();
+  }
+}
+
+async function renderServiceTabContent() {
+  document.getElementById('svcPageBody').innerHTML = `
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="svcTotal">—</div></div>
         <div class="stat-card" onclick="setSvcFilter('Masuk',this)"><div class="stat-label">Masuk</div><div class="stat-val blue" id="svcMasuk">—</div></div>
@@ -3455,11 +3489,642 @@ async function renderServiceModule() {
           <thead><tr><th>No. Tiket</th><th>Tanggal</th><th>Customer</th><th>Masalah</th><th>PIC Teknisi</th><th>Status</th></tr></thead>
           <tbody id="svcTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
-      </div>
-    </div>`;
+      </div>`;
   await loadServices();
   renderSvcTable();
 }
+
+// ─── INSTALASI & COMMISSIONING TAB ───
+async function renderInstalasiTabContent() {
+  document.getElementById('svcPageBody').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">Memuat...</div>';
+  
+  await loadPOs();
+  
+  // Build instalasi/commissioning tasks from items
+  // For each item with PIC Instalasi, ensure there's a record in instalasi_tasks
+  const items = [];
+  allPOs.forEach(p => {
+    if(!p.has_instalasi && !p.has_commissioning) return;
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Instalasi');
+      if(pics.length===0) return; // only show items that have PIC assigned
+      items.push({po:p, item:it, pics});
+    });
+  });
+  
+  // Load instalasi_tasks  
+  const itemIds = items.map(x=>x.item.id);
+  let tasksMap = {};
+  if(itemIds.length) {
+    const {data: tasks} = await sb.from('instalasi_tasks').select('*').in('item_id', itemIds);
+    (tasks||[]).forEach(t => {
+      const key = t.item_id+':'+t.task_type;
+      tasksMap[key] = t;
+    });
+  }
+  
+  // Also load tickets for filtering by user
+  const me = currentUser;
+  const isManager = can('po_manage');
+  
+  // Filter to items that this user is PIC for, unless manager
+  let filteredItems = items;
+  if(!isManager) {
+    filteredItems = items.filter(({pics}) => pics.some(p=>p.user_id===me.id));
+  }
+  
+  const STATUS_COLORS = {
+    'Belum Mulai':{bg:'#f1f5f9',color:'#475569'},
+    'Berangkat':{bg:'#fef3c7',color:'#92400e'},
+    'Di Lokasi':{bg:'#dbeafe',color:'#1e40af'},
+    'Selesai':{bg:'#d1fae5',color:'#065f46'}
+  };
+
+  const html = filteredItems.length===0 
+    ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tugas instalasi/commissioning</div>'
+    : groupItemsByProject(filteredItems).map(group=>{
+        const id = groupId(group.key, 'inst');
+        const collapsed = window._groupCollapsed[group.key] || false;
+        return `<div style="margin-bottom:6px">
+          ${groupHeaderHTML(group, 'inst')}
+          <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+            ${group.items.map(({po,item,pics})=>{
+              const flags = [];
+              if(po.has_instalasi) flags.push('Instalasi');
+              if(po.has_commissioning) flags.push('Commissioning');
+              return flags.map(taskType => {
+                const task = tasksMap[item.id+':'+taskType];
+                const status = task?.status || 'Belum Mulai';
+                const sc = STATUS_COLORS[status]||STATUS_COLORS['Belum Mulai'];
+                return `<div onclick="openInstalasiModal('${item.id}','${po.id}','${taskType}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;cursor:pointer;margin-bottom:6px" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
+                      <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'—'} <span style="font-size:11px;background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;margin-left:4px">${taskType}</span></div>
+                      <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: '+item.serial_number:''}</div>
+                      <div style="font-size:10px;color:var(--text3);margin-top:3px">👷 ${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>
+                    </div>
+                    <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${status}</span>
+                  </div>
+                </div>`;
+              }).join('');
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('');
+  
+  document.getElementById('svcPageBody').innerHTML = html;
+}
+
+// ─── INSTALASI TASK MODAL ───
+let instTab = 'status';
+
+async function openInstalasiModal(itemId, poId, taskType) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) return;
+  
+  // Get or create task record
+  let {data: task} = await sb.from('instalasi_tasks').select('*').eq('item_id',itemId).eq('task_type',taskType).maybeSingle();
+  if(!task) {
+    const {data: created} = await sb.from('instalasi_tasks').insert({item_id:itemId, po_id:poId, task_type:taskType, status:'Belum Mulai'}).select().single();
+    task = created;
+  }
+  
+  window._instCurrent = {item, po, task, taskType};
+  instTab = 'status';
+
+  openModal(`<div class="modal" style="max-width:780px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
+      <div>
+        <h2 style="font-size:15px">${item.category} — ${item.model_name||'—'} <span style="font-size:11px;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;margin-left:6px">${taskType}</span></h2>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${po.no_po} · ${po.customer_name}${item.serial_number?' · SN: '+item.serial_number:''}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto" id="instTabs"></div>
+    <div class="modal-body" id="instTabContent" style="flex:1;overflow-y:auto"></div>
+  </div>`);
+
+  renderInstTabs();
+  await switchInstTab('status');
+}
+
+function renderInstTabs() {
+  const tabs = [
+    {key:'status', label:'Status'},
+    {key:'pk', label:'PK Dinas'},
+    {key:'sat', label:'SAT'},
+    {key:'bast', label:'BAST'}
+  ];
+  document.getElementById('instTabs').innerHTML = tabs.map(t=>
+    `<button onclick="switchInstTab('${t.key}')" style="padding:10px 16px;background:${instTab===t.key?'var(--surface)':'transparent'};border:none;border-bottom:2px solid ${instTab===t.key?'var(--coral)':'transparent'};color:${instTab===t.key?'var(--text)':'var(--text3)'};font-family:inherit;font-size:13px;font-weight:${instTab===t.key?'600':'500'};cursor:pointer;white-space:nowrap">${t.label}</button>`
+  ).join('');
+}
+
+async function switchInstTab(tab) {
+  instTab = tab;
+  renderInstTabs();
+  document.getElementById('instTabContent').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Memuat...</div>';
+  setTimeout(async ()=>{
+    if(instTab !== tab) return;
+    if(tab==='status') await renderInstStatus();
+    else if(tab==='pk') await renderInstPK();
+    else if(tab==='sat') await renderInstSAT();
+    else if(tab==='bast') await renderInstBAST();
+  }, 0);
+}
+
+// ─── STATUS TAB ───
+async function renderInstStatus() {
+  const {task, item, po, taskType} = window._instCurrent;
+  const me = currentUser;
+  const isMyPic = (po.po_pic||[]).some(x=>x.item_id===item.id && x.stage==='Instalasi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  const STATUSES = ['Belum Mulai','Berangkat','Di Lokasi','Selesai'];
+  const COLORS = {
+    'Belum Mulai':{bg:'#f1f5f9',color:'#475569'},
+    'Berangkat':{bg:'#fef3c7',color:'#92400e'},
+    'Di Lokasi':{bg:'#dbeafe',color:'#1e40af'},
+    'Selesai':{bg:'#d1fae5',color:'#065f46'}
+  };
+  const sc = COLORS[task.status]||COLORS['Belum Mulai'];
+
+  document.getElementById('instTabContent').innerHTML = `
+    <div style="margin-bottom:1rem">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Status Saat Ini</div>
+      <div style="display:inline-block;font-size:14px;background:${sc.bg};color:${sc.color};padding:6px 14px;border-radius:6px;font-weight:600">${task.status}</div>
+    </div>
+    
+    <div class="form-grid">
+      <div class="form-row"><label>Tgl Mulai</label><input type="date" id="instTglMulai" value="${task.tgl_mulai||''}" ${!canEdit?'disabled':''}></div>
+      <div class="form-row"><label>Tgl Selesai</label><input type="date" id="instTglSelesai" value="${task.tgl_selesai||''}" ${!canEdit?'disabled':''}></div>
+    </div>
+    <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="instCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" ${!canEdit?'disabled':''}>${task.catatan||''}</textarea></div>
+    
+    ${canEdit ? `
+    <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">Update Status</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${STATUSES.map(s=>{
+          const _sc = COLORS[s];
+          const isCurrent = s===task.status;
+          return `<button onclick="updateInstStatus('${s}')" ${isCurrent?'disabled':''} style="padding:8px 14px;background:${isCurrent?_sc.bg:'var(--surface2)'};color:${isCurrent?_sc.color:'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:${isCurrent?'default':'pointer'};opacity:${isCurrent?'.7':'1'};font-weight:${isCurrent?'600':'500'}">${s}</button>`;
+        }).join('')}
+      </div>
+      <button class="btn btn-sm btn-primary" style="margin-top:1rem" onclick="saveInstDetails()">Simpan Catatan & Tanggal</button>
+    </div>` : '<div style="font-size:12px;color:var(--text3);padding:1rem;text-align:center;background:var(--surface2);border-radius:var(--r-sm);margin-top:1rem">Anda tidak di-assign sebagai PIC, hanya bisa melihat.</div>'}
+  `;
+}
+
+async function updateInstStatus(newStatus) {
+  const {task} = window._instCurrent;
+  task.status = newStatus;
+  renderInstStatus();
+  toast('Status diperbarui');
+  await sb.from('instalasi_tasks').update({status:newStatus, updated_at:new Date().toISOString()}).eq('id',task.id);
+}
+
+async function saveInstDetails() {
+  const {task, po} = window._instCurrent;
+  const tglMulai = gv('instTglMulai')||null;
+  const tglSelesai = gv('instTglSelesai')||null;
+  const catatan = gv('instCatatan')||null;
+  await sb.from('instalasi_tasks').update({tgl_mulai:tglMulai, tgl_selesai:tglSelesai, catatan, updated_at:new Date().toISOString()}).eq('id',task.id);
+  task.tgl_mulai = tglMulai;
+  task.tgl_selesai = tglSelesai;
+  task.catatan = catatan;
+  toast('Detail tersimpan');
+}
+
+// ─── PK DINAS TAB ───
+async function renderInstPK() {
+  const {task} = window._instCurrent;
+  const {data: pks} = await sb.from('pk_dinas').select('*,pengaju:pengaju_id(full_name)').eq('task_id',task.id).order('created_at',{ascending:false});
+  const list = pks||[];
+  const me = currentUser;
+  const isMyPic = (window._instCurrent.po.po_pic||[]).some(x=>x.item_id===window._instCurrent.item.id && x.stage==='Instalasi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  const COLORS = {
+    'Pengajuan':{bg:'#fef3c7',color:'#92400e'},
+    'Disetujui':{bg:'#d1fae5',color:'#065f46'},
+    'Ditolak':{bg:'#fee2e2',color:'#991b1b'},
+    'Selesai':{bg:'#dbeafe',color:'#1e40af'}
+  };
+
+  document.getElementById('instTabContent').innerHTML = `
+    ${canEdit?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openPKDinasForm()">+ Pengajuan PK Dinas</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada pengajuan PK Dinas</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(p=>{
+          const sc = COLORS[p.status]||COLORS['Pengajuan'];
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600">PK Dinas: ${p.tujuan||'—'}</div>
+                <div style="font-size:11px;color:var(--text2);margin-top:2px">${p.tgl_berangkat?fmtDate(p.tgl_berangkat):''} ${p.tgl_pulang?'– '+fmtDate(p.tgl_pulang):''}</div>
+              </div>
+              <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600">${p.status}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2);margin:6px 0">Pengaju: <strong>${p.pengaju?.full_name||'?'}</strong></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:12px">
+              <div style="background:var(--surface);padding:8px;border-radius:4px">
+                <div style="color:var(--text3);font-size:11px;font-weight:600">PENGAJUAN</div>
+                <div style="margin-top:4px">Transport: ${fmtRp(p.biaya_transport||0)}</div>
+                <div>Akomodasi: ${fmtRp(p.biaya_akomodasi||0)}</div>
+                <div>Uang Harian: ${fmtRp(p.uang_harian||0)}</div>
+                <div>Lain-lain: ${fmtRp(p.biaya_lain||0)}</div>
+                <div style="font-weight:600;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">Total: ${fmtRp(p.total_pengajuan||0)}</div>
+              </div>
+              <div style="background:var(--surface);padding:8px;border-radius:4px">
+                <div style="color:var(--text3);font-size:11px;font-weight:600">REALISASI</div>
+                ${p.total_realisasi!==null && p.total_realisasi!==undefined ? `
+                  <div style="margin-top:4px">Transport: ${fmtRp(p.realisasi_transport||0)}</div>
+                  <div>Akomodasi: ${fmtRp(p.realisasi_akomodasi||0)}</div>
+                  <div>Uang Harian: ${fmtRp(p.realisasi_harian||0)}</div>
+                  <div>Lain-lain: ${fmtRp(p.realisasi_lain||0)}</div>
+                  <div style="font-weight:600;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">Total: ${fmtRp(p.total_realisasi||0)}</div>
+                ` : '<div style="color:var(--text3);margin-top:4px;font-style:italic">Belum diisi</div>'}
+              </div>
+            </div>
+            ${canEdit && (p.status==='Pengajuan' || p.status==='Disetujui') ? `<div style="margin-top:8px"><button class="btn btn-sm" onclick="openRealisasiPKForm('${p.id}')">Input Realisasi</button></div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>`
+    }`;
+}
+
+async function openPKDinasForm() {
+  // Get personel options (PICs of this task)
+  const {item, po} = window._instCurrent;
+  const pics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Instalasi');
+  const personelOpts = pics.map(p=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 8px;background:var(--surface2);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" class="pkPersCb" value="${p.user_id}"><span>${p.app_users?.full_name||'?'}</span></label>`).join('');
+
+  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header"><h2>Pengajuan PK Perjalanan Dinas</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div class="form-row"><label>Tujuan / Lokasi <span class="req">*</span></label><input type="text" id="pkTujuan" placeholder="Misal: Surabaya, lokasi PT XYZ"></div>
+      <div class="form-grid" style="margin-top:8px">
+        <div class="form-row"><label>Tgl Berangkat</label><input type="date" id="pkBerangkat"></div>
+        <div class="form-row"><label>Tgl Pulang</label><input type="date" id="pkPulang"></div>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Personel</label>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${personelOpts||'<span style="font-size:12px;color:var(--text3)">Belum ada PIC</span>'}</div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">ESTIMASI BIAYA</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Transport</label><input type="number" id="pkTransport" value="0" min="0" oninput="hitungPKTotal()"></div>
+          <div class="form-row"><label>Akomodasi</label><input type="number" id="pkAkomodasi" value="0" min="0" oninput="hitungPKTotal()"></div>
+          <div class="form-row"><label>Uang Harian</label><input type="number" id="pkHarian" value="0" min="0" oninput="hitungPKTotal()"></div>
+          <div class="form-row"><label>Biaya Lain</label><input type="number" id="pkLain" value="0" min="0" oninput="hitungPKTotal()"></div>
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--r-sm);font-size:14px;font-weight:600">Total: <span id="pkTotal">Rp 0</span></div>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="pkCatatan" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="savePKDinas()">Ajukan</button>
+    </div>
+  </div>`, 'nestedModal', true);
+}
+
+function hitungPKTotal() {
+  const t = (parseFloat(gv('pkTransport'))||0) + (parseFloat(gv('pkAkomodasi'))||0) + (parseFloat(gv('pkHarian'))||0) + (parseFloat(gv('pkLain'))||0);
+  document.getElementById('pkTotal').textContent = fmtRp(t);
+}
+
+async function savePKDinas() {
+  const tujuan = gv('pkTujuan').trim();
+  if(!tujuan) { toast('Tujuan wajib diisi'); return; }
+  const {task} = window._instCurrent;
+  const me = currentUser;
+  const personel = Array.from(document.querySelectorAll('.pkPersCb:checked')).map(cb=>cb.value);
+  
+  const transport = parseFloat(gv('pkTransport'))||0;
+  const akomodasi = parseFloat(gv('pkAkomodasi'))||0;
+  const harian = parseFloat(gv('pkHarian'))||0;
+  const lain = parseFloat(gv('pkLain'))||0;
+  const total = transport + akomodasi + harian + lain;
+
+  await sb.from('pk_dinas').insert({
+    task_id: task.id,
+    pengaju_id: me.id,
+    tujuan,
+    tgl_berangkat: gv('pkBerangkat')||null,
+    tgl_pulang: gv('pkPulang')||null,
+    personel,
+    biaya_transport: transport,
+    biaya_akomodasi: akomodasi,
+    uang_harian: harian,
+    biaya_lain: lain,
+    total_pengajuan: total,
+    catatan_pengajuan: gv('pkCatatan')||null,
+    status: 'Pengajuan'
+  });
+
+  toast('Pengajuan PK Dinas tersimpan');
+  closeTopModal();
+  await renderInstPK();
+}
+
+async function openRealisasiPKForm(pkId) {
+  const {data: pk} = await sb.from('pk_dinas').select('*').eq('id',pkId).single();
+  if(!pk) return;
+  
+  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header"><h2>Realisasi PK Dinas</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${pk.tujuan} · Pengajuan: ${fmtRp(pk.total_pengajuan||0)}</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Realisasi Transport</label><input type="number" id="rzTransport" value="${pk.realisasi_transport||0}" min="0" oninput="hitungRzTotal()"></div>
+        <div class="form-row"><label>Realisasi Akomodasi</label><input type="number" id="rzAkomodasi" value="${pk.realisasi_akomodasi||0}" min="0" oninput="hitungRzTotal()"></div>
+        <div class="form-row"><label>Realisasi Uang Harian</label><input type="number" id="rzHarian" value="${pk.realisasi_harian||0}" min="0" oninput="hitungRzTotal()"></div>
+        <div class="form-row"><label>Realisasi Lain-lain</label><input type="number" id="rzLain" value="${pk.realisasi_lain||0}" min="0" oninput="hitungRzTotal()"></div>
+      </div>
+      <div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--r-sm);font-size:14px;font-weight:600">Total Realisasi: <span id="rzTotal">${fmtRp((pk.realisasi_transport||0)+(pk.realisasi_akomodasi||0)+(pk.realisasi_harian||0)+(pk.realisasi_lain||0))}</span></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan Realisasi</label><textarea id="rzCatatan" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">${pk.catatan_realisasi||''}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" data-id="${pkId}" onclick="saveRealisasiPK(this.dataset.id)">Simpan</button>
+    </div>
+  </div>`, 'nestedModal', true);
+}
+
+function hitungRzTotal() {
+  const t = (parseFloat(gv('rzTransport'))||0) + (parseFloat(gv('rzAkomodasi'))||0) + (parseFloat(gv('rzHarian'))||0) + (parseFloat(gv('rzLain'))||0);
+  document.getElementById('rzTotal').textContent = fmtRp(t);
+}
+
+async function saveRealisasiPK(pkId) {
+  const transport = parseFloat(gv('rzTransport'))||0;
+  const akomodasi = parseFloat(gv('rzAkomodasi'))||0;
+  const harian = parseFloat(gv('rzHarian'))||0;
+  const lain = parseFloat(gv('rzLain'))||0;
+  const total = transport + akomodasi + harian + lain;
+
+  await sb.from('pk_dinas').update({
+    realisasi_transport: transport,
+    realisasi_akomodasi: akomodasi,
+    realisasi_harian: harian,
+    realisasi_lain: lain,
+    total_realisasi: total,
+    catatan_realisasi: gv('rzCatatan')||null,
+    status: 'Selesai',
+    updated_at: new Date().toISOString()
+  }).eq('id', pkId);
+
+  toast('Realisasi tersimpan');
+  closeTopModal();
+  await renderInstPK();
+}
+
+// ─── SAT TAB ───
+async function renderInstSAT() {
+  const {task} = window._instCurrent;
+  const {data: sats} = await sb.from('sat_reports').select('*,app_users(full_name)').eq('task_id',task.id).order('created_at',{ascending:false});
+  const list = sats||[];
+
+  const me = currentUser;
+  const isMyPic = (window._instCurrent.po.po_pic||[]).some(x=>x.item_id===window._instCurrent.item.id && x.stage==='Instalasi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  document.getElementById('instTabContent').innerHTML = `
+    ${canEdit?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openSATForm()">+ Laporan SAT</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada laporan SAT</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(s=>{
+          const passColor = s.hasil==='Pass'?{bg:'#d1fae5',color:'#065f46'}:s.hasil==='Fail'?{bg:'#fee2e2',color:'#991b1b'}:{bg:'#fef3c7',color:'#92400e'};
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:600">${s.judul||'Laporan SAT'}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px">Tanggal Test: ${s.tanggal_test?fmtDate(s.tanggal_test):'—'}</div>
+              </div>
+              ${s.hasil?`<span style="font-size:11px;background:${passColor.bg};color:${passColor.color};padding:3px 10px;border-radius:4px;font-weight:600">${s.hasil}</span>`:''}
+            </div>
+            ${s.signed_by_customer?`<div style="font-size:12px;color:var(--text2);margin:6px 0">✓ Disahkan oleh <strong>${s.signed_by_customer}</strong>${s.signed_position?' ('+s.signed_position+')':''}</div>`:''}
+            ${s.catatan?`<div style="font-size:12px;color:var(--text);margin:6px 0">${s.catatan}</div>`:''}
+            ${(s.documents||[]).length?`<div style="margin-top:6px"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">Dokumen:</div>${s.documents.map(d=>`<a href="${d.url}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;display:inline-block;background:var(--surface);padding:2px 8px;border-radius:3px;border:1px solid var(--border);margin:2px">📎 ${d.name}</a>`).join('')}</div>`:''}
+            ${(s.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:6px">
+              ${s.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+            </div>`:''}
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">oleh <strong>${s.app_users?.full_name||'?'}</strong> · ${fmtDateTime(s.created_at)}</div>
+          </div>`;
+        }).join('')}
+      </div>`
+    }`;
+}
+
+function openSATForm() {
+  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header"><h2>Laporan SAT</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div class="form-row"><label>Judul</label><input type="text" id="satJudul" placeholder="Misal: SAT untuk UPS 5kVA"></div>
+      <div class="form-grid" style="margin-top:8px">
+        <div class="form-row"><label>Tanggal Test</label><input type="date" id="satTanggal"></div>
+        <div class="form-row"><label>Hasil</label>
+          <select id="satHasil" style="width:100%;padding:6px 8px">
+            <option value="">--</option>
+            <option value="Pass">Pass</option>
+            <option value="Fail">Fail</option>
+            <option value="Conditional">Conditional</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="satCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">SIGN-OFF CUSTOMER</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Nama Customer</label><input type="text" id="satSignName"></div>
+          <div class="form-row"><label>Jabatan</label><input type="text" id="satSignPos"></div>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Dokumen SAT (PDF/Image)</label>
+        <input type="file" id="satDocs" multiple style="margin-top:4px">
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Foto Bukti (max 10)</label>
+        <input type="file" id="satPhotos" multiple accept="image/*" style="margin-top:4px">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveSAT()">Simpan</button>
+    </div>
+  </div>`, 'nestedModal', true);
+}
+
+async function saveSAT() {
+  const {task} = window._instCurrent;
+  const me = currentUser;
+
+  toast('Mengupload...');
+  
+  const docs = [];
+  for(const f of Array.from(document.getElementById('satDocs').files)) {
+    const path = `sat/${task.id}/${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('service-docs').upload(path, f);
+    if(!error) docs.push({name:f.name, url:SB_URL+'/storage/v1/object/public/service-docs/'+path, path});
+  }
+  
+  const photos = [];
+  for(const f of Array.from(document.getElementById('satPhotos').files).slice(0,10)) {
+    const path = `sat/${task.id}/photo_${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('service-docs').upload(path, f);
+    if(!error) photos.push({name:f.name, url:SB_URL+'/storage/v1/object/public/service-docs/'+path, path});
+  }
+
+  const signName = gv('satSignName').trim();
+  await sb.from('sat_reports').insert({
+    task_id: task.id,
+    user_id: me.id,
+    judul: gv('satJudul')||null,
+    tanggal_test: gv('satTanggal')||null,
+    hasil: gv('satHasil')||null,
+    catatan: gv('satCatatan')||null,
+    signed_by_customer: signName||null,
+    signed_position: gv('satSignPos')||null,
+    signed_at: signName?new Date().toISOString():null,
+    documents: docs,
+    photos
+  });
+
+  toast('Laporan SAT tersimpan');
+  closeTopModal();
+  await renderInstSAT();
+}
+
+// ─── BAST TAB ───
+async function renderInstBAST() {
+  const {task} = window._instCurrent;
+  const {data: basts} = await sb.from('bast_records').select('*,app_users(full_name)').eq('task_id',task.id).order('created_at',{ascending:false});
+  const list = basts||[];
+
+  const me = currentUser;
+  const isMyPic = (window._instCurrent.po.po_pic||[]).some(x=>x.item_id===window._instCurrent.item.id && x.stage==='Instalasi' && x.user_id===me.id);
+  const canEdit = isMyPic || can('po_manage');
+
+  document.getElementById('instTabContent').innerHTML = `
+    ${canEdit?`<button class="btn btn-sm btn-primary" style="margin-bottom:1rem" onclick="openBASTForm()">+ Buat BAST</button>`:''}
+    ${list.length===0 ? '<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada BAST</div>' :
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${list.map(b=>`
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:.875rem 1rem">
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">${b.no_bast||'BAST'} ${b.tanggal?'· '+fmtDate(b.tanggal):''}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin-top:6px">
+              <div style="background:var(--surface);padding:8px;border-radius:4px">
+                <div style="font-size:11px;color:var(--text3);font-weight:600">PIHAK PENYERAH</div>
+                <div style="margin-top:3px">${b.penyerah_nama||'—'}</div>
+                <div style="font-size:11px;color:var(--text3)">${b.penyerah_jabatan||''}</div>
+              </div>
+              <div style="background:var(--surface);padding:8px;border-radius:4px">
+                <div style="font-size:11px;color:var(--text3);font-weight:600">PIHAK PENERIMA</div>
+                <div style="margin-top:3px">${b.penerima_nama||'—'}</div>
+                <div style="font-size:11px;color:var(--text3)">${b.penerima_jabatan||''}${b.penerima_perusahaan?' · '+b.penerima_perusahaan:''}</div>
+              </div>
+            </div>
+            ${b.catatan?`<div style="font-size:12px;color:var(--text);margin:8px 0">${b.catatan}</div>`:''}
+            ${(b.documents||[]).length?`<div style="margin-top:6px">${b.documents.map(d=>`<a href="${d.url}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;display:inline-block;background:var(--surface);padding:2px 8px;border-radius:3px;border:1px solid var(--border);margin:2px">📎 ${d.name}</a>`).join('')}</div>`:''}
+            ${(b.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:6px">
+              ${b.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+            </div>`:''}
+            <div style="font-size:11px;color:var(--text3);margin-top:8px">dibuat oleh <strong>${b.app_users?.full_name||'?'}</strong> · ${fmtDateTime(b.created_at)}</div>
+          </div>
+        `).join('')}
+      </div>`
+    }`;
+}
+
+function openBASTForm() {
+  const {po} = window._instCurrent;
+  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-header"><h2>Buat BAST</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div class="form-grid">
+        <div class="form-row"><label>No. BAST</label><input type="text" id="bastNo" placeholder="Misal: BAST/SAE/2026/001"></div>
+        <div class="form-row"><label>Tanggal</label><input type="date" id="bastTgl" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">PIHAK PENYERAH (SAE Energy)</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Nama</label><input type="text" id="bastPyName" placeholder="Nama yang menyerahkan"></div>
+          <div class="form-row"><label>Jabatan</label><input type="text" id="bastPyPos" placeholder="Jabatan"></div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">PIHAK PENERIMA</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Nama</label><input type="text" id="bastPnName"></div>
+          <div class="form-row"><label>Jabatan</label><input type="text" id="bastPnPos"></div>
+        </div>
+        <div class="form-row" style="margin-top:8px"><label>Perusahaan</label><input type="text" id="bastPnPerusahaan" value="${po.customer_name||''}"></div>
+      </div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="bastCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Dokumen BAST (PDF/Scan)</label>
+        <input type="file" id="bastDocs" multiple style="margin-top:4px">
+      </div>
+      <div class="form-row" style="margin-top:8px">
+        <label>Foto Serah Terima (max 10)</label>
+        <input type="file" id="bastPhotos" multiple accept="image/*" style="margin-top:4px">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeTopModal()">Batal</button>
+      <button class="btn btn-primary" onclick="saveBAST()">Simpan BAST</button>
+    </div>
+  </div>`, 'nestedModal', true);
+}
+
+async function saveBAST() {
+  const {task} = window._instCurrent;
+  const me = currentUser;
+
+  toast('Mengupload...');
+  
+  const docs = [];
+  for(const f of Array.from(document.getElementById('bastDocs').files)) {
+    const path = `bast/${task.id}/${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('service-docs').upload(path, f);
+    if(!error) docs.push({name:f.name, url:SB_URL+'/storage/v1/object/public/service-docs/'+path, path});
+  }
+  
+  const photos = [];
+  for(const f of Array.from(document.getElementById('bastPhotos').files).slice(0,10)) {
+    const path = `bast/${task.id}/photo_${Date.now()}_${f.name}`.replace(/\s/g,'_');
+    const {error} = await sb.storage.from('service-docs').upload(path, f);
+    if(!error) photos.push({name:f.name, url:SB_URL+'/storage/v1/object/public/service-docs/'+path, path});
+  }
+
+  await sb.from('bast_records').insert({
+    task_id: task.id,
+    user_id: me.id,
+    no_bast: gv('bastNo')||null,
+    tanggal: gv('bastTgl')||null,
+    penyerah_nama: gv('bastPyName')||null,
+    penyerah_jabatan: gv('bastPyPos')||null,
+    penerima_nama: gv('bastPnName')||null,
+    penerima_jabatan: gv('bastPnPos')||null,
+    penerima_perusahaan: gv('bastPnPerusahaan')||null,
+    catatan: gv('bastCatatan')||null,
+    documents: docs,
+    photos
+  });
+
+  toast('BAST tersimpan');
+  closeTopModal();
+  await renderInstBAST();
+}
+
+
 
 async function loadServices() {
   const { data } = await sb.from('service_tickets').select('*,service_logs(*),service_docs(*),app_users!service_tickets_pic_id_fkey(id,full_name)').order('created_at', { ascending: false });
