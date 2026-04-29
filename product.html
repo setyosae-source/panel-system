@@ -196,7 +196,7 @@ async function findBySN(){
 
   // Search by serial number
   const{data:items, error} = await sb.from('po_items')
-    .select('*,item_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files)')
+    .select('*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files)')
     .ilike('serial_number', '%'+sn+'%');
 
   document.querySelector('.scan-btn').textContent='Cari Unit';
@@ -290,60 +290,195 @@ const row=(k,v)=>`<tr><td class="spec-key">${k}</td><td class="spec-val">${v}</t
 
 function renderSpec(){
   const it=currentItem, spec=it.item_specs||{}, po=currentPO;
+  const ds=(it.item_detail_specs && it.item_detail_specs[0])||{};
   const prodDate=it.serial_generated_at?new Date(it.serial_generated_at):null;
   const prodDateStr=prodDate?MONTH_ID[prodDate.getMonth()].toUpperCase()+' '+prodDate.getFullYear():'—';
   const cat=it.category;
-  let rows='';
 
+  // Helpers
+  const sec = (title) => `<div class="sect-title" style="display:block;margin-bottom:10px">${title}</div>`;
+  const tbl = (rows) => `<table class="spec-table">${rows.filter(Boolean).join('')}</table>`;
+
+  let html = '';
+
+  // ─────── PRODUCT INFORMATION (Brand, Type, Capacity) ───────
+  const prodInfo = [
+    ds.brand ? row('Brand', ds.brand) : '',
+    row('Type / Model', it.model_name||'—'),
+    (cat==='UPS' && (ds.u_capacity_kva||ds.u_capacity_kw)) ? row('Capacity', `${ds.u_capacity_kva?ds.u_capacity_kva+' kVA':''}${ds.u_capacity_kva&&ds.u_capacity_kw?' (':''}${ds.u_capacity_kw?ds.u_capacity_kw+' kW':''}${ds.u_capacity_kva&&ds.u_capacity_kw?')':''}`) : '',
+    (cat==='Inverter' && (ds.i_capacity_kva||ds.i_capacity_kw)) ? row('Capacity', `${ds.i_capacity_kva?ds.i_capacity_kva+' kVA':''}${ds.i_capacity_kva&&ds.i_capacity_kw?' (':''}${ds.i_capacity_kw?ds.i_capacity_kw+' kW':''}${ds.i_capacity_kva&&ds.i_capacity_kw?')':''}`) : '',
+  ];
+  html += `<div class="section">${sec('Product Information')}${tbl(prodInfo)}</div>`;
+
+  // ─────── RECTIFIER ───────
   if(cat==='Rectifier'){
-    rows=row('Input Voltage',`${spec.input_voltage||'—'} VAC ±${spec.input_voltage_tolerance||'15%'}, ${spec.input_fase||'1'}Ph`)
-      +row('Input Frequency',`${spec.input_frequency||'50'} Hz ± 5%`)
-      +row('Output Voltage',`${spec.output_voltage||'—'} VDC (Adjustable)`)
-      +row('Output Current',`${spec.output_current||'—'} A (Adjustable)`)
-      +(spec.battery_voltage?row('Battery Voltage',spec.battery_voltage+' V'):'')
-      +row('Pulse',`${spec.pulse||'6'} Pulse`);
-  } else if(cat==='UPS'){
-    rows=row('Input Voltage',`${spec.input_voltage||'—'} VAC, ${spec.input_fase||'3'}Ph`)
-      +row('Input Frequency',`${spec.input_frequency||'50'} Hz`)
-      +row('Output Voltage',`${spec.output_voltage||'—'} VAC, ${spec.output_fase||'1'}Ph`)
-      +row('Output Capacity',`${spec.output_kva||'—'} kVA`)
-      +row('Output Frequency',`${spec.output_frequency||'50'} Hz`)
-      +(spec.battery_voltage?row('Battery Voltage',spec.battery_voltage+' V'):'');
-  } else if(cat==='Inverter'){
-    rows=row('DC Input Voltage',`${spec.dc_input_voltage||'—'} VDC`)
-      +row('Output Voltage',`${spec.output_voltage||'—'} VAC`)
-      +row('Output Capacity',`${spec.output_kva||'—'} kVA`)
-      +row('Output Frequency',`${spec.output_frequency||'50'} Hz`);
-  } else if(cat==='Panel ACDB'){
-    rows=row('Input Voltage',`${spec.input_voltage||'—'} VAC, ${spec.input_fase||'3'}Ph`)
-      +row('Current Rating',`${spec.output_current||'—'} A`);
-  } else if(cat==='Panel DCDB'){
-    rows=row('Input Voltage',`${spec.input_voltage||'—'} VDC`)
-      +row('Current Rating',`${spec.output_current||'—'} A`);
+    const inputRows = [
+      row('Input Voltage', `${ds.r_input_voltage||spec.input_voltage||'—'} VAC ± ${ds.r_parallel_input?'10%':'15%'}, ${ds.r_input_phase||spec.input_fase||'1'} Phase`),
+      row('Input Frequency', ds.r_input_frequency||'50 Hz ± 5%'),
+      ds.r_parallel_input ? row('Configuration', '2 Input (Parallel System)') : '',
+      row('Power Factor', `${ds.r_power_factor||'>0.7'} (${ds.r_pulse||'6'} PULSE RECTIFIER)`),
+      row('Transformer', 'Galvanically isolated'),
+      row('iTHD', '< 35%'),
+      row('Input Protection', 'Thermic magnetic over current MCB, over voltage protection'),
+    ];
+    html += `<div class="section">${sec('Input')}${tbl(inputRows)}</div>`;
+
+    const outputRows = [
+      row('Output Voltage', `${ds.r_output_voltage||spec.output_voltage||'—'} VDC (Adjustable)`),
+      row('Output Current', `${ds.r_output_current||spec.output_current||'—'} A (Adjustable)`),
+      row('Current Adjustable', '0~100% of nominal output current via front panel'),
+      ds.r_voltage_adjustable ? row('Voltage Adjustable', `${ds.r_voltage_adjustable} VDC`) : row('Voltage Adjustable', 'via front panel'),
+      row('Max Output Current', '100% of nominal output current'),
+      row('Output Ripple', '2% RMS AC of Output Voltage (Battery Connected)'),
+      row('Output Protection', 'MCB and over voltage protection'),
+      row('Charging Principle', 'Constant Current / Constant Voltage'),
+    ];
+    html += `<div class="section">${sec('Output')}${tbl(outputRows)}</div>`;
   }
 
-  rows+=row('Production Date',prodDateStr)
-    +row('No. Project',po.no_project||'—')
-    +row('No. PO',po.no_po||'—');
-  if(spec.notes) rows+=row('Notes',spec.notes);
+  // ─────── UPS ───────
+  if(cat==='UPS'){
+    const rectRows = [
+      row('Input Voltage', `${ds.u_rect_input_voltage||'—'} VAC ± 15%, ${ds.u_rect_input_phase||'3 Phase + N'}`),
+      row('Input Frequency', ds.u_rect_input_freq||'50 Hz ± 5%'),
+      (ds.u_dc_bus_voltage||ds.u_dc_bus_current) ? row('DC Bus', `${ds.u_dc_bus_voltage||'—'} VDC ± 20%${ds.u_dc_bus_current?', '+ds.u_dc_bus_current+' A':''}`) : '',
+      row('Input Power Factor', `${ds.u_input_power_factor||'>0.9'} (12 PULSE RECTIFIER)`),
+      row('Isolation Transformer', 'Galvanically isolated'),
+      row('THDi', '< 10%'),
+    ];
+    html += `<div class="section">${sec('Rectifier')}${tbl(rectRows)}</div>`;
 
-  document.getElementById('tabContent').innerHTML=`
-    <div class="section">
-      <div class="sect-title">Spesifikasi Teknis</div>
-      <table class="spec-table">${rows}</table>
+    const invRows = [
+      row('Output Voltage', `${ds.u_inv_output_voltage||'—'} VAC ± 1%, ${ds.u_inv_output_phase||'1 Phase + N'}`),
+      row('Output Frequency', ds.u_inv_output_freq||'50 Hz ± 2%'),
+      row('Power Factor', '> 0.8'),
+      row('THD', '< 3% linear load, < 5% non-linear load'),
+      row('Rectification Time', 'Max. 25 ms after Boost Charge'),
+      row('Isolation Transformer', 'Galvanically isolated'),
+    ];
+    html += `<div class="section">${sec('Inverter')}${tbl(invRows)}</div>`;
+
+    const bypassRows = [
+      row('Bypass System', 'No-break semiconductor thyristor'),
+      row('Nominal Voltage', `${ds.u_bypass_voltage||'380/220'} VAC ± 10%, 50 Hz ± 5%`),
+      row('Input Protection', 'Thermic magnetic over current MCB, over voltage protection'),
+      row('Output Protection', 'Short circuit, MCB and over voltage protection'),
+    ];
+    html += `<div class="section">${sec('Bypass')}${tbl(bypassRows)}</div>`;
+  }
+
+  // ─────── INVERTER ───────
+  if(cat==='Inverter'){
+    const invRows = [
+      row('Nominal Input', `${ds.i_input_voltage||'—'} VDC ${ds.i_input_tolerance||'± 20%'}`),
+      row('Nominal Output', `${ds.i_output_voltage||'—'} VAC ± 1%, ${ds.i_output_phase||'1 Phase'}`),
+      row('Output Frequency', ds.i_output_freq||'50 Hz ± 0.1%'),
+      ds.i_topology ? row('Topology', ds.i_topology) : '',
+      row('Power Factor', '> 0.8'),
+      row('Voltage Tolerance', 'Static ± 1%, Dynamic ± 4% in 5 msec'),
+      row('Overload', '125% / 10 min · 150% / 1 min · 200% / 1 sec'),
+      row('THDv at Linear Load', '< 3%'),
+      row('Waveform', 'Pure Sinusoidal'),
+      row('Crest Factor', '3:1 (10 sec at full load)'),
+      row('Efficiency', '91% at nominal load'),
+      row('Transformer', 'Galvanically isolated'),
+      row('Short Circuit Behavior', '4 × Nominal Output Current'),
+      row('Protection', 'Short Circuit, OVP, OCP, OTP'),
+    ];
+    html += `<div class="section">${sec('Inverter')}${tbl(invRows)}</div>`;
+
+    const bypassRows = [
+      row('Topology', 'Uninterruptible static switch with back-feed protection'),
+      row('Bypass System', 'No-break semiconductor thyristor'),
+      row('Nominal Input Voltage', `${ds.i_output_voltage||'220'} VAC, 1 Phase, 50 Hz`),
+      row('Load Level', '200%'),
+      row('Transfer Time', 'Max. 3 msec'),
+      row('Efficiency', '> 99%'),
+      row('Manual Bypass', 'For Maintenance Service'),
+    ];
+    html += `<div class="section">${sec('Static Bypass')}${tbl(bypassRows)}</div>`;
+  }
+
+  // ─────── PANEL ACDB / DCDB ───────
+  if(cat==='Panel ACDB' || cat==='Panel DCDB'){
+    const panelRows = [
+      row('Input Voltage', `${ds.p_input_voltage||'—'} ${cat==='Panel ACDB'?'VAC':'VDC'}${ds.p_input_phase&&cat==='Panel ACDB'?', '+ds.p_input_phase:''}`),
+      row('Current Rating', `${ds.p_current_rating||'—'} A`),
+      ds.p_feeder_count ? row('Feeder Count', ds.p_feeder_count) : '',
+      ds.p_feeder_rating ? row('Feeder Rating', `${ds.p_feeder_rating} A`) : '',
+    ];
+    html += `<div class="section">${sec('Panel Specifications')}${tbl(panelRows)}</div>`;
+  }
+
+  // ─────── GENERAL (always shown) ───────
+  const generalRows = [
+    row('Cooling', 'Forced fan with smart fan controlling system'),
+    row('Operating Temp.', '-10°C to +50°C'),
+    row('Storage Temp.', '-20°C to +70°C'),
+    row('Relative Humidity', '5% to 95% non-condensing'),
+    row('Operating Altitude', 'Max. 2000 m'),
+    row('Noise Level', '< 60 dB at 1 m'),
+    ds.ip_protection ? row('Protection', ds.ip_protection) : row('Protection', 'IP 23'),
+    ds.colour ? row('Colour', ds.colour) : row('Colour', 'Powder Coating RAL 7035'),
+    ds.cable_entry ? row('Cable Entry', ds.cable_entry) : '',
+    row('Communication', 'Modbus with RS 485'),
+    row('Electrical Standard', 'IEC 50091-1, IEC 50091-2, IEC 62040'),
+  ];
+  html += `<div class="section">${sec('General')}${tbl(generalRows)}</div>`;
+
+  // ─────── DOCUMENT INFO ───────
+  const docInfo = [
+    row('Production Date', prodDateStr),
+    row('Project No.', po.no_project||'—'),
+    row('PO No.', po.no_po||'—'),
+    ds.custom_notes ? row('Custom Notes', ds.custom_notes) : '',
+    spec.notes ? row('Additional Notes', spec.notes) : '',
+  ];
+  html += `<div class="section">${sec('Document Info')}${tbl(docInfo)}</div>`;
+
+  // ─────── PHOTOS (if any) ───────
+  if(ds.photos && ds.photos.length) {
+    html += `<div class="section">${sec('Photos')}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
+        ${ds.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" alt="${p.name}"></a>`).join('')}
+      </div>
     </div>`;
+  }
+
+  document.getElementById('tabContent').innerHTML = html;
 }
 
 function renderDownload(){
-  const files=currentPO?.download_files||[];
-  let html='<div class="section"><div class="sect-title">File Download</div>';
-  if(!files.length) html+='<p style="font-size:13px;color:var(--muted);padding:.5rem 0">Belum ada file tersedia.</p>';
-  else html+=files.map(f=>`
-    <div class="dl-item">
-      <div style="font-size:13px;font-weight:500">${f.name}</div>
-      <a href="${f.url}" target="_blank" class="dl-btn">Download</a>
-    </div>`).join('');
-  html+='</div>';
+  const it=currentItem;
+  const ds=(it.item_detail_specs && it.item_detail_specs[0])||{};
+  const poFiles=currentPO?.download_files||[];
+  
+  const sections = [
+    {key:'drawing', title:'Drawing Approval', files: ds.doc_drawing_approval||[]},
+    {key:'asbuilt', title:'As-Built Drawing', files: ds.doc_asbuilt||[]},
+    {key:'fat', title:'Dokumen FAT', files: ds.doc_fat||[]},
+    {key:'others', title:'Dokumen Lainnya', files: ds.doc_others||[]},
+    {key:'po', title:'File Lainnya dari PO', files: poFiles},
+  ];
+
+  const hasAny = sections.some(s=>s.files && s.files.length);
+  
+  let html = '';
+  if(!hasAny) {
+    html = '<div class="section"><div class="sect-title">Dokumen</div><p style="font-size:13px;color:var(--muted);padding:.5rem 0">Belum ada dokumen tersedia untuk unit ini.</p></div>';
+  } else {
+    sections.forEach(s=>{
+      if(!s.files || !s.files.length) return;
+      html += `<div class="section"><div class="sect-title" style="display:block;margin-bottom:10px">${s.title}</div>`;
+      html += s.files.map(f=>`
+        <div class="dl-item">
+          <div style="font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div>
+          <a href="${f.url}" target="_blank" class="dl-btn">Download</a>
+        </div>`).join('');
+      html += '</div>';
+    });
+  }
+  
   document.getElementById('tabContent').innerHTML=html;
 }
 
