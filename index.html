@@ -1747,7 +1747,7 @@ function openLaporanForm() {
       <button class="btn" onclick="closeTopModal()">Batal</button>
       <button class="btn btn-primary" onclick="saveLaporan()">Simpan Laporan</button>
     </div>
-  </div>`, true);
+  </div>`, 'nestedModal', true);
   
   document.getElementById('lpFoto').onchange = (e) => {
     const files = Array.from(e.target.files).slice(0,10);
@@ -1859,7 +1859,7 @@ async function openMaterialForm() {
       <button class="btn" onclick="closeTopModal()">Batal</button>
       <button class="btn btn-primary" onclick="saveMaterialRequest()">Ajukan</button>
     </div>
-  </div>`, true);
+  </div>`, 'nestedModal', true);
 }
 
 async function saveMaterialRequest() {
@@ -1907,7 +1907,7 @@ function openReceiveMaterial(reqId, qty, satuan) {
       <button class="btn" onclick="closeTopModal()">Batal</button>
       <button class="btn btn-primary" data-id="${reqId}" onclick="saveReceiveMaterial(this.dataset.id)">Konfirmasi</button>
     </div>
-  </div>`, true);
+  </div>`, 'nestedModal', true);
 }
 
 async function saveReceiveMaterial(reqId) {
@@ -1980,7 +1980,7 @@ function openQCForm() {
       <button class="btn" onclick="closeTopModal()">Batal</button>
       <button class="btn btn-primary" onclick="saveQC()">Simpan</button>
     </div>
-  </div>`, true);
+  </div>`, 'nestedModal', true);
 
   document.getElementById('qcFoto').onchange = (e) => {
     const files = Array.from(e.target.files).slice(0,10);
@@ -2028,8 +2028,8 @@ async function saveQC() {
 
 // Helper for nested modals
 function closeTopModal() {
-  const modals = document.querySelectorAll('.modal-overlay');
-  if(modals.length) modals[modals.length-1].remove();
+  const nested = document.getElementById('nestedModal');
+  if(nested) nested.remove();
 }
 
 // ═══════════════════════════════════════════════════════════
