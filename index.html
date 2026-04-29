@@ -1639,10 +1639,16 @@ function renderProdTabs() {
 async function switchProdTab(tab) {
   prodTab = tab;
   renderProdTabs();
-  if(tab==='status') await renderProdStatus();
-  else if(tab==='laporan') await renderProdLaporan();
-  else if(tab==='material') await renderProdMaterial();
-  else if(tab==='qc') await renderProdQC();
+  // Show loading skeleton instantly so tab feels responsive
+  document.getElementById('prodTabContent').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Memuat...</div>';
+  // Defer fetch to next tick so UI updates first
+  setTimeout(async ()=>{
+    if(prodTab !== tab) return; // user switched again
+    if(tab==='status') await renderProdStatus();
+    else if(tab==='laporan') await renderProdLaporan();
+    else if(tab==='material') await renderProdMaterial();
+    else if(tab==='qc') await renderProdQC();
+  }, 0);
 }
 
 // ─── STATUS TAB ───
@@ -1684,12 +1690,14 @@ async function renderProdStatus() {
 
 async function updateProdStatus(newStatus) {
   const item = window._prodCurrentItem;
-  await sb.from('po_items').update({item_status: newStatus}).eq('id', item.id);
-  await logPO(window._prodCurrentPO.id, 'Update Status Item', `${item.category} ${item.model_name||''} → ${newStatus}`);
-  toast('Status diperbarui');
+  // Update local state immediately for instant UI response
   item.item_status = newStatus;
-  await loadPOs();
-  await renderProdStatus();
+  renderProdStatus();
+  toast('Status diperbarui');
+  // Background save - don't block UI
+  sb.from('po_items').update({item_status: newStatus}).eq('id', item.id).then(()=>{
+    logPO(window._prodCurrentPO.id, 'Update Status Item', `${item.category} ${item.model_name||''} → ${newStatus}`);
+  });
 }
 
 // ─── LAPORAN PRODUKSI TAB ───
