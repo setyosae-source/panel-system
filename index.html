@@ -750,13 +750,14 @@ function renderPPTable() {
   });
   const tbody = document.getElementById('ppTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada request')}</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7">${noData('Belum ada request')}</td></tr>`; return; }
   tbody.innerHTML = rows.map(r => `
     <tr onclick="openPPDetail('${r.id}')">
       <td class="mono">${r.id}</td>
       <td>${fmtDate(r.date)}</td>
       <td style="font-weight:500">${r.customer_name || '—'}</td>
       <td style="color:var(--text2)">${r.project_name || '—'}</td>
+      <td style="color:var(--text2)">${r.app_users?.full_name || '—'}</td>
       <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span></td>
       <td>${badge(r.status)}</td>
     </tr>`).join('');
@@ -813,7 +814,9 @@ async function openPPDetail(id) {
 }
 
 async function updatePPStatus(id, status) {
+  const before = allPPs.find(x => x.id === id);
   await sb.from('pp_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  await logPP(id, 'Update Status', `${before?.status || '—'} → ${status}`);
   toast('Status → ' + status);
   await loadPPs();
   openPPDetail(id);
@@ -827,6 +830,7 @@ async function uploadPPDoc(reqId, type, input) {
     const { error } = await sb.storage.from(bucket).upload(path, f);
     if (!error) {
       await sb.from(table).insert({ request_id: reqId, file_name: f.name, file_path: path, file_size: f.size, uploaded_by: currentUser.id });
+      await logPP(reqId, 'Upload Dokumen', `${type === 'customer' ? 'Customer' : 'Hasil'} — ${f.name}`);
       toast(f.name + ' diupload');
     } else toast('Gagal: ' + f.name);
   }
@@ -838,10 +842,11 @@ async function uploadPPDoc(reqId, type, input) {
 async function deletePPDoc(docId, filePath, fileName) {
   if (!confirm('Hapus dokumen "' + fileName + '"?')) return;
   const table = filePath.includes('/customer/') ? 'pp_docs_customer' : 'pp_docs_result';
+  const reqId = filePath.split('/')[0];
   await sb.storage.from('pp-docs').remove([filePath]);
   await sb.from(table).delete().eq('id', docId);
+  await logPP(reqId, 'Hapus Dokumen', `${table === 'pp_docs_customer' ? 'Customer' : 'Hasil'} — ${fileName}`);
   toast('Dokumen dihapus');
-  const reqId = filePath.split('/')[0];
   await loadPPs();
   openPPDetail(reqId);
 }
@@ -855,6 +860,18 @@ async function deletePP(id) {
   closeAllModals();
   toast('Request dihapus');
   await loadPPs();
+}
+
+async function logPP(reqId, action, detail) {
+  try {
+    await sb.from('pp_logs').insert({ request_id: reqId, action, detail: detail || null, user_id: currentUser.id });
+  } catch (e) { console.warn('logPP failed:', e); }
+}
+
+function canEditPP(req) {
+  if (!req || !currentUser) return false;
+  if (currentUser.role === 'owner' || currentUser.role === 'admin') return true;
+  return req.requester_id === currentUser.id;
 }
 
 function openPPForm(id) {
@@ -887,11 +904,25 @@ async function savePP(editId) {
   if (!customer || !date || !output) { toast('Lengkapi field wajib'); return; }
   const payload = { customer_name: customer, date, output_type: output, output_other: gv('ppOutputOther').trim() || null, project_name: gv('ppProject').trim() || null, description: gv('ppDesc').trim() || null, updated_at: new Date().toISOString() };
   if (editId) {
+    // Detect changes for log
+    const before = allPPs.find(x => x.id === editId);
+    const fieldLabels = { customer_name: 'Customer', date: 'Tanggal', output_type: 'Jenis Output', output_other: 'Keterangan Output', project_name: 'Project', description: 'Deskripsi' };
+    const changes = [];
+    if (before) {
+      for (const k of Object.keys(fieldLabels)) {
+        const oldVal = before[k] || '', newVal = payload[k] || '';
+        if (String(oldVal) !== String(newVal)) {
+          changes.push(`${fieldLabels[k]}: "${oldVal || '—'}" → "${newVal || '—'}"`);
+        }
+      }
+    }
     await sb.from('pp_requests').update(payload).eq('id', editId);
+    if (changes.length) await logPP(editId, 'Edit Request', changes.join('; '));
     toast('Request diperbarui');
   } else {
     const id = genId('REQ');
     await sb.from('pp_requests').insert({ ...payload, id, requester_id: currentUser.id, status: 'Open' });
+    await logPP(id, 'Buat Request', `${output} — ${customer}`);
     toast('Request dibuat: ' + id);
   }
   closeAllModals();
@@ -987,9 +1018,10 @@ async function loadMyRequests() {
   const el = document.getElementById('myReqList');
   el.innerHTML = loading();
   const { data } = await sb.from('pp_requests').select('*,pp_docs_customer(*),pp_docs_result(*)').eq('requester_id', currentUser.id).order('created_at', { ascending: false });
+  window._myRequests = data || [];
   if (!data?.length) { el.innerHTML = noData('Belum ada request dari Anda'); return; }
   el.innerHTML = data.map(r => `
-    <div class="sales-card">
+    <div class="sales-card" style="cursor:pointer" onclick="openMyRequestDetail('${r.id}')">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
         <div><div style="font-size:14px;font-weight:600">${r.customer_name}${r.project_name ? ' — ' + r.project_name : ''}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">${r.id} &middot; ${fmtDate(r.date)}</div></div>
         ${badge(r.status)}
@@ -997,11 +1029,125 @@ async function loadMyRequests() {
       <div style="font-size:13px;color:var(--text2)"><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span>${r.description ? `<div style="margin-top:5px">${r.description}</div>` : ''}</div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <div style="font-size:12px;color:var(--text3)">${(r.pp_docs_customer || []).length} dok. customer &middot; ${(r.pp_docs_result || []).length} dok. hasil</div>
-        <div style="display:flex;gap:6px">
-          ${(r.pp_docs_result || []).length ? r.pp_docs_result.map(f => `<a href="${fileUrl('pp-docs', f.file_path)}" target="_blank" class="btn btn-sm">📄 ${f.file_name}</a>`).join('') : ''}
+        <div style="display:flex;gap:6px;align-items:center">
+          ${(r.pp_docs_result || []).length ? r.pp_docs_result.map(f => `<a href="${fileUrl('pp-docs', f.file_path)}" target="_blank" onclick="event.stopPropagation()" class="btn btn-sm">📄 ${f.file_name}</a>`).join('') : ''}
+          <button class="btn btn-sm" onclick="event.stopPropagation();openMyRequestDetail('${r.id}')">✎ Edit</button>
         </div>
       </div>
     </div>`).join('');
+}
+
+function openMyRequestDetail(id) {
+  const r = (window._myRequests || []).find(x => x.id === id);
+  if (!r) return;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header">
+      <div><h2>Edit Request</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">${r.id} &middot; ${badge(r.status)}</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="myDate" value="${r.date || today()}"></div>
+        <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="myCustomer" value="${(r.customer_name || '').replace(/"/g, '&quot;')}"></div>
+      </div>
+      <div class="form-row"><label>Project / No. PO</label><input type="text" id="myProject" value="${(r.project_name || '').replace(/"/g, '&quot;')}"></div>
+      <div class="form-row"><label>Jenis Output <span class="req">*</span></label>
+        <select id="myOutput" onchange="if(this.value==='Lainnya')document.getElementById('myOtherRow').style.display='block';else document.getElementById('myOtherRow').style.display='none'">
+          <option value="">-- Pilih --</option>${['Drawing','BOM','Drawing & BOM','Lainnya'].map(o => `<option ${r.output_type === o ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row" id="myOtherRow" style="display:${r.output_other ? 'block' : 'none'}"><label>Keterangan</label><input type="text" id="myOutputOther" value="${(r.output_other || '').replace(/"/g, '&quot;')}"></div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="myDesc">${r.description || ''}</textarea></div>
+
+      <div class="detail-section" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">Dokumen Customer (${(r.pp_docs_customer || []).length})</div>
+          <button class="btn btn-sm" onclick="document.getElementById('myUpDoc_${r.id}').click()">+ Upload</button>
+          <input type="file" id="myUpDoc_${r.id}" multiple style="display:none" onchange="addMyRequestDoc('${r.id}',this)">
+        </div>
+        <div id="myDocList_${r.id}">${renderMyDocList(r)}</div>
+      </div>
+
+      ${(r.pp_docs_result || []).length ? `
+      <div class="detail-section" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="sect-title">Dokumen Hasil dari Engineering (${r.pp_docs_result.length})</div>
+        <div>${r.pp_docs_result.map(f => `<a href="${fileUrl('pp-docs', f.file_path)}" target="_blank" class="btn btn-sm" style="margin:2px">📄 ${f.file_name}</a>`).join('')}</div>
+      </div>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Tutup</button>
+      <button class="btn btn-primary" onclick="saveMyRequest('${r.id}')">Simpan Perubahan</button>
+    </div>
+  </div>`);
+}
+
+function renderMyDocList(r) {
+  const docs = r.pp_docs_customer || [];
+  if (!docs.length) return '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada dokumen</div>';
+  return docs.map(d => `
+    <div class="file-item">
+      <a href="${fileUrl('pp-docs', d.file_path)}" target="_blank" class="fname">${d.file_name}</a>
+      <span class="fsize">${fmtSize(d.file_size || 0)}</span>
+      <div class="file-actions" style="opacity:1">
+        <button class="file-act-btn del" onclick="removeMyRequestDoc('${d.id}','${d.file_path.replace(/'/g, "\\'")}','${d.file_name.replace(/'/g, "\\'")}','${r.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addMyRequestDoc(reqId, input) {
+  const r = (window._myRequests || []).find(x => x.id === reqId);
+  if (!r) return;
+  for (const f of Array.from(input.files)) {
+    const path = `${reqId}/customer/${Date.now()}_${f.name}`;
+    const { error } = await sb.storage.from('pp-docs').upload(path, f);
+    if (!error) {
+      await sb.from('pp_docs_customer').insert({ request_id: reqId, file_name: f.name, file_path: path, file_size: f.size, uploaded_by: currentUser.id });
+      await logPP(reqId, 'Upload Dokumen', `Customer — ${f.name}`);
+      toast(f.name + ' diupload');
+    } else toast('Gagal: ' + f.name);
+  }
+  input.value = '';
+  await loadMyRequests();
+  openMyRequestDetail(reqId);
+}
+
+async function removeMyRequestDoc(docId, filePath, fileName, reqId) {
+  if (!confirm('Hapus dokumen "' + fileName + '"?')) return;
+  await sb.storage.from('pp-docs').remove([filePath]);
+  await sb.from('pp_docs_customer').delete().eq('id', docId);
+  await logPP(reqId, 'Hapus Dokumen', `Customer — ${fileName}`);
+  toast('Dokumen dihapus');
+  await loadMyRequests();
+  openMyRequestDetail(reqId);
+}
+
+async function saveMyRequest(reqId) {
+  const customer = gv('myCustomer').trim(), date = gv('myDate'), output = gv('myOutput');
+  if (!customer || !date || !output) { toast('Lengkapi field wajib'); return; }
+  const before = (window._myRequests || []).find(x => x.id === reqId);
+  const payload = {
+    customer_name: customer, date, output_type: output,
+    output_other: gv('myOutputOther').trim() || null,
+    project_name: gv('myProject').trim() || null,
+    description: gv('myDesc').trim() || null,
+    updated_at: new Date().toISOString()
+  };
+  // Detect changes
+  const fieldLabels = { customer_name: 'Customer', date: 'Tanggal', output_type: 'Jenis Output', output_other: 'Keterangan Output', project_name: 'Project', description: 'Deskripsi' };
+  const changes = [];
+  if (before) {
+    for (const k of Object.keys(fieldLabels)) {
+      const oldVal = before[k] || '', newVal = payload[k] || '';
+      if (String(oldVal) !== String(newVal)) {
+        changes.push(`${fieldLabels[k]}: "${oldVal || '—'}" → "${newVal || '—'}"`);
+      }
+    }
+  }
+  await sb.from('pp_requests').update(payload).eq('id', reqId);
+  if (changes.length) await logPP(reqId, 'Edit Request', changes.join('; '));
+  toast('Request diperbarui');
+  closeAllModals();
+  await loadMyRequests();
 }
 
 // ═══════════════════════════════════════════════════════════
