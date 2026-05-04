@@ -5698,17 +5698,17 @@ function renderBOMReviewModal() {
         <button class="btn btn-sm" onclick="reviewAddItem()">+ Tambah Komponen</button>
       </div>
 
-      <div class="table-card"><div class="table-wrap" style="max-height:50vh">
-        <table id="reviewTable">
+      <div class="table-card"><div class="table-wrap" style="max-height:55vh;overflow-x:auto">
+        <table id="reviewTable" style="min-width:900px">
           <thead><tr>
-            <th style="width:40px">#</th>
-            <th style="width:120px">Part Number</th>
-            <th>Nama Komponen</th>
-            <th style="width:80px">Qty</th>
-            <th style="width:70px">Unit</th>
-            ${showPrice ? '<th style="width:140px">Harga Satuan</th><th style="width:140px">Subtotal</th>' : ''}
-            <th>Note</th>
-            <th style="width:50px"></th>
+            <th style="width:32px">#</th>
+            <th style="width:90px">PN</th>
+            <th style="min-width:300px">Nama Komponen</th>
+            <th style="width:60px">Qty</th>
+            <th style="width:55px">Unit</th>
+            ${showPrice ? '<th style="width:110px">Harga</th><th style="width:120px">Subtotal</th>' : ''}
+            <th style="width:140px">Note</th>
+            <th style="width:36px"></th>
           </tr></thead>
           <tbody id="reviewTableBody">${renderReviewRows(items, showPrice)}</tbody>
           ${showPrice ? `<tfoot>
@@ -5733,17 +5733,17 @@ function renderReviewRows(items, showPrice) {
   if (!items.length) return '';
   return items.map((it, idx) => `
     <tr data-row-id="${it.tmpRowId}">
-      <td style="color:var(--text3)">${idx + 1}</td>
-      <td><input type="text" class="rv-cell" data-field="part_number" value="${(it.part_number || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','part_number',this.value)" style="width:100%;padding:4px 6px;font-size:12px;font-family:'DM Mono',monospace"></td>
-      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:4px 6px;font-size:13px"></td>
-      <td><input type="number" step="0.001" class="rv-cell" data-field="qty" value="${it.qty}" oninput="reviewUpdateItem('${it.tmpRowId}','qty',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:13px"></td>
-      <td><input type="text" class="rv-cell" data-field="unit" value="${it.unit || 'pcs'}" oninput="reviewUpdateItem('${it.tmpRowId}','unit',this.value)" style="width:100%;padding:4px 6px;font-size:13px"></td>
+      <td style="color:var(--text3);text-align:center">${idx + 1}</td>
+      <td><input type="text" class="rv-cell" data-field="part_number" value="${(it.part_number || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','part_number',this.value)" style="width:100%;padding:4px 6px;font-size:11px;font-family:'DM Mono',monospace"></td>
+      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:5px 8px;font-size:13px;font-weight:500" title="${(it.name || '').replace(/"/g, '&quot;')}"></td>
+      <td><input type="number" step="0.001" class="rv-cell" data-field="qty" value="${it.qty}" oninput="reviewUpdateItem('${it.tmpRowId}','qty',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:13px;text-align:right"></td>
+      <td><input type="text" class="rv-cell" data-field="unit" value="${it.unit || 'pcs'}" oninput="reviewUpdateItem('${it.tmpRowId}','unit',this.value)" style="width:100%;padding:4px 6px;font-size:12px"></td>
       ${showPrice ? `
-        <td><input type="number" step="0.01" class="rv-cell" data-field="unit_price" value="${it.unit_price || 0}" oninput="reviewUpdateItem('${it.tmpRowId}','unit_price',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:12px"></td>
-        <td class="rv-subtotal" style="font-weight:600;font-size:13px">${fmtRp((it.qty || 0) * (it.unit_price || 0))}</td>
+        <td><input type="number" step="0.01" class="rv-cell" data-field="unit_price" value="${it.unit_price || 0}" oninput="reviewUpdateItem('${it.tmpRowId}','unit_price',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:11px;text-align:right;font-variant-numeric:tabular-nums"></td>
+        <td class="rv-subtotal" style="font-weight:600;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">${fmtRp((it.qty || 0) * (it.unit_price || 0))}</td>
       ` : ''}
-      <td><input type="text" class="rv-cell" data-field="note" value="${(it.note || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','note',this.value)" style="width:100%;padding:4px 6px;font-size:12px;color:var(--text2)"></td>
-      <td><button class="btn btn-sm btn-ghost" onclick="reviewRemoveItem('${it.tmpRowId}')" style="color:var(--red)" title="Hapus">✕</button></td>
+      <td><input type="text" class="rv-cell" data-field="note" value="${(it.note || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','note',this.value)" style="width:100%;padding:4px 6px;font-size:11px;color:var(--text2)" title="${(it.note || '').replace(/"/g, '&quot;')}"></td>
+      <td style="text-align:center"><button class="btn btn-sm btn-ghost" onclick="reviewRemoveItem('${it.tmpRowId}')" style="color:var(--red);padding:4px 8px" title="Hapus">✕</button></td>
     </tr>`).join('');
 }
 
