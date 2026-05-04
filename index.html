@@ -605,7 +605,15 @@ const sv = (id, val) => { const el = document.getElementById(id); if (el) el.val
 const today = () => new Date().toISOString().split('T')[0];
 const genId = (prefix) => prefix + '-' + Date.now().toString(36).slice(-5).toUpperCase() + '-' + Math.random().toString(36).slice(2, 4).toUpperCase();
 const fmtRp = n => n ? 'Rp ' + Number(n).toLocaleString('id-ID') : '—';
-const fmtDate = d => { if (!d) return '—'; const x = new Date(d + 'T00:00:00'); return x.getDate().toString().padStart(2, '0') + '/' + (x.getMonth() + 1).toString().padStart(2, '0') + '/' + x.getFullYear(); };
+const fmtDate = d => {
+  if (!d) return '—';
+  const s = String(d);
+  // If it's a date-only string like "2026-05-04", append time to avoid TZ shift
+  // If it's already an ISO timestamp, parse directly
+  const x = s.length === 10 ? new Date(s + 'T00:00:00') : new Date(s);
+  if (isNaN(x.getTime())) return '—';
+  return x.getDate().toString().padStart(2, '0') + '/' + (x.getMonth() + 1).toString().padStart(2, '0') + '/' + x.getFullYear();
+};
 const fmtDateTime = s => { if (!s) return ''; const d = new Date(s); return fmtDate(d.toISOString().split('T')[0]) + ' ' + d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); };
 const fmtSize = b => { if (!b) return ''; if (b < 1024) return b + 'B'; if (b < 1048576) return (b / 1024).toFixed(1) + 'KB'; return (b / 1048576).toFixed(1) + 'MB'; };
 const noDoc = () => '<span style="font-size:12px;color:var(--text3)">Belum ada dokumen</span>';
@@ -5586,7 +5594,7 @@ function openBOMForm(opts) {
   opts = opts || {};
   if (!can('bom_manage')) return;
   openModal(`<div class="modal modal-sm">
-    <div class="modal-header"><h2>BOM Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-header"><h2>BOM Baru — Step 1: Info</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Title BOM <span class="req">*</span></label><input type="text" id="bomTitle" placeholder="Contoh: BOM UPS 10kVA - PT ABC"></div>
       <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
@@ -5602,10 +5610,13 @@ function openBOMForm(opts) {
       <div class="form-row"><label>Deskripsi</label><textarea id="bomDesc"></textarea></div>
       ${opts.ppRequestId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PP: <strong>${opts.ppRequestId}</strong></div>` : ''}
       ${opts.poItemId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PO Item: <strong>${opts.poItemLabel || opts.poItemId}</strong></div>` : ''}
+      <div style="font-size:12px;color:var(--text3);margin-top:8px;padding:8px;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:4px">
+        ⚠️ Setelah klik <strong>Lanjut Review</strong>, Anda akan melihat tabel komponen yang bisa diedit. Pastikan setiap komponen sudah benar (qty, harga, note) sebelum simpan — template tidak selalu 100% sama dengan kebutuhan.
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
-      <button class="btn btn-primary" onclick='createBOM(${JSON.stringify(opts)})'>Buat & Edit</button>
+      <button class="btn btn-primary" onclick='goBOMReview(${JSON.stringify(opts)})'>Lanjut Review →</button>
     </div>
   </div>`);
 }
@@ -5621,50 +5632,266 @@ function onBOMCategoryChange() {
   sel.innerHTML = '<option value="">-- Mulai dari kosong --</option>' + tmpls.map(t => `<option value="${t.id}">${t.name} (${(t.bom_template_items || []).length} komponen)</option>`).join('');
 }
 
-async function createBOM(opts) {
+// ─── Step 2: Review tabel komponen ──────────────────────────
+let _bomReviewData = null;  // { meta, items }
+
+function goBOMReview(opts) {
   opts = opts || {};
   const title = gv('bomTitle').trim(), cat = gv('bomCategory'), tmplId = gv('bomTemplate');
   if (!title || !cat) { toast('Title dan Kategori wajib'); return; }
+  const desc = gv('bomDesc').trim() || null;
+
+  // Build initial items from template (or empty)
+  let items = [];
+  if (tmplId) {
+    const tmpl = bomState.templates.find(t => t.id == tmplId);
+    if (tmpl) {
+      items = (tmpl.bom_template_items || [])
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((ti, idx) => {
+          const comp = ti.component_id ? bomState.components.find(c => c.id === ti.component_id) : null;
+          return {
+            tmpRowId: 'r_' + idx + '_' + Date.now(),
+            component_id: ti.component_id || null,
+            part_number: ti.part_number || comp?.part_number || '',
+            name: ti.name || comp?.name || '',
+            unit: ti.unit || comp?.unit || 'pcs',
+            qty: ti.qty || 1,
+            unit_price: comp?.price || 0,
+            note: ti.note || '',
+            sort_order: idx + 1
+          };
+        });
+    }
+  }
+
+  _bomReviewData = {
+    meta: { title, unit_category: cat, description: desc, opts, templateName: tmplId ? bomState.templates.find(t => t.id == tmplId)?.name : null },
+    items
+  };
+
+  renderBOMReviewModal();
+}
+
+function renderBOMReviewModal() {
+  const { meta, items } = _bomReviewData;
+  const showPrice = can('nilai_po');
+  const total = items.reduce((s, it) => s + ((it.qty || 0) * (it.unit_price || 0)), 0);
+
+  openModal(`<div class="modal" style="max-width:1200px">
+    <div class="modal-header">
+      <div>
+        <h2>BOM Baru — Step 2: Review Komponen</h2>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">
+          ${meta.title} · ${meta.unit_category}${meta.templateName ? ' · Template: ' + meta.templateName : ' · Manual'} · ${items.length} komponen
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="if(confirm('Batalkan? Data review akan hilang.'))closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text3);background:#FEF3C7;border-left:3px solid #F59E0B;padding:8px;border-radius:4px;margin-bottom:1rem">
+        ⚠️ Edit qty, harga, atau note jika perlu. Hapus komponen yang tidak dipakai. Tambah komponen baru bila ada. Klik <strong>Simpan & Buat BOM</strong> kalau sudah benar.
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="sect-title" style="margin-bottom:0">Komponen (${items.length})</div>
+        <button class="btn btn-sm" onclick="reviewAddItem()">+ Tambah Komponen</button>
+      </div>
+
+      <div class="table-card"><div class="table-wrap" style="max-height:50vh">
+        <table id="reviewTable">
+          <thead><tr>
+            <th style="width:40px">#</th>
+            <th style="width:120px">Part Number</th>
+            <th>Nama Komponen</th>
+            <th style="width:80px">Qty</th>
+            <th style="width:70px">Unit</th>
+            ${showPrice ? '<th style="width:140px">Harga Satuan</th><th style="width:140px">Subtotal</th>' : ''}
+            <th>Note</th>
+            <th style="width:50px"></th>
+          </tr></thead>
+          <tbody id="reviewTableBody">${renderReviewRows(items, showPrice)}</tbody>
+          ${showPrice ? `<tfoot>
+            <tr style="background:var(--surface2);font-weight:600">
+              <td colspan="6" style="text-align:right">TOTAL</td>
+              <td colspan="2" id="reviewTotal">${fmtRp(total)}</td><td></td>
+            </tr>
+          </tfoot>` : ''}
+        </table>
+      </div></div>
+
+      ${!items.length ? '<div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:13px">Tidak ada komponen. Klik <strong>+ Tambah Komponen</strong> untuk mulai.</div>' : ''}
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn" onclick="if(confirm('Kembali ke Step 1? Komponen yg sudah diedit akan hilang.'))openBOMForm(_bomReviewData.meta.opts)">← Kembali</button>
+      <button class="btn btn-primary" onclick="saveBOMFromReview()">✓ Simpan & Buat BOM</button>
+    </div>
+  </div>`);
+}
+
+function renderReviewRows(items, showPrice) {
+  if (!items.length) return '';
+  return items.map((it, idx) => `
+    <tr data-row-id="${it.tmpRowId}">
+      <td style="color:var(--text3)">${idx + 1}</td>
+      <td><input type="text" class="rv-cell" data-field="part_number" value="${(it.part_number || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','part_number',this.value)" style="width:100%;padding:4px 6px;font-size:12px;font-family:'DM Mono',monospace"></td>
+      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:4px 6px;font-size:13px"></td>
+      <td><input type="number" step="0.001" class="rv-cell" data-field="qty" value="${it.qty}" oninput="reviewUpdateItem('${it.tmpRowId}','qty',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:13px"></td>
+      <td><input type="text" class="rv-cell" data-field="unit" value="${it.unit || 'pcs'}" oninput="reviewUpdateItem('${it.tmpRowId}','unit',this.value)" style="width:100%;padding:4px 6px;font-size:13px"></td>
+      ${showPrice ? `
+        <td><input type="number" step="0.01" class="rv-cell" data-field="unit_price" value="${it.unit_price || 0}" oninput="reviewUpdateItem('${it.tmpRowId}','unit_price',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:12px"></td>
+        <td class="rv-subtotal" style="font-weight:600;font-size:13px">${fmtRp((it.qty || 0) * (it.unit_price || 0))}</td>
+      ` : ''}
+      <td><input type="text" class="rv-cell" data-field="note" value="${(it.note || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','note',this.value)" style="width:100%;padding:4px 6px;font-size:12px;color:var(--text2)"></td>
+      <td><button class="btn btn-sm btn-ghost" onclick="reviewRemoveItem('${it.tmpRowId}')" style="color:var(--red)" title="Hapus">✕</button></td>
+    </tr>`).join('');
+}
+
+function reviewUpdateItem(rowId, field, value) {
+  const it = _bomReviewData.items.find(x => x.tmpRowId === rowId);
+  if (!it) return;
+  it[field] = value;
+  // Re-render only subtotal + total without rebuilding entire table (preserves input focus)
+  if (field === 'qty' || field === 'unit_price') {
+    const tr = document.querySelector(`tr[data-row-id="${rowId}"]`);
+    if (tr) {
+      const sub = tr.querySelector('.rv-subtotal');
+      if (sub) sub.textContent = fmtRp((it.qty || 0) * (it.unit_price || 0));
+    }
+    updateReviewTotal();
+  }
+}
+
+function updateReviewTotal() {
+  const total = _bomReviewData.items.reduce((s, it) => s + ((it.qty || 0) * (it.unit_price || 0)), 0);
+  const el = document.getElementById('reviewTotal');
+  if (el) el.textContent = fmtRp(total);
+}
+
+function reviewRemoveItem(rowId) {
+  _bomReviewData.items = _bomReviewData.items.filter(x => x.tmpRowId !== rowId);
+  // Re-render whole modal
+  renderBOMReviewModal();
+}
+
+function reviewAddItem() {
+  const components = bomState.components;
+  // Sub-modal to pick or create
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Tambah Komponen ke Review</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();renderBOMReviewModal()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Pilih dari Master</label>
+        <select id="rvAddComp" onchange="onReviewAddCompSelect(this.value)">
+          <option value="">-- Pilih atau isi manual --</option>
+          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name} — ${fmtRp(c.price)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Part Number</label><input type="text" id="rvAddPN"></div>
+        <div class="form-row"><label>Nama <span class="req">*</span></label><input type="text" id="rvAddName"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="rvAddQty" value="1"></div>
+        <div class="form-row"><label>Unit</label><input type="text" id="rvAddUnit" value="pcs"></div>
+      </div>
+      <div class="form-row"><label>Harga Satuan (Rp)</label><input type="number" step="0.01" id="rvAddPrice" value="0"></div>
+      <div class="form-row"><label>Note</label><input type="text" id="rvAddNote"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals();renderBOMReviewModal()">Batal</button>
+      <button class="btn btn-primary" onclick="commitReviewAddItem()">Tambahkan</button>
+    </div>
+  </div>`);
+}
+
+function onReviewAddCompSelect(compId) {
+  if (!compId) return;
+  const c = bomState.components.find(x => x.id == compId);
+  if (!c) return;
+  sv('rvAddPN', c.part_number || '');
+  sv('rvAddName', c.name);
+  sv('rvAddUnit', c.unit || 'pcs');
+  sv('rvAddPrice', c.price || 0);
+}
+
+function commitReviewAddItem() {
+  const name = gv('rvAddName').trim();
+  const qty = parseFloat(gv('rvAddQty')) || 0;
+  if (!name || qty <= 0) { toast('Nama dan Qty wajib (Qty > 0)'); return; }
+  const compId = gv('rvAddComp');
+  _bomReviewData.items.push({
+    tmpRowId: 'r_new_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+    component_id: compId ? parseInt(compId) : null,
+    part_number: gv('rvAddPN').trim() || '',
+    name,
+    unit: gv('rvAddUnit').trim() || 'pcs',
+    qty,
+    unit_price: parseFloat(gv('rvAddPrice')) || 0,
+    note: gv('rvAddNote').trim() || '',
+    sort_order: _bomReviewData.items.length + 1
+  });
+  toast('Komponen ditambahkan');
+  closeAllModals();
+  renderBOMReviewModal();
+}
+
+async function saveBOMFromReview() {
+  const { meta, items } = _bomReviewData;
+  if (!items.length) {
+    if (!confirm('Belum ada komponen. Lanjutkan menyimpan BOM kosong?')) return;
+  }
+  // Validate all items
+  for (const it of items) {
+    if (!it.name || !it.name.trim()) { toast('Ada item tanpa nama. Lengkapi dulu.'); return; }
+    if (!it.qty || it.qty <= 0) { toast(`Qty "${it.name}" harus > 0`); return; }
+  }
+
   const id = genId('BOM');
-  const payload = {
-    id, title, unit_category: cat,
-    description: gv('bomDesc').trim() || null,
+  const opts = meta.opts || {};
+  await sb.from('bom_lists').insert({
+    id, title: meta.title, unit_category: meta.unit_category,
+    description: meta.description,
     pp_request_id: opts.ppRequestId || null,
     po_id: opts.poId || null,
     po_item_id: opts.poItemId || null,
     status: 'Draft',
     created_by: currentUser.id
-  };
-  await sb.from('bom_lists').insert(payload);
-  await logBOM(id, 'Buat BOM', `${title} — ${cat}`);
+  });
+  await logBOM(id, 'Buat BOM', `${meta.title} — ${meta.unit_category}${meta.templateName ? ' (template: ' + meta.templateName + ')' : ''}`);
 
-  // If template selected, copy items
-  if (tmplId) {
-    const tmpl = bomState.templates.find(t => t.id == tmplId);
-    if (tmpl) {
-      for (const ti of (tmpl.bom_template_items || [])) {
-        const comp = ti.component_id ? bomState.components.find(c => c.id === ti.component_id) : null;
-        await sb.from('bom_items').insert({
-          bom_id: id,
-          component_id: ti.component_id || null,
-          part_number: ti.part_number || comp?.part_number || null,
-          name: ti.name || comp?.name || 'Unknown',
-          unit: ti.unit || comp?.unit || 'pcs',
-          qty: ti.qty || 1,
-          unit_price: comp?.price || 0,
-          note: ti.note || null,
-          sort_order: ti.sort_order || 0
-        });
-      }
-      await logBOM(id, 'Generate dari Template', tmpl.name);
-    }
+  // Insert items in order
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    await sb.from('bom_items').insert({
+      bom_id: id,
+      component_id: it.component_id || null,
+      part_number: it.part_number || null,
+      name: it.name,
+      unit: it.unit || 'pcs',
+      qty: it.qty,
+      unit_price: it.unit_price || 0,
+      note: it.note || null,
+      sort_order: i + 1
+    });
   }
   await recalcBOMTotal(id);
 
+  if (meta.templateName) {
+    await logBOM(id, 'Review Selesai', `${items.length} komponen ter-review dari template`);
+  }
+
   toast('BOM dibuat: ' + id);
+  _bomReviewData = null;
   closeAllModals();
   await loadBOMData();
   openBOMDetail(id);
+}
+
+// Legacy stub kept for any leftover reference (old createBOM)
+async function createBOM(opts) {
+  // Redirect to new flow — should never be called now
+  goBOMReview(opts);
 }
 
 async function openBOMDetail(bomId) {
