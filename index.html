@@ -5787,7 +5787,7 @@ function renderBOMReviewModal() {
     </div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text3);background:#FEF3C7;border-left:3px solid #F59E0B;padding:8px;border-radius:4px;margin-bottom:1rem">
-        ⚠️ Edit qty, harga, atau note jika perlu. Hapus komponen yang tidak dipakai. Tambah komponen baru bila ada. Klik <strong>Simpan & Buat BOM</strong> kalau sudah benar.
+        ⚠️ Edit nama, qty, harga, atau note jika perlu. Hapus komponen yg tidak dipakai. Tambah komponen baru bila ada. <strong>Komponen dengan nama baru otomatis ditambah ke Master saat simpan.</strong>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -5796,22 +5796,22 @@ function renderBOMReviewModal() {
       </div>
 
       <div class="table-card"><div class="table-wrap" style="max-height:55vh;overflow-x:auto">
-        <table id="reviewTable" style="min-width:900px">
+        <table id="reviewTable" style="min-width:850px">
           <thead><tr>
             <th style="width:32px">#</th>
-            <th style="width:90px">PN</th>
-            <th style="min-width:300px">Nama Komponen</th>
+            <th style="min-width:340px">Nama Komponen</th>
             <th style="width:60px">Qty</th>
             <th style="width:55px">Unit</th>
-            ${showPrice ? '<th style="width:110px">Harga</th><th style="width:120px">Subtotal</th>' : ''}
-            <th style="width:140px">Note</th>
+            ${showPrice ? '<th style="width:120px">Harga</th><th style="width:130px">Subtotal</th>' : ''}
+            <th style="width:160px">Note</th>
             <th style="width:36px"></th>
           </tr></thead>
           <tbody id="reviewTableBody">${renderReviewRows(items, showPrice)}</tbody>
           ${showPrice ? `<tfoot>
             <tr style="background:var(--surface2);font-weight:600">
-              <td colspan="6" style="text-align:right">TOTAL</td>
-              <td colspan="2" id="reviewTotal">${fmtRp(total)}</td><td></td>
+              <td colspan="5" style="text-align:right">TOTAL</td>
+              <td id="reviewTotal" style="text-align:right">${fmtRp(total)}</td>
+              <td colspan="2"></td>
             </tr>
           </tfoot>` : ''}
         </table>
@@ -5831,8 +5831,7 @@ function renderReviewRows(items, showPrice) {
   return items.map((it, idx) => `
     <tr data-row-id="${it.tmpRowId}">
       <td style="color:var(--text3);text-align:center">${idx + 1}</td>
-      <td><input type="text" class="rv-cell" data-field="part_number" value="${(it.part_number || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','part_number',this.value)" style="width:100%;padding:4px 6px;font-size:11px;font-family:'DM Mono',monospace"></td>
-      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:5px 8px;font-size:13px;font-weight:500" title="${(it.name || '').replace(/"/g, '&quot;')}"></td>
+      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:5px 8px;font-size:13px;font-weight:500" title="${(it.name || '').replace(/"/g, '&quot;')}" placeholder="Nama komponen..."></td>
       <td><input type="number" step="0.001" class="rv-cell" data-field="qty" value="${it.qty}" oninput="reviewUpdateItem('${it.tmpRowId}','qty',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:13px;text-align:right"></td>
       <td><input type="text" class="rv-cell" data-field="unit" value="${it.unit || 'pcs'}" oninput="reviewUpdateItem('${it.tmpRowId}','unit',this.value)" style="width:100%;padding:4px 6px;font-size:12px"></td>
       ${showPrice ? `
@@ -5942,6 +5941,63 @@ function commitReviewAddItem() {
   renderBOMReviewModal();
 }
 
+// ─── Helpers untuk auto-create komponen master ──────────────
+
+// Deteksi kategori master berdasarkan kata kunci di nama
+function detectComponentCategory(name) {
+  const n = (name || '').toLowerCase();
+  if (/\bmcb\b|mcb\s|mccb|rccb|mpcb/.test(n)) return 'Breaker';
+  if (/fuse holder|\bfuse\b/.test(n)) return 'Fuse';
+  if (/surge protect|\bspd\b/.test(n)) return 'SPD';
+  if (/busbar|bus bar/.test(n)) return 'Busbar';
+  if (/cubicle|wallmounted|wall mounted|free standing|enclosure/.test(n)) return 'Enclosure';
+  if (/cabin lamp|pilot lamp|pilot indicator|lamp switch|louvre|heater|thermostat|din ac socket|name plate|membrane/.test(n)) return 'Mechanical Acc';
+  if (/^fan|fan\s/.test(n)) return 'Cooling';
+  if (/trafo|trf|transformer/.test(n)) return 'Transformer';
+  if (/inductor|induktor/.test(n)) return 'Inductor';
+  if (/capacitor|elco/.test(n)) return 'Capacitor';
+  if (/varistor/.test(n)) return 'Varistor';
+  if (/\bct\b|shunt/.test(n)) return 'Instrument Trf';
+  if (/analog vm|analog am|volt selector|amper selector|power meter|meter/.test(n)) return 'Meter';
+  if (/nyaf|nyy|nyfgby|kabel|cable|wire/.test(n)) return 'Cable';
+  if (/terminal|tb wdu|wpe|wff|comb busbar|stopper/.test(n)) return 'Terminal';
+  if (/rotary handle|handle/.test(n)) return 'Accessory';
+  if (/auxiliary|\baux\b|\bal\b|\bax\b|\bsht\b/.test(n)) return 'Aux Contact';
+  if (/relay/.test(n)) return 'Lainnya';
+  return 'Lainnya';
+}
+
+// Generate next part number for a category
+async function generateNextPN(category) {
+  const prefixMap = {
+    'Enclosure': 'ENC', 'Mechanical Acc': 'MEC', 'Cooling': 'FAN',
+    'Busbar': 'BUS', 'Transformer': 'TRF', 'Inductor': 'IND',
+    'Capacitor': 'CAP', 'Varistor': 'VAR', 'Breaker': 'BRK',
+    'Fuse': 'FUS', 'SPD': 'SPD', 'Aux Contact': 'AUX',
+    'Terminal': 'TRM', 'Cable': 'CBL', 'Instrument Trf': 'INS',
+    'Meter': 'MTR', 'Accessory': 'ACC', 'Sub-Contract': 'SUB',
+    'Lainnya': 'OTH'
+  };
+  const prefix = prefixMap[category] || 'OTH';
+  // Get all PNs with this prefix from DB to find next number
+  const { data } = await sb.from('bom_components')
+    .select('part_number')
+    .like('part_number', prefix + '-%');
+  let maxNum = 0;
+  for (const r of (data || [])) {
+    const m = (r.part_number || '').match(new RegExp('^' + prefix + '-(\\d+)$'));
+    if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
+  }
+  return `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
+}
+
+// Cari komponen master by nama (case-insensitive, trim)
+function findMasterByName(name) {
+  if (!name) return null;
+  const target = name.trim().toLowerCase();
+  return bomState.components.find(c => (c.name || '').trim().toLowerCase() === target);
+}
+
 async function saveBOMFromReview() {
   const { meta, items } = _bomReviewData;
   if (!items.length) {
@@ -5953,6 +6009,57 @@ async function saveBOMFromReview() {
     if (!it.qty || it.qty <= 0) { toast(`Qty "${it.name}" harus > 0`); return; }
   }
 
+  // ── Pre-flight: auto-create komponen master untuk nama yang belum ada ──
+  let newMasterCount = 0;
+  // Cache of newly created components in this batch (to dedupe within same BOM)
+  const newCompsCache = {};
+
+  for (const it of items) {
+    const cleanName = it.name.trim();
+    // 1) Cek di cache batch
+    const cacheKey = cleanName.toLowerCase();
+    if (newCompsCache[cacheKey]) {
+      it.component_id = newCompsCache[cacheKey].id;
+      it.part_number = newCompsCache[cacheKey].part_number;
+      continue;
+    }
+    // 2) Cek di master existing
+    const existing = findMasterByName(cleanName);
+    if (existing) {
+      it.component_id = existing.id;
+      it.part_number = existing.part_number;
+      continue;
+    }
+    // 3) Tidak ada — auto-create di master
+    const category = detectComponentCategory(cleanName);
+    const newPN = await generateNextPN(category);
+    const { data: inserted, error } = await sb.from('bom_components')
+      .insert({
+        part_number: newPN,
+        name: cleanName,
+        category,
+        unit: it.unit || 'pcs',
+        price: it.unit_price || 0,
+        supplier: null,
+        is_active: true,
+        created_by: currentUser.id
+      })
+      .select()
+      .single();
+    if (error) {
+      console.warn('Failed to insert master component:', error);
+      // Continue anyway as free-text
+      it.component_id = null;
+      it.part_number = null;
+    } else {
+      it.component_id = inserted.id;
+      it.part_number = inserted.part_number;
+      newCompsCache[cacheKey] = inserted;
+      newMasterCount++;
+    }
+  }
+
+  // ── Insert BOM ──
   const id = genId('BOM');
   const opts = meta.opts || {};
   await sb.from('bom_lists').insert({
@@ -5973,7 +6080,7 @@ async function saveBOMFromReview() {
       bom_id: id,
       component_id: it.component_id || null,
       part_number: it.part_number || null,
-      name: it.name,
+      name: it.name.trim(),
       unit: it.unit || 'pcs',
       qty: it.qty,
       unit_price: it.unit_price || 0,
@@ -5986,8 +6093,17 @@ async function saveBOMFromReview() {
   if (meta.templateName) {
     await logBOM(id, 'Review Selesai', `${items.length} komponen ter-review dari template`);
   }
+  if (newMasterCount > 0) {
+    await logBOM(id, 'Komponen Master Baru', `${newMasterCount} komponen baru otomatis ditambah ke master`);
+  }
 
-  toast('BOM dibuat: ' + id);
+  // Build success message
+  let msg = 'BOM dibuat: ' + id;
+  if (newMasterCount > 0) {
+    msg += ` · ${newMasterCount} komponen baru ditambah ke master`;
+  }
+  toast(msg);
+
   _bomReviewData = null;
   closeAllModals();
   await loadBOMData();
