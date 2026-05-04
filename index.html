@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg:#F5F4F0;--surface:#FFFFFF;--surface2:#EFEDE8;--surface3:#E8E6E0;
@@ -437,8 +438,8 @@ let salesFiles = [];
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════
 const ROLE_PERMS = {
-  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
-  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1 },
+  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_manage: 1 },
+  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_manage: 1 },
   sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1 },
   engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
   produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
@@ -534,6 +535,7 @@ function buildSidebar() {
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
+  if (can('bom_view')) nav += navItem('bom', bomIcon(), 'Tools BOM', '');
   if (can('users') || isOwner()) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; }
   if (isOwner()) nav += navItem('audit', auditIcon(), 'Audit Log', '');
   if (can('users')) nav += navItem('users', usersIcon(), 'Kelola User', '');
@@ -567,6 +569,7 @@ function ppIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round
 function poIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`; }
 function svcIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`; }
 function kbIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`; }
+function bomIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`; }
 function usersIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`; }
 
 function switchModule(mod) {
@@ -586,6 +589,7 @@ function switchModule(mod) {
   else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
   else if (mod === 'kb') renderKBModule();
+  else if (mod === 'bom') renderBOMModule();
   else if (mod === 'audit') renderAuditModule();
   else if (mod === 'users') renderUsersModule();
 }
@@ -805,12 +809,33 @@ async function openPPDetail(id) {
         </div>
         ${renderFileList(r.pp_docs_result, 'pp-docs', canManage, `deletePPDoc`)}
       </div>
+      ${can('bom_view') ? `<div class="detail-section" id="ppBomSection_${r.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">BOM Terkait</div>
+          ${can('bom_manage') ? `<button class="btn btn-sm" onclick="closeAllModals();openBOMForm({ppRequestId:'${r.id}'})">+ Generate BOM</button>` : ''}
+        </div>
+        <div id="ppBomList_${r.id}"><span class="spinner"></span> Memuat...</div>
+      </div>` : ''}
       ${canManage ? `<div style="display:flex;gap:8px;justify-content:space-between">
         <button class="btn btn-sm btn-danger" onclick="deletePP('${r.id}')">Hapus Request</button>
         <button class="btn btn-sm" onclick="closeAllModals();openPPForm('${r.id}')">Edit</button>
       </div>` : ''}
     </div>
   </div>`);
+  if (can('bom_view')) loadPPBOMs(r.id);
+}
+
+async function loadPPBOMs(reqId) {
+  const { data } = await sb.from('bom_lists').select('id,title,unit_category,total_price,status,bom_items(id)').eq('pp_request_id', reqId).order('created_at', { ascending: false });
+  const el = document.getElementById('ppBomList_' + reqId);
+  if (!el) return;
+  if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada BOM untuk request ini</div>'; return; }
+  el.innerHTML = data.map(b => `
+    <div class="file-item" style="cursor:pointer" onclick="closeAllModals();openBOMDetail('${b.id}')">
+      <span class="fname" style="color:var(--text)">${b.title}</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:8px">${b.id} · ${(b.bom_items || []).length} item${can('nilai_po') ? ' · ' + fmtRp(b.total_price) : ''}</span>
+      <div class="file-actions" style="opacity:1;margin-left:auto">${badge(b.status)}</div>
+    </div>`).join('');
 }
 
 async function updatePPStatus(id, status) {
@@ -2728,6 +2753,13 @@ async function openPODetail(id) {
         </div>
         ${itemsHtml}
       </div>
+      ${can('bom_view') ? `<div class="detail-section" id="poBomSection_${p.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="sect-title" style="margin-bottom:0">BOM Terkait</div>
+          ${can('bom_manage') ? `<button class="btn btn-sm" onclick="closeAllModals();openBOMForm({poId:'${p.id}'})">+ Generate BOM</button>` : ''}
+        </div>
+        <div id="poBomList_${p.id}"><span class="spinner"></span> Memuat...</div>
+      </div>` : ''}
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${pks.length})</div>
@@ -2745,6 +2777,20 @@ async function openPODetail(id) {
       ${canManage ? `<button class="btn btn-sm" onclick="closeAllModals();openPOForm('${p.id}')">Edit PO</button>` : ''}
     </div>
   </div>`);
+  if (can('bom_view')) loadPOBOMs(p.id);
+}
+
+async function loadPOBOMs(poId) {
+  const { data } = await sb.from('bom_lists').select('id,title,unit_category,total_price,status,bom_items(id)').eq('po_id', poId).order('created_at', { ascending: false });
+  const el = document.getElementById('poBomList_' + poId);
+  if (!el) return;
+  if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada BOM untuk PO ini</div>'; return; }
+  el.innerHTML = data.map(b => `
+    <div class="file-item" style="cursor:pointer" onclick="closeAllModals();openBOMDetail('${b.id}')">
+      <span class="fname" style="color:var(--text)">${b.title}</span>
+      <span style="font-size:11px;color:var(--text3);margin-left:8px">${b.id} · ${(b.bom_items || []).length} item${can('nilai_po') ? ' · ' + fmtRp(b.total_price) : ''}</span>
+      <div class="file-actions" style="opacity:1;margin-left:auto">${badge(b.status)}</div>
+    </div>`).join('');
 }
 
 async function uploadPODoc(poId, docType, isRestricted, input) {
@@ -5029,6 +5075,917 @@ async function saveItemSpec(){
   await loadPOs();
   openPODetail(poId);
 }
+
+// ═══════════════════════════════════════════════════════════
+// BOM MODULE (Bill of Materials)
+// ═══════════════════════════════════════════════════════════
+let bomState = {
+  tab: 'list',                    // list | template | master
+  search: '',
+  categoryFilter: '',
+  components: [],
+  templates: [],
+  lists: [],
+  currentBOM: null,               // { ...bom_lists, items:[] }
+  showPriceInExport: true,
+};
+
+const BOM_UNIT_CATEGORIES = ['UPS', 'Rectifier', 'Inverter', 'ACDB', 'DCDB', 'Lainnya'];
+
+async function logBOM(bomId, action, detail) {
+  try {
+    await sb.from('bom_logs').insert({ bom_id: bomId, action, detail: detail || null, user_id: currentUser.id });
+  } catch (e) { console.warn('logBOM failed:', e); }
+}
+
+async function renderBOMModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Tools BOM</div><div class="page-sub">Bill of Materials Builder</div></div>
+      </div>
+      <div class="topbar-right" id="bomTopbarRight"></div>
+    </div>
+    <div class="page-body">
+      <div class="tab-bar" style="margin-bottom:1rem">
+        <button class="tab-btn ${bomState.tab==='list'?'active':''}" onclick="setBOMTab('list')">📋 Daftar BOM</button>
+        <button class="tab-btn ${bomState.tab==='template'?'active':''}" onclick="setBOMTab('template')">📐 Template</button>
+        <button class="tab-btn ${bomState.tab==='master'?'active':''}" onclick="setBOMTab('master')">📦 Master Komponen</button>
+      </div>
+      <div id="bomTabContent"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
+    </div>`;
+  await loadBOMData();
+  renderBOMTab();
+}
+
+async function loadBOMData() {
+  const [comps, tmpls, lists] = await Promise.all([
+    sb.from('bom_components').select('*').eq('is_active', true).order('category', { ascending: true }).order('name', { ascending: true }),
+    sb.from('bom_templates').select('*,bom_template_items(*)').eq('is_active', true).order('unit_category').order('name'),
+    sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').order('created_at', { ascending: false })
+  ]);
+  bomState.components = comps.data || [];
+  bomState.templates = tmpls.data || [];
+  bomState.lists = lists.data || [];
+}
+
+function setBOMTab(tab) {
+  bomState.tab = tab;
+  document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+  event?.target.classList.add('active');
+  renderBOMTab();
+}
+
+function renderBOMTab() {
+  const tr = document.getElementById('bomTopbarRight');
+  const tc = document.getElementById('bomTabContent');
+  if (!tc) return;
+  const canManage = can('bom_manage');
+  if (bomState.tab === 'list') {
+    tr.innerHTML = canManage ? `<button class="btn btn-primary" onclick="openBOMForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>BOM Baru</button>` : '';
+    tc.innerHTML = renderBOMList();
+  } else if (bomState.tab === 'template') {
+    tr.innerHTML = canManage ? `<button class="btn btn-primary" onclick="openBOMTemplateForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Template Baru</button>` : '';
+    tc.innerHTML = renderBOMTemplates();
+  } else if (bomState.tab === 'master') {
+    tr.innerHTML = canManage ? `
+      <button class="btn btn-ghost btn-sm" onclick="downloadBOMImportTemplate()" style="font-size:12px">📥 Template Import</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bomImportFile').click()" style="font-size:12px">📤 Import Excel</button>
+      <input type="file" id="bomImportFile" accept=".xlsx,.xls" style="display:none" onchange="handleBOMImport(this)">
+      <button class="btn btn-primary" onclick="openComponentForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Komponen</button>` : '';
+    tc.innerHTML = renderBOMComponents();
+  }
+}
+
+// ─── TAB 1: DAFTAR BOM ──────────────────────────────────────
+function renderBOMList() {
+  const lists = bomState.lists;
+  if (!lists.length) return noData('Belum ada BOM. Buat BOM baru atau generate dari PP/PO.');
+  return `
+    <div class="toolbar" style="margin-bottom:.75rem">
+      <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari title, kategori, customer..." value="${bomState.search}" oninput="bomState.search=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMList()"></div>
+    </div>
+    <div class="table-card"><div class="table-wrap"><table>
+      <thead><tr><th>ID BOM</th><th>Title</th><th>Kategori</th><th>Items</th><th>Total</th><th>Link</th><th>Status</th><th>Tanggal</th></tr></thead>
+      <tbody>${lists.filter(b => {
+        const q = bomState.search.toLowerCase();
+        return !q || [b.id, b.title, b.unit_category, b.description].join(' ').toLowerCase().includes(q);
+      }).map(b => `
+        <tr onclick="openBOMDetail('${b.id}')" style="cursor:pointer">
+          <td class="mono">${b.id}</td>
+          <td style="font-weight:500">${b.title}</td>
+          <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px">${b.unit_category || '—'}</span></td>
+          <td>${(b.bom_items || []).length}</td>
+          <td>${can('nilai_po') ? fmtRp(b.total_price) : '—'}</td>
+          <td style="font-size:11px;color:var(--text3)">${b.pp_request_id ? 'PP: ' + b.pp_request_id : ''}${b.po_id ? 'PO: ' + b.po_id : ''}${!b.pp_request_id && !b.po_id ? '—' : ''}</td>
+          <td>${badge(b.status)}</td>
+          <td style="font-size:12px;color:var(--text3)">${fmtDate(b.created_at)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div></div>`;
+}
+
+// ─── TAB 2: TEMPLATE ───────────────────────────────────────
+function renderBOMTemplates() {
+  const tmpls = bomState.templates;
+  if (!tmpls.length) return noData('Belum ada template. Buat template baru untuk auto-generate BOM.');
+  const byCategory = {};
+  tmpls.forEach(t => { (byCategory[t.unit_category] = byCategory[t.unit_category] || []).push(t); });
+  return Object.keys(byCategory).map(cat => `
+    <div style="margin-bottom:1.5rem">
+      <div class="sect-title">${cat} (${byCategory[cat].length})</div>
+      <div class="table-card"><div class="table-wrap"><table>
+        <thead><tr><th>Nama Template</th><th>Komponen</th><th>Deskripsi</th><th style="width:100px"></th></tr></thead>
+        <tbody>${byCategory[cat].map(t => `
+          <tr>
+            <td style="font-weight:500">${t.name}</td>
+            <td>${(t.bom_template_items || []).length} item</td>
+            <td style="color:var(--text2);font-size:13px">${t.description || '—'}</td>
+            <td style="text-align:right">
+              <button class="btn btn-sm" onclick="openBOMTemplateDetail(${t.id})">Lihat</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div></div>
+    </div>`).join('');
+}
+
+function openBOMTemplateForm(id) {
+  if (!can('bom_manage')) return;
+  const t = id ? bomState.templates.find(x => x.id === id) : null;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${t ? 'Edit Template' : 'Template Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Nama Template <span class="req">*</span></label><input type="text" id="tmplName" placeholder="UPS 10kVA Standard" value="${(t?.name || '').replace(/"/g, '&quot;')}"></div>
+      <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
+        <select id="tmplCategory">${BOM_UNIT_CATEGORIES.map(c => `<option ${t?.unit_category === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="tmplDesc">${t?.description || ''}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveBOMTemplate(${id || 'null'})">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function saveBOMTemplate(id) {
+  const name = gv('tmplName').trim(), category = gv('tmplCategory'), desc = gv('tmplDesc').trim();
+  if (!name || !category) { toast('Lengkapi field wajib'); return; }
+  const payload = { name, unit_category: category, description: desc || null, updated_at: new Date().toISOString() };
+  if (id) {
+    await sb.from('bom_templates').update(payload).eq('id', id);
+    toast('Template diperbarui');
+  } else {
+    await sb.from('bom_templates').insert({ ...payload, created_by: currentUser.id });
+    toast('Template dibuat');
+  }
+  closeAllModals();
+  await loadBOMData();
+  renderBOMTab();
+}
+
+async function openBOMTemplateDetail(id) {
+  const t = bomState.templates.find(x => x.id === id);
+  if (!t) return;
+  const items = (t.bom_template_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const canManage = can('bom_manage');
+  openModal(`<div class="modal" style="max-width:780px">
+    <div class="modal-header">
+      <div><h2>${t.name}</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">${t.unit_category} · ${items.length} komponen</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      ${t.description ? `<div class="desc-box" style="margin-bottom:1rem">${t.description}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="sect-title" style="margin-bottom:0">Komponen Default</div>
+        ${canManage ? `<button class="btn btn-sm" onclick="openTemplateAddItem(${t.id})">+ Tambah Komponen</button>` : ''}
+      </div>
+      ${items.length ? `<div class="table-card"><div class="table-wrap"><table>
+        <thead><tr><th>Part Number</th><th>Nama</th><th>Qty</th><th>Unit</th><th>Note</th>${canManage ? '<th></th>' : ''}</tr></thead>
+        <tbody>${items.map(it => `
+          <tr>
+            <td class="mono">${it.part_number || '—'}</td>
+            <td>${it.name}</td>
+            <td>${it.qty}</td>
+            <td>${it.unit}</td>
+            <td style="font-size:12px;color:var(--text2)">${it.note || '—'}</td>
+            ${canManage ? `<td><button class="btn btn-sm btn-ghost" onclick="deleteTemplateItem(${it.id}, ${t.id})">✕</button></td>` : ''}
+          </tr>`).join('')}
+        </tbody>
+      </table></div></div>` : noData('Belum ada komponen di template ini')}
+      ${canManage ? `<div style="display:flex;gap:8px;justify-content:space-between;margin-top:1rem">
+        <button class="btn btn-sm btn-danger" onclick="deleteBOMTemplate(${t.id})">Hapus Template</button>
+        <button class="btn btn-sm" onclick="openBOMTemplateForm(${t.id})">Edit</button>
+      </div>` : ''}
+    </div>
+  </div>`);
+}
+
+function openTemplateAddItem(templateId) {
+  const components = bomState.components;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Tambah Komponen ke Template</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Pilih dari Master Komponen</label>
+        <select id="tmplItemComp" onchange="onTemplateCompSelect(this.value)">
+          <option value="">-- Pilih --</option>
+          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name}</option>`).join('')}
+        </select>
+      </div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Part Number</label><input type="text" id="tmplItemPN"></div>
+        <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="tmplItemName"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="tmplItemQty" value="1"></div>
+        <div class="form-row"><label>Unit</label><input type="text" id="tmplItemUnit" value="pcs"></div>
+      </div>
+      <div class="form-row"><label>Note</label><input type="text" id="tmplItemNote"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveTemplateItem(${templateId})">Tambah</button>
+    </div>
+  </div>`);
+}
+
+function onTemplateCompSelect(compId) {
+  if (!compId) return;
+  const c = bomState.components.find(x => x.id == compId);
+  if (!c) return;
+  sv('tmplItemPN', c.part_number || '');
+  sv('tmplItemName', c.name);
+  sv('tmplItemUnit', c.unit || 'pcs');
+}
+
+async function saveTemplateItem(templateId) {
+  const compId = gv('tmplItemComp');
+  const name = gv('tmplItemName').trim();
+  const qty = parseFloat(gv('tmplItemQty')) || 1;
+  if (!name) { toast('Nama komponen wajib'); return; }
+  const payload = {
+    template_id: templateId,
+    component_id: compId ? parseInt(compId) : null,
+    part_number: gv('tmplItemPN').trim() || null,
+    name, qty,
+    unit: gv('tmplItemUnit').trim() || 'pcs',
+    note: gv('tmplItemNote').trim() || null
+  };
+  await sb.from('bom_template_items').insert(payload);
+  toast('Komponen ditambahkan');
+  closeAllModals();
+  await loadBOMData();
+  openBOMTemplateDetail(templateId);
+}
+
+async function deleteTemplateItem(itemId, templateId) {
+  if (!confirm('Hapus komponen ini dari template?')) return;
+  await sb.from('bom_template_items').delete().eq('id', itemId);
+  toast('Dihapus');
+  await loadBOMData();
+  openBOMTemplateDetail(templateId);
+}
+
+async function deleteBOMTemplate(id) {
+  if (!confirm('Hapus template ini? Komponennya juga ikut terhapus.')) return;
+  await sb.from('bom_templates').delete().eq('id', id);
+  toast('Template dihapus');
+  closeAllModals();
+  await loadBOMData();
+  renderBOMTab();
+}
+
+// ─── TAB 3: MASTER KOMPONEN ─────────────────────────────────
+function renderBOMComponents() {
+  const comps = bomState.components;
+  const cats = [...new Set(comps.map(c => c.category).filter(Boolean))];
+  const filtered = comps.filter(c => {
+    const q = bomState.search.toLowerCase();
+    const matchQ = !q || [c.part_number, c.name, c.category, c.supplier].join(' ').toLowerCase().includes(q);
+    const matchCat = !bomState.categoryFilter || c.category === bomState.categoryFilter;
+    return matchQ && matchCat;
+  });
+  return `
+    <div class="toolbar" style="margin-bottom:.75rem">
+      <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari part number, nama, supplier..." value="${bomState.search}" oninput="bomState.search=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMComponents()"></div>
+      <select onchange="bomState.categoryFilter=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMComponents()">
+        <option value="">Semua Kategori</option>
+        ${cats.map(c => `<option ${bomState.categoryFilter === c ? 'selected' : ''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:.5rem">${filtered.length} dari ${comps.length} komponen</div>
+    ${filtered.length ? `<div class="table-card"><div class="table-wrap"><table>
+      <thead><tr><th>Part Number</th><th>Nama</th><th>Kategori</th><th>Unit</th><th>Harga</th><th>Supplier</th>${can('bom_manage') ? '<th></th>' : ''}</tr></thead>
+      <tbody>${filtered.map(c => `
+        <tr>
+          <td class="mono">${c.part_number}</td>
+          <td style="font-weight:500">${c.name}</td>
+          <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px">${c.category || '—'}</span></td>
+          <td>${c.unit}</td>
+          <td>${can('nilai_po') ? fmtRp(c.price) : '—'}</td>
+          <td style="color:var(--text2);font-size:13px">${c.supplier || '—'}</td>
+          ${can('bom_manage') ? `<td><button class="btn btn-sm" onclick="openComponentForm(${c.id})">Edit</button></td>` : ''}
+        </tr>`).join('')}
+      </tbody>
+    </table></div></div>` : noData('Tidak ada komponen yang cocok')}`;
+}
+
+function openComponentForm(id) {
+  if (!can('bom_manage')) return;
+  const c = id ? bomState.components.find(x => x.id === id) : null;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>${c ? 'Edit Komponen' : 'Komponen Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Part Number <span class="req">*</span></label><input type="text" id="compPN" value="${(c?.part_number || '').replace(/"/g, '&quot;')}"></div>
+        <div class="form-row"><label>Kategori</label><input type="text" id="compCat" placeholder="Breaker, Capacitor, dll" value="${(c?.category || '').replace(/"/g, '&quot;')}"></div>
+      </div>
+      <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="compName" value="${(c?.name || '').replace(/"/g, '&quot;')}"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Unit</label><input type="text" id="compUnit" value="${c?.unit || 'pcs'}"></div>
+        <div class="form-row"><label>Harga (Rp)</label><input type="number" step="0.01" id="compPrice" value="${c?.price || 0}"></div>
+      </div>
+      <div class="form-row"><label>Supplier</label><input type="text" id="compSupplier" value="${(c?.supplier || '').replace(/"/g, '&quot;')}"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      ${c ? `<button class="btn btn-sm btn-danger" onclick="deleteComponent(${c.id})">Hapus</button>` : '<div></div>'}
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeAllModals()">Batal</button>
+        <button class="btn btn-primary" onclick="saveComponent(${id || 'null'})">Simpan</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+async function saveComponent(id) {
+  const pn = gv('compPN').trim(), name = gv('compName').trim();
+  if (!pn || !name) { toast('Part Number dan Nama wajib'); return; }
+  const payload = {
+    part_number: pn, name,
+    category: gv('compCat').trim() || null,
+    unit: gv('compUnit').trim() || 'pcs',
+    price: parseFloat(gv('compPrice')) || 0,
+    supplier: gv('compSupplier').trim() || null,
+    updated_at: new Date().toISOString()
+  };
+  try {
+    if (id) {
+      await sb.from('bom_components').update(payload).eq('id', id);
+      toast('Komponen diperbarui');
+    } else {
+      await sb.from('bom_components').insert({ ...payload, created_by: currentUser.id });
+      toast('Komponen ditambahkan');
+    }
+    closeAllModals();
+    await loadBOMData();
+    renderBOMTab();
+  } catch (e) {
+    toast('Error: ' + (e.message?.includes('duplicate') ? 'Part Number sudah ada' : e.message));
+  }
+}
+
+async function deleteComponent(id) {
+  if (!confirm('Hapus komponen ini? Item BOM yang sudah ada tidak akan terhapus, tapi link ke master akan hilang.')) return;
+  await sb.from('bom_components').update({ is_active: false }).eq('id', id);
+  toast('Komponen dihapus');
+  closeAllModals();
+  await loadBOMData();
+  renderBOMTab();
+}
+
+// ─── IMPORT / EXPORT EXCEL ──────────────────────────────────
+function downloadBOMImportTemplate() {
+  if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat, refresh halaman'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const wsComp = XLSX.utils.aoa_to_sheet([
+    ['part_number', 'name', 'category', 'unit', 'price', 'supplier'],
+    ['BRK-100A', 'MCB 100A 3P', 'Breaker', 'pcs', 850000, 'ABB'],
+    ['CAP-470UF', 'Capacitor 470uF 450V', 'Capacitor', 'pcs', 125000, 'Nichicon'],
+    ['TRF-10KVA', 'Transformer 10kVA Isolasi', 'Transformer', 'pcs', 12500000, 'Trafindo'],
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsComp, 'Components');
+
+  const wsTmpl = XLSX.utils.aoa_to_sheet([
+    ['template_name', 'unit_category', 'part_number', 'qty', 'note'],
+    ['UPS 10kVA Standard', 'UPS', 'BRK-100A', 2, 'Input MCB'],
+    ['UPS 10kVA Standard', 'UPS', 'CAP-470UF', 6, 'DC Bus'],
+    ['UPS 10kVA Standard', 'UPS', 'TRF-10KVA', 1, 'Isolation Transformer'],
+    ['Rectifier 100A', 'Rectifier', 'BRK-100A', 1, 'Output MCB'],
+  ]);
+  XLSX.utils.book_append_sheet(wb, wsTmpl, 'Templates');
+
+  XLSX.writeFile(wb, 'BOM_Import_Template.xlsx');
+  toast('Template diunduh');
+}
+
+async function handleBOMImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat, refresh halaman'); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+
+    let newComps = 0, updatedComps = 0, skippedComps = 0;
+    let newTmpls = 0, newTmplItems = 0;
+
+    // Process Components sheet
+    if (wb.SheetNames.includes('Components')) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets['Components']);
+      for (const r of rows) {
+        const pn = String(r.part_number || '').trim();
+        const name = String(r.name || '').trim();
+        if (!pn || !name) { skippedComps++; continue; }
+        const payload = {
+          part_number: pn, name,
+          category: r.category ? String(r.category).trim() : null,
+          unit: r.unit ? String(r.unit).trim() : 'pcs',
+          price: parseFloat(r.price) || 0,
+          supplier: r.supplier ? String(r.supplier).trim() : null,
+          updated_at: new Date().toISOString()
+        };
+        // Upsert by part_number
+        const existing = bomState.components.find(c => c.part_number === pn);
+        if (existing) {
+          await sb.from('bom_components').update(payload).eq('id', existing.id);
+          updatedComps++;
+        } else {
+          await sb.from('bom_components').insert({ ...payload, created_by: currentUser.id });
+          newComps++;
+        }
+      }
+    }
+
+    // Reload components for template lookup
+    const { data: freshComps } = await sb.from('bom_components').select('*');
+    const compByPN = {};
+    (freshComps || []).forEach(c => { compByPN[c.part_number] = c; });
+
+    // Process Templates sheet
+    if (wb.SheetNames.includes('Templates')) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets['Templates']);
+      const grouped = {};
+      for (const r of rows) {
+        const tn = String(r.template_name || '').trim();
+        const cat = String(r.unit_category || '').trim();
+        if (!tn || !cat) continue;
+        const key = `${tn}||${cat}`;
+        (grouped[key] = grouped[key] || { name: tn, unit_category: cat, items: [] }).items.push(r);
+      }
+      for (const key of Object.keys(grouped)) {
+        const g = grouped[key];
+        // Check if template exists
+        const { data: existing } = await sb.from('bom_templates').select('*').eq('name', g.name).eq('unit_category', g.unit_category).maybeSingle();
+        let tmplId;
+        if (existing) {
+          tmplId = existing.id;
+        } else {
+          const { data: ins } = await sb.from('bom_templates').insert({
+            name: g.name, unit_category: g.unit_category,
+            created_by: currentUser.id
+          }).select().single();
+          tmplId = ins.id;
+          newTmpls++;
+        }
+        // Insert items
+        for (const it of g.items) {
+          const pn = String(it.part_number || '').trim();
+          const c = compByPN[pn];
+          await sb.from('bom_template_items').insert({
+            template_id: tmplId,
+            component_id: c?.id || null,
+            part_number: pn || null,
+            name: c?.name || pn || 'Unknown',
+            unit: c?.unit || 'pcs',
+            qty: parseFloat(it.qty) || 1,
+            note: it.note ? String(it.note).trim() : null
+          });
+          newTmplItems++;
+        }
+      }
+    }
+
+    toast(`Import: ${newComps} komponen baru, ${updatedComps} update, ${newTmpls} template baru, ${newTmplItems} item template`);
+    input.value = '';
+    await loadBOMData();
+    renderBOMTab();
+  } catch (e) {
+    console.error(e);
+    toast('Error import: ' + e.message);
+  }
+}
+
+// ─── BOM BUILDER (Create / Edit BOM) ─────────────────────────
+function openBOMForm(opts) {
+  // opts: { ppRequestId, poId, poItemId, poItemLabel } untuk shortcut dari PP/PO
+  opts = opts || {};
+  if (!can('bom_manage')) return;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>BOM Baru</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Title BOM <span class="req">*</span></label><input type="text" id="bomTitle" placeholder="Contoh: BOM UPS 10kVA - PT ABC"></div>
+      <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
+        <select id="bomCategory" onchange="onBOMCategoryChange()">
+          <option value="">-- Pilih --</option>
+          ${BOM_UNIT_CATEGORIES.map(c => `<option>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row" id="bomTemplateRow" style="display:none">
+        <label>Generate dari Template (opsional)</label>
+        <select id="bomTemplate"><option value="">-- Mulai dari kosong --</option></select>
+      </div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="bomDesc"></textarea></div>
+      ${opts.ppRequestId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PP: <strong>${opts.ppRequestId}</strong></div>` : ''}
+      ${opts.poItemId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PO Item: <strong>${opts.poItemLabel || opts.poItemId}</strong></div>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick='createBOM(${JSON.stringify(opts)})'>Buat & Edit</button>
+    </div>
+  </div>`);
+}
+
+function onBOMCategoryChange() {
+  const cat = gv('bomCategory');
+  const row = document.getElementById('bomTemplateRow');
+  const sel = document.getElementById('bomTemplate');
+  if (!cat) { row.style.display = 'none'; return; }
+  const tmpls = bomState.templates.filter(t => t.unit_category === cat);
+  if (!tmpls.length) { row.style.display = 'none'; return; }
+  row.style.display = 'block';
+  sel.innerHTML = '<option value="">-- Mulai dari kosong --</option>' + tmpls.map(t => `<option value="${t.id}">${t.name} (${(t.bom_template_items || []).length} komponen)</option>`).join('');
+}
+
+async function createBOM(opts) {
+  opts = opts || {};
+  const title = gv('bomTitle').trim(), cat = gv('bomCategory'), tmplId = gv('bomTemplate');
+  if (!title || !cat) { toast('Title dan Kategori wajib'); return; }
+  const id = genId('BOM');
+  const payload = {
+    id, title, unit_category: cat,
+    description: gv('bomDesc').trim() || null,
+    pp_request_id: opts.ppRequestId || null,
+    po_id: opts.poId || null,
+    po_item_id: opts.poItemId || null,
+    status: 'Draft',
+    created_by: currentUser.id
+  };
+  await sb.from('bom_lists').insert(payload);
+  await logBOM(id, 'Buat BOM', `${title} — ${cat}`);
+
+  // If template selected, copy items
+  if (tmplId) {
+    const tmpl = bomState.templates.find(t => t.id == tmplId);
+    if (tmpl) {
+      for (const ti of (tmpl.bom_template_items || [])) {
+        const comp = ti.component_id ? bomState.components.find(c => c.id === ti.component_id) : null;
+        await sb.from('bom_items').insert({
+          bom_id: id,
+          component_id: ti.component_id || null,
+          part_number: ti.part_number || comp?.part_number || null,
+          name: ti.name || comp?.name || 'Unknown',
+          unit: ti.unit || comp?.unit || 'pcs',
+          qty: ti.qty || 1,
+          unit_price: comp?.price || 0,
+          note: ti.note || null,
+          sort_order: ti.sort_order || 0
+        });
+      }
+      await logBOM(id, 'Generate dari Template', tmpl.name);
+    }
+  }
+  await recalcBOMTotal(id);
+
+  toast('BOM dibuat: ' + id);
+  closeAllModals();
+  await loadBOMData();
+  openBOMDetail(id);
+}
+
+async function openBOMDetail(bomId) {
+  const { data } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
+  if (!data) return;
+  bomState.currentBOM = data;
+  const items = (data.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const total = items.reduce((s, it) => s + (it.qty * it.unit_price || 0), 0);
+  const canManage = can('bom_manage');
+  const showPrice = can('nilai_po');
+
+  openModal(`<div class="modal" style="max-width:1100px">
+    <div class="modal-header">
+      <div>
+        <h2>${data.title}</h2>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">
+          ${data.id} · ${data.unit_category} · ${badge(data.status)} · oleh ${data.app_users?.full_name || '—'} · ${fmtDate(data.created_at)}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      ${data.description ? `<div class="desc-box" style="margin-bottom:1rem">${data.description}</div>` : ''}
+      ${(data.pp_request_id || data.po_id) ? `<div style="font-size:12px;background:var(--surface2);padding:8px;border-radius:6px;margin-bottom:1rem">
+        ${data.pp_request_id ? `🔗 PP Request: <strong>${data.pp_request_id}</strong> ` : ''}
+        ${data.po_id ? `🔗 PO: <strong>${data.po_id}</strong>` : ''}
+      </div>` : ''}
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div class="sect-title" style="margin-bottom:0">Komponen (${items.length})</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${canManage ? `<button class="btn btn-sm" onclick="openBOMAddItem('${data.id}')">+ Tambah Komponen</button>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}', true)">📊 Export Excel (+harga)</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}', false)">📊 Export Excel (no harga)</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${data.id}', true)">🖨 Print (+harga)</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${data.id}', false)">🖨 Print (no harga)</button>
+        </div>
+      </div>
+
+      ${items.length ? `<div class="table-card"><div class="table-wrap"><table>
+        <thead><tr>
+          <th style="width:40px">#</th>
+          <th>Part Number</th>
+          <th>Nama</th>
+          <th style="width:80px">Qty</th>
+          <th style="width:60px">Unit</th>
+          ${showPrice ? '<th style="width:140px">Harga Satuan</th><th style="width:140px">Subtotal</th>' : ''}
+          <th>Note</th>
+          ${canManage ? '<th style="width:80px"></th>' : ''}
+        </tr></thead>
+        <tbody>${items.map((it, idx) => `
+          <tr>
+            <td style="color:var(--text3)">${idx + 1}</td>
+            <td class="mono">${it.part_number || '—'}</td>
+            <td style="font-weight:500">${it.name}</td>
+            <td>${it.qty}</td>
+            <td>${it.unit}</td>
+            ${showPrice ? `<td>${fmtRp(it.unit_price)}</td><td><strong>${fmtRp(it.qty * it.unit_price)}</strong></td>` : ''}
+            <td style="font-size:12px;color:var(--text2)">${it.note || '—'}</td>
+            ${canManage ? `<td>
+              <button class="btn btn-sm" onclick="openBOMEditItem(${it.id}, '${data.id}')">✎</button>
+              <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id}, '${data.id}')">✕</button>
+            </td>` : ''}
+          </tr>`).join('')}
+          ${showPrice ? `<tr style="background:var(--surface2);font-weight:600"><td colspan="${canManage ? 6 : 5}" style="text-align:right">TOTAL</td><td colspan="2">${fmtRp(total)}</td><td colspan="${canManage ? 2 : 1}"></td></tr>` : ''}
+        </tbody>
+      </table></div></div>` : noData('Belum ada komponen')}
+
+      ${canManage ? `<div style="display:flex;gap:8px;justify-content:space-between;margin-top:1rem">
+        <button class="btn btn-sm btn-danger" onclick="deleteBOM('${data.id}')">Hapus BOM</button>
+        <div style="display:flex;gap:6px">
+          ${['Draft', 'Final', 'Archived'].map(s => `<button class="btn btn-sm ${data.status === s ? 'btn-primary' : ''}" onclick="updateBOMStatus('${data.id}','${s}')">${s}</button>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>
+  </div>`);
+}
+
+function openBOMAddItem(bomId) {
+  const components = bomState.components;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Tambah Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>Pilih dari Master Komponen</label>
+        <select id="biComp" onchange="onBOMItemCompSelect(this.value)">
+          <option value="">-- Pilih atau ketik manual --</option>
+          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name} — ${fmtRp(c.price)}</option>`).join('')}
+        </select>
+        <div style="margin-top:6px"><button class="btn btn-sm btn-ghost" onclick="closeAllModals();openComponentForm()" style="font-size:11px">+ Quick-add komponen baru ke master</button></div>
+      </div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Part Number</label><input type="text" id="biPN"></div>
+        <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="biName"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="biQty" value="1"></div>
+        <div class="form-row"><label>Unit</label><input type="text" id="biUnit" value="pcs"></div>
+      </div>
+      <div class="form-row"><label>Harga Satuan (Rp)</label><input type="number" step="0.01" id="biPrice" value="0"></div>
+      <div class="form-row"><label>Note</label><input type="text" id="biNote"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveBOMItem('${bomId}', null)">Tambah</button>
+    </div>
+  </div>`);
+}
+
+function onBOMItemCompSelect(compId) {
+  if (!compId) return;
+  const c = bomState.components.find(x => x.id == compId);
+  if (!c) return;
+  sv('biPN', c.part_number || '');
+  sv('biName', c.name);
+  sv('biUnit', c.unit || 'pcs');
+  sv('biPrice', c.price || 0);
+}
+
+async function openBOMEditItem(itemId, bomId) {
+  const { data: it } = await sb.from('bom_items').select('*').eq('id', itemId).single();
+  if (!it) return;
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Edit Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row"><label>Part Number</label><input type="text" id="biPN" value="${(it.part_number || '').replace(/"/g, '&quot;')}"></div>
+        <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="biName" value="${(it.name || '').replace(/"/g, '&quot;')}"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="biQty" value="${it.qty}"></div>
+        <div class="form-row"><label>Unit</label><input type="text" id="biUnit" value="${it.unit || 'pcs'}"></div>
+      </div>
+      <div class="form-row"><label>Harga Satuan (Rp)</label><input type="number" step="0.01" id="biPrice" value="${it.unit_price}"></div>
+      <div class="form-row"><label>Note</label><input type="text" id="biNote" value="${(it.note || '').replace(/"/g, '&quot;')}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveBOMItem('${bomId}', ${itemId})">Simpan</button>
+    </div>
+  </div>`);
+}
+
+async function saveBOMItem(bomId, itemId) {
+  const name = gv('biName').trim();
+  const qty = parseFloat(gv('biQty')) || 0;
+  if (!name || qty <= 0) { toast('Nama dan Qty wajib (Qty > 0)'); return; }
+  const payload = {
+    part_number: gv('biPN').trim() || null,
+    name,
+    unit: gv('biUnit').trim() || 'pcs',
+    qty,
+    unit_price: parseFloat(gv('biPrice')) || 0,
+    note: gv('biNote').trim() || null
+  };
+  if (itemId) {
+    await sb.from('bom_items').update(payload).eq('id', itemId);
+    await logBOM(bomId, 'Edit Item', `${payload.name} qty=${payload.qty}`);
+  } else {
+    payload.bom_id = bomId;
+    payload.component_id = gv('biComp') ? parseInt(gv('biComp')) : null;
+    await sb.from('bom_items').insert(payload);
+    await logBOM(bomId, 'Tambah Item', `${payload.name} qty=${payload.qty}`);
+  }
+  await recalcBOMTotal(bomId);
+  toast(itemId ? 'Item diperbarui' : 'Item ditambahkan');
+  closeAllModals();
+  await loadBOMData();
+  openBOMDetail(bomId);
+}
+
+async function deleteBOMItem(itemId, bomId) {
+  if (!confirm('Hapus komponen ini dari BOM?')) return;
+  const { data: it } = await sb.from('bom_items').select('name').eq('id', itemId).single();
+  await sb.from('bom_items').delete().eq('id', itemId);
+  await logBOM(bomId, 'Hapus Item', it?.name || '');
+  await recalcBOMTotal(bomId);
+  toast('Item dihapus');
+  await loadBOMData();
+  openBOMDetail(bomId);
+}
+
+async function recalcBOMTotal(bomId) {
+  const { data: items } = await sb.from('bom_items').select('qty,unit_price').eq('bom_id', bomId);
+  const total = (items || []).reduce((s, it) => s + (it.qty * it.unit_price || 0), 0);
+  await sb.from('bom_lists').update({ total_price: total, updated_at: new Date().toISOString() }).eq('id', bomId);
+}
+
+async function updateBOMStatus(bomId, status) {
+  await sb.from('bom_lists').update({ status, updated_at: new Date().toISOString() }).eq('id', bomId);
+  await logBOM(bomId, 'Update Status', '→ ' + status);
+  toast('Status → ' + status);
+  await loadBOMData();
+  openBOMDetail(bomId);
+}
+
+async function deleteBOM(bomId) {
+  if (!confirm('Hapus BOM ini beserta semua itemnya?')) return;
+  await sb.from('bom_lists').delete().eq('id', bomId);
+  toast('BOM dihapus');
+  closeAllModals();
+  await loadBOMData();
+  renderBOMTab();
+}
+
+// ─── EXPORT ─────────────────────────────────────────────────
+async function exportBOMExcel(bomId, withPrice) {
+  if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat'); return; }
+  const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*)').eq('id', bomId).single();
+  if (!bom) return;
+  const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+  const rows = [
+    ['BILL OF MATERIALS'],
+    [],
+    ['BOM ID', bom.id],
+    ['Title', bom.title],
+    ['Kategori', bom.unit_category || ''],
+    ['Status', bom.status],
+    ['Tanggal', fmtDate(bom.created_at)],
+    bom.pp_request_id ? ['PP Request', bom.pp_request_id] : null,
+    bom.po_id ? ['PO', bom.po_id] : null,
+    bom.description ? ['Deskripsi', bom.description] : null,
+    [],
+    withPrice
+      ? ['No', 'Part Number', 'Nama Komponen', 'Qty', 'Unit', 'Harga Satuan', 'Subtotal', 'Note']
+      : ['No', 'Part Number', 'Nama Komponen', 'Qty', 'Unit', 'Note']
+  ].filter(Boolean);
+
+  let total = 0;
+  items.forEach((it, i) => {
+    const sub = it.qty * it.unit_price;
+    total += sub;
+    if (withPrice) {
+      rows.push([i + 1, it.part_number || '', it.name, it.qty, it.unit, it.unit_price, sub, it.note || '']);
+    } else {
+      rows.push([i + 1, it.part_number || '', it.name, it.qty, it.unit, it.note || '']);
+    }
+  });
+
+  if (withPrice) {
+    rows.push([]);
+    rows.push(['', '', '', '', '', 'TOTAL', total, '']);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = withPrice
+    ? [{ wch: 5 }, { wch: 18 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 25 }]
+    : [{ wch: 5 }, { wch: 18 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 25 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'BOM');
+  XLSX.writeFile(wb, `${bom.id}_${bom.title.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+  toast('Excel diunduh');
+}
+
+async function exportBOMPrint(bomId, withPrice) {
+  const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
+  if (!bom) return;
+  const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const total = items.reduce((s, it) => s + (it.qty * it.unit_price || 0), 0);
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>BOM ${bom.id}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;color:#000;font-size:11px}
+      h1{font-size:18px;margin:0 0 4px}
+      .header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px}
+      .meta{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:11px;margin-bottom:12px}
+      .meta .k{color:#666}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th,td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}
+      th{background:#eee;font-size:10px;text-transform:uppercase}
+      td.num{text-align:right;font-variant-numeric:tabular-nums}
+      tfoot td{font-weight:bold;background:#f5f5f5}
+      .footer{margin-top:30px;font-size:10px;color:#666;border-top:1px solid #ccc;padding-top:8px}
+      @media print{body{padding:0}}
+    </style></head><body>
+    <div class="header">
+      <h1>BILL OF MATERIALS</h1>
+      <div style="font-size:12px;color:#666">${bom.title}</div>
+    </div>
+    <div class="meta">
+      <span class="k">BOM ID</span><span><strong>${bom.id}</strong></span>
+      <span class="k">Kategori Unit</span><span>${bom.unit_category || '—'}</span>
+      <span class="k">Status</span><span>${bom.status}</span>
+      <span class="k">Tanggal</span><span>${fmtDate(bom.created_at)}</span>
+      <span class="k">Dibuat oleh</span><span>${bom.app_users?.full_name || '—'}</span>
+      ${bom.pp_request_id ? `<span class="k">PP Request</span><span>${bom.pp_request_id}</span>` : ''}
+      ${bom.po_id ? `<span class="k">PO</span><span>${bom.po_id}</span>` : ''}
+      ${bom.description ? `<span class="k">Deskripsi</span><span>${bom.description}</span>` : ''}
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:30px">#</th>
+        <th>Part Number</th>
+        <th>Nama Komponen</th>
+        <th style="width:50px">Qty</th>
+        <th style="width:50px">Unit</th>
+        ${withPrice ? '<th style="width:90px">Harga</th><th style="width:100px">Subtotal</th>' : ''}
+        <th>Note</th>
+      </tr></thead>
+      <tbody>${items.map((it, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${it.part_number || '—'}</td>
+          <td>${it.name}</td>
+          <td class="num">${it.qty}</td>
+          <td>${it.unit}</td>
+          ${withPrice ? `<td class="num">${fmtRp(it.unit_price)}</td><td class="num">${fmtRp(it.qty * it.unit_price)}</td>` : ''}
+          <td>${it.note || ''}</td>
+        </tr>`).join('')}</tbody>
+      ${withPrice ? `<tfoot><tr><td colspan="6" style="text-align:right">TOTAL</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>` : ''}
+    </table>
+    <div class="footer">Dicetak pada ${new Date().toLocaleString('id-ID')} — Panel System</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+// ─── GENID for BOM (uses existing pattern) ───────────────────
+// Already handled by genId('BOM') from existing code
 
 </script>
 </body>
