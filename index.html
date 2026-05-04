@@ -5292,7 +5292,10 @@ async function openBOMTemplateDetail(id) {
   </div>`);
 }
 
-function openTemplateAddItem(templateId) {
+async function openTemplateAddItem(templateId) {
+  if (!bomState.components || !bomState.components.length) {
+    await loadBOMData();
+  }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen ke Template</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -5678,10 +5681,15 @@ function selectCompPicker(inputId, compId) {
   }
 }
 
-function openBOMForm(opts) {
+async function openBOMForm(opts) {
   // opts: { ppRequestId, poId, poItemId, poItemLabel } untuk shortcut dari PP/PO
   opts = opts || {};
   if (!can('bom_manage')) return;
+  // Ensure components & templates loaded — needed for searchable picker & template dropdown
+  if (!bomState.components || !bomState.components.length) {
+    toast('Memuat data komponen...');
+    await loadBOMData();
+  }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>BOM Baru — Step 1: Info</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -5863,7 +5871,11 @@ function reviewRemoveItem(rowId) {
   renderBOMReviewModal();
 }
 
-function reviewAddItem() {
+async function reviewAddItem() {
+  // Defensive: ensure components loaded
+  if (!bomState.components || !bomState.components.length) {
+    await loadBOMData();
+  }
   // Sub-modal to pick or create
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen ke Review</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();renderBOMReviewModal()">&#x2715;</button></div>
@@ -6064,7 +6076,10 @@ async function openBOMDetail(bomId) {
   </div>`);
 }
 
-function openBOMAddItem(bomId) {
+async function openBOMAddItem(bomId) {
+  if (!bomState.components || !bomState.components.length) {
+    await loadBOMData();
+  }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
