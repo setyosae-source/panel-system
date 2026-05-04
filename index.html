@@ -5293,17 +5293,14 @@ async function openBOMTemplateDetail(id) {
 }
 
 function openTemplateAddItem(templateId) {
-  const components = bomState.components;
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen ke Template</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="form-row"><label>Pilih dari Master Komponen</label>
-        <select id="tmplItemComp" onchange="onTemplateCompSelect(this.value)">
-          <option value="">-- Pilih --</option>
-          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name}</option>`).join('')}
-        </select>
+      <div class="form-row">
+        <label>Cari di Master Komponen <span style="font-size:11px;color:var(--text3);font-weight:normal">(${bomState.components.length} items)</span></label>
+        ${renderComponentPicker('tmplItemComp')}
       </div>
-      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.75rem 0">— atau isi manual —</div>
       <div class="form-grid">
         <div class="form-row"><label>Part Number</label><input type="text" id="tmplItemPN"></div>
         <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="tmplItemName"></div>
@@ -5319,6 +5316,11 @@ function openTemplateAddItem(templateId) {
       <button class="btn btn-primary" onclick="saveTemplateItem(${templateId})">Tambah</button>
     </div>
   </div>`);
+  window._compPicker_tmplItemComp = (c) => {
+    sv('tmplItemPN', c.part_number || '');
+    sv('tmplItemName', c.name);
+    sv('tmplItemUnit', c.unit || 'pcs');
+  };
 }
 
 function onTemplateCompSelect(compId) {
@@ -5589,6 +5591,93 @@ async function handleBOMImport(input) {
 }
 
 // ─── BOM BUILDER (Create / Edit BOM) ─────────────────────────
+
+// Reusable searchable component picker
+// Usage: render dengan renderComponentPicker(inputId), lalu listen via onCompPickerSelect
+function renderComponentPicker(inputId, onSelectFn) {
+  // Returns HTML for a search input + dropdown wrapper
+  return `
+    <div class="comp-picker" data-input-id="${inputId}" style="position:relative">
+      <input type="text" id="${inputId}_search"
+        placeholder="Ketik PN atau nama komponen..."
+        oninput="filterCompPicker('${inputId}', this.value)"
+        onfocus="filterCompPicker('${inputId}', this.value)"
+        onblur="setTimeout(()=>{const dd=document.getElementById('${inputId}_dropdown');if(dd)dd.style.display='none'},200)"
+        autocomplete="off"
+        style="width:100%">
+      <input type="hidden" id="${inputId}" value="">
+      <div id="${inputId}_dropdown" class="comp-picker-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:280px;overflow-y:auto;z-index:1100;margin-top:2px"></div>
+      <div id="${inputId}_selected" style="margin-top:4px;font-size:11px;color:var(--green);display:none">✓ Terpilih</div>
+    </div>`;
+}
+
+function filterCompPicker(inputId, query) {
+  const dd = document.getElementById(inputId + '_dropdown');
+  if (!dd) return;
+  const q = query.toLowerCase().trim();
+  let comps = bomState.components || [];
+  if (q) {
+    // Score by relevance
+    comps = comps.map(c => {
+      const pnLower = (c.part_number || '').toLowerCase();
+      const nameLower = (c.name || '').toLowerCase();
+      const supplierLower = (c.supplier || '').toLowerCase();
+      let score = 0;
+      if (pnLower === q) score = 1000;
+      else if (pnLower.startsWith(q)) score = 500;
+      else if (nameLower.startsWith(q)) score = 300;
+      else if (pnLower.includes(q)) score = 200;
+      else if (nameLower.includes(q)) score = 100;
+      else if (supplierLower.includes(q)) score = 50;
+      return { c, score };
+    }).filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 30)
+      .map(x => x.c);
+  } else {
+    comps = comps.slice(0, 30);
+  }
+  if (!comps.length) {
+    dd.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:12px;text-align:center">Tidak ada komponen cocok. Isi manual di bawah.</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  // Highlight matching text
+  const hl = (txt) => {
+    if (!q) return txt;
+    const idx = txt.toLowerCase().indexOf(q);
+    if (idx < 0) return txt;
+    return txt.substring(0, idx) + '<mark style="background:#FEF3C7;padding:0 1px">' + txt.substring(idx, idx + q.length) + '</mark>' + txt.substring(idx + q.length);
+  };
+  dd.innerHTML = comps.map(c => `
+    <div class="comp-picker-item" onmousedown="selectCompPicker('${inputId}', ${c.id})"
+      style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px"
+      onmouseover="this.style.background='var(--surface2)'"
+      onmouseout="this.style.background=''">
+      <div style="font-family:'DM Mono',monospace;color:var(--text3);font-size:11px">${hl(c.part_number || '—')}</div>
+      <div style="font-weight:500;margin-top:1px">${hl(c.name || '')}</div>
+      <div style="display:flex;justify-content:space-between;margin-top:2px;color:var(--text3);font-size:11px">
+        <span>${c.category || ''} ${c.supplier ? '· ' + hl(c.supplier) : ''}</span>
+        <span style="font-variant-numeric:tabular-nums">${can('nilai_po') ? fmtRp(c.price) : ''}</span>
+      </div>
+    </div>`).join('');
+  dd.style.display = 'block';
+}
+
+function selectCompPicker(inputId, compId) {
+  const c = bomState.components.find(x => x.id == compId);
+  if (!c) return;
+  document.getElementById(inputId).value = c.id;
+  document.getElementById(inputId + '_search').value = `[${c.part_number}] ${c.name}`;
+  document.getElementById(inputId + '_dropdown').style.display = 'none';
+  const sel = document.getElementById(inputId + '_selected');
+  if (sel) { sel.textContent = '✓ Terpilih: ' + c.name; sel.style.display = 'block'; }
+  // Trigger onSelect handler if registered
+  if (window['_compPicker_' + inputId]) {
+    window['_compPicker_' + inputId](c);
+  }
+}
+
 function openBOMForm(opts) {
   // opts: { ppRequestId, poId, poItemId, poItemLabel } untuk shortcut dari PP/PO
   opts = opts || {};
@@ -5775,18 +5864,15 @@ function reviewRemoveItem(rowId) {
 }
 
 function reviewAddItem() {
-  const components = bomState.components;
   // Sub-modal to pick or create
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen ke Review</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();renderBOMReviewModal()">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="form-row"><label>Pilih dari Master</label>
-        <select id="rvAddComp" onchange="onReviewAddCompSelect(this.value)">
-          <option value="">-- Pilih atau isi manual --</option>
-          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name} — ${fmtRp(c.price)}</option>`).join('')}
-        </select>
+      <div class="form-row">
+        <label>Cari di Master Komponen <span style="font-size:11px;color:var(--text3);font-weight:normal">(${bomState.components.length} items)</span></label>
+        ${renderComponentPicker('rvAddComp')}
       </div>
-      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.75rem 0">— atau isi manual —</div>
       <div class="form-grid">
         <div class="form-row"><label>Part Number</label><input type="text" id="rvAddPN"></div>
         <div class="form-row"><label>Nama <span class="req">*</span></label><input type="text" id="rvAddName"></div>
@@ -5803,8 +5889,16 @@ function reviewAddItem() {
       <button class="btn btn-primary" onclick="commitReviewAddItem()">Tambahkan</button>
     </div>
   </div>`);
+  // Register select handler
+  window._compPicker_rvAddComp = (c) => {
+    sv('rvAddPN', c.part_number || '');
+    sv('rvAddName', c.name);
+    sv('rvAddUnit', c.unit || 'pcs');
+    sv('rvAddPrice', c.price || 0);
+  };
 }
 
+// Legacy function kept for backward compat (no-op now, picker handles it)
 function onReviewAddCompSelect(compId) {
   if (!compId) return;
   const c = bomState.components.find(x => x.id == compId);
@@ -5971,18 +6065,15 @@ async function openBOMDetail(bomId) {
 }
 
 function openBOMAddItem(bomId) {
-  const components = bomState.components;
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Tambah Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="form-row"><label>Pilih dari Master Komponen</label>
-        <select id="biComp" onchange="onBOMItemCompSelect(this.value)">
-          <option value="">-- Pilih atau ketik manual --</option>
-          ${components.map(c => `<option value="${c.id}">[${c.part_number}] ${c.name} — ${fmtRp(c.price)}</option>`).join('')}
-        </select>
+      <div class="form-row">
+        <label>Cari di Master Komponen <span style="font-size:11px;color:var(--text3);font-weight:normal">(${bomState.components.length} items)</span></label>
+        ${renderComponentPicker('biComp')}
         <div style="margin-top:6px"><button class="btn btn-sm btn-ghost" onclick="closeAllModals();openComponentForm()" style="font-size:11px">+ Quick-add komponen baru ke master</button></div>
       </div>
-      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.5rem 0">— atau isi manual —</div>
+      <div style="text-align:center;color:var(--text3);font-size:12px;margin:.75rem 0">— atau isi manual —</div>
       <div class="form-grid">
         <div class="form-row"><label>Part Number</label><input type="text" id="biPN"></div>
         <div class="form-row"><label>Nama Komponen <span class="req">*</span></label><input type="text" id="biName"></div>
@@ -5999,6 +6090,22 @@ function openBOMAddItem(bomId) {
       <button class="btn btn-primary" onclick="saveBOMItem('${bomId}', null)">Tambah</button>
     </div>
   </div>`);
+  window._compPicker_biComp = (c) => {
+    sv('biPN', c.part_number || '');
+    sv('biName', c.name);
+    sv('biUnit', c.unit || 'pcs');
+    sv('biPrice', c.price || 0);
+  };
+}
+
+function onBOMItemCompSelect(compId) {
+  if (!compId) return;
+  const c = bomState.components.find(x => x.id == compId);
+  if (!c) return;
+  sv('biPN', c.part_number || '');
+  sv('biName', c.name);
+  sv('biUnit', c.unit || 'pcs');
+  sv('biPrice', c.price || 0);
 }
 
 function onBOMItemCompSelect(compId) {
