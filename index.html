@@ -846,7 +846,9 @@ async function loadPPBOMs(reqId) {
 function renderBOMRelatedCard(b) {
   const canOpen = can('bom_view');  // Owner/Admin
   const canExport = can('bom_view') || can('bom_export');
-  const showPrice = can('nilai_po');
+  // Untuk BOM context: siapa pun yang punya akses BOM (view/export) boleh lihat harga
+  // Tidak pakai nilai_po — itu untuk konteks PO yang berbeda
+  const showPrice = canExport;
   const itemCount = (b.bom_items || []).length;
 
   const titleEl = canOpen
