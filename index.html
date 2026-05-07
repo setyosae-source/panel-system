@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root {
   --bg:#F5F4F0;--surface:#FFFFFF;--surface2:#EFEDE8;--surface3:#E8E6E0;
@@ -6336,52 +6336,252 @@ async function deleteBOM(bomId) {
 }
 
 // ─── EXPORT ─────────────────────────────────────────────────
+// Extract section name from note: "Section 1 Mechanical — estimasi fabrikator" → "Section 1 Mechanical"
+function extractSection(note) {
+  if (!note) return '(Tanpa Section)';
+  const s = String(note).trim();
+  // Try em-dash, en-dash, then regular dash
+  for (const sep of [' — ', ' – ', ' - ']) {
+    const idx = s.indexOf(sep);
+    if (idx > 0) return s.substring(0, idx).trim();
+  }
+  return s; // No separator found — use whole note as section
+}
+
+// Extract sub-note (after the dash)
+function extractSubNote(note) {
+  if (!note) return '';
+  const s = String(note).trim();
+  for (const sep of [' — ', ' – ', ' - ']) {
+    const idx = s.indexOf(sep);
+    if (idx > 0) return s.substring(idx + sep.length).trim();
+  }
+  return ''; // No separator — sub-note empty
+}
+
+// Group items by section, preserving order
+function groupItemsBySection(items) {
+  const groups = [];
+  const map = {};
+  for (const it of items) {
+    const sec = extractSection(it.note);
+    if (!map[sec]) {
+      map[sec] = { name: sec, items: [] };
+      groups.push(map[sec]);
+    }
+    map[sec].items.push(it);
+  }
+  return groups;
+}
+
 async function exportBOMExcel(bomId, withPrice) {
   if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat'); return; }
-  const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*)').eq('id', bomId).single();
+  const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const groups = groupItemsBySection(items);
 
-  const rows = [
-    ['BILL OF MATERIALS'],
-    [],
-    ['BOM ID', bom.id],
-    ['Title', bom.title],
-    ['Kategori', bom.unit_category || ''],
-    ['Status', bom.status],
-    ['Tanggal', fmtDate(bom.created_at)],
-    bom.pp_request_id ? ['PP Request', bom.pp_request_id] : null,
-    bom.po_id ? ['PO', bom.po_id] : null,
-    bom.description ? ['Deskripsi', bom.description] : null,
-    [],
-    withPrice
-      ? ['No', 'Part Number', 'Nama Komponen', 'Qty', 'Unit', 'Harga Satuan', 'Subtotal', 'Note']
-      : ['No', 'Part Number', 'Nama Komponen', 'Qty', 'Unit', 'Note']
-  ].filter(Boolean);
+  // Build sheet using AOA + cell-level formatting
+  const aoa = [];
+  const merges = [];
+  const styles = {}; // map "A1" -> style obj
+  const colCount = withPrice ? 6 : 4; // No, Nama, Qty, Unit, [Harga, Subtotal,] Note
 
-  let total = 0;
-  items.forEach((it, i) => {
-    const sub = it.qty * it.unit_price;
-    total += sub;
-    if (withPrice) {
-      rows.push([i + 1, it.part_number || '', it.name, it.qty, it.unit, it.unit_price, sub, it.note || '']);
-    } else {
-      rows.push([i + 1, it.part_number || '', it.name, it.qty, it.unit, it.note || '']);
-    }
-  });
+  // ── Title ──
+  aoa.push(['BILL OF MATERIALS']);
+  merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } });
 
+  aoa.push([bom.title]);
+  merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } });
+
+  aoa.push([]);
+
+  // ── Meta info ──
+  const metaStart = aoa.length;
+  aoa.push(['BOM ID', bom.id]);
+  aoa.push(['Kategori Unit', bom.unit_category || '']);
+  aoa.push(['Status', bom.status]);
+  aoa.push(['Tanggal', fmtDate(bom.created_at)]);
+  aoa.push(['Dibuat oleh', bom.app_users?.full_name || '—']);
+  if (bom.pp_request_id) aoa.push(['PP Request', bom.pp_request_id]);
+  if (bom.po_id) aoa.push(['PO', bom.po_id]);
+  if (bom.description) aoa.push(['Deskripsi', bom.description]);
+  aoa.push([]);
+
+  // ── Header row ──
+  const headerRowIdx = aoa.length;
   if (withPrice) {
-    rows.push([]);
-    rows.push(['', '', '', '', '', 'TOTAL', total, '']);
+    aoa.push(['No', 'Nama Komponen', 'Qty', 'Unit', 'Harga Satuan', 'Subtotal', 'Note']);
+  } else {
+    aoa.push(['No', 'Nama Komponen', 'Qty', 'Unit', 'Note']);
+  }
+  const numCols = withPrice ? 7 : 5;
+
+  // ── Sections + Items ──
+  let runningNo = 0;
+  let grandTotal = 0;
+  const sectionRows = []; // track section header row indices for styling
+  const subtotalRows = []; // track subtotal row indices
+  const dataRowStart = aoa.length;
+
+  for (const g of groups) {
+    // Section header row
+    aoa.push([g.name.toUpperCase()]);
+    sectionRows.push(aoa.length - 1);
+    merges.push({ s: { r: aoa.length - 1, c: 0 }, e: { r: aoa.length - 1, c: numCols - 1 } });
+
+    let sectionTotal = 0;
+    for (const it of g.items) {
+      runningNo++;
+      const sub = (it.qty || 0) * (it.unit_price || 0);
+      sectionTotal += sub;
+      grandTotal += sub;
+      const subNote = extractSubNote(it.note);
+      if (withPrice) {
+        aoa.push([runningNo, it.name, it.qty, it.unit || 'pcs', it.unit_price || 0, sub, subNote]);
+      } else {
+        aoa.push([runningNo, it.name, it.qty, it.unit || 'pcs', subNote]);
+      }
+    }
+
+    // Subtotal per section (only if withPrice)
+    if (withPrice) {
+      aoa.push(['', '', '', '', `Subtotal ${g.name}`, sectionTotal, '']);
+      subtotalRows.push(aoa.length - 1);
+    }
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // ── Grand Total ──
+  let grandTotalRowIdx = -1;
+  if (withPrice) {
+    aoa.push([]);
+    aoa.push(['', '', '', '', 'GRAND TOTAL', grandTotal, '']);
+    grandTotalRowIdx = aoa.length - 1;
+  }
+
+  // ── Footer ──
+  aoa.push([]);
+  aoa.push([`Dicetak: ${new Date().toLocaleString('id-ID')}`]);
+
+  // Build sheet
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = merges;
   ws['!cols'] = withPrice
-    ? [{ wch: 5 }, { wch: 18 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 25 }]
-    : [{ wch: 5 }, { wch: 18 }, { wch: 40 }, { wch: 8 }, { wch: 8 }, { wch: 25 }];
+    ? [{ wch: 5 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 16 }, { wch: 18 }, { wch: 40 }]
+    : [{ wch: 5 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 40 }];
+
+  // ── Apply cell styles ──
+  // Helper to set style on cell
+  const setStyle = (r, c, style) => {
+    const ref = XLSX.utils.encode_cell({ r, c });
+    if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+    ws[ref].s = Object.assign({}, ws[ref].s || {}, style);
+  };
+
+  const borderThin = { style: 'thin', color: { rgb: '999999' } };
+  const fullBorder = { top: borderThin, bottom: borderThin, left: borderThin, right: borderThin };
+
+  // Title
+  setStyle(0, 0, { font: { bold: true, sz: 16, name: 'Arial' }, alignment: { horizontal: 'left' } });
+  // Subtitle
+  setStyle(1, 0, { font: { italic: true, sz: 11, color: { rgb: '666666' } } });
+
+  // Meta labels
+  for (let r = metaStart; r < headerRowIdx - 1; r++) {
+    setStyle(r, 0, { font: { bold: true, sz: 10, color: { rgb: '666666' } } });
+    setStyle(r, 1, { font: { sz: 10 }, alignment: { wrapText: true, vertical: 'top' } });
+  }
+
+  // Header row
+  for (let c = 0; c < numCols; c++) {
+    setStyle(headerRowIdx, c, {
+      font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '2C3E50' } },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: fullBorder
+    });
+  }
+
+  // Section header rows
+  for (const sr of sectionRows) {
+    for (let c = 0; c < numCols; c++) {
+      setStyle(sr, c, {
+        font: { bold: true, sz: 11, color: { rgb: '1A4F8B' } },
+        fill: { fgColor: { rgb: 'D6E5F5' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: fullBorder
+      });
+    }
+  }
+
+  // Data rows (everything between header and grand total that's NOT section/subtotal)
+  const dataEnd = grandTotalRowIdx > 0 ? grandTotalRowIdx - 1 : aoa.length - 2;
+  const sectionSet = new Set(sectionRows);
+  const subtotalSet = new Set(subtotalRows);
+  for (let r = dataRowStart; r < dataEnd; r++) {
+    if (sectionSet.has(r) || subtotalSet.has(r)) continue;
+    for (let c = 0; c < numCols; c++) {
+      const isQty = c === 2;
+      const isUnit = c === 3;
+      const isPrice = withPrice && (c === 4 || c === 5);
+      const isNo = c === 0;
+      setStyle(r, c, {
+        font: { sz: 10 },
+        alignment: {
+          horizontal: isNo ? 'center' : (isQty ? 'right' : (isUnit ? 'center' : (isPrice ? 'right' : 'left'))),
+          vertical: 'top',
+          wrapText: c === 1 || (withPrice ? c === 6 : c === 4)
+        },
+        border: fullBorder
+      });
+      // Number format for price/subtotal columns
+      if (isPrice) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref]) ws[ref].z = '#,##0';
+      }
+    }
+  }
+
+  // Subtotal rows (per section)
+  for (const sr of subtotalRows) {
+    for (let c = 0; c < numCols; c++) {
+      setStyle(sr, c, {
+        font: { bold: true, sz: 10, italic: true, color: { rgb: '333333' } },
+        fill: { fgColor: { rgb: 'F0F0F0' } },
+        alignment: { horizontal: c === 4 ? 'right' : (c === 5 ? 'right' : 'left') },
+        border: fullBorder
+      });
+      if (c === 5) {
+        const ref = XLSX.utils.encode_cell({ r: sr, c });
+        if (ws[ref]) ws[ref].z = '#,##0';
+      }
+    }
+  }
+
+  // Grand total row
+  if (grandTotalRowIdx > 0) {
+    for (let c = 0; c < numCols; c++) {
+      setStyle(grandTotalRowIdx, c, {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2C3E50' } },
+        alignment: { horizontal: c === 4 ? 'right' : (c === 5 ? 'right' : 'left') },
+        border: fullBorder
+      });
+      if (c === 5) {
+        const ref = XLSX.utils.encode_cell({ r: grandTotalRowIdx, c });
+        if (ws[ref]) ws[ref].z = '#,##0';
+      }
+    }
+  }
+
+  // Row heights (auto-fit ratio)
+  ws['!rows'] = [];
+  ws['!rows'][0] = { hpt: 22 };  // Title
+  ws['!rows'][headerRowIdx] = { hpt: 22 };  // Header
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'BOM');
-  XLSX.writeFile(wb, `${bom.id}_${bom.title.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+  XLSX.writeFile(wb, `${bom.id}_${(bom.title || 'BOM').replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`, { cellStyles: true });
   toast('Excel diunduh');
 }
 
@@ -6389,7 +6589,42 @@ async function exportBOMPrint(bomId, withPrice) {
   const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const total = items.reduce((s, it) => s + (it.qty * it.unit_price || 0), 0);
+  const groups = groupItemsBySection(items);
+  const grandTotal = items.reduce((s, it) => s + ((it.qty || 0) * (it.unit_price || 0)), 0);
+  const numCols = withPrice ? 6 : 4;
+
+  // Build tbody with section grouping
+  let runningNo = 0;
+  const tbodyHtml = groups.map(g => {
+    let secTotal = 0;
+    const rows = g.items.map(it => {
+      runningNo++;
+      const sub = (it.qty || 0) * (it.unit_price || 0);
+      secTotal += sub;
+      const subNote = extractSubNote(it.note);
+      return `<tr>
+        <td class="c">${runningNo}</td>
+        <td>${(it.name || '').replace(/</g, '&lt;')}</td>
+        <td class="num">${it.qty}</td>
+        <td class="c">${it.unit || 'pcs'}</td>
+        ${withPrice ? `<td class="num">${fmtRp(it.unit_price)}</td><td class="num">${fmtRp(sub)}</td>` : ''}
+        <td>${(subNote || '').replace(/</g, '&lt;')}</td>
+      </tr>`;
+    }).join('');
+    const sectionRow = `<tr class="section"><td colspan="${numCols + 1}">${g.name.toUpperCase()}</td></tr>`;
+    const subtotalRow = withPrice
+      ? `<tr class="subtotal"><td colspan="4" class="num"><em>Subtotal ${g.name}</em></td><td></td><td class="num"><strong>${fmtRp(secTotal)}</strong></td><td></td></tr>`
+      : '';
+    return sectionRow + rows + subtotalRow;
+  }).join('');
+
+  const headerCols = withPrice
+    ? `<th style="width:30px">#</th><th>Nama Komponen</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th style="width:90px">Harga</th><th style="width:100px">Subtotal</th><th>Note</th>`
+    : `<th style="width:30px">#</th><th>Nama Komponen</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th>Note</th>`;
+
+  const tfoot = withPrice
+    ? `<tfoot><tr class="grand"><td colspan="5" class="num">GRAND TOTAL</td><td class="num">${fmtRp(grandTotal)}</td><td></td></tr></tfoot>`
+    : '';
 
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><title>BOM ${bom.id}</title>
@@ -6399,13 +6634,16 @@ async function exportBOMPrint(bomId, withPrice) {
       .header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px}
       .meta{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:11px;margin-bottom:12px}
       .meta .k{color:#666}
-      table{width:100%;border-collapse:collapse;margin-top:8px}
-      th,td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}
-      th{background:#eee;font-size:10px;text-transform:uppercase}
-      td.num{text-align:right;font-variant-numeric:tabular-nums}
-      tfoot td{font-weight:bold;background:#f5f5f5}
+      table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:auto}
+      th,td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}
+      th{background:#2C3E50;color:#fff;font-size:10px;text-transform:uppercase;text-align:center}
+      td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+      td.c{text-align:center}
+      tr.section td{background:#D6E5F5;color:#1A4F8B;font-weight:bold;font-size:11px;padding:6px 8px;border-color:#1A4F8B}
+      tr.subtotal td{background:#F0F0F0;font-style:italic;font-size:10px}
+      tfoot tr.grand td{background:#2C3E50;color:#fff;font-weight:bold;font-size:12px;padding:8px}
       .footer{margin-top:30px;font-size:10px;color:#666;border-top:1px solid #ccc;padding-top:8px}
-      @media print{body{padding:0}}
+      @media print{body{padding:0}thead{display:table-header-group}tr.section{page-break-inside:avoid}}
     </style></head><body>
     <div class="header">
       <h1>BILL OF MATERIALS</h1>
@@ -6422,26 +6660,9 @@ async function exportBOMPrint(bomId, withPrice) {
       ${bom.description ? `<span class="k">Deskripsi</span><span>${bom.description}</span>` : ''}
     </div>
     <table>
-      <thead><tr>
-        <th style="width:30px">#</th>
-        <th>Part Number</th>
-        <th>Nama Komponen</th>
-        <th style="width:50px">Qty</th>
-        <th style="width:50px">Unit</th>
-        ${withPrice ? '<th style="width:90px">Harga</th><th style="width:100px">Subtotal</th>' : ''}
-        <th>Note</th>
-      </tr></thead>
-      <tbody>${items.map((it, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${it.part_number || '—'}</td>
-          <td>${it.name}</td>
-          <td class="num">${it.qty}</td>
-          <td>${it.unit}</td>
-          ${withPrice ? `<td class="num">${fmtRp(it.unit_price)}</td><td class="num">${fmtRp(it.qty * it.unit_price)}</td>` : ''}
-          <td>${it.note || ''}</td>
-        </tr>`).join('')}</tbody>
-      ${withPrice ? `<tfoot><tr><td colspan="6" style="text-align:right">TOTAL</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>` : ''}
+      <thead><tr>${headerCols}</tr></thead>
+      <tbody>${tbodyHtml}</tbody>
+      ${tfoot}
     </table>
     <div class="footer">Dicetak pada ${new Date().toLocaleString('id-ID')} — Panel System</div>
     <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
