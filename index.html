@@ -1135,12 +1135,33 @@ function openMyRequestDetail(id) {
         <div class="sect-title">Dokumen Hasil dari Engineering (${r.pp_docs_result.length})</div>
         <div>${r.pp_docs_result.map(f => `<a href="${fileUrl('pp-docs', f.file_path)}" target="_blank" class="btn btn-sm" style="margin:2px">📄 ${f.file_name}</a>`).join('')}</div>
       </div>` : ''}
+
+      ${(can('bom_view') || can('bom_export')) ? `
+      <div class="detail-section" id="myReqBomSection_${r.id}" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div class="sect-title">BOM Terkait</div>
+        <div id="myReqBomList_${r.id}"><span class="spinner"></span> Memuat...</div>
+      </div>` : ''}
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Tutup</button>
       <button class="btn btn-primary" onclick="saveMyRequest('${r.id}')">Simpan Perubahan</button>
     </div>
   </div>`);
+  if (can('bom_view') || can('bom_export')) loadMyReqBOMs(r.id);
+}
+
+async function loadMyReqBOMs(reqId) {
+  const { data } = await sb.from('bom_lists')
+    .select('id,title,unit_category,total_price,status,bom_items(id)')
+    .eq('pp_request_id', reqId)
+    .order('created_at', { ascending: false });
+  const el = document.getElementById('myReqBomList_' + reqId);
+  if (!el) return;
+  if (!data?.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada BOM untuk request ini</div>';
+    return;
+  }
+  el.innerHTML = data.map(b => renderBOMRelatedCard(b)).join('');
 }
 
 function renderMyDocList(r) {
