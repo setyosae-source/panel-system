@@ -438,9 +438,9 @@ let salesFiles = [];
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════
 const ROLE_PERMS = {
-  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_manage: 1 },
-  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_manage: 1 },
-  sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1 },
+  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1 },
+  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1 },
+  sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1, bom_export: 1 },
   engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
   produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
   logistik: { po_view: 1, po_logistik: 1 },
@@ -817,7 +817,7 @@ async function openPPDetail(id) {
         </div>
         ${renderFileList(r.pp_docs_result, 'pp-docs', canManage, `deletePPDoc`)}
       </div>
-      ${can('bom_view') ? `<div class="detail-section" id="ppBomSection_${r.id}">
+      ${(can('bom_view') || can('bom_export')) ? `<div class="detail-section" id="ppBomSection_${r.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">BOM Terkait</div>
           ${can('bom_manage') ? `<button class="btn btn-sm" onclick="closeAllModals();openBOMForm({ppRequestId:'${r.id}'})">+ Generate BOM</button>` : ''}
@@ -830,7 +830,7 @@ async function openPPDetail(id) {
       </div>` : ''}
     </div>
   </div>`);
-  if (can('bom_view')) loadPPBOMs(r.id);
+  if (can('bom_view') || can('bom_export')) loadPPBOMs(r.id);
 }
 
 async function loadPPBOMs(reqId) {
@@ -838,12 +838,41 @@ async function loadPPBOMs(reqId) {
   const el = document.getElementById('ppBomList_' + reqId);
   if (!el) return;
   if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada BOM untuk request ini</div>'; return; }
-  el.innerHTML = data.map(b => `
-    <div class="file-item" style="cursor:pointer" onclick="closeAllModals();openBOMDetail('${b.id}')">
-      <span class="fname" style="color:var(--text)">${b.title}</span>
-      <span style="font-size:11px;color:var(--text3);margin-left:8px">${b.id} · ${(b.bom_items || []).length} item${can('nilai_po') ? ' · ' + fmtRp(b.total_price) : ''}</span>
-      <div class="file-actions" style="opacity:1;margin-left:auto">${badge(b.status)}</div>
-    </div>`).join('');
+  el.innerHTML = data.map(b => renderBOMRelatedCard(b)).join('');
+}
+
+// Reusable BOM card untuk section "BOM Terkait" di PP/PO detail
+// Owner/Admin: bisa klik buka detail. Sales: hanya tombol export.
+function renderBOMRelatedCard(b) {
+  const canOpen = can('bom_view');  // Owner/Admin
+  const canExport = can('bom_view') || can('bom_export');
+  const showPrice = can('nilai_po');
+  const itemCount = (b.bom_items || []).length;
+
+  const titleEl = canOpen
+    ? `<a onclick="closeAllModals();openBOMDetail('${b.id}')" style="cursor:pointer;color:var(--text);font-weight:500;text-decoration:none" onmouseover="this.style.color='var(--blue-text)';this.style.textDecoration='underline'" onmouseout="this.style.color='var(--text)';this.style.textDecoration='none'">${b.title}</a>`
+    : `<span style="font-weight:500;color:var(--text)">${b.title}</span>`;
+
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div>
+          ${titleEl}
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">
+            ${b.id} · ${b.unit_category || '—'} · ${itemCount} item${showPrice ? ' · <strong>' + fmtRp(b.total_price) + '</strong>' : ''}
+          </div>
+        </div>
+        ${badge(b.status)}
+      </div>
+      ${canExport ? `
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          ${showPrice ? `<button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${b.id}', true)" style="font-size:11px">📊 Excel +harga</button>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${b.id}', false)" style="font-size:11px">📊 Excel no harga</button>
+          ${showPrice ? `<button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${b.id}', true)" style="font-size:11px">🖨 Print +harga</button>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${b.id}', false)" style="font-size:11px">🖨 Print no harga</button>
+        </div>
+      ` : ''}
+    </div>`;
 }
 
 async function updatePPStatus(id, status) {
@@ -2761,7 +2790,7 @@ async function openPODetail(id) {
         </div>
         ${itemsHtml}
       </div>
-      ${can('bom_view') ? `<div class="detail-section" id="poBomSection_${p.id}">
+      ${(can('bom_view') || can('bom_export')) ? `<div class="detail-section" id="poBomSection_${p.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">BOM Terkait</div>
           ${can('bom_manage') ? `<button class="btn btn-sm" onclick="closeAllModals();openBOMForm({poId:'${p.id}'})">+ Generate BOM</button>` : ''}
@@ -2785,7 +2814,7 @@ async function openPODetail(id) {
       ${canManage ? `<button class="btn btn-sm" onclick="closeAllModals();openPOForm('${p.id}')">Edit PO</button>` : ''}
     </div>
   </div>`);
-  if (can('bom_view')) loadPOBOMs(p.id);
+  if (can('bom_view') || can('bom_export')) loadPOBOMs(p.id);
 }
 
 async function loadPOBOMs(poId) {
@@ -2793,12 +2822,7 @@ async function loadPOBOMs(poId) {
   const el = document.getElementById('poBomList_' + poId);
   if (!el) return;
   if (!data?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px">Belum ada BOM untuk PO ini</div>'; return; }
-  el.innerHTML = data.map(b => `
-    <div class="file-item" style="cursor:pointer" onclick="closeAllModals();openBOMDetail('${b.id}')">
-      <span class="fname" style="color:var(--text)">${b.title}</span>
-      <span style="font-size:11px;color:var(--text3);margin-left:8px">${b.id} · ${(b.bom_items || []).length} item${can('nilai_po') ? ' · ' + fmtRp(b.total_price) : ''}</span>
-      <div class="file-actions" style="opacity:1;margin-left:auto">${badge(b.status)}</div>
-    </div>`).join('');
+  el.innerHTML = data.map(b => renderBOMRelatedCard(b)).join('');
 }
 
 async function uploadPODoc(poId, docType, isRestricted, input) {
@@ -5107,6 +5131,11 @@ async function logBOM(bomId, action, detail) {
 }
 
 async function renderBOMModule() {
+  if (!can('bom_view')) {
+    const main = document.getElementById('mainContent');
+    main.innerHTML = '<div class="page-body"><div style="text-align:center;padding:3rem;color:var(--text3)">Anda tidak memiliki akses ke modul ini.</div></div>';
+    return;
+  }
   const main = document.getElementById('mainContent');
   main.innerHTML = `
     <div class="topbar">
@@ -6117,6 +6146,10 @@ async function createBOM(opts) {
 }
 
 async function openBOMDetail(bomId) {
+  if (!can('bom_view')) {
+    toast('Anda tidak punya akses untuk membuka detail BOM');
+    return;
+  }
   const { data } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
   if (!data) return;
   bomState.currentBOM = data;
