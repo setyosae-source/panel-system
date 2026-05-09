@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BOM Calculator — SAE Energy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#F5F4F0;--surface:#FFFFFF;--surface2:#EFEDE8;--surface3:#E8E6E0;
+  --border:#E0DDD6;--border2:#CCCAC3;
+  --text:#1A1A18;--text2:#5A5956;--text3:#9A9893;
+  --blue:#1C4ED8;--blue-bg:#EFF6FF;--blue-text:#1E40AF;
+  --amber:#92400E;--amber-bg:#FFFBEB;
+  --green:#15803D;--green-bg:#F0FDF4;
+  --red:#991B1B;--red-bg:#FEF2F2;--red-border:#FECACA;
+  --coral:#C2410C;--coral-bg:#FFF7ED;
+  --purple:#6D28D9;--purple-bg:#F5F3FF;
+  --teal:#0F766E;--teal-bg:#F0FDFA;
+  --r:10px;--r-sm:7px;--r-lg:14px;--r-xl:20px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 16px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* ── LAYOUT ── */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-brand{padding:1.25rem 1rem .75rem;border-bottom:1px solid var(--border)}
+.sb-brand h1{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.sb-brand p{font-size:11px;color:var(--text3);margin-top:2px}
+.sb-nav{flex:1;padding:.75rem .5rem;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.sb-section-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:.625rem .5rem .25rem}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all .15s;text-decoration:none}
+.sb-item svg{width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0}
+.sb-item:hover{background:var(--surface2);color:var(--text)}
+.sb-item.active{background:var(--text);color:#fff}
+.sb-item.active svg{stroke:#fff}
+.sb-footer{padding:.75rem 1rem;border-top:1px solid var(--border)}
+.sb-user-name{font-size:13px;font-weight:600}
+.sb-user-role{font-size:11px;color:var(--text3);margin-top:2px}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.page-header{padding:1.25rem 1.5rem .75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--bg)}
+.page-title{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.page-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.page-body{padding:1.5rem;overflow-y:auto;flex:1}
+.page-actions{display:flex;gap:8px;align-items:center}
+
+/* ── INPUTS ── */
+input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
+  outline:none;transition:border-color .15s;box-sizing:border-box;width:100%
+}
+input:focus,select:focus,textarea:focus{border-color:var(--border2)}
+select{padding:8px 10px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9893' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;appearance:none}
+input[type=text],input[type=date],input[type=number],input[type=password]{padding:8px 10px}
+textarea{resize:vertical;min-height:76px;padding:8px 10px;line-height:1.6}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .15s;white-space:nowrap;line-height:1;text-decoration:none}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;flex-shrink:0}
+.btn:hover{background:var(--surface2)}.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--text);color:#fff;border-color:var(--text)}.btn-primary:hover{background:#333;color:#fff}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-danger{color:var(--red);border-color:var(--red-border)}.btn-danger:hover{background:var(--red-bg)}
+.btn-ghost{border-color:transparent;background:transparent}.btn-ghost:hover{background:var(--surface2)}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}.btn-blue:hover{background:var(--blue-text);color:#fff}
+.btn-green{background:var(--green);color:#fff;border-color:var(--green)}.btn-green:hover{opacity:.9;color:#fff}
+
+/* ── CARDS & TABLES ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface2)}
+th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3)}
+.mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.b-draft{background:var(--surface2);color:var(--text2)}.b-draft::before{background:var(--text3)}
+.b-calc{background:var(--blue-bg);color:var(--blue-text)}.b-calc::before{background:var(--blue)}
+.b-committed{background:var(--green-bg);color:var(--green)}.b-committed::before{background:var(--green)}
+.b-archived{background:var(--surface3);color:var(--text3)}.b-archived::before{background:var(--text3)}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.875rem}
+.form-row label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
+.req{color:var(--red)}
+.form-hint{font-size:11px;color:var(--text3);margin-top:3px}
+.form-section{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
+.form-section:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}
+.form-section-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:.75rem}
+
+/* ── KV (key-value display) ── */
+.kv{display:grid;grid-template-columns:160px 1fr;gap:6px 12px;font-size:13px}
+.kv .k{color:var(--text3)}.kv .v{font-weight:500}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(4px)}
+.overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:var(--shadow-lg);margin:auto}
+.modal-sm{max-width:460px}
+.modal-lg{max-width:1100px}
+.modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.modal-header h2{font-size:15px;font-weight:600}
+.modal-body{padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem;max-height:75vh;overflow-y:auto}
+.modal-footer{padding:.875rem 1.375rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;margin-bottom:1.25rem}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:.875rem 1rem}
+.kpi-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.kpi-value{font-size:22px;font-weight:600;margin-top:4px;letter-spacing:-.02em}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── CALCULATOR SPECIFIC ── */
+.panel-picker{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.5rem}
+.panel-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:1.125rem;cursor:pointer;transition:all .15s;text-align:left}
+.panel-card:hover{border-color:var(--text2);background:var(--surface2)}
+.panel-card.selected{border-color:var(--text);background:var(--surface2)}
+.panel-card-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.panel-card-desc{font-size:12px;color:var(--text3);line-height:1.5}
+
+.outgoing-row{display:grid;grid-template-columns:2fr 80px 90px 90px 60px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
+.outgoing-row.header{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;padding:6px 0;border-bottom:1px solid var(--border2)}
+.outgoing-row.header > *{padding:0 4px}
+
+.section-header{background:var(--surface3);font-weight:600;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em}
+.section-header td{padding:6px 12px;border-bottom:1px solid var(--border)}
+
+.draft-row.overridden td{background:var(--amber-bg)}
+.qty-input,.price-input{width:80px;padding:4px 6px !important;font-size:12px !important;text-align:right}
+.price-input{width:110px}
+
+.reasoning-cell{font-size:11px;color:var(--text3);white-space:normal;line-height:1.4;max-width:280px}
+
+/* ── LOGIN OVERLAY ── */
+.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);width:100%;max-width:380px;padding:2rem}
+.login-card h1{font-size:18px;font-weight:600;margin-bottom:4px;text-align:center}
+.login-card p{font-size:12px;color:var(--text3);text-align:center;margin-bottom:1.25rem}
+
+/* ── TOAST ── */
+.toast-stack{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:6px;max-width:380px}
+.toast{background:var(--text);color:#fff;padding:10px 14px;border-radius:var(--r-sm);font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);animation:slideIn .2s ease}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+.toast.warn{background:var(--amber)}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── HELPERS ── */
+.hidden{display:none !important}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.text-mono{font-family:'DM Mono',monospace}
+.fw-600{font-weight:600}
+.text-3{color:var(--text3)}
+.flex{display:flex;gap:8px;align-items:center}
+.flex-1{flex:1}
+.gap-1{gap:8px}.gap-2{gap:12px}
+.mt-1{margin-top:8px}.mt-2{margin-top:16px}
+.mb-1{margin-bottom:8px}.mb-2{margin-bottom:16px}
+.divider{height:1px;background:var(--border);margin:1rem 0}
+
+/* ── COLLAPSIBLE REASONING ── */
+.reason-toggle{cursor:pointer;font-size:11px;color:var(--blue);text-decoration:underline;text-underline-offset:2px;user-select:none}
+.reason-content{display:none;margin-top:4px;font-size:11px;color:var(--text3);background:var(--surface2);padding:6px 8px;border-radius:5px;white-space:normal;line-height:1.5}
+.reason-content.show{display:block}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOGIN OVERLAY (jika belum login)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h1>BOM Calculator</h1>
+    <p>SAE Energy — Modul Generate BOM Otomatis</p>
+    <div id="loginStatus" style="font-size:13px;text-align:center;margin-bottom:1rem;padding:.75rem;background:var(--amber-bg);color:var(--amber);border-radius:var(--r-sm)">
+      🔒 Memeriksa session login...
+    </div>
+    <a href="index.html" class="btn btn-primary" style="width:100%;justify-content:center;padding:10px">
+      Login di Panel System V2
+    </a>
+    <p style="margin-top:1rem;font-size:11px">Anda harus login dulu di Panel System V2 untuk akses tool ini.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN APP SHELL
+     ═══════════════════════════════════════════════════════════ -->
+<div class="app hidden" id="appShell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <h1>BOM Calculator</h1>
+      <p>SAE Energy</p>
+    </div>
+    <nav class="sb-nav">
+      <a href="index.html" class="sb-item">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        Kembali ke Panel V2
+      </a>
+      <div class="sb-section-title">Calculator</div>
+      <button class="sb-item active" id="navList" onclick="goPage('list')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+        Sessions List
+      </button>
+      <button class="sb-item" id="navNew" onclick="goPage('new')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Calculator
+      </button>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user-name" id="userName">—</div>
+      <div class="sb-user-role" id="userRole">—</div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title" id="pageTitle">Calculator Sessions</h1>
+        <p class="page-sub" id="pageSub">Daftar semua perhitungan BOM</p>
+      </div>
+      <div class="page-actions" id="pageActions"></div>
+    </header>
+    <div class="page-body" id="pageBody">
+      <div class="card text-center" style="padding:3rem">
+        <div style="font-size:13px;color:var(--text3)">Loading...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal overlay -->
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="modal" id="modalContainer"></div>
+</div>
+
+<!-- Toast stack -->
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// CONFIG — Same as Panel System V2 (auto-detected from index.html)
+// ═══════════════════════════════════════════════════════════════════════
+const SB_URL = 'https://sswslwddemackxrrbpre.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// ═══════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════
+let currentUser = null;
+let currentPage = 'list';
+let allCalcs = [];
+let allPPRequests = [];
+let currentCalc = null;          // { ...panel_calc_inputs, drafts:[] }
+let calcParameters = null;       // Active form parameter while building
+let selectedPanelType = null;    // ACDB / DCDB_110V / DCDB_48V / LVDP
+
+const PANEL_TYPES = {
+  'ACDB': { name: 'ACDB 400/230VAC', desc: '3-phase, ACB MTZ, mixed outgoing 4P/3P/2P', engine: 'calculate_acdb', deriveFn: 'derive_acdb_vars' },
+  'DCDB_110V': { name: 'DCDB 110V', desc: 'DC system 110V, 2-pole outgoing, auto-transfer', engine: 'calculate_dcdb_110v', deriveFn: 'derive_dcdb_110v_vars' },
+  'DCDB_48V': { name: 'DCDB 48V', desc: 'DC system 48V, compact 1-cubicle, 2P outgoing', engine: 'calculate_dcdb_48v', deriveFn: 'derive_dcdb_48v_vars' },
+  'LVDP': { name: 'LVDP umum', desc: 'Distribution panel 100-630A, MCCB main', engine: 'calculate_lvdp', deriveFn: 'derive_lvdp_vars' }
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// PERMISSIONS (same as Panel System V2)
+// ═══════════════════════════════════════════════════════════════════════
+const ROLE_PERMS = {
+  owner: { all:1, bom_view:1, bom_export:1, bom_manage:1 },
+  admin: { bom_view:1, bom_export:1, bom_manage:1 },
+  sales: { bom_export:1 },
+  engineering: { bom_view:1 },
+  produksi: { bom_view:1 },
+  direktur: { bom_view:1 }
+};
+function getPerms() {
+  if (!currentUser) return {};
+  const base = ROLE_PERMS[currentUser.role] || {};
+  const custom = currentUser.permissions || {};
+  return { ...base, ...custom };
+}
+function can(perm) { return !!(getPerms()[perm] || getPerms()['all']); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// AUTH (read sessionStorage from Panel System V2)
+// ═══════════════════════════════════════════════════════════════════════
+function checkAuth() {
+  const saved = sessionStorage.getItem('panelUser');
+  if (!saved) {
+    document.getElementById('loginStatus').textContent = '⚠️ Belum login di Panel System V2.';
+    document.getElementById('loginStatus').style.background = 'var(--red-bg)';
+    document.getElementById('loginStatus').style.color = 'var(--red)';
+    return false;
+  }
+  try {
+    currentUser = JSON.parse(saved);
+    if (!currentUser || !currentUser.id) throw new Error('invalid');
+    if (!can('bom_view') && !can('bom_manage') && !can('bom_export')) {
+      document.getElementById('loginStatus').innerHTML = '🚫 Anda tidak punya izin akses BOM. Hubungi admin.';
+      document.getElementById('loginStatus').style.background = 'var(--red-bg)';
+      document.getElementById('loginStatus').style.color = 'var(--red)';
+      return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function startApp() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
+  document.getElementById('userRole').textContent = (currentUser.role || '').toUpperCase();
+  loadPPRequests();   // load list of pp_requests untuk dropdown
+  goPage('list');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// HELPER UTILS
+// ═══════════════════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fmtRp = n => 'Rp ' + (Number(n) || 0).toLocaleString('id-ID');
+const fmtNum = n => (Number(n) || 0).toLocaleString('id-ID');
+const fmtDate = d => d ? new Date(d).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+const escapeHtml = s => (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  $('toastStack').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = 'all .2s'; }, 3000);
+  setTimeout(() => el.remove(), 3300);
+}
+
+function showModal(html, sizeClass = '') {
+  const c = $('modalContainer');
+  c.className = 'modal ' + sizeClass;
+  c.innerHTML = html;
+  $('overlay').classList.add('show');
+}
+function closeModal() {
+  $('overlay').classList.remove('show');
+  $('modalContainer').innerHTML = '';
+}
+
+function genId(prefix) {
+  const t = Date.now().toString(36).toUpperCase();
+  const r = Math.random().toString(36).substring(2, 5).toUpperCase();
+  return `${prefix}-${t}${r}`;
+}
+
+function statusBadge(status) {
+  const map = {
+    'Draft': '<span class="badge b-draft">Draft</span>',
+    'Calculated': '<span class="badge b-calc">Calculated</span>',
+    'Committed': '<span class="badge b-committed">Committed</span>',
+    'Archived': '<span class="badge b-archived">Archived</span>'
+  };
+  return map[status] || `<span class="badge">${status}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DATA LOADERS
+// ═══════════════════════════════════════════════════════════════════════
+async function loadPPRequests() {
+  try {
+    const { data, error } = await sb.from('pp_requests')
+      .select('id, customer_name, project_name, status, output_type, date')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    allPPRequests = data || [];
+  } catch (e) {
+    console.error('loadPPRequests', e);
+    toast('Gagal load PP Requests: ' + e.message, 'error');
+  }
+}
+
+async function loadCalcs() {
+  try {
+    const { data, error } = await sb.from('panel_calc_inputs')
+      .select('*, panel_calc_drafts(count)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    
+    // Calculate total per draft
+    const calcsWithTotal = await Promise.all((data || []).map(async (c) => {
+      const { data: drafts } = await sb.from('panel_calc_drafts')
+        .select('subtotal').eq('calc_input_id', c.id);
+      const total = (drafts || []).reduce((s, d) => s + Number(d.subtotal || 0), 0);
+      return { ...c, total, item_count: (drafts || []).length };
+    }));
+    
+    allCalcs = calcsWithTotal;
+  } catch (e) {
+    console.error('loadCalcs', e);
+    toast('Gagal load calculator sessions: ' + e.message, 'error');
+    allCalcs = [];
+  }
+}
+
+async function loadCalcDetail(calcId) {
+  try {
+    const { data: input, error: e1 } = await sb.from('panel_calc_inputs')
+      .select('*').eq('id', calcId).single();
+    if (e1) throw e1;
+    
+    const { data: drafts, error: e2 } = await sb.from('panel_calc_drafts')
+      .select('*').eq('calc_input_id', calcId).order('sort_order');
+    if (e2) throw e2;
+    
+    currentCalc = { ...input, drafts: drafts || [] };
+    return currentCalc;
+  } catch (e) {
+    console.error('loadCalcDetail', e);
+    toast('Gagal load detail: ' + e.message, 'error');
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PAGE ROUTER
+// ═══════════════════════════════════════════════════════════════════════
+function goPage(page, opts = {}) {
+  currentPage = page;
+  document.querySelectorAll('.sb-nav .sb-item').forEach(el => el.classList.remove('active'));
+  
+  if (page === 'list') {
+    $('navList').classList.add('active');
+    renderListPage();
+  } else if (page === 'new') {
+    $('navNew').classList.add('active');
+    renderNewCalcPage(opts);
+  } else if (page === 'draft') {
+    renderDraftPage(opts.calcId);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PAGE: LIST CALCULATOR SESSIONS
+// ═══════════════════════════════════════════════════════════════════════
+async function renderListPage() {
+  $('pageTitle').textContent = 'Calculator Sessions';
+  $('pageSub').textContent = 'Daftar semua perhitungan BOM yang dibuat dengan calculator';
+  $('pageActions').innerHTML = can('bom_manage')
+    ? `<button class="btn btn-primary" onclick="goPage('new')"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>New Calculator</button>`
+    : '';
+  
+  $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div class="text-3" style="font-size:13px">Loading sessions...</div></div>`;
+  
+  await loadCalcs();
+  
+  if (allCalcs.length === 0) {
+    $('pageBody').innerHTML = `
+      <div class="card text-center" style="padding:3rem">
+        <div style="font-size:32px;margin-bottom:.5rem">🧮</div>
+        <div style="font-weight:600;margin-bottom:.25rem">Belum ada calculator session</div>
+        <div class="text-3" style="font-size:13px;margin-bottom:1.25rem">Mulai dengan membuat calculator baru untuk panel pertama Anda</div>
+        ${can('bom_manage') ? '<button class="btn btn-primary" onclick="goPage(\'new\')">+ Buat Calculator Baru</button>' : ''}
+      </div>`;
+    return;
+  }
+  
+  // KPI summary
+  const totalCalcs = allCalcs.length;
+  const committed = allCalcs.filter(c => c.status === 'Committed').length;
+  const totalValue = allCalcs.filter(c => c.status === 'Committed').reduce((s, c) => s + Number(c.total || 0), 0);
+  
+  $('pageBody').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Total Sessions</div><div class="kpi-value">${totalCalcs}</div></div>
+      <div class="kpi"><div class="kpi-label">Committed</div><div class="kpi-value">${committed}</div><div class="kpi-sub">${totalCalcs > 0 ? Math.round(committed/totalCalcs*100) : 0}% selesai</div></div>
+      <div class="kpi"><div class="kpi-label">Total Value (Committed)</div><div class="kpi-value" style="font-size:18px">${fmtRp(totalValue)}</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:140px">ID</th>
+              <th style="width:100px">Panel</th>
+              <th>Project</th>
+              <th>Customer</th>
+              <th style="width:110px">Status</th>
+              <th style="width:80px;text-align:right">Items</th>
+              <th style="width:160px;text-align:right">Total</th>
+              <th style="width:110px">Updated</th>
+              <th style="width:100px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allCalcs.map(c => `
+              <tr style="cursor:pointer" onclick="goPage('draft', {calcId:'${c.id}'})">
+                <td class="mono">${escapeHtml(c.id)}</td>
+                <td><span class="badge b-draft" style="font-size:10px">${escapeHtml(c.panel_type.replace('_', ' '))}</span></td>
+                <td>${escapeHtml(c.project_name || '—')}</td>
+                <td>${escapeHtml(c.customer || '—')}</td>
+                <td>${statusBadge(c.status)}</td>
+                <td class="text-right mono">${c.item_count || 0}</td>
+                <td class="text-right fw-600">${c.total > 0 ? fmtRp(c.total) : '—'}</td>
+                <td class="text-3" style="font-size:11px">${fmtDate(c.updated_at)}</td>
+                <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();goPage('draft', {calcId:'${c.id}'})">Open →</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PAGE: NEW CALCULATOR
+// ═══════════════════════════════════════════════════════════════════════
+function renderNewCalcPage(opts = {}) {
+  $('pageTitle').textContent = 'Calculator Baru';
+  $('pageSub').textContent = 'Pilih tipe panel, isi parameter, lalu generate BOM';
+  $('pageActions').innerHTML = `<button class="btn btn-ghost" onclick="goPage('list')">← Kembali</button>`;
+  
+  // Reset state
+  selectedPanelType = opts.panelType || null;
+  calcParameters = {
+    pp_request_id: opts.pp_request_id || '',
+    project_name: '',
+    customer: '',
+    voltage: null,
+    charger_count: null,
+    charger_amp: null,
+    main_breaker_amp: null,
+    bus_coupler: false,
+    sas_required: false,
+    control_external: false,
+    power_meter_required: false,
+    cubicle_count: null,
+    outgoing: []
+  };
+  
+  if (!selectedPanelType) {
+    renderPanelPicker();
+  } else {
+    renderCalcForm();
+  }
+}
+
+function renderPanelPicker() {
+  $('pageBody').innerHTML = `
+    <div class="card" style="max-width:900px">
+      <div class="form-section-title">Step 1 dari 3 — Pilih Tipe Panel</div>
+      <div class="panel-picker">
+        ${Object.entries(PANEL_TYPES).map(([key, p]) => `
+          <button class="panel-card" onclick="selectPanelType('${key}')">
+            <div class="panel-card-title">${escapeHtml(p.name)}</div>
+            <div class="panel-card-desc">${escapeHtml(p.desc)}</div>
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function selectPanelType(type) {
+  selectedPanelType = type;
+  // Set sensible defaults per panel
+  if (type === 'ACDB') {
+    calcParameters.voltage = 400;
+    calcParameters.main_breaker_amp = 1000;
+  } else if (type === 'DCDB_110V') {
+    calcParameters.voltage = 110;
+    calcParameters.charger_count = 2;
+    calcParameters.charger_amp = 100;
+    calcParameters.bus_coupler = true;
+    calcParameters.sas_required = true;
+    calcParameters.control_external = true;
+  } else if (type === 'DCDB_48V') {
+    calcParameters.voltage = 48;
+    calcParameters.charger_count = 2;
+    calcParameters.charger_amp = 60;
+    calcParameters.bus_coupler = true;
+    calcParameters.sas_required = true;
+  } else if (type === 'LVDP') {
+    calcParameters.voltage = 400;
+    calcParameters.main_breaker_amp = 200;
+  }
+  renderCalcForm();
+}
+
+function renderCalcForm() {
+  const p = PANEL_TYPES[selectedPanelType];
+  
+  // Generate panel-specific fields
+  let paramFields = '';
+  if (selectedPanelType === 'ACDB' || selectedPanelType === 'LVDP') {
+    paramFields = `
+      <div class="form-grid-3">
+        <div class="form-row">
+          <label>Tegangan System (V)<span class="req">*</span></label>
+          <input type="number" id="fVoltage" value="${calcParameters.voltage || 400}" oninput="setParam('voltage', this.value)">
+        </div>
+        <div class="form-row">
+          <label>Main Breaker Rating (A)<span class="req">*</span></label>
+          <input type="number" id="fMainAmp" value="${calcParameters.main_breaker_amp || 1000}" oninput="setParam('main_breaker_amp', this.value)">
+          <div class="form-hint">${selectedPanelType === 'ACDB' ? 'ACB MTZ rating: 800/1000/1250/1600A' : 'MCCB rating: 100/160/200/250/320/630A'}</div>
+        </div>
+        <div class="form-row">
+          <label>Cubicle Count <span class="text-3">(auto)</span></label>
+          <input type="number" id="fCubicle" placeholder="Auto-pilih" value="${calcParameters.cubicle_count || ''}" oninput="setParam('cubicle_count', this.value)">
+          <div class="form-hint">Kosongkan untuk auto-detect</div>
+        </div>
+      </div>
+      ${selectedPanelType === 'LVDP' ? `
+      <div class="mt-2">
+        <label class="flex" style="cursor:pointer">
+          <input type="checkbox" id="fPowerMeter" ${calcParameters.power_meter_required ? 'checked' : ''} onchange="setParam('power_meter_required', this.checked)" style="width:16px">
+          <span style="font-size:13px">Pakai Power Meter Digital (multifunction)</span>
+        </label>
+      </div>` : ''}
+    `;
+  } else if (selectedPanelType === 'DCDB_110V' || selectedPanelType === 'DCDB_48V') {
+    paramFields = `
+      <div class="form-grid-3">
+        <div class="form-row">
+          <label>Tegangan (V)<span class="req">*</span></label>
+          <input type="number" id="fVoltage" value="${calcParameters.voltage}" oninput="setParam('voltage', this.value)">
+        </div>
+        <div class="form-row">
+          <label>Charger Count<span class="req">*</span></label>
+          <input type="number" id="fChargerCount" min="1" max="3" value="${calcParameters.charger_count || 2}" oninput="setParam('charger_count', this.value)">
+        </div>
+        <div class="form-row">
+          <label>Charger Rating (A)<span class="req">*</span></label>
+          <input type="number" id="fChargerAmp" value="${calcParameters.charger_amp || (selectedPanelType==='DCDB_110V'?100:60)}" oninput="setParam('charger_amp', this.value)">
+        </div>
+      </div>
+      <div class="form-grid-3 mt-2">
+        <div class="form-row">
+          <label>Cubicle Count <span class="text-3">(auto)</span></label>
+          <input type="number" id="fCubicle" placeholder="Auto-pilih" value="${calcParameters.cubicle_count || ''}" oninput="setParam('cubicle_count', this.value)">
+        </div>
+        <div class="form-row">
+          <label>Main Breaker (A) <span class="text-3">(auto)</span></label>
+          <input type="number" id="fMainAmp" placeholder="Auto-pilih" value="${calcParameters.main_breaker_amp || ''}" oninput="setParam('main_breaker_amp', this.value)">
+          <div class="form-hint">Auto: charger × 1.6 derating</div>
+        </div>
+      </div>
+      <div class="mt-2 flex" style="flex-direction:column;gap:8px;align-items:flex-start">
+        <label class="flex" style="cursor:pointer">
+          <input type="checkbox" id="fBusCoupler" ${calcParameters.bus_coupler ? 'checked' : ''} onchange="setParam('bus_coupler', this.checked)" style="width:16px">
+          <span style="font-size:13px">Bus Coupler (auto-transfer Q01-Q02-Q03)</span>
+        </label>
+        <label class="flex" style="cursor:pointer">
+          <input type="checkbox" id="fSAS" ${calcParameters.sas_required ? 'checked' : ''} onchange="setParam('sas_required', this.checked)" style="width:16px">
+          <span style="font-size:13px">SAS Interface (Voltage & Current Transducer DC 4-20mA)</span>
+        </label>
+        ${selectedPanelType === 'DCDB_110V' ? `
+        <label class="flex" style="cursor:pointer">
+          <input type="checkbox" id="fControlExt" ${calcParameters.control_external ? 'checked' : ''} onchange="setParam('control_external', this.checked)" style="width:16px">
+          <span style="font-size:13px">Tegangan kontrol 48VDC dari panel DCDB 48V terpisah (kabel NYY 2x2.5)</span>
+        </label>` : ''}
+      </div>
+    `;
+  }
+  
+  $('pageBody').innerHTML = `
+    <div style="max-width:1100px">
+      <!-- STEP HEADER -->
+      <div class="card mb-2">
+        <div class="flex" style="justify-content:space-between">
+          <div>
+            <div class="form-section-title">Panel Type</div>
+            <div style="font-size:18px;font-weight:600">${escapeHtml(p.name)}</div>
+            <div class="text-3" style="font-size:12px">${escapeHtml(p.desc)}</div>
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="renderPanelPicker()">← Ganti panel type</button>
+        </div>
+      </div>
+      
+      <!-- SECTION 1: PROJECT INFO -->
+      <div class="card mb-2">
+        <div class="form-section-title">Project Info</div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>PP Request <span class="text-3">(opsional, auto-populate)</span></label>
+            <select id="fPPRequest" onchange="onPPRequestChange()">
+              <option value="">— Tidak link ke PP Request —</option>
+              ${allPPRequests.map(pp => `
+                <option value="${pp.id}" ${pp.id === calcParameters.pp_request_id ? 'selected' : ''}>
+                  ${escapeHtml(pp.id)} — ${escapeHtml(pp.customer_name || '?')} — ${escapeHtml((pp.project_name || '').substring(0, 40))}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-grid mt-1">
+          <div class="form-row">
+            <label>Customer<span class="req">*</span></label>
+            <input type="text" id="fCustomer" value="${escapeHtml(calcParameters.customer)}" oninput="setParam('customer', this.value)" placeholder="Nama customer">
+          </div>
+          <div class="form-row">
+            <label>Project Name<span class="req">*</span></label>
+            <input type="text" id="fProject" value="${escapeHtml(calcParameters.project_name)}" oninput="setParam('project_name', this.value)" placeholder="Nama project / scope">
+          </div>
+        </div>
+      </div>
+      
+      <!-- SECTION 2: PARAMETERS -->
+      <div class="card mb-2">
+        <div class="form-section-title">Parameter Engineering</div>
+        ${paramFields}
+      </div>
+      
+      <!-- SECTION 3: OUTGOING CIRCUITS -->
+      <div class="card mb-2">
+        <div class="flex" style="justify-content:space-between;margin-bottom:.875rem">
+          <div class="form-section-title" style="margin-bottom:0">Outgoing Circuits</div>
+          <button class="btn btn-sm" onclick="addOutgoingRow()">+ Tambah Outgoing</button>
+        </div>
+        <div id="outgoingList">${renderOutgoingList()}</div>
+        <div class="form-hint mt-1">
+          Total outgoing: <strong id="totalSlotsDisplay">${totalSlots()}</strong> slot
+        </div>
+      </div>
+      
+      <!-- ACTION BUTTONS -->
+      <div class="flex" style="justify-content:flex-end;gap:8px;margin-top:1rem">
+        <button class="btn" onclick="goPage('list')">Batal</button>
+        <button class="btn btn-primary" onclick="generateBOM()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Generate BOM
+        </button>
+      </div>
+    </div>`;
+}
+
+function renderOutgoingList() {
+  const isACDBorLVDP = selectedPanelType === 'ACDB' || selectedPanelType === 'LVDP';
+  const poleHeader = isACDBorLVDP ? '<div>Pole</div>' : '';
+  
+  if (calcParameters.outgoing.length === 0) {
+    return `
+      <div class="outgoing-row header">
+        <div>Label</div>
+        ${poleHeader}
+        <div class="text-right">Amp</div>
+        <div class="text-right">Slots</div>
+        <div></div>
+      </div>
+      <div class="text-center text-3" style="padding:2rem;font-size:13px">
+        Belum ada outgoing. Klik "+ Tambah Outgoing" di atas.
+      </div>`;
+  }
+  
+  return `
+    <div class="outgoing-row header" style="grid-template-columns:${isACDBorLVDP ? '2fr 80px 80px 90px 60px' : '2fr 80px 90px 60px'}">
+      <div>Label</div>
+      ${poleHeader}
+      <div class="text-right">Amp</div>
+      <div class="text-right">Slots</div>
+      <div></div>
+    </div>
+    ${calcParameters.outgoing.map((o, i) => `
+      <div class="outgoing-row" style="grid-template-columns:${isACDBorLVDP ? '2fr 80px 80px 90px 60px' : '2fr 80px 90px 60px'}">
+        <input type="text" value="${escapeHtml(o.label || '')}" oninput="updateOutgoing(${i}, 'label', this.value)" placeholder="Misal: Pompa 1">
+        ${isACDBorLVDP ? `
+          <select onchange="updateOutgoing(${i}, 'pole', parseInt(this.value))">
+            <option value="4" ${o.pole === 4 ? 'selected' : ''}>4P</option>
+            <option value="3" ${o.pole === 3 ? 'selected' : ''}>3P</option>
+            <option value="2" ${o.pole === 2 ? 'selected' : ''}>2P</option>
+          </select>
+        ` : ''}
+        <input type="number" class="text-right" value="${o.amp || ''}" oninput="updateOutgoing(${i}, 'amp', parseFloat(this.value))" placeholder="Amp">
+        <input type="number" class="text-right" value="${o.slots || ''}" oninput="updateOutgoing(${i}, 'slots', parseInt(this.value))" placeholder="Qty">
+        <button class="btn btn-sm btn-ghost btn-danger" onclick="removeOutgoing(${i})" title="Hapus">×</button>
+      </div>
+    `).join('')}`;
+}
+
+function addOutgoingRow() {
+  const isACDBorLVDP = selectedPanelType === 'ACDB' || selectedPanelType === 'LVDP';
+  calcParameters.outgoing.push({
+    label: '',
+    pole: isACDBorLVDP ? 4 : 2,
+    amp: isACDBorLVDP ? 20 : (selectedPanelType === 'DCDB_48V' ? 16 : 20),
+    slots: 1
+  });
+  $('outgoingList').innerHTML = renderOutgoingList();
+  updateTotalSlots();
+}
+function updateOutgoing(idx, field, val) {
+  calcParameters.outgoing[idx][field] = val;
+  updateTotalSlots();
+}
+function removeOutgoing(idx) {
+  calcParameters.outgoing.splice(idx, 1);
+  $('outgoingList').innerHTML = renderOutgoingList();
+  updateTotalSlots();
+}
+function totalSlots() {
+  return calcParameters.outgoing.reduce((s, o) => s + (parseInt(o.slots) || 0), 0);
+}
+function updateTotalSlots() {
+  if ($('totalSlotsDisplay')) $('totalSlotsDisplay').textContent = totalSlots();
+}
+function setParam(key, val) {
+  if (typeof val === 'string' && (key === 'voltage' || key === 'charger_count' || key === 'charger_amp' || key === 'main_breaker_amp' || key === 'cubicle_count')) {
+    val = val === '' ? null : parseFloat(val);
+  }
+  calcParameters[key] = val;
+}
+
+function onPPRequestChange() {
+  const ppId = $('fPPRequest').value;
+  calcParameters.pp_request_id = ppId;
+  if (ppId) {
+    const pp = allPPRequests.find(p => p.id === ppId);
+    if (pp) {
+      calcParameters.customer = pp.customer_name || '';
+      calcParameters.project_name = pp.project_name || '';
+      $('fCustomer').value = calcParameters.customer;
+      $('fProject').value = calcParameters.project_name;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GENERATE BOM (call Supabase RPC)
+// ═══════════════════════════════════════════════════════════════════════
+async function generateBOM() {
+  // Validate
+  if (!calcParameters.customer || !calcParameters.project_name) {
+    return toast('Customer dan Project Name wajib diisi', 'warn');
+  }
+  if (calcParameters.outgoing.length === 0) {
+    return toast('Tambahkan minimal 1 outgoing circuit', 'warn');
+  }
+  for (let i = 0; i < calcParameters.outgoing.length; i++) {
+    const o = calcParameters.outgoing[i];
+    if (!o.amp || !o.slots) {
+      return toast(`Outgoing #${i+1}: Amp & Slots harus terisi`, 'warn');
+    }
+  }
+  
+  showLoadingModal('Membuat calculator session...');
+  
+  try {
+    // 1. Build parameters JSON (sesuai schema engine)
+    const params = {
+      voltage: calcParameters.voltage,
+      outgoing: calcParameters.outgoing.map(o => ({
+        label: o.label || '—',
+        pole: o.pole,
+        amp: parseFloat(o.amp),
+        slots: parseInt(o.slots)
+      }))
+    };
+    if (calcParameters.charger_count) params.charger_count = parseInt(calcParameters.charger_count);
+    if (calcParameters.charger_amp) params.charger_amp = parseFloat(calcParameters.charger_amp);
+    if (calcParameters.main_breaker_amp) params.main_breaker_amp = parseFloat(calcParameters.main_breaker_amp);
+    if (calcParameters.cubicle_count) params.cubicle_count = parseInt(calcParameters.cubicle_count);
+    params.bus_coupler = !!calcParameters.bus_coupler;
+    params.sas_required = !!calcParameters.sas_required;
+    params.control_external = !!calcParameters.control_external;
+    params.power_meter_required = !!calcParameters.power_meter_required;
+    
+    // 2. Insert ke panel_calc_inputs
+    const calcId = genId('CALC-' + selectedPanelType.replace('_', ''));
+    const insertPayload = {
+      id: calcId,
+      panel_type: selectedPanelType,
+      project_name: calcParameters.project_name,
+      customer: calcParameters.customer,
+      parameters: params,
+      created_by: currentUser.id,
+      status: 'Draft'
+    };
+    if (calcParameters.pp_request_id) insertPayload.pp_request_id = calcParameters.pp_request_id;
+    
+    const { error: e1 } = await sb.from('panel_calc_inputs').insert(insertPayload);
+    if (e1) throw e1;
+    
+    // 3. Run engine via RPC
+    showLoadingModal('Generate BOM dari ' + selectedPanelType.replace('_', ' ') + ' engine...');
+    const engineFn = PANEL_TYPES[selectedPanelType].engine;
+    const { data: engineResult, error: e2 } = await sb.rpc(engineFn, { p_calc_input_id: calcId });
+    if (e2) throw e2;
+    
+    closeModal();
+    toast(`Generated! ${engineResult[0].items_generated} items, ${fmtRp(engineResult[0].total_price)}`, 'success');
+    
+    // 4. Go to draft page
+    goPage('draft', { calcId });
+    
+  } catch (e) {
+    closeModal();
+    console.error('generateBOM', e);
+    toast('Gagal generate: ' + (e.message || e.error_description || 'unknown'), 'error');
+  }
+}
+
+function showLoadingModal(msg) {
+  showModal(`
+    <div class="modal-body" style="padding:2rem;text-align:center">
+      <div style="font-size:24px;margin-bottom:.75rem">⏳</div>
+      <div style="font-size:14px;font-weight:500">${escapeHtml(msg)}</div>
+      <div class="text-3" style="font-size:11px;margin-top:.5rem">Mohon tunggu...</div>
+    </div>
+  `, 'modal-sm');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PAGE: DRAFT PREVIEW & EDIT
+// ═══════════════════════════════════════════════════════════════════════
+async function renderDraftPage(calcId) {
+  $('pageTitle').textContent = 'Draft BOM Preview';
+  $('pageSub').textContent = 'Review hasil generate engine, override jika perlu, lalu commit';
+  $('pageActions').innerHTML = `<button class="btn btn-ghost" onclick="goPage('list')">← Kembali</button>`;
+  $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div class="text-3">Loading draft...</div></div>`;
+  
+  const calc = await loadCalcDetail(calcId);
+  if (!calc) {
+    $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div style="color:var(--red)">Tidak bisa load draft.</div><button class="btn mt-1" onclick="goPage('list')">Kembali</button></div>`;
+    return;
+  }
+  
+  if (!calc.drafts || calc.drafts.length === 0) {
+    $('pageBody').innerHTML = `
+      <div class="card text-center" style="padding:3rem">
+        <div style="color:var(--amber);font-weight:600;margin-bottom:.5rem">⚠️ Draft kosong</div>
+        <div class="text-3" style="font-size:13px">Calculator session ini belum di-generate atau status sudah committed.</div>
+        <div style="margin-top:1rem">
+          <span class="badge ${calc.status==='Draft'?'b-draft':calc.status==='Calculated'?'b-calc':'b-committed'}">${calc.status}</span>
+          ${calc.committed_bom_id ? `<div style="font-size:12px;margin-top:.5rem">→ Committed ke BOM <strong class="mono">${escapeHtml(calc.committed_bom_id)}</strong></div>` : ''}
+        </div>
+        <button class="btn mt-2" onclick="goPage('list')">Kembali ke List</button>
+      </div>`;
+    return;
+  }
+  
+  const total = calc.drafts.reduce((s, d) => s + Number(d.subtotal || 0), 0);
+  const overrideCount = calc.drafts.filter(d => d.is_overridden).length;
+  
+  // Group by section
+  const sections = {};
+  calc.drafts.forEach(d => {
+    const sec = d.bom_section || 'OTHER';
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push(d);
+  });
+  const sectionOrder = ['MECHANICAL', 'INCOMING', 'OUTGOING', 'LOGIC', 'CONNECTION', 'OTHER'];
+  
+  const isCommitted = calc.status === 'Committed';
+  
+  $('pageBody').innerHTML = `
+    <!-- HEADER INFO -->
+    <div class="card mb-2">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start">
+        <div class="flex-1">
+          <div class="form-section-title">${escapeHtml(calc.id)}</div>
+          <div style="font-size:18px;font-weight:600;margin-bottom:.5rem">${escapeHtml(calc.project_name || '—')}</div>
+          <div class="kv">
+            <div class="k">Customer</div><div class="v">${escapeHtml(calc.customer || '—')}</div>
+            <div class="k">Panel Type</div><div class="v">${escapeHtml(PANEL_TYPES[calc.panel_type]?.name || calc.panel_type)}</div>
+            <div class="k">PP Request</div><div class="v mono">${calc.pp_request_id ? escapeHtml(calc.pp_request_id) : '—'}</div>
+            <div class="k">Status</div><div class="v">${statusBadge(calc.status)}</div>
+            ${calc.committed_bom_id ? `<div class="k">Committed BOM</div><div class="v mono">${escapeHtml(calc.committed_bom_id)}</div>` : ''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="form-section-title">Total BOM</div>
+          <div style="font-size:28px;font-weight:600;letter-spacing:-.02em">${fmtRp(total)}</div>
+          <div class="text-3" style="font-size:11px">${calc.drafts.length} items${overrideCount > 0 ? ` · ${overrideCount} overridden` : ''}</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ACTION BAR -->
+    <div class="flex mb-2" style="justify-content:space-between">
+      <button class="btn btn-sm" onclick="showParameters('${calc.id}')">📋 Lihat Parameter Input</button>
+      <div class="flex gap-1">
+        ${!isCommitted ? `
+          <button class="btn btn-sm" onclick="reGenerateBOM('${calc.id}')">🔄 Re-generate</button>
+          <button class="btn btn-primary" onclick="commitBOM('${calc.id}')" ${overrideCount > 0 ? '' : ''}>
+            ✓ Commit ke BOM List
+          </button>
+        ` : `
+          <a href="index.html#bom-${calc.committed_bom_id}" class="btn btn-blue">→ Buka di Panel V2</a>
+        `}
+      </div>
+    </div>
+    
+    <!-- DRAFT ITEMS TABLE -->
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>Komponen</th>
+              <th style="width:90px">Part No.</th>
+              <th style="width:55px;text-align:right">Qty</th>
+              <th style="width:60px">Unit</th>
+              <th style="width:130px;text-align:right">Harga Satuan</th>
+              <th style="width:140px;text-align:right">Subtotal</th>
+              <th style="width:80px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sectionOrder.filter(sec => sections[sec]).map(sec => `
+              <tr class="section-header"><td colspan="8">${sec}</td></tr>
+              ${sections[sec].map(d => renderDraftRow(d, isCommitted)).join('')}
+              <tr style="background:var(--surface2)"><td colspan="6" style="text-align:right;font-weight:600;font-size:11px;color:var(--text2)">Subtotal ${sec}</td><td class="text-right fw-600">${fmtRp(sections[sec].reduce((s,d)=>s+Number(d.subtotal||0),0))}</td><td></td></tr>
+            `).join('')}
+            <tr style="background:var(--text);color:#fff">
+              <td colspan="6" style="text-align:right;font-weight:600;color:#fff">GRAND TOTAL</td>
+              <td class="text-right" style="font-weight:600;color:#fff;font-size:14px">${fmtRp(total)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderDraftRow(d, isCommitted) {
+  const reasoning = d.reasoning ? escapeHtml(d.reasoning) : '';
+  const partNo = d.part_number ? `<span class="mono">${escapeHtml(d.part_number)}</span>` : '<span class="text-3">—</span>';
+  
+  return `
+    <tr class="draft-row ${d.is_overridden ? 'overridden' : ''}" id="draftRow_${d.id}">
+      <td class="text-3 text-mono" style="font-size:11px">${d.sort_order}</td>
+      <td>
+        <div style="font-size:13px;line-height:1.3">${escapeHtml(d.name || '—')}</div>
+        ${reasoning ? `
+          <div class="reason-toggle" onclick="toggleReason(${d.id})">ⓘ Lihat reasoning engine</div>
+          <div class="reason-content" id="reason_${d.id}">${reasoning}</div>
+        ` : ''}
+      </td>
+      <td>${partNo}</td>
+      <td class="text-right">
+        ${isCommitted ? fmtNum(d.qty) : 
+          `<input type="number" step="any" class="qty-input" value="${d.qty}" onchange="updateDraftItem(${d.id}, 'qty', this.value)">`}
+      </td>
+      <td class="text-3" style="font-size:11px">${escapeHtml(d.unit || '—')}</td>
+      <td class="text-right">
+        ${isCommitted ? fmtRp(d.unit_price) : 
+          `<input type="number" step="any" class="price-input" value="${d.unit_price}" onchange="updateDraftItem(${d.id}, 'unit_price', this.value)">`}
+      </td>
+      <td class="text-right fw-600">${fmtRp(d.subtotal)}</td>
+      <td>
+        ${!isCommitted && d.is_overridden ? 
+          `<button class="btn btn-sm btn-ghost" onclick="resetDraftItem(${d.id})" title="Reset ke default">↺ Reset</button>` :
+          (d.is_overridden ? '<span class="badge b-calc" style="font-size:10px">Edited</span>' : '')}
+      </td>
+    </tr>
+  `;
+}
+
+function toggleReason(id) {
+  $('reason_' + id).classList.toggle('show');
+}
+
+async function updateDraftItem(id, field, val) {
+  try {
+    const newVal = parseFloat(val);
+    if (isNaN(newVal) || newVal < 0) {
+      toast('Nilai tidak valid', 'warn');
+      return;
+    }
+    
+    // Find current draft to get sort_order (untuk RPC override_draft_item)
+    const draft = currentCalc.drafts.find(d => d.id === id);
+    if (!draft) return;
+    
+    const params = {
+      p_calc_input_id: currentCalc.id,
+      p_sort_order: draft.sort_order,
+      p_reason: 'Manual edit by ' + (currentUser.full_name || currentUser.username)
+    };
+    if (field === 'qty') params.p_new_qty = newVal;
+    if (field === 'unit_price') params.p_new_unit_price = newVal;
+    
+    const { error } = await sb.rpc('override_draft_item', params);
+    if (error) throw error;
+    
+    toast('✓ Updated', 'success');
+    // Reload to refresh subtotal
+    renderDraftPage(currentCalc.id);
+  } catch (e) {
+    console.error('updateDraftItem', e);
+    toast('Update gagal: ' + e.message, 'error');
+  }
+}
+
+async function resetDraftItem(id) {
+  try {
+    const draft = currentCalc.drafts.find(d => d.id === id);
+    if (!draft) return;
+    if (!confirm('Reset item ini ke nilai default dari engine?')) return;
+    
+    const { error } = await sb.rpc('reset_draft_item', {
+      p_calc_input_id: currentCalc.id,
+      p_sort_order: draft.sort_order
+    });
+    if (error) throw error;
+    toast('✓ Reset ke default', 'success');
+    renderDraftPage(currentCalc.id);
+  } catch (e) {
+    console.error('resetDraftItem', e);
+    toast('Reset gagal: ' + e.message, 'error');
+  }
+}
+
+async function reGenerateBOM(calcId) {
+  if (!confirm('Re-generate akan HAPUS semua draft items (termasuk override) dan generate ulang dari sizing_rules. Lanjut?')) return;
+  showLoadingModal('Re-generating BOM...');
+  try {
+    const engineFn = PANEL_TYPES[currentCalc.panel_type].engine;
+    const { error } = await sb.rpc(engineFn, { p_calc_input_id: calcId });
+    if (error) throw error;
+    closeModal();
+    toast('✓ Re-generated', 'success');
+    renderDraftPage(calcId);
+  } catch (e) {
+    closeModal();
+    toast('Gagal: ' + e.message, 'error');
+  }
+}
+
+async function showParameters(calcId) {
+  const c = currentCalc;
+  if (!c || c.id !== calcId) await loadCalcDetail(calcId);
+  showModal(`
+    <div class="modal-header">
+      <h2>Parameter Input</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <pre style="background:var(--surface2);padding:1rem;border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:12px;overflow-x:auto;line-height:1.6">${escapeHtml(JSON.stringify(currentCalc.parameters, null, 2))}</pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Tutup</button>
+    </div>
+  `);
+}
+
+async function commitBOM(calcId) {
+  showModal(`
+    <div class="modal-header">
+      <h2>Commit ke BOM List</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">
+        Commit akan membuat row baru di <code>bom_lists</code> dengan status <strong>Draft</strong>, 
+        dan copy semua draft items ke <code>bom_items</code>. Setelah ini bisa dilihat di Panel V2.
+      </p>
+      <div class="form-row">
+        <label>BOM ID<span class="req">*</span></label>
+        <input type="text" id="commitBomId" value="${genId('BOM-' + currentCalc.panel_type.replace('_', ''))}" class="mono">
+        <div class="form-hint">Auto-generated, bisa diubah manual</div>
+      </div>
+      <div class="form-row">
+        <label>BOM Title</label>
+        <input type="text" id="commitBomTitle" value="BOM Panel ${PANEL_TYPES[currentCalc.panel_type]?.name || currentCalc.panel_type} — ${escapeHtml(currentCalc.project_name || '')}">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="doCommit('${calcId}')">✓ Commit</button>
+    </div>
+  `);
+}
+
+async function doCommit(calcId) {
+  const bomId = $('commitBomId').value.trim();
+  const title = $('commitBomTitle').value.trim();
+  if (!bomId) { toast('BOM ID wajib diisi', 'warn'); return; }
+  
+  closeModal();
+  showLoadingModal('Committing ke BOM List...');
+  
+  try {
+    const { data, error } = await sb.rpc('commit_calc_to_bom', {
+      p_calc_input_id: calcId,
+      p_target_bom_id: bomId,
+      p_bom_title: title,
+      p_user_id: currentUser.id
+    });
+    if (error) throw error;
+    
+    closeModal();
+    toast(`✓ Committed: ${bomId} (${data[0].items_committed} items, ${fmtRp(data[0].total_price)})`, 'success');
+    renderDraftPage(calcId);
+  } catch (e) {
+    closeModal();
+    console.error('commit error', e);
+    toast('Commit gagal: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  if (checkAuth()) {
+    startApp();
+  }
+});
+
+// Periksa session tiap kali halaman aktif kembali (kalau user logout di tab lain)
+window.addEventListener('focus', () => {
+  if (!sessionStorage.getItem('panelUser')) {
+    location.reload();
+  }
+});
+</script>
+</body>
+</html>

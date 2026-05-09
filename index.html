@@ -536,6 +536,7 @@ function buildSidebar() {
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('bom_view')) nav += navItem('bom', bomIcon(), 'Tools BOM', '');
+  if (can('bom_manage')) nav += `<a href="bom-calculator.html" class="sb-item" style="text-decoration:none"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-3 4h3m-6-8h.01M9 13h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>BOM Calculator</a>`;
   if (can('users') || isOwner()) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; }
   if (isOwner()) nav += navItem('audit', auditIcon(), 'Audit Log', '');
   if (can('users')) nav += navItem('users', usersIcon(), 'Kelola User', '');
