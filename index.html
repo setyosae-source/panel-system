@@ -131,12 +131,12 @@ tr:hover td{background:var(--bg);cursor:pointer}
 
 /* ── MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(4px)}
-.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:var(--shadow-lg);margin:auto}
+.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:var(--shadow-lg);margin:auto;display:flex;flex-direction:column;max-height:calc(100vh - 3rem)}
 .modal-sm{max-width:460px}
-.modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0}
 .modal-header h2{font-size:15px;font-weight:600}
-.modal-body{padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem;max-height:75vh;overflow-y:auto}
-.modal-footer{padding:.875rem 1.375rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.modal-body{padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem;overflow-y:auto;flex:1;min-height:0}
+.modal-footer{padding:.875rem 1.375rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;background:var(--surface);border-radius:0 0 var(--r-lg) var(--r-lg)}
 
 /* ── FORM ── */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
@@ -234,9 +234,8 @@ tr:hover td{background:var(--bg);cursor:pointer}
   .hamburger{display:flex}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .form-grid{grid-template-columns:1fr}
-  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:100%;margin:auto 0 0}
+  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:100%;margin:auto 0 0;max-height:90vh}
   .overlay{align-items:flex-end;padding:0}
-  .modal-body{max-height:70vh}
   .kv{grid-template-columns:100px 1fr}
   .page-body{padding:0 1rem 2rem}
   .topbar{padding:1rem 1rem .75rem}
@@ -6238,14 +6237,13 @@ async function openBOMDetail(bomId) {
           ${showPrice ? `<tr style="background:var(--surface2);font-weight:600"><td colspan="${canManage ? 6 : 5}" style="text-align:right">TOTAL</td><td colspan="2">${fmtRp(total)}</td><td colspan="${canManage ? 2 : 1}"></td></tr>` : ''}
         </tbody>
       </table></div></div>` : noData('Belum ada komponen')}
-
-      ${canManage ? `<div style="display:flex;gap:8px;justify-content:space-between;margin-top:1rem">
-        <button class="btn btn-sm btn-danger" onclick="deleteBOM('${data.id}')">Hapus BOM</button>
-        <div style="display:flex;gap:6px">
-          ${['Draft', 'Final', 'Archived'].map(s => `<button class="btn btn-sm ${data.status === s ? 'btn-primary' : ''}" onclick="updateBOMStatus('${data.id}','${s}')">${s}</button>`).join('')}
-        </div>
-      </div>` : ''}
     </div>
+    ${canManage ? `<div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-sm btn-danger" onclick="deleteBOM('${data.id}')">Hapus BOM</button>
+      <div style="display:flex;gap:6px">
+        ${['Draft', 'Final', 'Archived'].map(s => `<button class="btn btn-sm ${data.status === s ? 'btn-primary' : ''}" onclick="updateBOMStatus('${data.id}','${s}')">${s}</button>`).join('')}
+      </div>
+    </div>` : ''}
   </div>`);
 }
 
