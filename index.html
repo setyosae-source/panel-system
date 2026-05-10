@@ -6393,27 +6393,72 @@ async function deleteBOM(bomId) {
 }
 
 // ─── EXPORT ─────────────────────────────────────────────────
-// Extract section name from note: "Section 1 Mechanical — estimasi fabrikator" → "Section 1 Mechanical"
+// Extract section name from note. Handles multiple formats:
+//   Canonical:  "Section 1 Mechanical - subnote"  → "Section 1 Mechanical"
+//   Legacy:     "Section 1: Mechanical\nGenerated: foo\n[OVERRIDDEN]" → "Section 1 Mechanical"
+//   Dirty:      "FOR 110VDC WITH RS485..." or "CUSTOM ITEM CBL-005" → "(Custom Items)"
 function extractSection(note) {
   if (!note) return '(Tanpa Section)';
-  const s = String(note).trim();
-  // Try em-dash, en-dash, then regular dash
+  let s = String(note).trim();
+  
+  // Take only the first line (legacy dirty format had \n)
+  const firstNewline = s.indexOf('\n');
+  if (firstNewline > 0) s = s.substring(0, firstNewline).trim();
+  
+  // Strip dash separator if present (canonical format)
   for (const sep of [' — ', ' – ', ' - ']) {
     const idx = s.indexOf(sep);
-    if (idx > 0) return s.substring(0, idx).trim();
+    if (idx > 0) { s = s.substring(0, idx).trim(); break; }
   }
-  return s; // No separator found — use whole note as section
+  
+  // Normalize "Section X:" → "Section X" (remove colon after section number)
+  s = s.replace(/^(Section\s+\d+)\s*:\s*/i, '$1 ');
+  
+  // If still doesn't look like a section header (e.g. "FOR 110VDC..." or "CUSTOM ITEM..."), bucket to (Custom Items)
+  if (!/^Section\s+\d+/i.test(s)) {
+    return '(Custom Items)';
+  }
+  
+  return s;
 }
 
-// Extract sub-note (after the dash)
+// Extract sub-note (after the section/dash). Strips legacy noise (Generated:, [OVERRIDDEN], etc).
 function extractSubNote(note) {
   if (!note) return '';
-  const s = String(note).trim();
+  let s = String(note).trim();
+  
+  // For canonical format "Section X NAME - subnote": take part after dash
   for (const sep of [' — ', ' – ', ' - ']) {
     const idx = s.indexOf(sep);
-    if (idx > 0) return s.substring(idx + sep.length).trim();
+    if (idx > 0) {
+      s = s.substring(idx + sep.length).trim();
+      // Take only first line + clean legacy noise
+      return cleanSubNote(s);
+    }
   }
-  return ''; // No separator — sub-note empty
+  
+  // No dash — legacy format with \n separators. Skip section line, return cleaned remainder.
+  const nl = s.indexOf('\n');
+  if (nl > 0) {
+    return cleanSubNote(s.substring(nl + 1));
+  }
+  
+  return '';
+}
+
+// Strip "Generated:" prefix, "[OVERRIDDEN]" markers, attribution lines from sub-note
+function cleanSubNote(s) {
+  if (!s) return '';
+  let out = String(s)
+    .replace(/^\s*Generated:\s*/i, '')
+    .replace(/\[OVERRIDDEN\]\s*/gi, '')
+    .replace(/^\s*Inline edit by [^\n]*$/gim, '')
+    .replace(/^\s*Custom item ditambahkan manual oleh [^\n]*$/gim, '')
+    .replace(/\s*\n\s*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (out.length > 150) out = out.substring(0, 147) + '...';
+  return out;
 }
 
 // Group items by section, preserving order
@@ -6676,8 +6721,8 @@ async function exportBOMPrint(bomId, withPrice) {
   }).join('');
 
   const headerCols = withPrice
-    ? `<th style="width:30px">#</th><th>Nama Komponen</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th style="width:90px">Harga</th><th style="width:100px">Subtotal</th><th>Note</th>`
-    : `<th style="width:30px">#</th><th>Nama Komponen</th><th style="width:50px">Qty</th><th style="width:50px">Unit</th><th>Note</th>`;
+    ? `<th class="col-no">#</th><th class="col-name">Nama Komponen</th><th class="col-qty">Qty</th><th class="col-unit">Unit</th><th class="col-price">Harga Satuan</th><th class="col-sub">Subtotal</th><th class="col-note">Note</th>`
+    : `<th class="col-no">#</th><th class="col-name">Nama Komponen</th><th class="col-qty">Qty</th><th class="col-unit">Unit</th><th class="col-note">Note</th>`;
 
   const tfoot = withPrice
     ? `<tfoot><tr class="grand"><td colspan="5" class="num">GRAND TOTAL</td><td class="num">${fmtRp(grandTotal)}</td><td></td></tr></tfoot>`
@@ -6686,21 +6731,36 @@ async function exportBOMPrint(bomId, withPrice) {
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html><head><title>BOM ${bom.id}</title>
     <style>
-      body{font-family:Arial,sans-serif;padding:20px;color:#000;font-size:11px}
-      h1{font-size:18px;margin:0 0 4px}
-      .header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px}
-      .meta{display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:11px;margin-bottom:12px}
+      @page { size: A4 landscape; margin: 12mm 10mm; }
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:0;color:#000;font-size:10px;margin:0}
+      h1{font-size:16px;margin:0 0 3px}
+      .header{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+      .meta{display:grid;grid-template-columns:110px 1fr 110px 1fr;gap:3px 10px;font-size:10px;margin-bottom:10px}
       .meta .k{color:#666}
-      table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:auto}
-      th,td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}
-      th{background:#2C3E50;color:#fff;font-size:10px;text-transform:uppercase;text-align:center}
+      table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+      th,td{border:1px solid #999;padding:4px 5px;text-align:left;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
+      th{background:#2C3E50;color:#fff;font-size:9px;text-transform:uppercase;text-align:center}
       td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
       td.c{text-align:center}
-      tr.section td{background:#D6E5F5;color:#1A4F8B;font-weight:bold;font-size:11px;padding:6px 8px;border-color:#1A4F8B}
-      tr.subtotal td{background:#F0F0F0;font-style:italic;font-size:10px}
-      tfoot tr.grand td{background:#2C3E50;color:#fff;font-weight:bold;font-size:12px;padding:8px}
-      .footer{margin-top:30px;font-size:10px;color:#666;border-top:1px solid #ccc;padding-top:8px}
-      @media print{body{padding:0}thead{display:table-header-group}tr.section{page-break-inside:avoid}}
+      /* Fixed widths so columns never get squeezed */
+      .col-no{width:28px}
+      .col-name{width:auto}
+      .col-qty{width:38px}
+      .col-unit{width:38px}
+      .col-price{width:80px}
+      .col-sub{width:90px}
+      .col-note{width:180px;font-size:9px;color:#555}
+      tr.section td{background:#D6E5F5;color:#1A4F8B;font-weight:bold;font-size:10px;padding:5px 7px;border-color:#1A4F8B}
+      tr.subtotal td{background:#F0F0F0;font-style:italic;font-size:9px}
+      tfoot tr.grand td{background:#2C3E50;color:#fff;font-weight:bold;font-size:11px;padding:6px}
+      .footer{margin-top:20px;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:6px}
+      @media print{
+        body{padding:0}
+        thead{display:table-header-group}
+        tr.section{page-break-inside:avoid}
+        tr{page-break-inside:avoid}
+      }
     </style></head><body>
     <div class="header">
       <h1>BILL OF MATERIALS</h1>
