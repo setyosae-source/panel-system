@@ -141,17 +141,23 @@ tbody tr:last-child td{border-bottom:none}
 .section-header td{padding:6px 12px;border-bottom:1px solid var(--border)}
 
 .draft-row.overridden td{background:var(--amber-bg)}
-.qty-input,.price-input{width:80px;padding:4px 6px !important;font-size:12px !important;text-align:right;color:var(--text);background:var(--surface);border:1px solid var(--border2);font-family:'DM Mono',monospace}
-.qty-input{width:60px}
-.price-input{width:110px}
-.qty-input:focus,.price-input:focus{border-color:var(--blue);background:#fff}
+.qty-input,.price-input{padding:5px 8px !important;font-size:13px !important;text-align:right;color:var(--text);background:var(--surface);border:1px solid var(--border2);font-family:'DM Mono',monospace;border-radius:5px}
+.qty-input{width:75px}
+.price-input{width:120px}
+.qty-input:focus,.price-input:focus{border-color:var(--blue);background:#fff;outline:none}
+/* Hide browser default number spinner (up/down arrows) — they take precious horizontal space */
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button,
+.price-input::-webkit-outer-spin-button,
+.price-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qty-input,.price-input{-moz-appearance:textfield}
 
-.edit-name,.edit-partno,.edit-unit{padding:4px 6px !important;font-size:13px !important;border:1px solid transparent !important;background:transparent !important;width:100%;color:var(--text);transition:all .15s}
+.edit-name,.edit-partno,.edit-unit{padding:4px 6px !important;font-size:13px !important;border:1px solid transparent !important;background:transparent !important;width:100%;color:var(--text);transition:all .15s;border-radius:4px}
 .edit-name{font-weight:500}
 .edit-partno{font-family:'DM Mono',monospace;font-size:11px !important;color:var(--text3)}
-.edit-unit{font-size:11px !important;color:var(--text3);width:60px}
+.edit-unit{font-size:11px !important;color:var(--text3);width:55px}
 .edit-name:hover,.edit-partno:hover,.edit-unit:hover{border-color:var(--border) !important;background:var(--surface) !important}
-.edit-name:focus,.edit-partno:focus,.edit-unit:focus{border-color:var(--blue) !important;background:#fff !important;color:var(--text)}
+.edit-name:focus,.edit-partno:focus,.edit-unit:focus{border-color:var(--blue) !important;background:#fff !important;color:var(--text);outline:none}
 
 .reasoning-cell{font-size:11px;color:var(--text3);white-space:normal;line-height:1.4;max-width:280px}
 
@@ -1038,10 +1044,10 @@ async function renderDraftPage(calcId) {
             <tr>
               <th style="width:40px">#</th>
               <th>Komponen</th>
-              <th style="width:90px">Part No.</th>
-              <th style="width:55px;text-align:right">Qty</th>
-              <th style="width:60px">Unit</th>
-              <th style="width:130px;text-align:right">Harga Satuan</th>
+              <th style="width:100px">Part No.</th>
+              <th style="width:95px;text-align:right">Qty</th>
+              <th style="width:70px">Unit</th>
+              <th style="width:135px;text-align:right">Harga Satuan</th>
               <th style="width:140px;text-align:right">Subtotal</th>
               <th style="width:80px"></th>
             </tr>
