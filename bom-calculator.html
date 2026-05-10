@@ -536,7 +536,7 @@ async function renderListPage() {
               <th style="width:80px;text-align:right">Items</th>
               <th style="width:160px;text-align:right">Total</th>
               <th style="width:110px">Updated</th>
-              <th style="width:100px"></th>
+              <th style="width:140px;text-align:right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -550,7 +550,12 @@ async function renderListPage() {
                 <td class="text-right mono">${c.item_count || 0}</td>
                 <td class="text-right fw-600">${c.total > 0 ? fmtRp(c.total) : '—'}</td>
                 <td class="text-3" style="font-size:11px">${fmtDate(c.updated_at)}</td>
-                <td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();goPage('draft', {calcId:'${c.id}'})">Open →</button></td>
+                <td>
+                  <div class="flex gap-1" style="justify-content:flex-end">
+                    <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();goPage('draft', {calcId:'${c.id}'})" title="Buka">Open →</button>
+                    ${can('bom_manage') ? `<button class="btn btn-sm btn-ghost btn-danger" onclick="event.stopPropagation();confirmDeleteSession('${c.id}', '${escapeHtml(c.project_name || '')}', '${c.status}', '${c.committed_bom_id || ''}', ${c.item_count || 0})" title="Hapus session">🗑</button>` : ''}
+                  </div>
+                </td>
               </tr>
             `).join('')}
           </tbody>
@@ -1023,7 +1028,10 @@ async function renderDraftPage(calcId) {
     
     <!-- ACTION BAR -->
     <div class="flex mb-2" style="justify-content:space-between">
-      <button class="btn btn-sm" onclick="showParameters('${calc.id}')">📋 Lihat Parameter Input</button>
+      <div class="flex gap-1">
+        <button class="btn btn-sm" onclick="showParameters('${calc.id}')">📋 Lihat Parameter Input</button>
+        ${can('bom_manage') ? `<button class="btn btn-sm btn-danger" onclick="confirmDeleteSession('${calc.id}', '${escapeHtml(calc.project_name || '')}', '${calc.status}', '${calc.committed_bom_id || ''}', ${calc.drafts.length})">🗑 Hapus Session</button>` : ''}
+      </div>
       <div class="flex gap-1">
         ${!isCommitted ? `
           <button class="btn btn-sm" onclick="reGenerateBOM('${calc.id}')">🔄 Re-generate</button>
@@ -1293,6 +1301,112 @@ async function resetDraftItem(id) {
     toast('Reset gagal: ' + e.message, 'error');
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// DELETE CALC SESSION (Hapus session calculator)
+// ═══════════════════════════════════════════════════════════════════════
+function confirmDeleteSession(calcId, projectName, status, committedBomId, itemCount) {
+  const isCommitted = status === 'Committed';
+  
+  let warningHtml = '';
+  if (isCommitted) {
+    warningHtml = `
+      <div style="background:var(--red-bg);border:2px solid var(--red);padding:1rem;border-radius:var(--r-sm);margin-bottom:.75rem">
+        <div style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:.5rem">🚨 PERINGATAN — Akan Hapus BOM Final Juga</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.6">
+          Session ini sudah <strong>committed</strong> ke BOM final di Panel V2.<br><br>
+          Klik "Ya, Hapus Permanent" akan menghapus <strong>SEMUA</strong>:<br>
+          • Calculator session <span class="mono">${escapeHtml(calcId)}</span><br>
+          • Semua draft items (${itemCount} pcs)<br>
+          • <strong style="color:var(--red)">BOM Final ${escapeHtml(committedBomId)} di Panel V2</strong><br>
+          • Semua bom_items (line items) di BOM tersebut<br>
+          • Audit trail / log BOM (kalau ada)<br><br>
+          <strong>TIDAK BISA DI-RECOVER.</strong> BOM yang sudah dipakai produksi sebaiknya jangan dihapus.
+        </div>
+      </div>`;
+  } else {
+    warningHtml = `
+      <div style="background:var(--amber-bg);padding:.875rem;border-radius:var(--r-sm);margin-bottom:.75rem">
+        <div style="font-size:13px;font-weight:600;color:var(--amber);margin-bottom:.25rem">⚠️ Konfirmasi Hapus</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Session ini akan dihapus <strong>permanent</strong>:<br>
+          • ${itemCount} draft item akan hilang<br>
+          • Parameter input, override history juga hilang<br>
+          • Belum committed, jadi tidak ada BOM final yang terpengaruh<br>
+          • Tidak bisa di-recover
+        </div>
+      </div>`;
+  }
+  
+  const confirmKeyword = isCommitted ? 'HAPUS BOM' : 'HAPUS';
+  
+  showModal(`
+    <div class="modal-header">
+      <h2>${isCommitted ? '🚨 Hapus Session + BOM Final?' : 'Hapus Calculator Session?'}</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      ${warningHtml}
+      <div class="card" style="background:var(--surface2);padding:.875rem">
+        <div class="kv" style="grid-template-columns:140px 1fr;font-size:12px">
+          <div class="k">Session ID</div><div class="v mono">${escapeHtml(calcId)}</div>
+          <div class="k">Project</div><div class="v">${escapeHtml(projectName || '—')}</div>
+          <div class="k">Status</div><div class="v">${statusBadge(status)}</div>
+          <div class="k">Draft items</div><div class="v">${itemCount} items</div>
+          ${isCommitted ? `<div class="k">BOM Final</div><div class="v mono" style="color:var(--red);font-weight:600">${escapeHtml(committedBomId)}</div>` : ''}
+        </div>
+      </div>
+      <div class="form-row mt-2">
+        <label>Ketik <strong class="mono" style="color:var(--red)">${confirmKeyword}</strong> untuk konfirmasi<span class="req">*</span></label>
+        <input type="text" id="deleteConfirmInput" placeholder="${confirmKeyword}" autocomplete="off" oninput="$('deleteConfirmBtn').disabled = this.value !== '${confirmKeyword}'">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-danger" id="deleteConfirmBtn" disabled onclick="doDeleteSession('${calcId}', ${isCommitted})">🗑 ${isCommitted ? 'Hapus Session + BOM Permanent' : 'Ya, Hapus Permanent'}</button>
+    </div>
+  `, 'modal-sm');
+  
+  setTimeout(() => {
+    const btn = $('deleteConfirmBtn');
+    if (btn) {
+      btn.style.background = 'var(--red)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--red)';
+    }
+    if ($('deleteConfirmInput')) $('deleteConfirmInput').focus();
+  }, 100);
+}
+
+async function doDeleteSession(calcId, isCommitted) {
+  try {
+    const { data, error } = await sb.rpc('delete_calc_session', {
+      p_calc_input_id: calcId,
+      p_user_id: currentUser.id,
+      p_force: isCommitted
+    });
+    if (error) throw error;
+    
+    const result = data[0];
+    closeModal();
+    
+    let msg = `✓ Session ${calcId} dihapus (${result.deleted_drafts} draft items)`;
+    if (result.deleted_bom_id) {
+      msg = `✓ Session + BOM ${result.deleted_bom_id} dihapus permanent (${result.deleted_bom_items} bom_items + ${result.deleted_drafts} drafts)`;
+    }
+    toast(msg, 'success');
+    
+    if (currentPage === 'draft') {
+      goPage('list');
+    } else {
+      renderListPage();
+    }
+  } catch (e) {
+    console.error('deleteSession', e);
+    toast('Hapus gagal: ' + e.message, 'error');
+  }
+}
+
 
 async function reGenerateBOM(calcId) {
   if (!confirm('Re-generate akan HAPUS semua draft items (termasuk override) dan generate ulang dari sizing_rules. Lanjut?')) return;
