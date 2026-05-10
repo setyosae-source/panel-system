@@ -141,8 +141,17 @@ tbody tr:last-child td{border-bottom:none}
 .section-header td{padding:6px 12px;border-bottom:1px solid var(--border)}
 
 .draft-row.overridden td{background:var(--amber-bg)}
-.qty-input,.price-input{width:80px;padding:4px 6px !important;font-size:12px !important;text-align:right}
+.qty-input,.price-input{width:80px;padding:4px 6px !important;font-size:12px !important;text-align:right;color:var(--text);background:var(--surface);border:1px solid var(--border2);font-family:'DM Mono',monospace}
+.qty-input{width:60px}
 .price-input{width:110px}
+.qty-input:focus,.price-input:focus{border-color:var(--blue);background:#fff}
+
+.edit-name,.edit-partno,.edit-unit{padding:4px 6px !important;font-size:13px !important;border:1px solid transparent !important;background:transparent !important;width:100%;color:var(--text);transition:all .15s}
+.edit-name{font-weight:500}
+.edit-partno{font-family:'DM Mono',monospace;font-size:11px !important;color:var(--text3)}
+.edit-unit{font-size:11px !important;color:var(--text3);width:60px}
+.edit-name:hover,.edit-partno:hover,.edit-unit:hover{border-color:var(--border) !important;background:var(--surface) !important}
+.edit-name:focus,.edit-partno:focus,.edit-unit:focus{border-color:var(--blue) !important;background:#fff !important;color:var(--text)}
 
 .reasoning-cell{font-size:11px;color:var(--text3);white-space:normal;line-height:1.4;max-width:280px}
 
@@ -228,6 +237,11 @@ tbody tr:last-child td{border-bottom:none}
       <button class="sb-item" id="navNew" onclick="goPage('new')">
         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         New Calculator
+      </button>
+      <div class="sb-section-title">Master Data</div>
+      <button class="sb-item" id="navMaster" onclick="goPage('master')">
+        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+        Master Komponen
       </button>
     </nav>
     <div class="sb-footer">
@@ -461,6 +475,9 @@ function goPage(page, opts = {}) {
     renderNewCalcPage(opts);
   } else if (page === 'draft') {
     renderDraftPage(opts.calcId);
+  } else if (page === 'master') {
+    $('navMaster').classList.add('active');
+    renderMasterPage(opts);
   }
 }
 
@@ -1031,10 +1048,14 @@ async function renderDraftPage(calcId) {
           </thead>
           <tbody>
             ${sectionOrder.filter(sec => sections[sec]).map(sec => `
-              <tr class="section-header"><td colspan="8">${sec}</td></tr>
+              <tr class="section-header">
+                <td colspan="${isCommitted ? 8 : 7}">${sec}</td>
+                ${isCommitted ? '' : `<td style="text-align:right;padding-right:10px"><button class="btn btn-sm" onclick="openAddCustomItem('${sec}')" title="Tambah komponen custom ke section ini" style="font-size:10px">+ Tambah</button></td>`}
+              </tr>
               ${sections[sec].map(d => renderDraftRow(d, isCommitted)).join('')}
               <tr style="background:var(--surface2)"><td colspan="6" style="text-align:right;font-weight:600;font-size:11px;color:var(--text2)">Subtotal ${sec}</td><td class="text-right fw-600">${fmtRp(sections[sec].reduce((s,d)=>s+Number(d.subtotal||0),0))}</td><td></td></tr>
             `).join('')}
+            ${!isCommitted && Object.keys(sections).length === 0 ? '' : ''}
             <tr style="background:var(--text);color:#fff">
               <td colspan="6" style="text-align:right;font-weight:600;color:#fff">GRAND TOTAL</td>
               <td class="text-right" style="font-weight:600;color:#fff;font-size:14px">${fmtRp(total)}</td>
@@ -1049,33 +1070,65 @@ async function renderDraftPage(calcId) {
 
 function renderDraftRow(d, isCommitted) {
   const reasoning = d.reasoning ? escapeHtml(d.reasoning) : '';
-  const partNo = d.part_number ? `<span class="mono">${escapeHtml(d.part_number)}</span>` : '<span class="text-3">—</span>';
+  const isCustom = !d.source_rule_id;  // custom item = no rule source
   
+  if (isCommitted) {
+    // Read-only render for committed BOM
+    return `
+      <tr class="draft-row" id="draftRow_${d.id}">
+        <td class="text-3 text-mono" style="font-size:11px">${d.sort_order}</td>
+        <td>
+          <div style="font-size:13px;line-height:1.3">${escapeHtml(d.name || '—')}</div>
+          ${reasoning ? `<div class="reason-toggle" onclick="toggleReason(${d.id})">ⓘ Lihat reasoning</div><div class="reason-content" id="reason_${d.id}">${reasoning}</div>` : ''}
+        </td>
+        <td>${d.part_number ? `<span class="mono">${escapeHtml(d.part_number)}</span>` : '<span class="text-3">—</span>'}</td>
+        <td class="text-right">${fmtNum(d.qty)}</td>
+        <td class="text-3" style="font-size:11px">${escapeHtml(d.unit || '—')}</td>
+        <td class="text-right">${fmtRp(d.unit_price)}</td>
+        <td class="text-right fw-600">${fmtRp(d.subtotal)}</td>
+        <td></td>
+      </tr>
+    `;
+  }
+  
+  // Editable row for draft mode — every field clickable
   return `
     <tr class="draft-row ${d.is_overridden ? 'overridden' : ''}" id="draftRow_${d.id}">
       <td class="text-3 text-mono" style="font-size:11px">${d.sort_order}</td>
       <td>
-        <div style="font-size:13px;line-height:1.3">${escapeHtml(d.name || '—')}</div>
-        ${reasoning ? `
-          <div class="reason-toggle" onclick="toggleReason(${d.id})">ⓘ Lihat reasoning engine</div>
-          <div class="reason-content" id="reason_${d.id}">${reasoning}</div>
-        ` : ''}
+        <input type="text" class="edit-name" value="${escapeHtml(d.name || '')}" 
+               onchange="updateDraftField(${d.id}, 'name', this.value)" 
+               title="Klik untuk edit nama">
+        ${isCustom ? '<span class="badge b-calc" style="font-size:9px;margin-top:3px">CUSTOM</span>' : ''}
+        ${reasoning ? `<div class="reason-toggle" onclick="toggleReason(${d.id})">ⓘ Lihat reasoning engine</div><div class="reason-content" id="reason_${d.id}">${reasoning}</div>` : ''}
       </td>
-      <td>${partNo}</td>
-      <td class="text-right">
-        ${isCommitted ? fmtNum(d.qty) : 
-          `<input type="number" step="any" class="qty-input" value="${d.qty}" onchange="updateDraftItem(${d.id}, 'qty', this.value)">`}
+      <td>
+        <input type="text" class="edit-partno" value="${escapeHtml(d.part_number || '')}" 
+               placeholder="—" 
+               onchange="updateDraftField(${d.id}, 'part_number', this.value)" 
+               title="Klik untuk edit part number">
       </td>
-      <td class="text-3" style="font-size:11px">${escapeHtml(d.unit || '—')}</td>
       <td class="text-right">
-        ${isCommitted ? fmtRp(d.unit_price) : 
-          `<input type="number" step="any" class="price-input" value="${d.unit_price}" onchange="updateDraftItem(${d.id}, 'unit_price', this.value)">`}
+        <input type="number" step="any" min="0" class="qty-input" value="${d.qty}" 
+               onchange="updateDraftField(${d.id}, 'qty', this.value, true)">
+      </td>
+      <td>
+        <input type="text" class="edit-unit" value="${escapeHtml(d.unit || '')}" 
+               placeholder="pcs" 
+               onchange="updateDraftField(${d.id}, 'unit', this.value)" 
+               title="Klik untuk edit unit">
+      </td>
+      <td class="text-right">
+        <input type="number" step="any" min="0" class="price-input" value="${d.unit_price}" 
+               onchange="updateDraftField(${d.id}, 'unit_price', this.value, true)">
       </td>
       <td class="text-right fw-600">${fmtRp(d.subtotal)}</td>
       <td>
-        ${!isCommitted && d.is_overridden ? 
-          `<button class="btn btn-sm btn-ghost" onclick="resetDraftItem(${d.id})" title="Reset ke default">↺ Reset</button>` :
-          (d.is_overridden ? '<span class="badge b-calc" style="font-size:10px">Edited</span>' : '')}
+        <div class="flex gap-1" style="justify-content:flex-end">
+          ${d.is_overridden && !isCustom ? `<button class="btn btn-sm btn-ghost" onclick="resetDraftItem(${d.id})" title="Reset ke default engine">↺</button>` : ''}
+          <button class="btn btn-sm btn-ghost btn-danger" onclick="deleteDraftItem(${d.id})" title="Hapus item ini">🗑</button>
+        </div>
+        ${d.is_overridden ? '<div style="font-size:10px;color:var(--amber);text-align:right;margin-top:2px">edited</div>' : ''}
       </td>
     </tr>
   `;
@@ -1085,35 +1138,134 @@ function toggleReason(id) {
   $('reason_' + id).classList.toggle('show');
 }
 
-async function updateDraftItem(id, field, val) {
+async function updateDraftField(id, field, val, isNumeric = false) {
   try {
-    const newVal = parseFloat(val);
-    if (isNaN(newVal) || newVal < 0) {
-      toast('Nilai tidak valid', 'warn');
-      return;
-    }
-    
-    // Find current draft to get sort_order (untuk RPC override_draft_item)
     const draft = currentCalc.drafts.find(d => d.id === id);
     if (!draft) return;
     
-    const params = {
+    let newValStr = val;
+    if (isNumeric) {
+      const numVal = parseFloat(val);
+      if (isNaN(numVal) || numVal < 0) {
+        toast('Nilai tidak valid', 'warn');
+        return;
+      }
+      newValStr = String(numVal);
+    } else {
+      newValStr = (val || '').toString().trim();
+    }
+    
+    const { error } = await sb.rpc('update_draft_field', {
       p_calc_input_id: currentCalc.id,
       p_sort_order: draft.sort_order,
-      p_reason: 'Manual edit by ' + (currentUser.full_name || currentUser.username)
-    };
-    if (field === 'qty') params.p_new_qty = newVal;
-    if (field === 'unit_price') params.p_new_unit_price = newVal;
-    
-    const { error } = await sb.rpc('override_draft_item', params);
+      p_field: field,
+      p_new_value: newValStr,
+      p_user_id: currentUser.id,
+      p_reason: 'Inline edit by ' + (currentUser.full_name || currentUser.username)
+    });
     if (error) throw error;
     
-    toast('✓ Updated', 'success');
-    // Reload to refresh subtotal
+    toast('✓ Saved', 'success');
+    
+    // Issue #3: Kalau yang diubah adalah harga & berbeda dari default, prompt user untuk update master
+    if (field === 'unit_price' && parseFloat(newValStr) !== Number(draft.default_unit_price) && (draft.component_id || draft.source_rule_id)) {
+      setTimeout(() => promptUpdateMaster(draft, parseFloat(newValStr)), 400);
+    } else {
+      renderDraftPage(currentCalc.id);
+    }
+  } catch (e) {
+    console.error('updateDraftField', e);
+    toast('Update gagal: ' + e.message, 'error');
+  }
+}
+
+// Backward compat alias (just in case)
+const updateDraftItem = updateDraftField;
+
+// Issue #3: Prompt update master price
+function promptUpdateMaster(draft, newPrice) {
+  const componentName = draft.name || draft.part_number || 'komponen';
+  const oldPrice = Number(draft.default_unit_price);
+  const target = draft.component_id 
+    ? `Master Komponen (bom_components ID ${draft.component_id})`
+    : `Sizing Rules fallback price (rule ID ${draft.source_rule_id})`;
+  
+  showModal(`
+    <div class="modal-header">
+      <h2>Update Harga ke Master?</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModalAndRefresh()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">
+        Harga komponen ini di draft sudah Anda ubah. Apakah harga baru ini juga ingin <strong>disimpan ke master</strong> supaya project berikutnya pakai harga yang sama?
+      </p>
+      <div class="card" style="background:var(--surface2);padding:.875rem">
+        <div style="font-size:13px;font-weight:600;margin-bottom:.5rem">${escapeHtml(componentName)}</div>
+        <div class="kv" style="grid-template-columns:140px 1fr">
+          <div class="k">Target update</div><div class="v" style="font-size:11px">${target}</div>
+          <div class="k">Harga lama (master)</div><div class="v">${fmtRp(oldPrice)}</div>
+          <div class="k">Harga baru</div><div class="v" style="color:var(--green);font-weight:600">${fmtRp(newPrice)}</div>
+          <div class="k">Selisih</div><div class="v ${newPrice > oldPrice ? 'text-mono' : 'text-mono'}" style="color:${newPrice > oldPrice ? 'var(--red)' : 'var(--green)'}">${newPrice > oldPrice ? '+' : ''}${fmtRp(newPrice - oldPrice)} (${oldPrice > 0 ? Math.round((newPrice - oldPrice) / oldPrice * 100) : '?'}%)</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:.5rem">
+        💡 <strong>Update master</strong> = semua project DCDB/ACDB/LVDP berikutnya yang pakai komponen ini akan otomatis pakai harga baru.<br>
+        ⚠️ <strong>Skip</strong> = hanya draft project ini yang dapat harga baru. Master tetap pakai harga lama.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalAndRefresh()">Skip — hanya draft ini</button>
+      <button class="btn btn-primary" onclick="doUpdateMaster(${draft.component_id || 'null'}, ${draft.source_rule_id || 'null'}, ${newPrice})">✓ Ya, update master</button>
+    </div>
+  `, 'modal-sm');
+}
+
+function closeModalAndRefresh() {
+  closeModal();
+  renderDraftPage(currentCalc.id);
+}
+
+async function doUpdateMaster(componentId, ruleId, newPrice) {
+  try {
+    const { data, error } = await sb.rpc('update_master_price', {
+      p_component_id: componentId,
+      p_rule_id: ruleId,
+      p_new_price: newPrice,
+      p_user_id: currentUser.id,
+      p_reason: 'Updated from BOM Calculator override'
+    });
+    if (error) throw error;
+    
+    closeModal();
+    toast('✓ Master price updated! Project berikutnya pakai harga baru', 'success');
     renderDraftPage(currentCalc.id);
   } catch (e) {
-    console.error('updateDraftItem', e);
-    toast('Update gagal: ' + e.message, 'error');
+    console.error('updateMaster', e);
+    toast('Update master gagal: ' + e.message, 'error');
+  }
+}
+
+// Issue #2: Delete draft item
+async function deleteDraftItem(id) {
+  const draft = currentCalc.drafts.find(d => d.id === id);
+  if (!draft) return;
+  
+  if (!confirm(`Hapus item "${draft.name}"?\n\nItem akan hilang dari BOM ini saja. Re-generate akan munculkan kembali (kecuali Anda matikan rule-nya di Sizing Rules).`)) return;
+  
+  try {
+    const { error } = await sb.rpc('delete_draft_item', {
+      p_calc_input_id: currentCalc.id,
+      p_sort_order: draft.sort_order,
+      p_user_id: currentUser.id,
+      p_reason: 'Deleted via calculator UI'
+    });
+    if (error) throw error;
+    
+    toast('✓ Item deleted', 'success');
+    renderDraftPage(currentCalc.id);
+  } catch (e) {
+    console.error('deleteDraftItem', e);
+    toast('Delete gagal: ' + e.message, 'error');
   }
 }
 
@@ -1221,6 +1373,490 @@ async function doCommit(calcId) {
     closeModal();
     console.error('commit error', e);
     toast('Commit gagal: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ADD CUSTOM ITEM TO DRAFT
+// ═══════════════════════════════════════════════════════════════════════
+let allComponents = [];
+
+async function loadAllComponents(forceReload = false) {
+  if (allComponents.length > 0 && !forceReload) return allComponents;
+  try {
+    const { data, error } = await sb.from('bom_components')
+      .select('id, part_number, name, unit, price, category')
+      .eq('is_active', true)
+      .order('part_number');
+    if (error) throw error;
+    allComponents = data || [];
+    return allComponents;
+  } catch (e) {
+    console.error('loadComponents', e);
+    toast('Gagal load master: ' + e.message, 'error');
+    return [];
+  }
+}
+
+async function openAddCustomItem(section) {
+  await loadAllComponents();
+  
+  showModal(`
+    <div class="modal-header">
+      <h2>+ Tambah Item Custom — Section ${section}</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tab-bar" style="margin-bottom:1rem">
+        <button class="tab-btn active" id="tabFromMaster" onclick="switchAddTab('master')">📦 Pilih dari Master (245 komponen)</button>
+        <button class="tab-btn" id="tabCustom" onclick="switchAddTab('custom')">✨ Tulis Custom (komponen baru)</button>
+      </div>
+      
+      <div id="addTabMaster">
+        <div class="form-row">
+          <label>Cari Komponen</label>
+          <input type="text" id="masterSearch" placeholder="Ketik part number atau nama..." oninput="filterMasterList(this.value)">
+        </div>
+        <div id="masterListResults" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface)">
+          ${renderMasterPicker(allComponents.slice(0, 30))}
+        </div>
+        <div class="form-hint mt-1">Klik komponen untuk pilih, lalu isi qty</div>
+        
+        <div id="selectedMasterPanel" class="hidden mt-2" style="background:var(--surface2);padding:.75rem;border-radius:var(--r-sm)">
+          <div id="selectedMasterDetail"></div>
+          <div class="form-grid mt-1">
+            <div class="form-row">
+              <label>Qty<span class="req">*</span></label>
+              <input type="number" id="addQtyMaster" value="1" min="1" step="any">
+            </div>
+            <div class="form-row">
+              <label>Harga (override, opsional)</label>
+              <input type="number" id="addPriceMaster" placeholder="Pakai harga master">
+            </div>
+          </div>
+          <div class="form-row mt-1">
+            <label>Note (opsional)</label>
+            <input type="text" id="addNoteMaster" placeholder="Catatan untuk item ini">
+          </div>
+        </div>
+      </div>
+      
+      <div id="addTabCustom" class="hidden">
+        <div class="form-row">
+          <label>Nama Komponen<span class="req">*</span></label>
+          <input type="text" id="customName" placeholder="Misal: Cable Tie 200mm">
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Part Number</label>
+            <input type="text" id="customPartNo" placeholder="—">
+          </div>
+          <div class="form-row">
+            <label>Unit<span class="req">*</span></label>
+            <input type="text" id="customUnit" value="pcs" placeholder="pcs / m / lot / box">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Qty<span class="req">*</span></label>
+            <input type="number" id="customQty" value="1" min="0" step="any">
+          </div>
+          <div class="form-row">
+            <label>Harga Satuan<span class="req">*</span></label>
+            <input type="number" id="customPrice" placeholder="0" min="0" step="any">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Note (opsional)</label>
+          <input type="text" id="customNote" placeholder="Catatan untuk item ini">
+        </div>
+        <div class="mt-1">
+          <label class="flex" style="cursor:pointer">
+            <input type="checkbox" id="alsoAddToMaster" style="width:16px">
+            <span style="font-size:12px;color:var(--text2)">Sekalian simpan komponen ini ke master (untuk dipakai project lain)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="confirmAddCustomItem('${section}')">+ Tambahkan ke Draft</button>
+    </div>
+  `, 'modal-lg');
+}
+
+function renderMasterPicker(items) {
+  if (items.length === 0) return '<div class="text-3" style="padding:1.25rem;text-align:center;font-size:12px">Tidak ada komponen yang cocok</div>';
+  return items.map(c => `
+    <div onclick="selectMasterComponent(${c.id})" style="padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s" 
+         onmouseover="this.style.background='var(--surface2)'" 
+         onmouseout="this.style.background=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500">${escapeHtml(c.name || '—')}</div>
+          <div style="display:flex;gap:8px;margin-top:2px">
+            <span class="mono" style="font-size:10px;color:var(--text3)">${escapeHtml(c.part_number || '—')}</span>
+            <span style="font-size:10px;color:var(--text3)">· ${escapeHtml(c.unit || 'pcs')}</span>
+            ${c.category ? `<span style="font-size:10px;color:var(--text3)">· ${escapeHtml(c.category)}</span>` : ''}
+          </div>
+        </div>
+        <div class="fw-600 mono" style="font-size:12px;white-space:nowrap">${fmtRp(c.price)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterMasterList(query) {
+  const q = (query || '').toLowerCase().trim();
+  const filtered = q.length === 0 
+    ? allComponents.slice(0, 30) 
+    : allComponents.filter(c => 
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.part_number || '').toLowerCase().includes(q) ||
+        (c.category || '').toLowerCase().includes(q)
+      ).slice(0, 50);
+  $('masterListResults').innerHTML = renderMasterPicker(filtered);
+}
+
+let _selectedMasterId = null;
+function selectMasterComponent(id) {
+  const c = allComponents.find(x => x.id === id);
+  if (!c) return;
+  _selectedMasterId = id;
+  $('selectedMasterPanel').classList.remove('hidden');
+  $('selectedMasterDetail').innerHTML = `
+    <div class="kv" style="grid-template-columns:100px 1fr">
+      <div class="k">Komponen</div><div class="v">${escapeHtml(c.name)}</div>
+      <div class="k">Part No.</div><div class="v mono" style="font-size:11px">${escapeHtml(c.part_number || '—')}</div>
+      <div class="k">Unit</div><div class="v">${escapeHtml(c.unit || 'pcs')}</div>
+      <div class="k">Harga master</div><div class="v fw-600">${fmtRp(c.price)}</div>
+    </div>
+  `;
+  $('addPriceMaster').value = '';
+  $('addPriceMaster').placeholder = `Pakai harga master (${fmtRp(c.price)})`;
+}
+
+function switchAddTab(which) {
+  if (which === 'master') {
+    $('tabFromMaster').classList.add('active');
+    $('tabCustom').classList.remove('active');
+    $('addTabMaster').classList.remove('hidden');
+    $('addTabCustom').classList.add('hidden');
+  } else {
+    $('tabFromMaster').classList.remove('active');
+    $('tabCustom').classList.add('active');
+    $('addTabMaster').classList.add('hidden');
+    $('addTabCustom').classList.remove('hidden');
+  }
+}
+
+async function confirmAddCustomItem(section) {
+  const isMasterTab = !$('addTabMaster').classList.contains('hidden');
+  
+  let payload;
+  if (isMasterTab) {
+    if (!_selectedMasterId) { toast('Pilih komponen dulu dari list', 'warn'); return; }
+    const c = allComponents.find(x => x.id === _selectedMasterId);
+    const qty = parseFloat($('addQtyMaster').value);
+    const customPrice = parseFloat($('addPriceMaster').value);
+    if (isNaN(qty) || qty <= 0) { toast('Qty harus > 0', 'warn'); return; }
+    
+    payload = {
+      p_calc_input_id: currentCalc.id,
+      p_section: section,
+      p_name: c.name,
+      p_part_number: c.part_number,
+      p_unit: c.unit,
+      p_qty: qty,
+      p_unit_price: !isNaN(customPrice) ? customPrice : c.price,
+      p_component_id: c.id,
+      p_note: $('addNoteMaster').value || null,
+      p_user_id: currentUser.id
+    };
+  } else {
+    const name = $('customName').value.trim();
+    const qty = parseFloat($('customQty').value);
+    const price = parseFloat($('customPrice').value);
+    if (!name) { toast('Nama komponen wajib', 'warn'); return; }
+    if (isNaN(qty) || qty <= 0) { toast('Qty harus > 0', 'warn'); return; }
+    if (isNaN(price) || price < 0) { toast('Harga tidak valid', 'warn'); return; }
+    
+    let componentId = null;
+    if ($('alsoAddToMaster').checked) {
+      try {
+        const { data, error } = await sb.rpc('add_master_component', {
+          p_part_number: $('customPartNo').value || ('CUSTOM-' + Date.now()),
+          p_name: name,
+          p_unit: $('customUnit').value || 'pcs',
+          p_price: price,
+          p_category: 'Custom-' + section,
+          p_user_id: currentUser.id
+        });
+        if (error) throw error;
+        componentId = data;
+        toast('✓ Komponen ditambahkan ke master', 'success');
+        await loadAllComponents(true);  // refresh
+      } catch (e) {
+        toast('Gagal simpan ke master: ' + e.message, 'error');
+        // Tetap lanjut add ke draft meskipun master gagal
+      }
+    }
+    
+    payload = {
+      p_calc_input_id: currentCalc.id,
+      p_section: section,
+      p_name: name,
+      p_part_number: $('customPartNo').value || null,
+      p_unit: $('customUnit').value || 'pcs',
+      p_qty: qty,
+      p_unit_price: price,
+      p_component_id: componentId,
+      p_note: $('customNote').value || null,
+      p_user_id: currentUser.id
+    };
+  }
+  
+  try {
+    const { error } = await sb.rpc('add_draft_item', payload);
+    if (error) throw error;
+    
+    closeModal();
+    _selectedMasterId = null;
+    toast('✓ Item ditambahkan ke draft', 'success');
+    renderDraftPage(currentCalc.id);
+  } catch (e) {
+    console.error('addItem', e);
+    toast('Add gagal: ' + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PAGE: MASTER COMPONENTS (full CRUD)
+// ═══════════════════════════════════════════════════════════════════════
+let masterFilter = '';
+
+async function renderMasterPage(opts = {}) {
+  $('pageTitle').textContent = 'Master Komponen';
+  $('pageSub').textContent = 'Kelola harga & data 245+ komponen — semua bisa edit, tambah, hapus';
+  $('pageActions').innerHTML = `
+    <button class="btn btn-primary" onclick="openAddMasterModal()">
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      + Komponen Baru
+    </button>
+  `;
+  
+  $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div class="text-3">Loading master...</div></div>`;
+  
+  await loadAllComponents(true);
+  
+  $('pageBody').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Total Komponen</div><div class="kpi-value">${allComponents.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Total Value (master)</div><div class="kpi-value" style="font-size:18px">${fmtRp(allComponents.reduce((s,c)=>s+Number(c.price||0),0))}</div></div>
+      <div class="kpi"><div class="kpi-label">Avg Harga</div><div class="kpi-value" style="font-size:18px">${fmtRp(allComponents.length > 0 ? Math.round(allComponents.reduce((s,c)=>s+Number(c.price||0),0)/allComponents.length) : 0)}</div></div>
+    </div>
+    
+    <div class="card mb-2" style="padding:.875rem">
+      <div class="flex gap-1">
+        <input type="text" id="masterTableFilter" placeholder="Cari part number, nama, atau kategori..." oninput="masterFilter=this.value;renderMasterTable()" style="flex:1">
+        <button class="btn" onclick="$('masterTableFilter').value='';masterFilter='';renderMasterTable()">Clear</button>
+      </div>
+    </div>
+    
+    <div id="masterTableContainer">${renderMasterTable()}</div>
+  `;
+}
+
+function renderMasterTable() {
+  const q = (masterFilter || '').toLowerCase().trim();
+  const filtered = q.length === 0 
+    ? allComponents
+    : allComponents.filter(c => 
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.part_number || '').toLowerCase().includes(q) ||
+        (c.category || '').toLowerCase().includes(q)
+      );
+  
+  const html = `
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px">ID</th>
+              <th style="width:140px">Part No.</th>
+              <th>Nama Komponen</th>
+              <th style="width:130px">Kategori</th>
+              <th style="width:80px">Unit</th>
+              <th style="width:140px;text-align:right">Harga</th>
+              <th style="width:100px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.length === 0 ? `<tr class="empty-row"><td colspan="7">Tidak ada komponen yang cocok dengan filter "${escapeHtml(q)}"</td></tr>` : ''}
+            ${filtered.map(c => `
+              <tr>
+                <td class="text-3 mono" style="font-size:11px">#${c.id}</td>
+                <td><span class="mono" style="font-size:11px">${escapeHtml(c.part_number || '—')}</span></td>
+                <td style="font-size:13px">${escapeHtml(c.name || '—')}</td>
+                <td><span class="text-3" style="font-size:11px">${escapeHtml(c.category || '—')}</span></td>
+                <td class="text-3" style="font-size:11px">${escapeHtml(c.unit || '—')}</td>
+                <td class="text-right fw-600 mono" style="font-size:12px">${fmtRp(c.price)}</td>
+                <td>
+                  <div class="flex gap-1" style="justify-content:flex-end">
+                    <button class="btn btn-sm btn-ghost" onclick="openEditMasterModal(${c.id})" title="Edit">✎</button>
+                    <button class="btn btn-sm btn-ghost btn-danger" onclick="deactivateMasterComponent(${c.id})" title="Hapus (soft-delete)">🗑</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="text-3 mt-1" style="font-size:11px;text-align:right">Showing ${filtered.length} of ${allComponents.length} komponen</div>
+  `;
+  
+  if ($('masterTableContainer')) $('masterTableContainer').innerHTML = html;
+  return html;
+}
+
+function openAddMasterModal() {
+  showModal(`
+    <div class="modal-header">
+      <h2>+ Komponen Baru</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Part Number<span class="req">*</span></label>
+          <input type="text" id="newPartNo" placeholder="Misal: A9F74250">
+        </div>
+        <div class="form-row">
+          <label>Unit<span class="req">*</span></label>
+          <input type="text" id="newUnit" value="pcs" placeholder="pcs / m / box / lot">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Nama Komponen<span class="req">*</span></label>
+        <input type="text" id="newName" placeholder="Misal: MCB Schneider iC60N 2P 50A Curve C">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Kategori</label>
+          <input type="text" id="newCategory" placeholder="Misal: Schneider, OMRON, Cable, Aksesoris">
+        </div>
+        <div class="form-row">
+          <label>Harga<span class="req">*</span></label>
+          <input type="number" id="newPrice" placeholder="0" min="0" step="any">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="doAddMaster()">+ Simpan</button>
+    </div>
+  `);
+}
+
+async function doAddMaster() {
+  try {
+    const { data, error } = await sb.rpc('add_master_component', {
+      p_part_number: $('newPartNo').value.trim(),
+      p_name: $('newName').value.trim(),
+      p_unit: $('newUnit').value || 'pcs',
+      p_price: parseFloat($('newPrice').value),
+      p_category: $('newCategory').value || 'Custom',
+      p_user_id: currentUser.id
+    });
+    if (error) throw error;
+    closeModal();
+    toast('✓ Komponen baru ditambahkan (ID #' + data + ')', 'success');
+    renderMasterPage();
+  } catch (e) {
+    toast('Gagal: ' + e.message, 'error');
+  }
+}
+
+function openEditMasterModal(id) {
+  const c = allComponents.find(x => x.id === id);
+  if (!c) return;
+  
+  showModal(`
+    <div class="modal-header">
+      <h2>Edit Komponen #${id}</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Part Number<span class="req">*</span></label>
+          <input type="text" id="editPartNo" value="${escapeHtml(c.part_number || '')}">
+        </div>
+        <div class="form-row">
+          <label>Unit<span class="req">*</span></label>
+          <input type="text" id="editUnit" value="${escapeHtml(c.unit || 'pcs')}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Nama Komponen<span class="req">*</span></label>
+        <input type="text" id="editName" value="${escapeHtml(c.name || '')}">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Kategori</label>
+          <input type="text" id="editCategory" value="${escapeHtml(c.category || '')}">
+        </div>
+        <div class="form-row">
+          <label>Harga<span class="req">*</span></label>
+          <input type="number" id="editPrice" value="${c.price}" min="0" step="any">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn btn-primary" onclick="doUpdateMasterComp(${id})">✓ Simpan</button>
+    </div>
+  `);
+}
+
+async function doUpdateMasterComp(id) {
+  try {
+    const { error } = await sb.rpc('update_master_component', {
+      p_id: id,
+      p_part_number: $('editPartNo').value.trim(),
+      p_name: $('editName').value.trim(),
+      p_unit: $('editUnit').value || 'pcs',
+      p_price: parseFloat($('editPrice').value),
+      p_category: $('editCategory').value || null,
+      p_user_id: currentUser.id
+    });
+    if (error) throw error;
+    closeModal();
+    toast('✓ Komponen #' + id + ' updated', 'success');
+    renderMasterPage();
+  } catch (e) {
+    toast('Update gagal: ' + e.message, 'error');
+  }
+}
+
+async function deactivateMasterComponent(id) {
+  const c = allComponents.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`Hapus komponen "${c.name}"?\n\nKomponen akan di-soft-delete (tidak hilang permanen, bisa di-restore lewat dashboard Supabase). BOM yang sudah pakai komponen ini tidak terpengaruh.`)) return;
+  
+  try {
+    const { error } = await sb.rpc('deactivate_master_component', {
+      p_id: id,
+      p_user_id: currentUser.id,
+      p_reason: 'Soft-deleted via Master Components UI'
+    });
+    if (error) throw error;
+    toast('✓ Komponen #' + id + ' dihapus', 'success');
+    renderMasterPage();
+  } catch (e) {
+    toast('Delete gagal: ' + e.message, 'error');
   }
 }
 
