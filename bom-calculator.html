@@ -141,6 +141,34 @@ tbody tr:last-child td{border-bottom:none}
 .section-header td{padding:6px 12px;border-bottom:1px solid var(--border)}
 
 .draft-row.overridden td{background:var(--amber-bg)}
+.draft-row.has-pending td{background:var(--blue-bg) !important}
+.draft-row.has-pending td:first-child::before{content:'●';color:var(--blue);margin-right:4px;font-size:8px}
+
+/* SAVE BAR — floating action bar saat ada pending edits */
+.save-bar{
+  position:sticky;
+  bottom:0;
+  background:var(--text);
+  color:#fff;
+  padding:.875rem 1.25rem;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  margin:1.25rem -1.5rem -1.5rem;
+  box-shadow:0 -4px 12px rgba(0,0,0,.15);
+  z-index:50;
+  animation:slideUp .2s ease
+}
+.save-bar.hidden{display:none}
+.save-bar-info{display:flex;align-items:center;gap:8px;font-size:13px}
+.save-bar-info strong{font-size:14px;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:4px}
+.save-bar-actions{display:flex;gap:8px}
+.save-bar .btn-save{background:var(--green);color:#fff;border-color:var(--green);font-weight:600}
+.save-bar .btn-save:hover{opacity:.9;color:#fff}
+.save-bar .btn-discard{background:transparent;color:#fff;border-color:rgba(255,255,255,.3)}
+.save-bar .btn-discard:hover{background:rgba(255,255,255,.1);color:#fff}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .qty-input,.price-input{padding:5px 8px !important;font-size:13px !important;text-align:right;color:var(--text);background:var(--surface);border:1px solid var(--border2);font-family:'DM Mono',monospace;border-radius:5px}
 .qty-input{width:75px}
 .price-input{width:120px}
@@ -299,6 +327,16 @@ let allPPRequests = [];
 let currentCalc = null;          // { ...panel_calc_inputs, drafts:[] }
 let calcParameters = null;       // Active form parameter while building
 let selectedPanelType = null;    // ACDB / DCDB_110V / DCDB_48V / LVDP
+
+// BATCHED EDIT STATE — pending changes belum di-save ke server
+// Structure: { "draftId_field": { draftId, sortOrder, field, newValue, oldValue } }
+let pendingChanges = {};
+function hasPendingChanges() {
+  return Object.keys(pendingChanges).length > 0;
+}
+function pendingChangesCount() {
+  return Object.keys(pendingChanges).length;
+}
 
 const PANEL_TYPES = {
   'ACDB': { name: 'ACDB 400/230VAC', desc: '3-phase, ACB MTZ, mixed outgoing 4P/3P/2P', engine: 'calculate_acdb', deriveFn: 'derive_acdb_vars' },
@@ -470,6 +508,19 @@ async function loadCalcDetail(calcId) {
 // PAGE ROUTER
 // ═══════════════════════════════════════════════════════════════════════
 function goPage(page, opts = {}) {
+  // Block navigation if there are unsaved pending edits
+  if (hasPendingChanges() && currentPage === 'draft' && page !== 'draft') {
+    const confirmLeave = confirm(
+      `⚠️ Anda punya ${pendingChangesCount()} perubahan belum disimpan.\n\n` +
+      `Kalau pindah halaman sekarang, semua perubahan AKAN HILANG.\n\n` +
+      `Klik OK untuk pindah halaman (buang perubahan)\n` +
+      `Klik Cancel untuk tetap di halaman ini (lanjut edit / save)`
+    );
+    if (!confirmLeave) return;
+    // User confirmed leaving — discard pending changes
+    pendingChanges = {};
+  }
+  
   currentPage = page;
   document.querySelectorAll('.sb-nav .sb-item').forEach(el => el.classList.remove('active'));
   
@@ -963,11 +1014,41 @@ function showLoadingModal(msg) {
 // ═══════════════════════════════════════════════════════════════════════
 // PAGE: DRAFT PREVIEW & EDIT
 // ═══════════════════════════════════════════════════════════════════════
-async function renderDraftPage(calcId) {
+async function renderDraftPage(calcId, opts = {}) {
+  const preserveScroll = opts.preserveScroll === true;
+  const preserveFocus = opts.preserveFocus === true;
+  
+  // Capture state to restore after render
+  let savedScrollTop = 0;
+  let savedFocusInfo = null;
+  if (preserveScroll && $('pageBody')) {
+    savedScrollTop = $('pageBody').scrollTop;
+  }
+  if (preserveFocus && document.activeElement) {
+    const el = document.activeElement;
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      // Try to identify by row id + field role
+      const row = el.closest('tr');
+      if (row && row.id) {
+        savedFocusInfo = {
+          rowId: row.id,
+          className: el.className,
+          // capture selection
+          selectionStart: el.selectionStart,
+          selectionEnd: el.selectionEnd
+        };
+      }
+    }
+  }
+  
   $('pageTitle').textContent = 'Draft BOM Preview';
   $('pageSub').textContent = 'Review hasil generate engine, override jika perlu, lalu commit';
   $('pageActions').innerHTML = `<button class="btn btn-ghost" onclick="goPage('list')">← Kembali</button>`;
-  $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div class="text-3">Loading draft...</div></div>`;
+  
+  // Only show loading state if NOT preserving scroll (initial load)
+  if (!preserveScroll) {
+    $('pageBody').innerHTML = `<div class="card text-center" style="padding:3rem"><div class="text-3">Loading draft...</div></div>`;
+  }
   
   const calc = await loadCalcDetail(calcId);
   if (!calc) {
@@ -1072,14 +1153,78 @@ async function renderDraftPage(calcId) {
             ${!isCommitted && Object.keys(sections).length === 0 ? '' : ''}
             <tr style="background:var(--text);color:#fff">
               <td colspan="6" style="text-align:right;font-weight:600;color:#fff">GRAND TOTAL</td>
-              <td class="text-right" style="font-weight:600;color:#fff;font-size:14px">${fmtRp(total)}</td>
+              <td class="text-right" id="grandTotalCell" style="font-weight:600;color:#fff;font-size:14px">${fmtRp(total)}</td>
               <td></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+    
+    ${isCommitted ? '' : `
+      <!-- SAVE BAR — floating bottom -->
+      <div class="save-bar hidden" id="saveBar">
+        <div class="save-bar-info">
+          <span>📝 Anda punya</span>
+          <strong id="saveBarCount">0</strong>
+          <span>perubahan belum disimpan</span>
+        </div>
+        <div class="save-bar-actions">
+          <button class="btn btn-discard" onclick="discardPendingChanges()">🗑 Batalkan</button>
+          <button class="btn btn-save" id="saveBarBtn" onclick="savePendingChanges()">💾 Save All Changes</button>
+        </div>
+      </div>
+    `}
   `;
+  
+  // Restore save bar state (kalau ada pending changes saat scroll restore)
+  if (preserveScroll && hasPendingChanges()) {
+    setTimeout(() => {
+      updateSaveBar();
+      // Re-apply pending values to inputs in DOM (because re-render overwrote them)
+      Object.values(pendingChanges).forEach(c => {
+        const row = document.getElementById('draftRow_' + c.draftId);
+        if (!row) return;
+        let selector = '';
+        if (c.field === 'name') selector = '.edit-name';
+        else if (c.field === 'part_number') selector = '.edit-partno';
+        else if (c.field === 'unit') selector = '.edit-unit';
+        else if (c.field === 'qty') selector = '.qty-input';
+        else if (c.field === 'unit_price') selector = '.price-input';
+        if (selector) {
+          const input = row.querySelector(selector);
+          if (input) input.value = c.newValue;
+        }
+        // Re-mark row
+        updateRowPendingIndicator(c.draftId);
+      });
+      recalcGrandTotalLive();
+    }, 10);
+  }
+  
+  // Restore scroll position after innerHTML replace
+  if (preserveScroll && $('pageBody')) {
+    // Use requestAnimationFrame to wait for layout
+    requestAnimationFrame(() => {
+      $('pageBody').scrollTop = savedScrollTop;
+    });
+  }
+  
+  // Restore focus to the field that was edited (if any)
+  if (savedFocusInfo) {
+    requestAnimationFrame(() => {
+      const row = document.getElementById(savedFocusInfo.rowId);
+      if (row) {
+        const target = row.querySelector('.' + savedFocusInfo.className.split(' ')[0]);
+        if (target) {
+          target.focus();
+          try {
+            target.setSelectionRange(savedFocusInfo.selectionStart, savedFocusInfo.selectionEnd);
+          } catch (e) { /* type=number doesn't support selection */ }
+        }
+      }
+    });
+  }
 }
 
 function renderDraftRow(d, isCommitted) {
@@ -1152,48 +1297,282 @@ function toggleReason(id) {
   $('reason_' + id).classList.toggle('show');
 }
 
-async function updateDraftField(id, field, val, isNumeric = false) {
-  try {
-    const draft = currentCalc.drafts.find(d => d.id === id);
-    if (!draft) return;
+// BATCHED EDIT: Mark field as pending change (NO server call, NO refresh)
+// Updates local DOM only. User must click "Save All Changes" to commit.
+function updateDraftField(id, field, val, isNumeric = false) {
+  const draft = currentCalc.drafts.find(d => d.id === id);
+  if (!draft) return;
+  
+  let newValStr = val;
+  if (isNumeric) {
+    const numVal = parseFloat(val);
+    if (isNaN(numVal) || numVal < 0) {
+      toast('Nilai tidak valid', 'warn');
+      return;
+    }
+    newValStr = String(numVal);
+  } else {
+    newValStr = (val || '').toString().trim();
+  }
+  
+  // Get current value from draft object (or pending change if exists)
+  const key = id + '_' + field;
+  const oldValue = String(draft[field] !== null && draft[field] !== undefined ? draft[field] : '');
+  
+  // No change? Remove pending entry (if any) and return
+  if (newValStr === oldValue) {
+    if (pendingChanges[key]) {
+      delete pendingChanges[key];
+      updateSaveBar();
+      updateRowPendingIndicator(id);
+    }
+    return;
+  }
+  
+  // Record pending change
+  pendingChanges[key] = {
+    draftId: id,
+    sortOrder: draft.sort_order,
+    field: field,
+    newValue: newValStr,
+    oldValue: oldValue
+  };
+  
+  // Update local DOM immediately for instant feedback
+  // For qty/price: recalculate subtotal in this row
+  if (field === 'qty' || field === 'unit_price') {
+    const newQty = field === 'qty' ? parseFloat(newValStr) : Number(draft.qty);
+    const newPrice = field === 'unit_price' ? parseFloat(newValStr) : Number(draft.unit_price);
+    const newSubtotal = newQty * newPrice;
     
-    let newValStr = val;
-    if (isNumeric) {
-      const numVal = parseFloat(val);
-      if (isNaN(numVal) || numVal < 0) {
-        toast('Nilai tidak valid', 'warn');
-        return;
-      }
-      newValStr = String(numVal);
-    } else {
-      newValStr = (val || '').toString().trim();
+    // Update subtotal cell in row
+    const row = document.getElementById('draftRow_' + id);
+    if (row) {
+      const subtotalCell = row.querySelector('td.fw-600');
+      if (subtotalCell) subtotalCell.textContent = fmtRp(newSubtotal);
     }
     
-    const { error } = await sb.rpc('update_draft_field', {
-      p_calc_input_id: currentCalc.id,
-      p_sort_order: draft.sort_order,
-      p_field: field,
-      p_new_value: newValStr,
-      p_user_id: currentUser.id,
-      p_reason: 'Inline edit by ' + (currentUser.full_name || currentUser.username)
-    });
-    if (error) throw error;
-    
-    toast('✓ Saved', 'success');
-    
-    // Issue #3: Kalau yang diubah adalah harga & berbeda dari default, prompt user untuk update master
-    if (field === 'unit_price' && parseFloat(newValStr) !== Number(draft.default_unit_price) && (draft.component_id || draft.source_rule_id)) {
-      setTimeout(() => promptUpdateMaster(draft, parseFloat(newValStr)), 400);
-    } else {
-      renderDraftPage(currentCalc.id);
-    }
-  } catch (e) {
-    console.error('updateDraftField', e);
-    toast('Update gagal: ' + e.message, 'error');
+    // Update grand total too (live recalc)
+    recalcGrandTotalLive();
+  }
+  
+  // Mark row as having pending edits
+  updateRowPendingIndicator(id);
+  
+  // Show / update save bar
+  updateSaveBar();
+}
+
+// Show pending indicator on a row (visual cue)
+function updateRowPendingIndicator(id) {
+  const row = document.getElementById('draftRow_' + id);
+  if (!row) return;
+  const hasPending = Object.values(pendingChanges).some(c => c.draftId === id);
+  if (hasPending) {
+    row.classList.add('has-pending');
+  } else {
+    row.classList.remove('has-pending');
   }
 }
 
-// Backward compat alias (just in case)
+// Live recalculate grand total from current DOM input values
+function recalcGrandTotalLive() {
+  if (!currentCalc || !currentCalc.drafts) return;
+  let total = 0;
+  currentCalc.drafts.forEach(d => {
+    // Check if there's a pending change for qty or unit_price
+    const pendingQty = pendingChanges[d.id + '_qty'];
+    const pendingPrice = pendingChanges[d.id + '_unit_price'];
+    const qty = pendingQty ? parseFloat(pendingQty.newValue) : Number(d.qty);
+    const price = pendingPrice ? parseFloat(pendingPrice.newValue) : Number(d.unit_price);
+    total += qty * price;
+  });
+  
+  const gtCell = document.getElementById('grandTotalCell');
+  if (gtCell) gtCell.textContent = fmtRp(total);
+}
+
+// Show/hide & update Save All button bar
+function updateSaveBar() {
+  const bar = document.getElementById('saveBar');
+  if (!bar) return;
+  const count = pendingChangesCount();
+  if (count > 0) {
+    bar.classList.remove('hidden');
+    const countEl = document.getElementById('saveBarCount');
+    if (countEl) countEl.textContent = count;
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+// BATCH SAVE all pending changes to server
+async function savePendingChanges() {
+  if (!hasPendingChanges()) {
+    toast('Tidak ada perubahan untuk disimpan', 'warn');
+    return;
+  }
+  
+  // Build changes array
+  const changes = Object.values(pendingChanges).map(c => ({
+    sort_order: c.sortOrder,
+    field: c.field,
+    value: c.newValue
+  }));
+  
+  const saveBtn = document.getElementById('saveBarBtn');
+  const originalText = saveBtn ? saveBtn.innerHTML : '';
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '⏳ Menyimpan...';
+  }
+  
+  try {
+    const { data, error } = await sb.rpc('batch_update_draft_fields', {
+      p_calc_input_id: currentCalc.id,
+      p_changes: changes,
+      p_user_id: currentUser.id
+    });
+    if (error) throw error;
+    
+    const result = data[0];
+    const appliedCount = result.applied_count;
+    const errors = result.errors || [];
+    
+    // Check if any price changes — prompt master update?
+    const priceChanges = Object.values(pendingChanges).filter(c => c.field === 'unit_price');
+    
+    // Clear pending state
+    pendingChanges = {};
+    
+    if (errors.length > 0) {
+      toast(`✓ ${appliedCount} tersimpan, ${errors.length} gagal — cek console`, 'warn');
+      console.error('Batch save errors:', errors);
+    } else {
+      toast(`✓ ${appliedCount} perubahan tersimpan`, 'success');
+    }
+    
+    // If any price changes, prompt for master update (only first one for simplicity)
+    if (priceChanges.length > 0) {
+      const firstPriceChange = priceChanges[0];
+      const draft = currentCalc.drafts.find(d => d.id === firstPriceChange.draftId);
+      if (draft && (draft.component_id || draft.source_rule_id)) {
+        const newPrice = parseFloat(firstPriceChange.newValue);
+        if (newPrice !== Number(draft.default_unit_price)) {
+          if (priceChanges.length === 1) {
+            setTimeout(() => promptUpdateMaster(draft, newPrice), 400);
+          } else {
+            // Multiple price changes — show summary modal
+            setTimeout(() => promptUpdateMasterBatch(priceChanges), 400);
+            return;  // Skip refresh until user closes prompt
+          }
+        }
+      }
+    }
+    
+    // Reload draft (preserve scroll)
+    renderDraftPage(currentCalc.id, { preserveScroll: true });
+    
+  } catch (e) {
+    console.error('savePendingChanges', e);
+    toast('Save gagal: ' + e.message, 'error');
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalText;
+    }
+  }
+}
+
+// Prompt for multiple price changes → update master?
+function promptUpdateMasterBatch(priceChanges) {
+  const listHtml = priceChanges.map(c => {
+    const d = currentCalc.drafts.find(x => x.id === c.draftId);
+    if (!d) return '';
+    const newP = parseFloat(c.newValue);
+    const oldP = Number(d.default_unit_price);
+    const updatable = d.component_id || d.source_rule_id;
+    return `
+      <label class="flex" style="cursor:${updatable ? 'pointer' : 'not-allowed'};padding:8px;border-bottom:1px solid var(--border);${updatable ? '' : 'opacity:.5'}">
+        <input type="checkbox" class="batch-price-check" data-draft-id="${d.id}" data-new-price="${newP}" ${updatable ? 'checked' : 'disabled'} style="width:16px;flex-shrink:0">
+        <div style="flex:1;min-width:0;font-size:12px">
+          <div style="font-weight:500">${escapeHtml(d.name)}</div>
+          <div class="text-3" style="font-size:11px">
+            ${fmtRp(oldP)} → <strong style="color:${newP > oldP ? 'var(--red)' : 'var(--green)'}">${fmtRp(newP)}</strong>
+            ${!updatable ? ' <span style="color:var(--text3)">(custom — no master)</span>' : ''}
+          </div>
+        </div>
+      </label>
+    `;
+  }).join('');
+  
+  showModal(`
+    <div class="modal-header">
+      <h2>Update Harga ke Master? (${priceChanges.length} item)</h2>
+      <button class="btn btn-sm btn-ghost" onclick="closeModalAndRefresh()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">
+        Anda mengubah ${priceChanges.length} harga komponen. Pilih mana yang ingin <strong>disimpan ke master</strong> supaya project berikutnya pakai harga baru:
+      </p>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface)">
+        ${listHtml}
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:.5rem">
+        💡 Centang = update master | ⚠️ Tidak centang = hanya draft ini
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModalAndRefresh()">Skip Semua</button>
+      <button class="btn btn-primary" onclick="doBatchMasterUpdate()">✓ Update Master yang Dicentang</button>
+    </div>
+  `);
+}
+
+async function doBatchMasterUpdate() {
+  const checks = document.querySelectorAll('.batch-price-check:checked');
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (const check of checks) {
+    const draftId = parseInt(check.getAttribute('data-draft-id'));
+    const newPrice = parseFloat(check.getAttribute('data-new-price'));
+    const draft = currentCalc.drafts.find(d => d.id === draftId);
+    if (!draft) continue;
+    
+    try {
+      await sb.rpc('update_master_price', {
+        p_component_id: draft.component_id || null,
+        p_rule_id: draft.source_rule_id || null,
+        p_new_price: newPrice,
+        p_user_id: currentUser.id,
+        p_reason: 'Batch update from BOM Calculator'
+      });
+      successCount++;
+    } catch (e) {
+      console.error('Master update failed for draft', draftId, e);
+      failCount++;
+    }
+  }
+  
+  closeModal();
+  if (failCount === 0) {
+    toast(`✓ ${successCount} master price updated`, 'success');
+  } else {
+    toast(`✓ ${successCount} updated, ${failCount} gagal`, 'warn');
+  }
+  renderDraftPage(currentCalc.id, { preserveScroll: true });
+}
+
+// DISCARD all pending changes
+function discardPendingChanges() {
+  if (!hasPendingChanges()) return;
+  if (!confirm(`Batalkan ${pendingChangesCount()} perubahan yang belum disimpan?`)) return;
+  pendingChanges = {};
+  toast('Perubahan dibatalkan', 'warn');
+  renderDraftPage(currentCalc.id, { preserveScroll: true });
+}
+
+// Backward compat alias
 const updateDraftItem = updateDraftField;
 
 // Issue #3: Prompt update master price
@@ -1236,7 +1615,7 @@ function promptUpdateMaster(draft, newPrice) {
 
 function closeModalAndRefresh() {
   closeModal();
-  renderDraftPage(currentCalc.id);
+  renderDraftPage(currentCalc.id, { preserveScroll: true });
 }
 
 async function doUpdateMaster(componentId, ruleId, newPrice) {
@@ -1252,7 +1631,7 @@ async function doUpdateMaster(componentId, ruleId, newPrice) {
     
     closeModal();
     toast('✓ Master price updated! Project berikutnya pakai harga baru', 'success');
-    renderDraftPage(currentCalc.id);
+    renderDraftPage(currentCalc.id, { preserveScroll: true });
   } catch (e) {
     console.error('updateMaster', e);
     toast('Update master gagal: ' + e.message, 'error');
@@ -1276,7 +1655,7 @@ async function deleteDraftItem(id) {
     if (error) throw error;
     
     toast('✓ Item deleted', 'success');
-    renderDraftPage(currentCalc.id);
+    renderDraftPage(currentCalc.id, { preserveScroll: true });
   } catch (e) {
     console.error('deleteDraftItem', e);
     toast('Delete gagal: ' + e.message, 'error');
@@ -1295,7 +1674,7 @@ async function resetDraftItem(id) {
     });
     if (error) throw error;
     toast('✓ Reset ke default', 'success');
-    renderDraftPage(currentCalc.id);
+    renderDraftPage(currentCalc.id, { preserveScroll: true });
   } catch (e) {
     console.error('resetDraftItem', e);
     toast('Reset gagal: ' + e.message, 'error');
@@ -1743,7 +2122,7 @@ async function confirmAddCustomItem(section) {
     closeModal();
     _selectedMasterId = null;
     toast('✓ Item ditambahkan ke draft', 'success');
-    renderDraftPage(currentCalc.id);
+    renderDraftPage(currentCalc.id, { preserveScroll: true });
   } catch (e) {
     console.error('addItem', e);
     toast('Add gagal: ' + e.message, 'error');
@@ -1987,11 +2366,43 @@ document.addEventListener('DOMContentLoaded', () => {
   if (checkAuth()) {
     startApp();
   }
+  
+  // Intercept "Kembali ke Panel V2" link → warn if pending changes
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href="index.html"]');
+    if (link && hasPendingChanges() && currentPage === 'draft') {
+      e.preventDefault();
+      const confirmLeave = confirm(
+        `⚠️ Anda punya ${pendingChangesCount()} perubahan belum disimpan.\n\n` +
+        `Kalau pindah ke Panel V2 sekarang, semua perubahan AKAN HILANG.\n\n` +
+        `Klik OK untuk pindah (buang perubahan)\n` +
+        `Klik Cancel untuk tetap di sini (lanjut edit / save)`
+      );
+      if (confirmLeave) {
+        pendingChanges = {};
+        window.location.href = link.href;
+      }
+    }
+  }, true);  // capture phase to run before default link behavior
+});
+
+// Block close tab / browser back if pending changes
+window.addEventListener('beforeunload', (e) => {
+  if (hasPendingChanges()) {
+    const msg = 'Anda punya perubahan belum disimpan. Yakin mau tutup halaman?';
+    e.preventDefault();
+    e.returnValue = msg;  // Chrome/Edge
+    return msg;            // older browsers
+  }
 });
 
 // Periksa session tiap kali halaman aktif kembali (kalau user logout di tab lain)
 window.addEventListener('focus', () => {
   if (!sessionStorage.getItem('panelUser')) {
+    if (hasPendingChanges()) {
+      // Don't reload if pending changes — would lose them
+      return;
+    }
     location.reload();
   }
 });
