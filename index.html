@@ -711,6 +711,7 @@ async function renderPPModule() {
       </div>
       <div class="topbar-right">
         ${can('pp_input') ? '<button class="btn btn-primary" onclick="openPPForm()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Request Baru</button>' : ''}
+        ${can('pp_view') ? '<button class="btn btn-ghost btn-sm" onclick="openPPExportModal()" style="font-size:12px">📊 Export Bulanan</button>' : ''}
         ${can('pp_manage') ? '<button class="btn btn-ghost btn-sm" onclick="copySalesLink()" style="font-size:12px">📋 Link Sales</button>' : ''}
       </div>
     </div>
@@ -773,6 +774,151 @@ function renderPPTable() {
       <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span></td>
       <td>${badge(r.status)}</td>
     </tr>`).join('');
+}
+
+// ─── EXPORT BULANAN PRE-PROJECT ─────────────────────────────
+function openPPExportModal() {
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth() + 1;
+  // Range tahun: dari tahun request paling lama sampai tahun ini
+  const years = new Set([curY]);
+  allPPs.forEach(r => { if (r.date) years.add(new Date(r.date).getFullYear()); });
+  const yearOpts = Array.from(years).sort((a,b)=>b-a).map(y => `<option value="${y}" ${y===curY?'selected':''}>${y}</option>`).join('');
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const monthOpts = monthNames.map((m,i) => `<option value="${i+1}" ${(i+1)===curM?'selected':''}>${m}</option>`).join('');
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Export Laporan Bulanan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Bulan</label>
+          <select id="ppExpMonth" style="width:100%;padding:6px 8px">${monthOpts}</select>
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Tahun</label>
+          <select id="ppExpYear" style="width:100%;padding:6px 8px">${yearOpts}</select>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text3)">File akan berisi semua request (Open, In Progress, Done) pada bulan & tahun yang dipilih, dengan durasi proses per request.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="doExportPPMonthly()">📥 Export</button>
+    </div>
+  </div>`);
+}
+
+function doExportPPMonthly() {
+  if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat, refresh halaman'); return; }
+  const month = parseInt(gv('ppExpMonth'));
+  const year = parseInt(gv('ppExpYear'));
+  if (!month || !year) { toast('Pilih bulan dan tahun'); return; }
+
+  // Filter request yang created/date-nya di bulan ini
+  const rows = allPPs.filter(r => {
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    return d.getFullYear() === year && (d.getMonth() + 1) === month;
+  }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  if (!rows.length) { toast('Tidak ada request di bulan ini'); return; }
+
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const periode = monthNames[month-1] + ' ' + year;
+  const today_d = new Date();
+
+  // Hitung durasi proses (dalam hari)
+  const calcDuration = (r) => {
+    if (!r.date) return '';
+    const start = new Date(r.date);
+    const end = r.status === 'Done' ? new Date(r.updated_at) : today_d;
+    const days = Math.max(0, Math.round((end - start) / (1000*60*60*24)));
+    return r.status === 'Done' ? days + ' hari' : days + ' hari (berjalan)';
+  };
+
+  // Build sheet data
+  const header = ['No. Request','Tanggal','Customer','Project','Requestor','Output','Status','Durasi Proses','Tgl Selesai'];
+  const dataRows = rows.map(r => [
+    r.id,
+    r.date ? fmtDate(r.date) : '',
+    r.customer_name || '',
+    r.project_name || '',
+    r.app_users?.full_name || '',
+    r.output_type + (r.output_other ? ' — ' + r.output_other : ''),
+    r.status,
+    calcDuration(r),
+    r.status === 'Done' && r.updated_at ? fmtDate(r.updated_at) : ''
+  ]);
+
+  // Summary footer
+  const cntOpen = rows.filter(r => r.status === 'Open').length;
+  const cntIP = rows.filter(r => r.status === 'In Progress').length;
+  const cntDone = rows.filter(r => r.status === 'Done').length;
+
+  const aoa = [
+    ['Laporan Pre-Project — ' + periode],
+    ['Total request: ' + rows.length + ' (Open: ' + cntOpen + ', In Progress: ' + cntIP + ', Done: ' + cntDone + ')'],
+    [],
+    header,
+    ...dataRows,
+    [],
+    ['RINGKASAN'],
+    ['Total Request', rows.length],
+    ['Open', cntOpen],
+    ['In Progress', cntIP],
+    ['Done', cntDone]
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Styling
+  const titleStyle = { font: { bold: true, sz: 14 }, alignment: { horizontal: 'left' } };
+  const headerStyle = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1F2937' } }, alignment: { horizontal: 'left', vertical: 'center' } };
+  const summaryHeadStyle = { font: { bold: true }, fill: { fgColor: { rgb: 'F3F4F6' } } };
+  const summaryKeyStyle = { font: { bold: true } };
+
+  if (ws['A1']) ws['A1'].s = titleStyle;
+  if (ws['A2']) ws['A2'].s = { font: { italic: true, color: { rgb: '6B7280' } } };
+  // Header row (row 4 = index 3)
+  for (let c = 0; c < header.length; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 3, c })];
+    if (cell) cell.s = headerStyle;
+  }
+  // Summary heading & keys
+  const summaryStart = 4 + dataRows.length + 1; // after data + blank row
+  const summaryHeadCell = ws[XLSX.utils.encode_cell({ r: summaryStart, c: 0 })];
+  if (summaryHeadCell) summaryHeadCell.s = summaryHeadStyle;
+  for (let i = 1; i <= 4; i++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: summaryStart + i, c: 0 })];
+    if (cell) cell.s = summaryKeyStyle;
+  }
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 14 }, // No Request
+    { wch: 12 }, // Tanggal
+    { wch: 28 }, // Customer
+    { wch: 28 }, // Project
+    { wch: 18 }, // Requestor
+    { wch: 22 }, // Output
+    { wch: 12 }, // Status
+    { wch: 18 }, // Durasi
+    { wch: 12 }  // Tgl Selesai
+  ];
+  // Merge title row across header columns
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: header.length - 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: header.length - 1 } }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, periode);
+  const filename = `Laporan_PreProject_${year}-${String(month).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast(`${rows.length} request di-export`);
+  closeAllModals();
 }
 
 async function openPPDetail(id) {
