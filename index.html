@@ -1688,10 +1688,51 @@ async function openAssignProduksiModal(itemId, poId) {
     </label>`
   ).join('');
 
+  // ─── Section Serial Number ────────────────────────────────
+  // Hanya tampil untuk item yang butuh ETS dan kategori produksi utama (yang generatable).
+  let snSection = '';
+  const snGeneratable = item.needs_ets && SPEC_CATEGORIES.includes(item.category);
+  if (snGeneratable) {
+    if (item.serial_number) {
+      // Sudah ada SN — tampilkan read-only
+      snSection = `<div style="margin-bottom:14px;padding:10px;background:var(--green-bg);border:1px solid var(--green);border-radius:var(--r-sm)">
+        <div style="font-size:11px;font-weight:600;color:var(--green);margin-bottom:4px">SERIAL NUMBER</div>
+        <div style="font-family:monospace;font-size:13px;color:var(--text)">${item.serial_number}</div>
+      </div>`;
+    } else {
+      // Cek apakah spec sudah lengkap
+      let spec = null;
+      try { const _r = await sb.from('item_specs').select('*').eq('item_id', itemId).single(); spec = _r.data; } catch(e) {}
+      const hasMinSpec = spec && spec.kategori && (spec.output_voltage || spec.output_current || spec.output_kva);
+      if (!hasMinSpec) {
+        snSection = `<div style="margin-bottom:14px;padding:10px;background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--r-sm);font-size:12px;color:var(--amber)">
+          ⚠ Spec teknis item belum diisi. Isi spec dulu via modul <strong>ETS → Input Spec & Generate SN</strong> sebelum assign produksi.
+        </div>`;
+      } else {
+        snSection = `<div style="margin-bottom:14px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm)">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">SERIAL NUMBER (BELUM DI-GENERATE)</div>
+          <div style="display:flex;gap:6px;align-items:end">
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Tanggal Mulai Produksi</label>
+              <input type="date" id="apicProdDate" value="${today()}" style="width:100%;padding:6px 8px;font-size:13px">
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Qty</label>
+              <input type="number" value="${item.qty||1}" disabled style="width:100%;padding:6px 8px;font-size:13px;background:var(--surface)">
+            </div>
+            <button class="btn btn-sm btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="generateSNForItem(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">${item.qty>1 ? 'Akan generate '+item.qty+' SN (1 per unit)' : 'Akan generate 1 SN'}</div>
+        </div>`;
+      }
+    }
+  }
+
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Assign PIC Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${item.category} — ${item.model_name||'—'}<br><span style="color:var(--text3)">${po.no_po}</span></div>
+      ${snSection}
       <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Pilih Teknisi <span style="color:var(--text3);font-weight:400">(maks. 3 orang)</span> <span id="apicCounter" style="float:right;font-size:11px;color:var(--text3)">${picIds.length}/3</span></label>
       <div style="display:flex;flex-direction:column;gap:4px;max-height:280px;overflow-y:auto">${cbs||'<span style="font-size:12px;color:var(--text3)">Belum ada teknisi</span>'}</div>
     </div>
@@ -1700,6 +1741,49 @@ async function openAssignProduksiModal(itemId, poId) {
       <button class="btn btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="saveAssignProduksi(this.dataset.iid,this.dataset.pid)">Simpan</button>
     </div>
   </div>`);
+}
+
+// Generate SN untuk 1 item langsung dari modal Assign Produksi.
+// Handle qty: kalau qty>1, generate multiple SN dan join dengan ', '.
+async function generateSNForItem(itemId, poId) {
+  const dateStr = gv('apicProdDate');
+  if (!dateStr) { toast('Pilih tanggal mulai produksi'); return; }
+  const prodDate = new Date(dateStr);
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if (!item) { toast('Item tidak ditemukan'); return; }
+  if (item.serial_number) { toast('Item sudah punya SN'); return; }
+
+  // Load spec terstruktur
+  let spec = null;
+  try { const _r = await sb.from('item_specs').select('*').eq('item_id', itemId).single(); spec = _r.data; } catch(e) {}
+  if (!spec || !spec.kategori) { toast('Spec belum diisi. Isi via ETS dulu.'); return; }
+
+  const qty = item.qty || 1;
+  const serials = [];
+  // Loop per unit (multi-SN per item)
+  for (let i = 0; i < qty; i++) {
+    const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
+    let { huruf, angka } = counter;
+    const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, prodDate);
+    if (!sn) { toast('Gagal generate SN — cek field spec'); return; }
+    angka++;
+    if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
+    await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
+    serials.push(sn);
+  }
+
+  const snJoined = serials.join(', ');
+  await sb.from('po_items').update({
+    serial_number: snJoined,
+    serial_generated_at: new Date().toISOString()
+  }).eq('id', itemId);
+  await logPO(poId, 'Generate Serial', item.category + ': ' + snJoined);
+  toast(serials.length + ' SN di-generate: ' + snJoined);
+  // Re-open modal dengan SN baru
+  closeAllModals();
+  await loadPOs();
+  openAssignProduksiModal(itemId, poId);
 }
 
 function apicCount() {
@@ -2514,13 +2598,9 @@ async function renderETSList() {
       groupItemsByProject(filtered).map(group=>{
         const id = groupId(group.key, 'ets');
         const collapsed = window._groupCollapsed[group.key] || false;
-        // Hitung item butuh generate SN di group ini
-        const needSNItems = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
-        const groupKeyEsc = group.key.replace(/'/g,"\\'");
         return `<div style="margin-bottom:6px">
           ${groupHeaderHTML(group, 'ets')}
           <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
-            ${needSNItems.length > 0 ? `<div style="margin-bottom:8px"><button class="btn btn-sm btn-primary" onclick="openGenSerialModalForGroup('${groupKeyEsc}')">⚙ Generate SN (${needSNItems.length} item)</button></div>` : ''}
             ${group.items.map(({po,item,hasSpec,hasDetailSpec})=>{
               const badges = [];
               badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
@@ -3116,10 +3196,34 @@ async function savePO(editId) {
     }
     // Save items
     if (!editId) {
-      for (const it of poFormItems) {
+      const itemRows = [];
+      for (let i = 0; i < poFormItems.length; i++) {
+        const it = poFormItems[i];
         if (!it.category) continue;
-        await sb.from('po_items').insert({ po_id: poId, category: it.category, model_name: it.model_name || null, spec_summary: it.spec_summary || null, qty: it.qty, is_produksi: it.is_produksi, needs_ets: it.needs_ets !== false });
+        const { data: inserted } = await sb.from('po_items').insert({
+          po_id: poId, category: it.category, model_name: it.model_name || null,
+          spec_summary: it.spec_summary || null, qty: it.qty,
+          is_produksi: it.is_produksi, needs_ets: it.needs_ets !== false
+        }).select('id').single();
+        itemRows.push({ idx: i, id: inserted?.id, category: it.category });
       }
+      // Persist poFormSpecs ke tabel item_specs (regresi: bagian ini hilang waktu refactor).
+      // Spec terstruktur ini dipakai untuk Generate SN di modal Assign Produksi.
+      const specRows = [];
+      for (const row of itemRows) {
+        const spec = poFormSpecs[row.idx];
+        if (spec && row.id) {
+          specRows.push({
+            id: 'spec-' + Date.now().toString(36) + row.idx,
+            item_id: row.id,
+            kategori: row.category,
+            ...spec,
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+      if (specRows.length) await sb.from('item_specs').insert(specRows);
+      poFormSpecs = {};
     }
     toast(editId ? 'PO diperbarui' : 'PO dibuat');
     closeAllModals();
@@ -3755,99 +3859,6 @@ async function doGenerateSerials(poId) {
   openPODetail(poId);
 }
 
-// Generate SN untuk semua item di 1 group (customer+project) di tab ETS.
-// 1 group bisa berisi item dari beberapa PO, jadi proses dilakukan per-PO.
-async function openGenSerialModalForGroup(groupKey) {
-  // Re-build group dari allPOs (sumber data sama dengan renderETSList)
-  const allItems = [];
-  for (const p of allPOs) {
-    for (const it of (p.po_items||[]).filter(x => x.needs_ets)) {
-      allItems.push({ po: p, item: it });
-    }
-  }
-  const groups = groupItemsByProject(allItems);
-  const group = groups.find(g => g.key === groupKey);
-  if (!group) { toast('Group tidak ditemukan'); return; }
-  // Filter item yang butuh generate SN (kategori produksi utama + belum ada SN)
-  const targets = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
-  if (!targets.length) { toast('Tidak ada item yang perlu generate SN'); return; }
-  // Group per PO untuk preview
-  const byPO = {};
-  targets.forEach(({po, item}) => {
-    if (!byPO[po.id]) byPO[po.id] = { po, items: [] };
-    byPO[po.id].items.push(item);
-  });
-  const groupKeyEsc = groupKey.replace(/'/g,"\\'");
-  openModal(`<div class="modal modal-sm">
-    <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
-    <div class="modal-body">
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${group.customer} · ${group.project}</div>
-      <div class="form-row"><label>Tanggal Produksi <span class="req">*</span></label><input type="date" id="snGroupProdDate" value="${today()}"></div>
-      <div style="margin-top:.875rem;font-size:13px;color:var(--text2)">Item yang akan di-generate (${targets.length}):</div>
-      ${Object.values(byPO).map(g => `
-        <div style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:var(--r-sm)">
-          <div style="font-size:11px;color:var(--text3);font-family:monospace;margin-bottom:4px">${g.po.no_po}</div>
-          ${g.items.map(it => `<div style="font-size:12px;padding:2px 0">• ${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>`).join('')}
-        </div>
-      `).join('')}
-      <div style="margin-top:10px;font-size:11px;color:var(--text3);background:var(--amber-bg);padding:6px 8px;border-radius:var(--r-sm)">Item yang belum punya spec teknis akan di-skip. Isi spec dulu via tombol "Input Spec & Generate SN" di tiap item.</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeAllModals()">Batal</button>
-      <button class="btn btn-primary" onclick="doGenerateSerialsForGroup('${groupKeyEsc}')">Generate</button>
-    </div>
-  </div>`);
-}
-
-async function doGenerateSerialsForGroup(groupKey) {
-  const prodDate = gv('snGroupProdDate');
-  if (!prodDate) { toast('Pilih tanggal produksi'); return; }
-  const dateObj = new Date(prodDate);
-  // Re-resolve group (data mungkin sudah berubah)
-  const allItems = [];
-  for (const p of allPOs) {
-    for (const it of (p.po_items||[]).filter(x => x.needs_ets)) {
-      allItems.push({ po: p, item: it });
-    }
-  }
-  const group = groupItemsByProject(allItems).find(g => g.key === groupKey);
-  if (!group) { toast('Group tidak ditemukan'); return; }
-  const targets = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
-
-  let totalGen = 0, totalSkip = 0;
-  // Group per PO supaya logPO konsisten per PO
-  const byPO = {};
-  targets.forEach(({po, item}) => {
-    if (!byPO[po.id]) byPO[po.id] = { po, items: [] };
-    byPO[po.id].items.push(item);
-  });
-
-  for (const { po, items } of Object.values(byPO)) {
-    let gen = 0, skip = 0;
-    for (const it of items) {
-      let spec = null;
-      try { const _r = await sb.from('item_specs').select('*').eq('item_id', it.id).single(); spec = _r.data; } catch(e) {}
-      if (!spec) { skip++; continue; }
-      const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
-      let { huruf, angka } = counter;
-      const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, dateObj);
-      if (!sn) { skip++; continue; }
-      angka++;
-      if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
-      await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
-      await sb.from('po_items').update({ serial_number: sn, serial_generated_at: new Date().toISOString() }).eq('id', it.id);
-      gen++;
-    }
-    if (gen || skip) {
-      await logPO(po.id, 'Generate Serial', gen + ' item' + (skip ? ', ' + skip + ' item skip (belum ada spec)' : ''));
-    }
-    totalGen += gen; totalSkip += skip;
-  }
-  toast(totalGen + ' SN di-generate' + (totalSkip ? ', ' + totalSkip + ' skip (isi spec dulu)' : ''));
-  closeAllModals();
-  await loadPOs();
-  await renderETSList();
-}
 
 // WEBPAGE & NAMEPLATE
 async function loadDownloadFilesPO(poId){
