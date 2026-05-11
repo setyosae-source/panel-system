@@ -6752,8 +6752,10 @@ async function exportBOMPrint(bomId, withPrice) {
     ? `<th class="col-no">#</th><th class="col-name">Nama Komponen</th><th class="col-qty">Qty</th><th class="col-unit">Unit</th><th class="col-price">Harga Satuan</th><th class="col-sub">Subtotal</th><th class="col-note">Note</th>`
     : `<th class="col-no">#</th><th class="col-name">Nama Komponen</th><th class="col-qty">Qty</th><th class="col-unit">Unit</th><th class="col-note">Note</th>`;
 
-  const tfoot = withPrice
-    ? `<tfoot><tr class="grand"><td colspan="5" class="num">GRAND TOTAL</td><td class="num">${fmtRp(grandTotal)}</td><td></td></tr></tfoot>`
+  // GRAND TOTAL as a standalone block AFTER the table — NOT inside <tfoot>
+  // because <tfoot> default behavior is to repeat on every page when printing.
+  const grandTotalBlock = withPrice
+    ? `<div class="grand-total"><span>GRAND TOTAL</span><span>${fmtRp(grandTotal)}</span></div>`
     : '';
 
   const w = window.open('', '_blank');
@@ -6781,13 +6783,20 @@ async function exportBOMPrint(bomId, withPrice) {
       .col-note{width:180px;font-size:9px;color:#555}
       tr.section td{background:#D6E5F5;color:#1A4F8B;font-weight:bold;font-size:10px;padding:5px 7px;border-color:#1A4F8B}
       tr.subtotal td{background:#F0F0F0;font-style:italic;font-size:9px}
-      tfoot tr.grand td{background:#2C3E50;color:#fff;font-weight:bold;font-size:11px;padding:6px}
+      .grand-total{
+        display:flex;justify-content:space-between;align-items:center;
+        background:#2C3E50;color:#fff;font-weight:bold;font-size:13px;
+        padding:10px 14px;margin-top:0;border:1px solid #2C3E50;
+        page-break-inside:avoid;break-inside:avoid;
+      }
+      .grand-total span:last-child{font-size:14px}
       .footer{margin-top:20px;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:6px}
       @media print{
         body{padding:0}
         thead{display:table-header-group}
         tr.section{page-break-inside:avoid}
         tr{page-break-inside:avoid}
+        .grand-total{page-break-before:avoid}
       }
     </style></head><body>
     <div class="header">
@@ -6807,8 +6816,8 @@ async function exportBOMPrint(bomId, withPrice) {
     <table>
       <thead><tr>${headerCols}</tr></thead>
       <tbody>${tbodyHtml}</tbody>
-      ${tfoot}
     </table>
+    ${grandTotalBlock}
     <div class="footer">Dicetak pada ${new Date().toLocaleString('id-ID')} — Panel System</div>
     <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
   </body></html>`);
