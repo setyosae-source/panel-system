@@ -6181,8 +6181,8 @@ async function openBOMDetail(bomId) {
   const canManage = can('bom_manage');
   const showPrice = can('nilai_po');
 
-  openModal(`<div class="modal" style="max-width:1100px">
-    <div class="modal-header">
+  openModal(`<div class="modal" style="max-width:1100px;height:calc(100vh - 3rem);display:flex;flex-direction:column">
+    <div class="modal-header" style="flex-shrink:0">
       <div>
         <h2>${data.title}</h2>
         <div style="font-size:12px;color:var(--text3);margin-top:2px">
@@ -6191,7 +6191,7 @@ async function openBOMDetail(bomId) {
       </div>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="flex:1 1 0;min-height:0;overflow-y:scroll;overflow-x:hidden">
       ${data.description ? `<div class="desc-box" style="margin-bottom:1rem">${data.description}</div>` : ''}
       ${(data.pp_request_id || data.po_id) ? `<div style="font-size:12px;background:var(--surface2);padding:8px;border-radius:6px;margin-bottom:1rem">
         ${data.pp_request_id ? `🔗 PP Request: <strong>${data.pp_request_id}</strong> ` : ''}
@@ -6223,13 +6223,13 @@ async function openBOMDetail(bomId) {
         <tbody>${items.map((it, idx) => `
           <tr>
             <td style="color:var(--text3)">${idx + 1}</td>
-            <td class="mono">${it.part_number || '—'}</td>
-            <td style="font-weight:500">${it.name}</td>
+            <td class="mono" style="white-space:normal;word-break:break-word">${it.part_number || '—'}</td>
+            <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
             <td>${it.qty}</td>
             <td>${it.unit}</td>
             ${showPrice ? `<td>${fmtRp(it.unit_price)}</td><td><strong>${fmtRp(it.qty * it.unit_price)}</strong></td>` : ''}
-            <td style="font-size:12px;color:var(--text2)">${it.note || '—'}</td>
-            ${canManage ? `<td>
+            <td style="font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.4">${it.note || '—'}</td>
+            ${canManage ? `<td style="white-space:nowrap">
               <button class="btn btn-sm" onclick="openBOMEditItem(${it.id}, '${data.id}')">✎</button>
               <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id}, '${data.id}')">✕</button>
             </td>` : ''}
@@ -6266,8 +6266,23 @@ async function openBOMAddItem(bomId) {
       </div>
       <div class="form-grid">
         <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="biQty" value="1"></div>
-        <div class="form-row"><label>Unit</label><input type="text" id="biUnit" value="pcs"></div>
+        <div class="form-row">
+          <label>Unit</label>
+          <input type="text" id="biUnit" value="pcs" list="commonUnits" placeholder="pcs / m / set / lot ...">
+        </div>
       </div>
+      <datalist id="commonUnits">
+        <option value="pcs">pcs (piece)</option>
+        <option value="m">m (meter - kabel, busbar, DIN rail)</option>
+        <option value="set">set (1 paket lengkap)</option>
+        <option value="lot">lot (LOT — group items)</option>
+        <option value="batang">batang (busbar, profil)</option>
+        <option value="roll">roll (kabel, isolasi)</option>
+        <option value="box">box (terminal, sekrup)</option>
+        <option value="m²">m² (plat, sheet)</option>
+        <option value="kg">kg (material berat)</option>
+        <option value="unit">unit (assembly)</option>
+      </datalist>
       <div class="form-row"><label>Harga Satuan (Rp)</label><input type="number" step="0.01" id="biPrice" value="0"></div>
       <div class="form-row"><label>Note</label><input type="text" id="biNote"></div>
     </div>
@@ -6316,8 +6331,23 @@ async function openBOMEditItem(itemId, bomId) {
       </div>
       <div class="form-grid">
         <div class="form-row"><label>Qty <span class="req">*</span></label><input type="number" step="0.001" id="biQty" value="${it.qty}"></div>
-        <div class="form-row"><label>Unit</label><input type="text" id="biUnit" value="${it.unit || 'pcs'}"></div>
+        <div class="form-row">
+          <label>Unit</label>
+          <input type="text" id="biUnit" value="${it.unit || 'pcs'}" list="commonUnitsEdit" placeholder="pcs / m / set / lot ...">
+        </div>
       </div>
+      <datalist id="commonUnitsEdit">
+        <option value="pcs">pcs (piece)</option>
+        <option value="m">m (meter - kabel, busbar, DIN rail)</option>
+        <option value="set">set (1 paket lengkap)</option>
+        <option value="lot">lot (LOT — group items)</option>
+        <option value="batang">batang (busbar, profil)</option>
+        <option value="roll">roll (kabel, isolasi)</option>
+        <option value="box">box (terminal, sekrup)</option>
+        <option value="m²">m² (plat, sheet)</option>
+        <option value="kg">kg (material berat)</option>
+        <option value="unit">unit (assembly)</option>
+      </datalist>
       <div class="form-row"><label>Harga Satuan (Rp)</label><input type="number" step="0.01" id="biPrice" value="${it.unit_price}"></div>
       <div class="form-row"><label>Note</label><input type="text" id="biNote" value="${(it.note || '').replace(/"/g, '&quot;')}"></div>
     </div>

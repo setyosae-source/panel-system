@@ -1952,7 +1952,19 @@ async function openAddCustomItem(section) {
           </div>
           <div class="form-row">
             <label>Unit<span class="req">*</span></label>
-            <input type="text" id="customUnit" value="pcs" placeholder="pcs / m / lot / box">
+            <input type="text" id="customUnit" value="pcs" list="calcCommonUnits" placeholder="pcs / m / set / lot ...">
+            <datalist id="calcCommonUnits">
+              <option value="pcs">pcs (piece)</option>
+              <option value="m">m (meter - kabel, busbar, DIN rail)</option>
+              <option value="set">set (1 paket lengkap)</option>
+              <option value="lot">lot (LOT)</option>
+              <option value="batang">batang (busbar, profil)</option>
+              <option value="roll">roll</option>
+              <option value="box">box</option>
+              <option value="m²">m² (plat, sheet)</option>
+              <option value="kg">kg</option>
+              <option value="unit">unit (assembly)</option>
+            </datalist>
           </div>
         </div>
         <div class="form-grid">
@@ -2234,7 +2246,7 @@ function openAddMasterModal() {
         </div>
         <div class="form-row">
           <label>Unit<span class="req">*</span></label>
-          <input type="text" id="newUnit" value="pcs" placeholder="pcs / m / box / lot">
+          <input type="text" id="newUnit" value="pcs" list="calcCommonUnits" placeholder="pcs / m / set / lot ...">
         </div>
       </div>
       <div class="form-row">
@@ -2295,7 +2307,7 @@ function openEditMasterModal(id) {
         </div>
         <div class="form-row">
           <label>Unit<span class="req">*</span></label>
-          <input type="text" id="editUnit" value="${escapeHtml(c.unit || 'pcs')}">
+          <input type="text" id="editUnit" value="${escapeHtml(c.unit || 'pcs')}" list="calcCommonUnits" placeholder="pcs / m / set / lot ...">
         </div>
       </div>
       <div class="form-row">
