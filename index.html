@@ -2354,10 +2354,12 @@ async function renderHomeModule() {
   }
 
   // ETS tasks (item belum selesai flow ETS)
+  // Pakai needs_ets, bukan is_produksi: ada item produksi internal yang tidak butuh ETS
+  // (contoh: Fuse Box, Outlet Box — dirakit tapi tanpa SN unik).
   if(can('po_engineering')) {
     let etsCount = 0;
     allPOs.forEach(p => {
-      (p.po_items||[]).filter(it=>it.is_produksi && categoryNeedsETS(it.category)).forEach(it => {
+      (p.po_items||[]).filter(it=>it.needs_ets).forEach(it => {
         if(!it.serial_number) etsCount++;
       });
     });
@@ -2461,13 +2463,6 @@ async function renderHomeModule() {
 // ═══════════════════════════════════════════════════════════
 // ETS MODULE
 // ═══════════════════════════════════════════════════════════
-// Kategori yang TIDAK butuh ETS (no SN, no Detail Spec).
-// Baterai, Battery, Rak Baterai = barang resell / asesoris, bukan produksi internal.
-const ETS_EXCLUDED_CATEGORIES = ['Baterai', 'Battery', 'Rak Baterai'];
-function categoryNeedsETS(category) {
-  return !ETS_EXCLUDED_CATEGORIES.includes(category);
-}
-
 let etsFilter = 'all'; // all | pending | done
 
 async function renderETSModule() {
@@ -2487,10 +2482,11 @@ async function renderETSList() {
   const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
   const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
 
-  // Build all items
+  // Build all items — pakai needs_ets sebagai single source of truth.
+  // Item tanpa needs_ets (beli jadi, atau produksi tanpa SN seperti Fuse Box) di-skip.
   const allItems = [];
   for(const p of allPOs) {
-    for(const it of (p.po_items||[]).filter(x=>x.is_produksi && categoryNeedsETS(x.category))) {
+    for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
       const hasSpec = !!it.serial_number; // SN means spec was input
       const hasDetailSpec = dsItemIds.has(it.id);
       const isPending = !hasSpec || !hasDetailSpec;
@@ -2518,9 +2514,13 @@ async function renderETSList() {
       groupItemsByProject(filtered).map(group=>{
         const id = groupId(group.key, 'ets');
         const collapsed = window._groupCollapsed[group.key] || false;
+        // Hitung item butuh generate SN di group ini
+        const needSNItems = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
+        const groupKeyEsc = group.key.replace(/'/g,"\\'");
         return `<div style="margin-bottom:6px">
           ${groupHeaderHTML(group, 'ets')}
           <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
+            ${needSNItems.length > 0 ? `<div style="margin-bottom:8px"><button class="btn btn-sm btn-primary" onclick="openGenSerialModalForGroup('${groupKeyEsc}')">⚙ Generate SN (${needSNItems.length} item)</button></div>` : ''}
             ${group.items.map(({po,item,hasSpec,hasDetailSpec})=>{
               const badges = [];
               badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
@@ -2815,7 +2815,6 @@ async function openPODetail(id) {
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${items.length})</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${canManage ? `<button class="btn btn-sm" onclick="openSimpleItemForm(null,'${p.id}')">+ Tambah Item</button>` : ''}
-            
           </div>
         </div>
         ${itemsHtml}
@@ -3020,9 +3019,18 @@ async function openPOForm(editId) {
   </div>`);
 
   if (p && p.po_items?.length) {
-    poFormItems = p.po_items.map(it => ({ id: it.id, category: it.category, model_name: it.model_name || '', spec_summary: it.spec_summary || '', qty: it.qty, is_produksi: it.is_produksi }));
+    poFormItems = p.po_items.map(it => ({ id: it.id, category: it.category, model_name: it.model_name || '', spec_summary: it.spec_summary || '', qty: it.qty, is_produksi: it.is_produksi, needs_ets: it.needs_ets !== false }));
     renderPOItems();
   }
+}
+
+// Default needs_ets berdasarkan kategori:
+// - 5 kategori utama produksi (Rectifier, UPS, Inverter, Panel ACDB/DCDB) → butuh ETS
+// - Sisanya (Baterai, Battery, Rak Baterai, Panel Box, Lainnya) → default tidak butuh
+// User bisa override via checkbox saat input PO.
+const ETS_DEFAULT_CATEGORIES = ['Rectifier', 'UPS', 'Inverter', 'Panel ACDB', 'Panel DCDB'];
+function defaultNeedsETS(category) {
+  return ETS_DEFAULT_CATEGORIES.includes(category);
 }
 
 function goToPOStep2() {
@@ -3042,7 +3050,7 @@ function backToPOStep1() {
   document.getElementById('ws2').className = 'wizard-step';
 }
 
-function addPOItem() { poFormItems.push({ category: '', model_name: '', spec_summary: '', qty: 1, is_produksi: true }); renderPOItems(); }
+function addPOItem() { poFormItems.push({ category: '', model_name: '', spec_summary: '', qty: 1, is_produksi: true, needs_ets: true }); renderPOItems(); }
 function removePOItem(i) { poFormItems.splice(i, 1); renderPOItems(); }
 
 function renderPOItems() {
@@ -3057,7 +3065,7 @@ function renderPOItems() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori <span class="req">*</span></label>
-          <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;renderPOItems()" style="width:100%;padding:6px 8px">
+          <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;poFormItems[${i}].needs_ets=defaultNeedsETS(this.value);renderPOItems()" style="width:100%;padding:6px 8px">
             <option value="">-- Pilih --</option>${ITEM_CATEGORIES.map(c => `<option value="${c}" ${it.category === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Model / Tipe</label>
@@ -3073,6 +3081,10 @@ function renderPOItems() {
         <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
           <input type="checkbox" ${it.is_produksi ? 'checked' : ''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
           <span style="color:${it.is_produksi ? 'var(--amber)' : 'var(--text3)'}">🏭 ${it.is_produksi ? 'Diproduksi internal' : 'Tidak diproduksi'}</span>
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.needs_ets ? 'var(--blue-bg, #dbeafe)' : 'var(--surface2)'}" title="Item butuh flow ETS: input Spec, generate SN, dan Detail Spec teknis untuk webpage produk">
+          <input type="checkbox" ${it.needs_ets ? 'checked' : ''} onchange="poFormItems[${i}].needs_ets=this.checked;renderPOItems()">
+          <span style="color:${it.needs_ets ? '#1d4ed8' : 'var(--text3)'}">⚙️ ${it.needs_ets ? 'Butuh ETS (SN + Detail Spec)' : 'Tanpa ETS'}</span>
         </label>
         ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? `<button type="button" onclick="openItemSpecFromForm(${i})" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:${poFormSpecs[i]?'var(--green-bg)':'var(--surface)'};color:${poFormSpecs[i]?'var(--green)':'var(--text2)'};cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">⚙ Spec${poFormSpecs[i]?' ✓':''}</button>` : ''}
       </div>
@@ -3106,7 +3118,7 @@ async function savePO(editId) {
     if (!editId) {
       for (const it of poFormItems) {
         if (!it.category) continue;
-        await sb.from('po_items').insert({ po_id: poId, category: it.category, model_name: it.model_name || null, spec_summary: it.spec_summary || null, qty: it.qty, is_produksi: it.is_produksi });
+        await sb.from('po_items').insert({ po_id: poId, category: it.category, model_name: it.model_name || null, spec_summary: it.spec_summary || null, qty: it.qty, is_produksi: it.is_produksi, needs_ets: it.needs_ets !== false });
       }
     }
     toast(editId ? 'PO diperbarui' : 'PO dibuat');
@@ -3133,6 +3145,7 @@ async function openItemForm(poId) {
       </div>
       <div class="form-row" style="margin-top:4px"><label>Catatan Item</label><input type="text" id="itCatatan" placeholder="Catatan tambahan..."></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:4px"><input type="checkbox" id="itProd" checked><span>Diproduksi internal</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:6px"><input type="checkbox" id="itEts" checked><span>Butuh ETS (SN + Detail Spec)</span></label>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
@@ -3142,7 +3155,7 @@ async function openItemForm(poId) {
 }
 
 async function saveItem(poId) {
-  await sb.from('po_items').insert({ po_id: poId, category: gv('itCat'), model_name: gv('itModel') || null, spec_summary: gv('itSpec') || null, qty: parseInt(gv('itQty')) || 1, serial_number: gv('itSN') || null, catatan: gv('itCatatan') || null, is_produksi: document.getElementById('itProd').checked });
+  await sb.from('po_items').insert({ po_id: poId, category: gv('itCat'), model_name: gv('itModel') || null, spec_summary: gv('itSpec') || null, qty: parseInt(gv('itQty')) || 1, serial_number: gv('itSN') || null, catatan: gv('itCatatan') || null, is_produksi: document.getElementById('itProd').checked, needs_ets: document.getElementById('itEts').checked });
   await logPO(poId, 'Tambah Item', gv('itCat'));
   toast('Item ditambahkan');
   closeAllModals();
@@ -3500,6 +3513,7 @@ async function openSimpleItemForm(itemId, poId) {
       <div class="form-row" style="margin-top:8px"><label>Model / Tipe (sesuai PO)</label><input type="text" id="sitModel" value="${it?.model_name||''}" placeholder="Contoh: S-PRO1 110-10A"></div>
       <div class="form-row" style="margin-top:4px"><label>Catatan</label><input type="text" id="sitCatatan" value="${it?.catatan||''}" placeholder="Opsional"></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:10px"><input type="checkbox" id="sitProd" ${it?(it.is_produksi?'checked':''):'checked'}><span>Diproduksi internal</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:6px"><input type="checkbox" id="sitEts" ${it?(it.needs_ets!==false?'checked':''):(it?.category?(defaultNeedsETS(it.category)?'checked':''):'checked')}><span>Butuh ETS (SN + Detail Spec)</span></label>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       ${isEdit ? `<button class="btn btn-sm btn-danger" data-iid="${itemId}" data-pid="${poId}" onclick="deleteItem(this.dataset.iid,this.dataset.pid)">Hapus</button>` : '<div></div>'}
@@ -3517,7 +3531,8 @@ async function saveSimpleItem(itemId, poId) {
     model_name: gv('sitModel')||null,
     qty: parseInt(gv('sitQty'))||1,
     catatan: gv('sitCatatan')||null,
-    is_produksi: document.getElementById('sitProd').checked
+    is_produksi: document.getElementById('sitProd').checked,
+    needs_ets: document.getElementById('sitEts').checked
   };
   if(itemId) {
     await sb.from('po_items').update(data).eq('id', itemId);
@@ -3555,6 +3570,7 @@ async function openEditItemForm(itemId, poId) {
       </div>
       <div class="form-row" style="margin-top:4px"><label>Catatan Item</label><input type="text" id="itCatatan" value="${it.catatan||''}" placeholder="Catatan tambahan..."></div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:8px"><input type="checkbox" id="itProd" ${it.is_produksi?'checked':''}><span>Diproduksi internal</span></label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-top:6px"><input type="checkbox" id="itEts" ${it.needs_ets!==false?'checked':''}><span>Butuh ETS (SN + Detail Spec)</span></label>
 
     </div>
     <div class="modal-footer" style="justify-content:space-between">
@@ -3591,7 +3607,8 @@ async function saveEditItem(itemId, poId, openSpec=false) {
     qty: parseInt(gv('itQty'))||1,
     serial_number: gv('itSN')||null,
     catatan: gv('itCatatan')||null,
-    is_produksi: document.getElementById('itProd').checked
+    is_produksi: document.getElementById('itProd').checked,
+    needs_ets: document.getElementById('itEts').checked
   }).eq('id', itemId);
 
   await logPO(poId, 'Edit Item', gv('itCat'));
@@ -3695,7 +3712,7 @@ async function savePKStatus(pkId, poId) {
 // GENERATE SERIAL
 async function openGenSerialModal(poId) {
   const p = allPOs.find(x => x.id === poId);
-  const items = (p?.po_items || []).filter(it => it.is_produksi && ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) && !it.serial_number);
+  const items = (p?.po_items || []).filter(it => it.needs_ets && SPEC_CATEGORIES.includes(it.category) && !it.serial_number);
   if (!items.length) { toast('Tidak ada item yang perlu generate SN'); return; }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
@@ -3715,7 +3732,7 @@ async function doGenerateSerials(poId) {
   const prodDate = gv('snProdDate');
   if (!prodDate) { toast('Pilih tanggal produksi'); return; }
   const p = allPOs.find(x => x.id === poId);
-  const items = (p?.po_items || []).filter(it => it.is_produksi && SPEC_CATEGORIES.includes(it.category) && !it.serial_number);
+  const items = (p?.po_items || []).filter(it => it.needs_ets && SPEC_CATEGORIES.includes(it.category) && !it.serial_number);
   const dateObj = new Date(prodDate);
   let generated = 0, skipped = 0;
   for (const it of items) {
@@ -3736,6 +3753,100 @@ async function doGenerateSerials(poId) {
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
+}
+
+// Generate SN untuk semua item di 1 group (customer+project) di tab ETS.
+// 1 group bisa berisi item dari beberapa PO, jadi proses dilakukan per-PO.
+async function openGenSerialModalForGroup(groupKey) {
+  // Re-build group dari allPOs (sumber data sama dengan renderETSList)
+  const allItems = [];
+  for (const p of allPOs) {
+    for (const it of (p.po_items||[]).filter(x => x.needs_ets)) {
+      allItems.push({ po: p, item: it });
+    }
+  }
+  const groups = groupItemsByProject(allItems);
+  const group = groups.find(g => g.key === groupKey);
+  if (!group) { toast('Group tidak ditemukan'); return; }
+  // Filter item yang butuh generate SN (kategori produksi utama + belum ada SN)
+  const targets = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
+  if (!targets.length) { toast('Tidak ada item yang perlu generate SN'); return; }
+  // Group per PO untuk preview
+  const byPO = {};
+  targets.forEach(({po, item}) => {
+    if (!byPO[po.id]) byPO[po.id] = { po, items: [] };
+    byPO[po.id].items.push(item);
+  });
+  const groupKeyEsc = groupKey.replace(/'/g,"\\'");
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${group.customer} · ${group.project}</div>
+      <div class="form-row"><label>Tanggal Produksi <span class="req">*</span></label><input type="date" id="snGroupProdDate" value="${today()}"></div>
+      <div style="margin-top:.875rem;font-size:13px;color:var(--text2)">Item yang akan di-generate (${targets.length}):</div>
+      ${Object.values(byPO).map(g => `
+        <div style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--text3);font-family:monospace;margin-bottom:4px">${g.po.no_po}</div>
+          ${g.items.map(it => `<div style="font-size:12px;padding:2px 0">• ${it.category}${it.model_name ? ' — ' + it.model_name : ''}</div>`).join('')}
+        </div>
+      `).join('')}
+      <div style="margin-top:10px;font-size:11px;color:var(--text3);background:var(--amber-bg);padding:6px 8px;border-radius:var(--r-sm)">Item yang belum punya spec teknis akan di-skip. Isi spec dulu via tombol "Input Spec & Generate SN" di tiap item.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="doGenerateSerialsForGroup('${groupKeyEsc}')">Generate</button>
+    </div>
+  </div>`);
+}
+
+async function doGenerateSerialsForGroup(groupKey) {
+  const prodDate = gv('snGroupProdDate');
+  if (!prodDate) { toast('Pilih tanggal produksi'); return; }
+  const dateObj = new Date(prodDate);
+  // Re-resolve group (data mungkin sudah berubah)
+  const allItems = [];
+  for (const p of allPOs) {
+    for (const it of (p.po_items||[]).filter(x => x.needs_ets)) {
+      allItems.push({ po: p, item: it });
+    }
+  }
+  const group = groupItemsByProject(allItems).find(g => g.key === groupKey);
+  if (!group) { toast('Group tidak ditemukan'); return; }
+  const targets = group.items.filter(x => SPEC_CATEGORIES.includes(x.item.category) && !x.item.serial_number);
+
+  let totalGen = 0, totalSkip = 0;
+  // Group per PO supaya logPO konsisten per PO
+  const byPO = {};
+  targets.forEach(({po, item}) => {
+    if (!byPO[po.id]) byPO[po.id] = { po, items: [] };
+    byPO[po.id].items.push(item);
+  });
+
+  for (const { po, items } of Object.values(byPO)) {
+    let gen = 0, skip = 0;
+    for (const it of items) {
+      let spec = null;
+      try { const _r = await sb.from('item_specs').select('*').eq('item_id', it.id).single(); spec = _r.data; } catch(e) {}
+      if (!spec) { skip++; continue; }
+      const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
+      let { huruf, angka } = counter;
+      const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, dateObj);
+      if (!sn) { skip++; continue; }
+      angka++;
+      if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
+      await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
+      await sb.from('po_items').update({ serial_number: sn, serial_generated_at: new Date().toISOString() }).eq('id', it.id);
+      gen++;
+    }
+    if (gen || skip) {
+      await logPO(po.id, 'Generate Serial', gen + ' item' + (skip ? ', ' + skip + ' item skip (belum ada spec)' : ''));
+    }
+    totalGen += gen; totalSkip += skip;
+  }
+  toast(totalGen + ' SN di-generate' + (totalSkip ? ', ' + totalSkip + ' skip (isi spec dulu)' : ''));
+  closeAllModals();
+  await loadPOs();
+  await renderETSList();
 }
 
 // WEBPAGE & NAMEPLATE
