@@ -2357,7 +2357,7 @@ async function renderHomeModule() {
   if(can('po_engineering')) {
     let etsCount = 0;
     allPOs.forEach(p => {
-      (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      (p.po_items||[]).filter(it=>it.is_produksi && categoryNeedsETS(it.category)).forEach(it => {
         if(!it.serial_number) etsCount++;
       });
     });
@@ -2461,6 +2461,13 @@ async function renderHomeModule() {
 // ═══════════════════════════════════════════════════════════
 // ETS MODULE
 // ═══════════════════════════════════════════════════════════
+// Kategori yang TIDAK butuh ETS (no SN, no Detail Spec).
+// Baterai, Battery, Rak Baterai = barang resell / asesoris, bukan produksi internal.
+const ETS_EXCLUDED_CATEGORIES = ['Baterai', 'Battery', 'Rak Baterai'];
+function categoryNeedsETS(category) {
+  return !ETS_EXCLUDED_CATEGORIES.includes(category);
+}
+
 let etsFilter = 'all'; // all | pending | done
 
 async function renderETSModule() {
@@ -2483,7 +2490,7 @@ async function renderETSList() {
   // Build all items
   const allItems = [];
   for(const p of allPOs) {
-    for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
+    for(const it of (p.po_items||[]).filter(x=>x.is_produksi && categoryNeedsETS(x.category))) {
       const hasSpec = !!it.serial_number; // SN means spec was input
       const hasDetailSpec = dsItemIds.has(it.id);
       const isPending = !hasSpec || !hasDetailSpec;
