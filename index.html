@@ -3355,20 +3355,25 @@ async function savePO(editId) {
       }
       // Persist poFormSpecs ke tabel item_specs (regresi: bagian ini hilang waktu refactor).
       // Spec terstruktur ini dipakai untuk Generate SN di modal Assign Produksi.
+      const SPEC_DB_COLS = ['input_fase','input_voltage','output_voltage','output_current','output_kva','output_fase'];
       const specRows = [];
       for (const row of itemRows) {
         const spec = poFormSpecs[row.idx];
         if (spec && row.id) {
-          specRows.push({
-            id: 'spec-' + Date.now().toString(36) + row.idx,
-            item_id: row.id,
-            kategori: row.category,
-            ...spec,
-            updated_at: new Date().toISOString()
+          const dbRow = { item_id: row.id, kategori: row.category, updated_at: new Date().toISOString() };
+          const extras = {};
+          Object.keys(spec).forEach(k => {
+            if (SPEC_DB_COLS.includes(k)) dbRow[k] = spec[k];
+            else if (spec[k] != null && spec[k] !== '') extras[k] = spec[k];
           });
+          if (Object.keys(extras).length) dbRow.extra_specs = extras;
+          specRows.push(dbRow);
         }
       }
-      if (specRows.length) await sb.from('item_specs').insert(specRows);
+      if (specRows.length) {
+        const { error: _specErr } = await sb.from('item_specs').insert(specRows);
+        if (_specErr) console.error('Spec insert error:', _specErr);
+      }
       poFormSpecs = {};
     }
     toast(editId ? 'PO diperbarui' : 'PO dibuat');
@@ -5395,15 +5400,47 @@ async function openItemSpec(itemId, poId){
 async function saveItemSpec(){
   const {itemId, poId, category} = _specCtx;
   const fields = SPEC_FIELDS[category]||[];
+  // Hanya field ini yang benar-benar ada di tabel item_specs.
+  // Field lain (input_voltage_tolerance, pulse, notes, dll) disimpan ke kolom extra_specs sebagai JSON.
+  const KNOWN_COLS = ['input_fase','input_voltage','output_voltage','output_current','output_kva','output_fase'];
   const data = {item_id: itemId, kategori: category, updated_at: new Date().toISOString()};
-  fields.forEach(f=>{ const el=document.getElementById('spec_'+f.id); if(el) data[f.id]=el.value.trim()||null; });
-  let existing = null; try { const _r = await sb.from('item_specs').select('id').eq('item_id',itemId).single(); existing = _r.data; } catch(e) {}
-  if(existing){ await sb.from('item_specs').update(data).eq('item_id',itemId); }
-  else { data.id='spec-'+Date.now().toString(36); await sb.from('item_specs').insert(data); }
-  toast('Spec disimpan');
-  closeAllModals();
-  await loadPOs();
-  openPODetail(poId);
+  const extras = {};
+  fields.forEach(f => {
+    const el = document.getElementById('spec_'+f.id);
+    if (!el) return;
+    const val = el.value.trim() || null;
+    if (KNOWN_COLS.includes(f.id)) {
+      data[f.id] = val;
+    } else if (val !== null) {
+      extras[f.id] = val;
+    }
+  });
+  if (Object.keys(extras).length) data.extra_specs = extras;
+
+  try {
+    let existing = null;
+    try { const _r = await sb.from('item_specs').select('id').eq('item_id',itemId).single(); existing = _r.data; } catch(e) {}
+    if (existing) {
+      const { error } = await sb.from('item_specs').update(data).eq('item_id',itemId);
+      if (error) throw error;
+    } else {
+      // id auto-generate by Postgres (gen_random_uuid). Jangan set manual.
+      const { error } = await sb.from('item_specs').insert(data);
+      if (error) throw error;
+    }
+    toast('Spec disimpan');
+    closeAllModals();
+    await loadPOs();
+    // Refresh tampilan: kalau sedang di tab ETS, re-render list; kalau dari detail PO, re-open
+    if (currentModule === 'ets') {
+      await renderETSList();
+    } else if (poId) {
+      openPODetail(poId);
+    }
+  } catch (e) {
+    toast('Gagal simpan spec: ' + (e.message || e));
+    console.error('saveItemSpec error:', e);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
