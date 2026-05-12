@@ -118,6 +118,14 @@ tr:hover td{background:var(--bg);cursor:pointer}
 .sort-arrow{font-size:10px;margin-left:2px;opacity:.35}.sort-arrow.active{opacity:1;color:var(--blue)}
 .empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);white-space:normal}
 .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+/* Grouped table rows */
+.group-row td{background:var(--surface2);font-weight:600;cursor:pointer;user-select:none;padding:8px 10px}
+.group-row:hover td{background:var(--bg)}
+.group-arrow{display:inline-block;width:10px;font-size:10px;color:var(--text3);margin-right:6px;transition:transform .15s}
+.group-arrow.open{transform:rotate(90deg)}
+.group-meta{font-size:11px;color:var(--text3);font-weight:400;margin-left:6px}
+.toolbar-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center}
+.toolbar-row .search-wrap{flex:1;min-width:240px}
 
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
@@ -1697,6 +1705,97 @@ function groupHeaderHTML(group, prefix='g', extraInfo='') {
 }
 
 // ═══════════════════════════════════════════════════════════
+// SHARED: Grouped Sortable Table (ETS, Assign, Produksi)
+// ═══════════════════════════════════════════════════════════
+// State per-module (sort field, dir, search) — terpisah supaya tidak konflik
+window._tblState = window._tblState || {};
+function tblState(key) {
+  if (!window._tblState[key]) window._tblState[key] = { sort: null, dir: 'asc', search: '', collapsed: {} };
+  return window._tblState[key];
+}
+
+function toggleTblGroup(modKey, groupKey) {
+  const st = tblState(modKey);
+  st.collapsed[groupKey] = !st.collapsed[groupKey];
+  // Toggle rows visibility without re-render (lebih smooth)
+  const safeKey = btoa(unescape(encodeURIComponent(groupKey))).replace(/[^a-z0-9]/gi,'').substring(0,30);
+  const isCollapsed = st.collapsed[groupKey];
+  document.querySelectorAll(`tr[data-grp="${modKey}_${safeKey}"]`).forEach(r => r.style.display = isCollapsed ? 'none' : '');
+  const arrow = document.getElementById(`grpArr_${modKey}_${safeKey}`);
+  if (arrow) arrow.classList.toggle('open', !isCollapsed);
+}
+
+function toggleTblSort(modKey, field) {
+  const st = tblState(modKey);
+  if (st.sort === field) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+  else { st.sort = field; st.dir = 'asc'; }
+  // Re-render via callback yang module sediakan
+  if (typeof window[`refresh_${modKey}`] === 'function') window[`refresh_${modKey}`]();
+}
+
+// Render header row sortable
+function tblSortHeader(modKey, fields) {
+  const st = tblState(modKey);
+  return `<tr>${fields.map(f => {
+    if (!f.sortable) return `<th style="${f.style||''}">${f.label}</th>`;
+    const active = st.sort === f.key;
+    const arrow = active ? (st.dir === 'asc' ? '▲' : '▼') : '';
+    return `<th class="sort-th" style="${f.style||''}" onclick="toggleTblSort('${modKey}','${f.key}')">${f.label} <span class="sort-arrow ${active?'active':''}">${arrow}</span></th>`;
+  }).join('')}</tr>`;
+}
+
+// Render rows: group headers + child rows
+// items: array of {po, item, ...}
+// columns: function(it) => array of <td> HTML
+// modKey: 'ets', 'aprod', 'prod', dst
+// colspan: total kolom (untuk group header row)
+function tblGroupedRows(modKey, items, getColumns, colspan) {
+  const st = tblState(modKey);
+  // Apply sort di level item (sorting di dalam group)
+  if (st.sort) {
+    items = [...items].sort((a, b) => {
+      const av = String(a.item[st.sort] || a.po[st.sort] || '').toLowerCase();
+      const bv = String(b.item[st.sort] || b.po[st.sort] || '').toLowerCase();
+      return av.localeCompare(bv) * (st.dir === 'asc' ? 1 : -1);
+    });
+  }
+  // Group items by customer+project
+  const groups = groupItemsByProject(items);
+  return groups.map(g => {
+    const safeKey = btoa(unescape(encodeURIComponent(g.key))).replace(/[^a-z0-9]/gi,'').substring(0,30);
+    const collapsed = !!st.collapsed[g.key];
+    const groupKeyEsc = g.key.replace(/'/g, "\\'");
+    const meta = (typeof g.meta === 'string' && g.meta) ? `<span class="group-meta">· ${g.meta}</span>` : '';
+    const head = `<tr class="group-row" onclick="toggleTblGroup('${modKey}','${groupKeyEsc}')">
+      <td colspan="${colspan}">
+        <span class="group-arrow ${collapsed?'':'open'}" id="grpArr_${modKey}_${safeKey}">▶</span>
+        <span>${g.customer}</span>
+        <span style="color:var(--text3);font-weight:400"> · ${g.project}</span>
+        <span class="group-meta">${g.items.length} item${meta}</span>
+      </td>
+    </tr>`;
+    const rows = g.items.map(it => {
+      const tds = getColumns(it);
+      return `<tr data-grp="${modKey}_${safeKey}" style="display:${collapsed?'none':''}">${tds.join('')}</tr>`;
+    }).join('');
+    return head + rows;
+  }).join('');
+}
+
+// Filter items by search query (cek all string fields di po dan item)
+function tblFilterBySearch(items, query) {
+  if (!query) return items;
+  const q = query.toLowerCase();
+  return items.filter(({po, item}) => {
+    const hay = [
+      po.no_po, po.customer_name, po.project_name, po.no_project,
+      item.category, item.model_name, item.serial_number, item.spec_summary, item.item_status, item.catatan
+    ].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // ASSIGN MODULE - Owner/Admin/Direktur
 // ═══════════════════════════════════════════════════════════
 let assignTab = 'produksi'; // produksi | service
@@ -1765,34 +1864,50 @@ function renderAssignProduksi() {
     });
   });
 
+  const st = tblState('aprod');
+  const filtered = tblFilterBySearch(items, st.search);
+
   if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Belum ada item produksi</div>';
 
-  return groupItemsByProject(items).map(group=>{
-    const id = groupId(group.key, 'aprod');
-    const collapsed = window._groupCollapsed[group.key] || false;
-    const noPicCount = group.items.filter(x=>x.pics.length===0).length;
-    return `<div style="margin-bottom:6px">
-      ${groupHeaderHTML(group, 'aprod', noPicCount?noPicCount+' belum di-assign':'')}
-      <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
-        ${group.items.map(({po,item,pics})=>`
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-                <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: '+item.serial_number:''}</div>
-                <div style="font-size:12px;margin-top:6px">
-                  ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
-                </div>
-              </div>
-              <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
-            </div>
-          </div>
-        `).join('')}
+  const columns = [
+    { key:'no_po', label:'No. PO', sortable:true, style:'width:13%' },
+    { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
+    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
+    { key:'pic', label:'PIC Produksi', sortable:false, style:'width:25%' },
+    { key:'action', label:'', sortable:false, style:'width:15%' },
+  ];
+
+  const getColumns = ({po, item, pics}) => [
+    `<td class="mono">${po.no_po}</td>`,
+    `<td>${item.category}</td>`,
+    `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
+    `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
+    `<td>${pics.length ? `<span>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</span>` : '<span style="color:var(--coral);font-weight:500;font-size:12px">⚠ Belum di-assign</span>'}</td>`,
+    `<td style="white-space:normal"><button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button></td>`
+  ];
+
+  const tbody = filtered.length === 0
+    ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item cocok</td></tr>`
+    : tblGroupedRows('aprod', filtered, getColumns, columns.length);
+
+  return `
+    <div class="toolbar-row">
+      <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="tblState('aprod').search=this.value;renderAssignList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>${tblSortHeader('aprod', columns)}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
       </div>
     </div>`;
-  }).join('');
 }
+window.refresh_aprod = renderAssignList;
 
 function renderAssignService(tickets) {
   if(!tickets.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tiket aktif</div>';
@@ -2002,34 +2117,53 @@ function renderAssignInstalasi() {
 
   if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item untuk instalasi/commissioning<br><span style="font-size:11px">Hanya PO dengan flag Instalasi atau Commissioning yang muncul</span></div>';
 
-  return groupItemsByProject(items).map(group=>{
-    const id = groupId(group.key, 'ainst');
-    const collapsed = window._groupCollapsed[group.key] || false;
-    const noPicCount = group.items.filter(x=>x.pics.length===0).length;
-    return `<div style="margin-bottom:6px">
-      ${groupHeaderHTML(group, 'ainst', noPicCount?noPicCount+' belum di-assign':'')}
-      <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
-        ${group.items.map(({po,item,pics})=>{
-          const flags = [p=>p.has_instalasi?'Instalasi':'',p=>p.has_commissioning?'Commissioning':''].map(f=>f(po)).filter(Boolean).join(' + ');
-          return `
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-              <div style="flex:1;min-width:0">
-                <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-                <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: '+item.serial_number:''} <span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px">${flags}</span></div>
-                <div style="font-size:12px;margin-top:6px">
-                  ${pics.length ? `<span style="color:var(--text2)">PIC: <strong>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum ada PIC</span>'}
-                </div>
-              </div>
-              <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button>
-            </div>
-          </div>`;
-        }).join('')}
+  const st = tblState('ainst');
+  const filtered = tblFilterBySearch(items, st.search);
+
+  const columns = [
+    { key:'no_po', label:'No. PO', sortable:true, style:'width:12%' },
+    { key:'category', label:'Kategori', sortable:true, style:'width:10%' },
+    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:17%' },
+    { key:'flag', label:'Tipe', sortable:false, style:'width:12%' },
+    { key:'pic', label:'PIC Instalasi', sortable:false, style:'width:21%' },
+    { key:'action', label:'', sortable:false, style:'width:10%' },
+  ];
+
+  const getColumns = ({po, item, pics}) => {
+    const flags = [po.has_instalasi?'Instalasi':'', po.has_commissioning?'Commissioning':''].filter(Boolean).join(' + ');
+    return [
+      `<td class="mono">${po.no_po}</td>`,
+      `<td>${item.category}</td>`,
+      `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
+      `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
+      `<td><span style="background:#e0f2fe;color:#0369a1;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600">${flags}</span></td>`,
+      `<td>${pics.length ? `<span>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</span>` : '<span style="color:var(--coral);font-weight:500;font-size:12px">⚠ Belum di-assign</span>'}</td>`,
+      `<td><button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah':'Assign'}</button></td>`
+    ];
+  };
+
+  const tbody = filtered.length === 0
+    ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item cocok</td></tr>`
+    : tblGroupedRows('ainst', filtered, getColumns, columns.length);
+
+  return `
+    <div class="toolbar-row">
+      <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="tblState('ainst').search=this.value;renderAssignList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>${tblSortHeader('ainst', columns)}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
       </div>
     </div>`;
-  }).join('');
 }
+window.refresh_ainst = renderAssignList;
 
 async function openAssignInstalasiModal(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
@@ -2712,12 +2846,10 @@ async function renderETSList() {
   const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
   const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
 
-  // Build all items — pakai needs_ets sebagai single source of truth.
-  // Item tanpa needs_ets (beli jadi, atau produksi tanpa SN seperti Fuse Box) di-skip.
   const allItems = [];
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
-      const hasSpec = !!it.serial_number; // SN means spec was input
+      const hasSpec = !!it.serial_number;
       const hasDetailSpec = dsItemIds.has(it.id);
       const isPending = !hasSpec || !hasDetailSpec;
       allItems.push({po:p, item:it, hasSpec, hasDetailSpec, isPending});
@@ -2728,50 +2860,69 @@ async function renderETSList() {
   if(etsFilter === 'pending') filtered = allItems.filter(x=>x.isPending);
   else if(etsFilter === 'done') filtered = allItems.filter(x=>!x.isPending);
 
+  const st = tblState('ets');
+  filtered = tblFilterBySearch(filtered, st.search);
+
   const pendingCount = allItems.filter(x=>x.isPending).length;
   const doneCount = allItems.length - pendingCount;
 
   const filterBtn = (key, label, count) =>
     `<button onclick="etsFilter='${key}';renderETSList()" style="padding:6px 14px;background:${etsFilter===key?'var(--text)':'var(--surface)'};color:${etsFilter===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer">${label} <span style="opacity:.7">(${count})</span></button>`;
 
+  const columns = [
+    { key:'no_po', label:'No. PO', sortable:true, style:'width:14%' },
+    { key:'category', label:'Kategori', sortable:true, style:'width:12%' },
+    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
+    { key:'status', label:'Status', sortable:false, style:'width:14%' },
+    { key:'action', label:'', sortable:false, style:'width:24%' },
+  ];
+
+  const getColumns = ({po, item, hasSpec, hasDetailSpec}) => {
+    const badges = [];
+    badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600">Belum SN</span>');
+    badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>');
+    return [
+      `<td class="mono">${po.no_po}</td>`,
+      `<td>${item.category}</td>`,
+      `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
+      `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
+      `<td><div style="display:flex;gap:4px;flex-wrap:wrap">${badges.join('')}</div></td>`,
+      `<td style="white-space:normal"><div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
+        ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec</button>` : ''}
+        <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
+      </div></td>`
+    ];
+  };
+
+  const tbody = filtered.length === 0
+    ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item</td></tr>`
+    : tblGroupedRows('ets', filtered, getColumns, columns.length);
+
   document.getElementById('etsBody').innerHTML = `
-    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
-      ${filterBtn('all', 'Semua', allItems.length)}
-      ${filterBtn('pending', 'Belum Lengkap', pendingCount)}
-      ${filterBtn('done', 'Lengkap', doneCount)}
+    <div class="toolbar-row">
+      <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Cari No. PO, customer, model, SN..." value="${st.search}" oninput="tblState('ets').search=this.value;renderETSList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${filterBtn('all', 'Semua', allItems.length)}
+        ${filterBtn('pending', 'Belum Lengkap', pendingCount)}
+        ${filterBtn('done', 'Lengkap', doneCount)}
+      </div>
     </div>
-    ${filtered.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item</div>' :
-      groupItemsByProject(filtered).map(group=>{
-        const id = groupId(group.key, 'ets');
-        const collapsed = window._groupCollapsed[group.key] || false;
-        return `<div style="margin-bottom:6px">
-          ${groupHeaderHTML(group, 'ets')}
-          <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
-            ${group.items.map(({po,item,hasSpec,hasDetailSpec})=>{
-              const badges = [];
-              badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-weight:600">Belum SN</span>');
-              badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:600">Detail Spec ✕</span>');
-              return `
-              <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:6px">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                    <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'(belum ada model)'}</div>
-                    <div style="font-size:11px;color:var(--text2)">${item.serial_number?'SN: <span style="font-family:monospace">'+item.serial_number+'</span>':'Belum ada SN'}</div>
-                    <div style="display:flex;gap:4px;margin-top:6px">${badges.join('')}</div>
-                  </div>
-                </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit Item</button>
-                  ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec & Generate SN</button>` : ''}
-                  <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      }).join('')}`;
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>${tblSortHeader('ets', columns)}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
+// Refresh callback untuk tblSort
+window.refresh_ets = renderETSList;
 
 // ═══════════════════════════════════════════════════════════
 // PRODUKSI MODULE
@@ -2782,9 +2933,12 @@ async function renderProduksiModule() {
     <div class="page-body" id="produksiBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
 
   await loadPOs();
+  renderProduksiList();
+}
+
+function renderProduksiList() {
   const me = currentUser;
 
-  // Get items where I am PIC
   const tasks = [];
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
@@ -2804,35 +2958,55 @@ async function renderProduksiModule() {
     'Selesai Produksi': {bg:'#d1fae5', color:'#065f46'}
   };
 
+  const st = tblState('prod');
+  const filtered = tblFilterBySearch(tasks, st.search);
+
+  const columns = [
+    { key:'no_po', label:'No. PO', sortable:true, style:'width:13%' },
+    { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
+    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
+    { key:'item_status', label:'Status', sortable:true, style:'width:14%' },
+    { key:'pic', label:'PIC', sortable:false, style:'width:18%' },
+    { key:'action', label:'', sortable:false, style:'width:8%' },
+  ];
+
+  const getColumns = ({po, item}) => {
+    const sc = STATUS_COLORS[item.item_status] || STATUS_COLORS['Belum Produksi'];
+    const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
+    return [
+      `<td class="mono">${po.no_po}</td>`,
+      `<td>${item.category}</td>`,
+      `<td style="font-weight:500">${item.model_name||'—'}</td>`,
+      `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
+      `<td><span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${item.item_status||'Belum Produksi'}</span></td>`,
+      `<td style="font-size:11px;color:var(--text2)">${myPics.length ? '👷 ' + myPics.map(x=>x.app_users?.full_name||'?').join(', ') : '<span style="color:var(--text3)">—</span>'}</td>`,
+      `<td><button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openProduksiItemModal(this.dataset.iid,this.dataset.pid)">Buka</button></td>`
+    ];
+  };
+
+  const tbody = filtered.length === 0
+    ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada tugas produksi aktif</td></tr>`
+    : tblGroupedRows('prod', filtered, getColumns, columns.length);
+
   document.getElementById('produksiBody').innerHTML = `
-    <div style="margin-bottom:1rem"><div class="page-sub">Item produksi aktif (${tasks.length})</div></div>
-    ${tasks.length===0 ? '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tugas produksi aktif</div>' :
-      groupItemsByProject(tasks).map(group=>{
-        const id = groupId(group.key, 'prod');
-        const collapsed = window._groupCollapsed[group.key] || false;
-        return `<div style="margin-bottom:6px">
-          ${groupHeaderHTML(group, 'prod')}
-          <div id="${id}_body" style="display:${collapsed?'none':'block'};padding-left:18px;border-left:2px solid var(--border);margin-left:6px">
-            ${group.items.map(({po,item})=>{
-              const sc = STATUS_COLORS[item.item_status]||STATUS_COLORS['Belum Produksi'];
-              const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
-              return `
-              <div onclick="openProduksiItemModal('${item.id}','${po.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:.75rem 1rem;cursor:pointer;margin-bottom:6px" onmouseover="this.style.borderColor='var(--brand)'" onmouseout="this.style.borderColor='var(--border)'">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-                  <div style="flex:1;min-width:0">
-                    <div style="font-size:11px;color:var(--text3);font-family:monospace">${po.no_po}</div>
-                    <div style="font-size:14px;font-weight:600;margin:2px 0">${item.category} — ${item.model_name||'—'}</div>
-                    <div style="font-size:11px;color:var(--text2)">${item.serial_number?`SN: ${item.serial_number}`:''}</div>
-                    ${myPics.length?`<div style="font-size:10px;color:var(--text3);margin-top:3px">👷 ${myPics.map(x=>x.app_users?.full_name||'?').join(', ')}</div>`:''}
-                  </div>
-                  <span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600;white-space:nowrap">${item.item_status}</span>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      }).join('')}`;
+    <div class="toolbar-row">
+      <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, status..." value="${st.search}" oninput="tblState('prod').search=this.value;renderProduksiList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+      </div>
+      <div style="font-size:12px;color:var(--text3)">${tasks.length} item aktif${st.search?` · ${filtered.length} cocok`:''}</div>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>${tblSortHeader('prod', columns)}</thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
+window.refresh_prod = renderProduksiList;
 
 
 async function renderPOModule() {
