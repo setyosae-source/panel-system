@@ -1729,8 +1729,26 @@ function toggleTblSort(modKey, field) {
   const st = tblState(modKey);
   if (st.sort === field) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
   else { st.sort = field; st.dir = 'asc'; }
-  // Re-render via callback yang module sediakan
+  // Re-render hanya body+header tabel (bukan seluruh halaman, agar input search tidak kehilangan fokus)
   if (typeof window[`refresh_${modKey}`] === 'function') window[`refresh_${modKey}`]();
+}
+
+// Search handler: re-render tbody saja, tidak seluruh container.
+// modKey: 'ets', 'aprod', dst — harus sama dengan tblState key
+// rebuildFn: function () => { rows: HTML, headerCells: HTML } untuk regenerate isi tabel
+function tblSearchInput(modKey, ev, rebuildFn) {
+  const st = tblState(modKey);
+  st.search = ev.target.value;
+  const cursor = ev.target.selectionStart;
+  const result = rebuildFn();
+  // Update tbody saja, jangan recreate input
+  const root = ev.target.closest('.page-body') || document;
+  const tbody = root.querySelector(`tbody[data-tbl="${modKey}"]`);
+  const thead = root.querySelector(`thead[data-tbl="${modKey}"]`);
+  if (tbody) tbody.innerHTML = result.rows;
+  if (thead && result.header) thead.innerHTML = result.header;
+  // Pertahankan posisi cursor input
+  setTimeout(() => { ev.target.focus(); try { ev.target.setSelectionRange(cursor, cursor); } catch(e){} }, 0);
 }
 
 // Render header row sortable
@@ -1855,20 +1873,11 @@ async function renderAssignList() {
   document.getElementById('assignBody').innerHTML = body;
 }
 
-function renderAssignProduksi() {
-  const items = [];
-  allPOs.forEach(p => {
-    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
-      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi');
-      items.push({po:p, item:it, pics});
-    });
-  });
+let _aprodCache = null;
 
+function _buildAprodTable(items) {
   const st = tblState('aprod');
   const filtered = tblFilterBySearch(items, st.search);
-
-  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Belum ada item produksi</div>';
-
   const columns = [
     { key:'no_po', label:'No. PO', sortable:true, style:'width:13%' },
     { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
@@ -1877,7 +1886,6 @@ function renderAssignProduksi() {
     { key:'pic', label:'PIC Produksi', sortable:false, style:'width:25%' },
     { key:'action', label:'', sortable:false, style:'width:15%' },
   ];
-
   const getColumns = ({po, item, pics}) => [
     `<td class="mono">${po.no_po}</td>`,
     `<td>${item.category}</td>`,
@@ -1886,28 +1894,57 @@ function renderAssignProduksi() {
     `<td>${pics.length ? `<span>${pics.map(x=>x.app_users?.full_name||'?').join(', ')}</span>` : '<span style="color:var(--coral);font-weight:500;font-size:12px">⚠ Belum di-assign</span>'}</td>`,
     `<td style="white-space:normal"><button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openAssignProduksiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah PIC':'Assign PIC'}</button></td>`
   ];
-
-  const tbody = filtered.length === 0
+  const rows = filtered.length === 0
     ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item cocok</td></tr>`
     : tblGroupedRows('aprod', filtered, getColumns, columns.length);
+  return { header: tblSortHeader('aprod', columns), rows };
+}
+
+function renderAssignProduksi() {
+  const items = [];
+  allPOs.forEach(p => {
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Produksi');
+      items.push({po:p, item:it, pics});
+    });
+  });
+  _aprodCache = items;
+
+  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Belum ada item produksi</div>';
+
+  const st = tblState('aprod');
+  const tbl = _buildAprodTable(items);
 
   return `
     <div class="toolbar-row">
       <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="tblState('aprod').search=this.value;renderAssignList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="onAprodSearchInput(event)" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
       </div>
     </div>
     <div class="table-card">
       <div class="table-wrap">
         <table>
-          <thead>${tblSortHeader('aprod', columns)}</thead>
-          <tbody>${tbody}</tbody>
+          <thead data-tbl="aprod">${tbl.header}</thead>
+          <tbody data-tbl="aprod">${tbl.rows}</tbody>
         </table>
       </div>
     </div>`;
 }
-window.refresh_aprod = renderAssignList;
+
+function refresh_aprod() {
+  if (!_aprodCache) { renderAssignList(); return; }
+  const tbl = _buildAprodTable(_aprodCache);
+  const tbody = document.querySelector('tbody[data-tbl="aprod"]');
+  const thead = document.querySelector('thead[data-tbl="aprod"]');
+  if (tbody) tbody.innerHTML = tbl.rows;
+  if (thead) thead.innerHTML = tbl.header;
+}
+
+function onAprodSearchInput(ev) {
+  tblState('aprod').search = ev.target.value;
+  refresh_aprod();
+}
 
 function renderAssignService(tickets) {
   if(!tickets.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada tiket aktif</div>';
@@ -2105,21 +2142,11 @@ async function saveAssignService(ticketId) {
 }
 
 
-function renderAssignInstalasi() {
-  const items = [];
-  allPOs.forEach(p => {
-    if(!p.has_instalasi && !p.has_commissioning) return;
-    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
-      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Instalasi');
-      items.push({po:p, item:it, pics});
-    });
-  });
+let _ainstCache = null;
 
-  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item untuk instalasi/commissioning<br><span style="font-size:11px">Hanya PO dengan flag Instalasi atau Commissioning yang muncul</span></div>';
-
+function _buildAinstTable(items) {
   const st = tblState('ainst');
   const filtered = tblFilterBySearch(items, st.search);
-
   const columns = [
     { key:'no_po', label:'No. PO', sortable:true, style:'width:12%' },
     { key:'category', label:'Kategori', sortable:true, style:'width:10%' },
@@ -2129,7 +2156,6 @@ function renderAssignInstalasi() {
     { key:'pic', label:'PIC Instalasi', sortable:false, style:'width:21%' },
     { key:'action', label:'', sortable:false, style:'width:10%' },
   ];
-
   const getColumns = ({po, item, pics}) => {
     const flags = [po.has_instalasi?'Instalasi':'', po.has_commissioning?'Commissioning':''].filter(Boolean).join(' + ');
     return [
@@ -2142,28 +2168,58 @@ function renderAssignInstalasi() {
       `<td><button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openAssignInstalasiModal(this.dataset.iid,this.dataset.pid)">${pics.length?'Ubah':'Assign'}</button></td>`
     ];
   };
-
-  const tbody = filtered.length === 0
+  const rows = filtered.length === 0
     ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item cocok</td></tr>`
     : tblGroupedRows('ainst', filtered, getColumns, columns.length);
+  return { header: tblSortHeader('ainst', columns), rows };
+}
+
+function renderAssignInstalasi() {
+  const items = [];
+  allPOs.forEach(p => {
+    if(!p.has_instalasi && !p.has_commissioning) return;
+    (p.po_items||[]).filter(it=>it.is_produksi).forEach(it => {
+      const pics = (p.po_pic||[]).filter(x=>x.item_id===it.id && x.stage==='Instalasi');
+      items.push({po:p, item:it, pics});
+    });
+  });
+  _ainstCache = items;
+
+  if(!items.length) return '<div style="text-align:center;padding:3rem;color:var(--text3)">Tidak ada item untuk instalasi/commissioning<br><span style="font-size:11px">Hanya PO dengan flag Instalasi atau Commissioning yang muncul</span></div>';
+
+  const st = tblState('ainst');
+  const tbl = _buildAinstTable(items);
 
   return `
     <div class="toolbar-row">
       <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="tblState('ainst').search=this.value;renderAssignList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, PIC..." value="${st.search}" oninput="onAinstSearchInput(event)" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
       </div>
     </div>
     <div class="table-card">
       <div class="table-wrap">
         <table>
-          <thead>${tblSortHeader('ainst', columns)}</thead>
-          <tbody>${tbody}</tbody>
+          <thead data-tbl="ainst">${tbl.header}</thead>
+          <tbody data-tbl="ainst">${tbl.rows}</tbody>
         </table>
       </div>
     </div>`;
 }
-window.refresh_ainst = renderAssignList;
+
+function refresh_ainst() {
+  if (!_ainstCache) { renderAssignList(); return; }
+  const tbl = _buildAinstTable(_ainstCache);
+  const tbody = document.querySelector('tbody[data-tbl="ainst"]');
+  const thead = document.querySelector('thead[data-tbl="ainst"]');
+  if (tbody) tbody.innerHTML = tbl.rows;
+  if (thead) thead.innerHTML = tbl.header;
+}
+
+function onAinstSearchInput(ev) {
+  tblState('ainst').search = ev.target.value;
+  refresh_ainst();
+}
 
 async function openAssignInstalasiModal(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
@@ -2841,33 +2897,14 @@ async function renderETSModule() {
   await renderETSList();
 }
 
-async function renderETSList() {
-  // Load detail_specs to know which items have full webpage spec
-  const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
-  const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
-
-  const allItems = [];
-  for(const p of allPOs) {
-    for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
-      const hasSpec = !!it.serial_number;
-      const hasDetailSpec = dsItemIds.has(it.id);
-      const isPending = !hasSpec || !hasDetailSpec;
-      allItems.push({po:p, item:it, hasSpec, hasDetailSpec, isPending});
-    }
-  }
-
+// Build state ETS (filter+sort+search), return rows+header HTML
+function _buildEtsTable(allItems, dsItemIds) {
   let filtered = allItems;
   if(etsFilter === 'pending') filtered = allItems.filter(x=>x.isPending);
   else if(etsFilter === 'done') filtered = allItems.filter(x=>!x.isPending);
 
   const st = tblState('ets');
   filtered = tblFilterBySearch(filtered, st.search);
-
-  const pendingCount = allItems.filter(x=>x.isPending).length;
-  const doneCount = allItems.length - pendingCount;
-
-  const filterBtn = (key, label, count) =>
-    `<button onclick="etsFilter='${key}';renderETSList()" style="padding:6px 14px;background:${etsFilter===key?'var(--text)':'var(--surface)'};color:${etsFilter===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer">${label} <span style="opacity:.7">(${count})</span></button>`;
 
   const columns = [
     { key:'no_po', label:'No. PO', sortable:true, style:'width:14%' },
@@ -2896,17 +2933,45 @@ async function renderETSList() {
     ];
   };
 
-  const tbody = filtered.length === 0
+  const rows = filtered.length === 0
     ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item</td></tr>`
     : tblGroupedRows('ets', filtered, getColumns, columns.length);
+  return { header: tblSortHeader('ets', columns), rows, columns };
+}
+
+let _etsCache = null;
+
+async function renderETSList() {
+  const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
+  const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
+
+  const allItems = [];
+  for(const p of allPOs) {
+    for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
+      const hasSpec = !!it.serial_number;
+      const hasDetailSpec = dsItemIds.has(it.id);
+      const isPending = !hasSpec || !hasDetailSpec;
+      allItems.push({po:p, item:it, hasSpec, hasDetailSpec, isPending});
+    }
+  }
+  _etsCache = { allItems, dsItemIds };
+
+  const pendingCount = allItems.filter(x=>x.isPending).length;
+  const doneCount = allItems.length - pendingCount;
+
+  const filterBtn = (key, label, count) =>
+    `<button onclick="etsFilter='${key}';refresh_ets()" style="padding:6px 14px;background:${etsFilter===key?'var(--text)':'var(--surface)'};color:${etsFilter===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer">${label} <span style="opacity:.7">(${count})</span></button>`;
+
+  const st = tblState('ets');
+  const tbl = _buildEtsTable(allItems, dsItemIds);
 
   document.getElementById('etsBody').innerHTML = `
     <div class="toolbar-row">
       <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" placeholder="Cari No. PO, customer, model, SN..." value="${st.search}" oninput="tblState('ets').search=this.value;renderETSList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+        <input type="text" id="etsSearchInput" placeholder="Cari No. PO, customer, model, SN..." value="${st.search}" oninput="onEtsSearchInput(event)" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <div id="etsFilterBtns" style="display:flex;gap:6px;flex-wrap:wrap">
         ${filterBtn('all', 'Semua', allItems.length)}
         ${filterBtn('pending', 'Belum Lengkap', pendingCount)}
         ${filterBtn('done', 'Lengkap', doneCount)}
@@ -2915,14 +2980,38 @@ async function renderETSList() {
     <div class="table-card">
       <div class="table-wrap">
         <table>
-          <thead>${tblSortHeader('ets', columns)}</thead>
-          <tbody>${tbody}</tbody>
+          <thead data-tbl="ets">${tbl.header}</thead>
+          <tbody data-tbl="ets">${tbl.rows}</tbody>
         </table>
       </div>
     </div>`;
 }
-// Refresh callback untuk tblSort
-window.refresh_ets = renderETSList;
+
+// Partial refresh: hanya tbody+thead, supaya input search tidak kehilangan fokus
+function refresh_ets() {
+  if (!_etsCache) { renderETSList(); return; }
+  const tbl = _buildEtsTable(_etsCache.allItems, _etsCache.dsItemIds);
+  const tbody = document.querySelector('tbody[data-tbl="ets"]');
+  const thead = document.querySelector('thead[data-tbl="ets"]');
+  if (tbody) tbody.innerHTML = tbl.rows;
+  if (thead) thead.innerHTML = tbl.header;
+  // Update filter button counts juga
+  const pendingCount = _etsCache.allItems.filter(x=>x.isPending).length;
+  const doneCount = _etsCache.allItems.length - pendingCount;
+  const fb = document.getElementById('etsFilterBtns');
+  if (fb) {
+    const filterBtn = (key, label, count) =>
+      `<button onclick="etsFilter='${key}';refresh_ets()" style="padding:6px 14px;background:${etsFilter===key?'var(--text)':'var(--surface)'};color:${etsFilter===key?'#fff':'var(--text2)'};border:1px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;cursor:pointer">${label} <span style="opacity:.7">(${count})</span></button>`;
+    fb.innerHTML = `${filterBtn('all', 'Semua', _etsCache.allItems.length)}
+      ${filterBtn('pending', 'Belum Lengkap', pendingCount)}
+      ${filterBtn('done', 'Lengkap', doneCount)}`;
+  }
+}
+
+function onEtsSearchInput(ev) {
+  tblState('ets').search = ev.target.value;
+  refresh_ets();
+}
 
 // ═══════════════════════════════════════════════════════════
 // PRODUKSI MODULE
@@ -2936,31 +3025,17 @@ async function renderProduksiModule() {
   renderProduksiList();
 }
 
-function renderProduksiList() {
-  const me = currentUser;
+let _prodCache = null;
 
-  const tasks = [];
-  for(const p of allPOs) {
-    for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
-      const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
-      if(can('po_manage') || isMyPic) {
-        if(it.item_status !== 'Selesai Produksi') {
-          tasks.push({po:p, item:it});
-        }
-      }
-    }
-  }
-
+function _buildProdTable(tasks) {
   const STATUS_COLORS = {
     'Belum Produksi': {bg:'#f1f5f9', color:'#475569'},
     'Proses Produksi': {bg:'#fef3c7', color:'#92400e'},
     'QC': {bg:'#dbeafe', color:'#1e40af'},
     'Selesai Produksi': {bg:'#d1fae5', color:'#065f46'}
   };
-
   const st = tblState('prod');
   const filtered = tblFilterBySearch(tasks, st.search);
-
   const columns = [
     { key:'no_po', label:'No. PO', sortable:true, style:'width:13%' },
     { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
@@ -2970,7 +3045,6 @@ function renderProduksiList() {
     { key:'pic', label:'PIC', sortable:false, style:'width:18%' },
     { key:'action', label:'', sortable:false, style:'width:8%' },
   ];
-
   const getColumns = ({po, item}) => {
     const sc = STATUS_COLORS[item.item_status] || STATUS_COLORS['Belum Produksi'];
     const myPics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Produksi');
@@ -2984,29 +3058,66 @@ function renderProduksiList() {
       `<td><button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openProduksiItemModal(this.dataset.iid,this.dataset.pid)">Buka</button></td>`
     ];
   };
-
-  const tbody = filtered.length === 0
+  const rows = filtered.length === 0
     ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada tugas produksi aktif</td></tr>`
     : tblGroupedRows('prod', filtered, getColumns, columns.length);
+  return { header: tblSortHeader('prod', columns), rows, count: filtered.length };
+}
+
+function renderProduksiList() {
+  const me = currentUser;
+  const tasks = [];
+  for(const p of allPOs) {
+    for(const it of (p.po_items||[]).filter(x=>x.is_produksi)) {
+      const isMyPic = (p.po_pic||[]).some(x => x.item_id===it.id && x.stage==='Produksi' && x.user_id===me.id);
+      if(can('po_manage') || isMyPic) {
+        if(it.item_status !== 'Selesai Produksi') {
+          tasks.push({po:p, item:it});
+        }
+      }
+    }
+  }
+  _prodCache = tasks;
+
+  const st = tblState('prod');
+  const tbl = _buildProdTable(tasks);
 
   document.getElementById('produksiBody').innerHTML = `
     <div class="toolbar-row">
       <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" placeholder="Cari No. PO, customer, model, SN, status..." value="${st.search}" oninput="tblState('prod').search=this.value;renderProduksiList()" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
+        <input type="text" placeholder="Cari No. PO, customer, model, SN, status..." value="${st.search}" oninput="onProdSearchInput(event)" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;font-family:inherit">
       </div>
-      <div style="font-size:12px;color:var(--text3)">${tasks.length} item aktif${st.search?` · ${filtered.length} cocok`:''}</div>
+      <div id="prodCountMeta" style="font-size:12px;color:var(--text3)">${tasks.length} item aktif${st.search?` · ${tbl.count} cocok`:''}</div>
     </div>
     <div class="table-card">
       <div class="table-wrap">
         <table>
-          <thead>${tblSortHeader('prod', columns)}</thead>
-          <tbody>${tbody}</tbody>
+          <thead data-tbl="prod">${tbl.header}</thead>
+          <tbody data-tbl="prod">${tbl.rows}</tbody>
         </table>
       </div>
     </div>`;
 }
-window.refresh_prod = renderProduksiList;
+
+function refresh_prod() {
+  if (!_prodCache) { renderProduksiList(); return; }
+  const tbl = _buildProdTable(_prodCache);
+  const tbody = document.querySelector('tbody[data-tbl="prod"]');
+  const thead = document.querySelector('thead[data-tbl="prod"]');
+  if (tbody) tbody.innerHTML = tbl.rows;
+  if (thead) thead.innerHTML = tbl.header;
+  const meta = document.getElementById('prodCountMeta');
+  if (meta) {
+    const st = tblState('prod');
+    meta.textContent = `${_prodCache.length} item aktif${st.search?` · ${tbl.count} cocok`:''}`;
+  }
+}
+
+function onProdSearchInput(ev) {
+  tblState('prod').search = ev.target.value;
+  refresh_prod();
+}
 
 
 async function renderPOModule() {
