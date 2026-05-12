@@ -240,7 +240,10 @@ function showApp(){
 }
 
 function renderHero(){
-  const it=currentItem, po=currentPO, spec=it.item_specs||{};
+  const it=currentItem, po=currentPO;
+  // item_specs adalah array (relasi 1-to-many di Supabase karena tidak ada UNIQUE constraint).
+  // Ambil row pertama. Untuk safety, handle juga kalau Supabase return object.
+  const spec = Array.isArray(it.item_specs) ? (it.item_specs[0]||{}) : (it.item_specs||{});
   const sn=it.serial_number||'—';
   const prodDate=it.serial_generated_at?new Date(it.serial_generated_at):null;
   const prodDateStr=prodDate?MONTH_ID[prodDate.getMonth()]+' '+prodDate.getFullYear():'—';
@@ -289,8 +292,11 @@ function switchTab(tab,btn){
 const row=(k,v)=>`<tr><td class="spec-key">${k}</td><td class="spec-val">${v}</td></tr>`;
 
 function renderSpec(){
-  const it=currentItem, spec=it.item_specs||{}, po=currentPO;
-  const ds=(it.item_detail_specs && it.item_detail_specs[0])||{};
+  const it=currentItem, po=currentPO;
+  // item_specs (array) vs item_detail_specs (object/single) — beda karena UNIQUE constraint.
+  // Defensive: handle keduanya supaya tahan kalau schema FK berubah.
+  const spec = Array.isArray(it.item_specs) ? (it.item_specs[0]||{}) : (it.item_specs||{});
+  const ds = Array.isArray(it.item_detail_specs) ? (it.item_detail_specs[0]||{}) : (it.item_detail_specs||{});
   const prodDate=it.serial_generated_at?new Date(it.serial_generated_at):null;
   const prodDateStr=prodDate?MONTH_ID[prodDate.getMonth()].toUpperCase()+' '+prodDate.getFullYear():'—';
   const cat=it.category;
@@ -450,7 +456,8 @@ function renderSpec(){
 
 function renderDownload(){
   const it=currentItem;
-  const ds=(it.item_detail_specs && it.item_detail_specs[0])||{};
+  // Defensive: item_detail_specs bisa object (UNIQUE FK = 1-to-1) atau array
+  const ds = Array.isArray(it.item_detail_specs) ? (it.item_detail_specs[0]||{}) : (it.item_detail_specs||{});
   const poFiles=currentPO?.download_files||[];
   
   const sections = [
