@@ -285,7 +285,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   if(tab==='spec') renderSpec();
-  else if(tab==='download') renderDownload();
+  else if(tab==='download') renderDownload();  // async, no await needed (fire-and-forget)
   else if(tab==='contact') renderContact();
 }
 
@@ -454,39 +454,84 @@ function renderSpec(){
   document.getElementById('tabContent').innerHTML = html;
 }
 
-function renderDownload(){
+async function renderDownload(){
+  document.getElementById('tabContent').innerHTML='<div class="loading">Memuat dokumen...</div>';
+
   const it=currentItem;
-  // Defensive: item_detail_specs bisa object (UNIQUE FK = 1-to-1) atau array
   const ds = Array.isArray(it.item_detail_specs) ? (it.item_detail_specs[0]||{}) : (it.item_detail_specs||{});
   const poFiles=currentPO?.download_files||[];
-  
-  const sections = [
-    {key:'drawing', title:'Drawing Approval', files: ds.doc_drawing_approval||[]},
-    {key:'asbuilt', title:'As-Built Drawing', files: ds.doc_asbuilt||[]},
-    {key:'fat', title:'Dokumen FAT', files: ds.doc_fat||[]},
-    {key:'others', title:'Dokumen Lainnya', files: ds.doc_others||[]},
-    {key:'po', title:'File Lainnya dari PO', files: poFiles},
-  ];
 
-  const hasAny = sections.some(s=>s.files && s.files.length);
-  
+  // Fetch general downloads dari Supabase
+  let generalDocs = [];
+  try {
+    const {data, error} = await sb.from('general_downloads')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', {ascending:true})
+      .order('doc_type', {ascending:true});
+    if(!error && data) generalDocs = data;
+  } catch(e){ /* silent fail */ }
+
+  // Helper render section
+  const dlItem = (name, url, meta) => `
+    <div class="dl-item">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
+        ${meta?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${meta}</div>`:''}
+      </div>
+      <a href="${url}" target="_blank" class="dl-btn">Download</a>
+    </div>`;
+
+  const renderSection = (title, items) => {
+    if(!items || !items.length) return '';
+    return `<div class="section">
+      <div class="sect-title" style="display:block;margin-bottom:10px">${title}</div>
+      ${items.join('')}
+    </div>`;
+  };
+
   let html = '';
-  if(!hasAny) {
-    html = '<div class="section"><div class="sect-title">Dokumen</div><p style="font-size:13px;color:var(--muted);padding:.5rem 0">Belum ada dokumen tersedia untuk unit ini.</p></div>';
-  } else {
-    sections.forEach(s=>{
-      if(!s.files || !s.files.length) return;
-      html += `<div class="section"><div class="sect-title" style="display:block;margin-bottom:10px">${s.title}</div>`;
-      html += s.files.map(f=>`
-        <div class="dl-item">
-          <div style="font-size:13px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</div>
-          <a href="${f.url}" target="_blank" class="dl-btn">Download</a>
-        </div>`).join('');
-      html += '</div>';
+
+  // ── GENERAL DOWNLOADS (software, tools, dll) ──
+  if(generalDocs.length){
+    // Group by doc_type
+    const grouped = {};
+    generalDocs.forEach(d=>{
+      if(!grouped[d.doc_type]) grouped[d.doc_type]=[];
+      grouped[d.doc_type].push(d);
+    });
+    Object.entries(grouped).forEach(([type, docs])=>{
+      const items = docs.map(d=>dlItem(
+        d.doc_name,
+        d.file_url,
+        [d.description, d.version?'v'+d.version:''].filter(Boolean).join(' · ')
+      ));
+      html += renderSection(type, items);
     });
   }
-  
-  document.getElementById('tabContent').innerHTML=html;
+
+  // ── ITEM-SPECIFIC DOCUMENTS ──
+  const itemSections = [
+    {title:'Drawing Approval', files: ds.doc_drawing_approval||[]},
+    {title:'As-Built Drawing',  files: ds.doc_asbuilt||[]},
+    {title:'Dokumen FAT',       files: ds.doc_fat||[]},
+    {title:'Dokumen Lainnya',   files: ds.doc_others||[]},
+    {title:'File dari PO',      files: poFiles},
+  ];
+  itemSections.forEach(s=>{
+    if(!s.files || !s.files.length) return;
+    const items = s.files.map(f=>dlItem(f.name, f.url, ''));
+    html += renderSection(s.title, items);
+  });
+
+  if(!html){
+    html = `<div class="section">
+      <div class="sect-title">Dokumen</div>
+      <p style="font-size:13px;color:var(--muted);padding:.5rem 0">Belum ada dokumen tersedia untuk unit ini.</p>
+    </div>`;
+  }
+
+  document.getElementById('tabContent').innerHTML = html;
 }
 
 function renderContact(){
