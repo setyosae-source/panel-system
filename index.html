@@ -116,6 +116,9 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg);cursor:pointer}
 .sort-th{cursor:pointer;user-select:none}.sort-th:hover{color:var(--text2)}
 .sort-arrow{font-size:10px;margin-left:2px;opacity:.35}.sort-arrow.active{opacity:1;color:var(--blue)}
+.rsz-th{position:relative;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.col-rsz{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;z-index:1}
+.col-rsz:hover,.col-rsz.dragging{background:var(--blue);opacity:.5}
 .empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);white-space:normal}
 .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
 /* Grouped table rows */
@@ -3144,15 +3147,19 @@ async function renderPOModule() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table><colgroup><col style="width:20%"><col style="width:12%"><col style="width:25%"><col style="width:25%"><col style="width:18%"></colgroup>
+          <table id="poTable" style="table-layout:fixed">
+          <colgroup>
+            <col id="poc0" style="width:120px"><col id="poc1" style="width:180px"><col id="poc2" style="width:180px">
+            <col id="poc3" style="width:120px"><col id="poc4" style="width:90px"><col id="poc5" style="width:110px"><col id="poc6" style="width:100px">
+          </colgroup>
           <thead><tr>
-            <th class="sort-th" onclick="sortPO('no_project')">No. Project <span class="sort-arrow" id="sarr_no_project"></span></th>
-            <th>Project Name</th>
-            <th class="sort-th" onclick="sortPO('customer_name')">Customer <span class="sort-arrow" id="sarr_customer_name"></span></th>
-            <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
-            <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. PO <span class="sort-arrow" id="sarr_tgl_po"></span></th>
-            <th class="sort-th" onclick="sortPO('tgl_target_kirim')">Target Kirim <span class="sort-arrow" id="sarr_tgl_target_kirim"></span></th>
-            <th class="sort-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('no_project')">No. Project <span class="sort-arrow" id="sarr_no_project"></span><span class="col-rsz" onmousedown="initColResize(event,0,'poc0')"></span></th>
+            <th class="rsz-th">Project Name<span class="col-rsz" onmousedown="initColResize(event,1,'poc1')"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('customer_name')">Customer <span class="sort-arrow" id="sarr_customer_name"></span><span class="col-rsz" onmousedown="initColResize(event,2,'poc2')"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span><span class="col-rsz" onmousedown="initColResize(event,3,'poc3')"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('tgl_po')">Tgl. PO <span class="sort-arrow" id="sarr_tgl_po"></span><span class="col-rsz" onmousedown="initColResize(event,4,'poc4')"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('tgl_target_kirim')">Target Kirim <span class="sort-arrow" id="sarr_tgl_target_kirim"></span><span class="col-rsz" onmousedown="initColResize(event,5,'poc5')"></span></th>
+            <th class="sort-th rsz-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
           </tr></thead>
           <tbody id="poTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
@@ -3178,6 +3185,19 @@ function renderPOStats() {
   const done = allPOs.filter(p => p.status === 'Selesai').length;
   const s = id => document.getElementById(id);
   if (s('poActive')) { s('poActive').textContent = active; s('poEng').textContent = eng; s('poProd').textContent = prod; s('poDone').textContent = done; }
+}
+
+function initColResize(e, colIdx, colId) {
+  e.preventDefault(); e.stopPropagation();
+  const col = document.getElementById(colId);
+  if (!col) return;
+  const rsz = e.target; rsz.classList.add('dragging');
+  const startX = e.clientX;
+  const startW = col.offsetWidth;
+  const onMove = ev => { const w = Math.max(50, startW + ev.clientX - startX); col.style.width = w + 'px'; };
+  const onUp = () => { rsz.classList.remove('dragging'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 }
 
 function sortPO(field) {
