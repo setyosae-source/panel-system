@@ -3146,14 +3146,15 @@ async function renderPOModule() {
         <div class="table-wrap">
           <table><colgroup><col style="width:20%"><col style="width:12%"><col style="width:25%"><col style="width:25%"><col style="width:18%"></colgroup>
           <thead><tr>
-            <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
-            <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. <span class="sort-arrow" id="sarr_tgl_po">▼</span></th>
+            <th class="sort-th" onclick="sortPO('no_project')">No. Project <span class="sort-arrow" id="sarr_no_project"></span></th>
+            <th>Project Name</th>
             <th class="sort-th" onclick="sortPO('customer_name')">Customer <span class="sort-arrow" id="sarr_customer_name"></span></th>
-            <th>Project</th>
-            <th class="sort-th" onclick="sortPO('tgl_target_kirim')">Target <span class="sort-arrow" id="sarr_tgl_target_kirim"></span></th>
+            <th class="sort-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span></th>
+            <th class="sort-th" onclick="sortPO('tgl_po')">Tgl. PO <span class="sort-arrow" id="sarr_tgl_po"></span></th>
+            <th class="sort-th" onclick="sortPO('tgl_target_kirim')">Target Kirim <span class="sort-arrow" id="sarr_tgl_target_kirim"></span></th>
             <th class="sort-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
           </tr></thead>
-          <tbody id="poTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
+          <tbody id="poTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>
     </div>`;
@@ -3198,14 +3199,15 @@ function renderPOTable() {
   });
   const tbody = document.getElementById('poTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada PO')}</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7">${noData('Belum ada PO')}</td></tr>`; return; }
   tbody.innerHTML = rows.map(p => {
     const overdue = p.tgl_target_kirim && p.tgl_target_kirim < today() && p.status !== 'Selesai';
     return `<tr onclick="openPODetail('${p.id}')">
+      <td class="mono" style="color:var(--accent)">${p.no_project || '—'}</td>
+      <td style="color:var(--text2)">${p.project_name || '—'}</td>
+      <td style="font-weight:500">${p.customer_name || '—'}</td>
       <td class="mono">${p.no_po}</td>
       <td>${fmtDate(p.tgl_po)}</td>
-      <td style="font-weight:500">${p.customer_name || '—'}</td>
-      <td style="color:var(--text2)">${p.project_name || '—'}</td>
       <td style="color:${overdue ? 'var(--red)' : 'var(--text2)'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</td>
 
     </tr>`;
