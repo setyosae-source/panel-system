@@ -7080,14 +7080,20 @@ function bdSetPKFilter(val) {
   bdRenderPKRows();
 }
 
+// helper: ambil nama grup dari field note
+function pkGrup(note) {
+  if (!note) return 'Lainnya';
+  return (note.split('|')[0] || note).trim();
+}
+
 function bdRenderPKRows() {
   const tbody = document.getElementById('pkTblBody');
   if (!tbody) return;
   const d        = bomDetail.data;
   const showPrice= can('nilai_po');
   const flt      = bomDetail.filterPK;
-  const items    = (d.bom_items||[])
-    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+  const allItems = (d.bom_items||[])
+    .sort((a,b) => (a.sort_order||0)-(b.sort_order||0))
     .filter(it => {
       if (flt==='belum')     return it.pk_flag==='Y' && it.pk_status==='BELUM';
       if (flt==='sudah')     return it.pk_flag==='Y' && it.pk_status==='SUDAH';
@@ -7096,62 +7102,90 @@ function bdRenderPKRows() {
       return true;
     });
 
-  if (!items.length) {
-    tbody.innerHTML = `<tr><td colspan="${showPrice?9:7}"
+  if (!allItems.length) {
+    const cols = showPrice ? 9 : 7;
+    tbody.innerHTML = `<tr><td colspan="${cols}"
       style="text-align:center;padding:2.5rem;color:var(--text3)">
       Tidak ada item untuk filter ini</td></tr>`;
     return;
   }
 
-  const flagBg   = {'Y':'#d4edda','N':'var(--surface2)','?':'#FEF3C7'};
-  const flagClr  = {'Y':'#155724','N':'#888','?':'#92400E'};
-  const statBg   = {'BELUM':'#FEF3C7','SUDAH':'var(--green-bg)','':'var(--surface2)'};
-  const statClr  = {'BELUM':'#92400E','SUDAH':'var(--green)','':'var(--text3)'};
+  // Group by note prefix
+  const grups = [], grupMap = {};
+  allItems.forEach(it => {
+    const g = pkGrup(it.note);
+    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
+    grupMap[g].push(it);
+  });
 
-  let seq = 1;
-  tbody.innerHTML = items.map(it => {
-    const dim = it.pk_flag==='N'||it.pk_status==='SUDAH' ? 'opacity:.5' : '';
-    const jml = (it.pk_flag==='Y'&&it.pk_status==='BELUM'&&it.unit_price>0) ? it.qty*(it.unit_price||0) : 0;
-    return `<tr style="${dim}">
-      <td style="text-align:center;color:var(--text3)">${seq++}</td>
-      <td style="white-space:normal;word-break:break-word;line-height:1.4">
-        <span style="font-weight:500">${it.name}</span>
-        ${it.note?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${it.note}</div>`:''}
-      </td>
-      <td style="text-align:right;font-weight:600;font-size:13px">${it.qty}</td>
-      <td style="font-size:12px">${it.unit}</td>
-      ${showPrice?`
-        <td style="text-align:right;font-size:12px">${it.unit_price>0?fmtRp(it.unit_price):'<span style="color:var(--text3)">—</span>'}</td>
-        <td style="text-align:right;font-weight:700;color:${jml>0?'var(--text)':'var(--text3)'}">${jml>0?fmtRp(jml):'—'}</td>`:''}
-      <td style="text-align:center">
-        <select onchange="bdPKSaveFlag(${it.id},this.value)"
-          style="font-size:11px;padding:3px 4px;border-radius:5px;width:84px;
-            background:${flagBg[it.pk_flag]||'#fff'};color:${flagClr[it.pk_flag]||'#000'};
-            font-weight:600;border:1px solid ${flagClr[it.pk_flag]||'#ccc'}">
-          <option value="Y" ${it.pk_flag==='Y'?'selected':''}>Y – Beli</option>
-          <option value="N" ${it.pk_flag==='N'?'selected':''}>N – Skip</option>
-          <option value="?" ${it.pk_flag==='?'?'selected':''}>? – Konfirm</option>
-        </select>
-      </td>
-      <td style="text-align:center">
-        <select onchange="bdPKSaveStatus(${it.id},this.value)"
-          style="font-size:11px;padding:3px 4px;border-radius:5px;width:88px;
-            background:${statBg[it.pk_status]||'#fff'};color:${statClr[it.pk_status]||'#000'};
-            font-weight:600;border:1px solid ${statClr[it.pk_status]||'#ccc'}">
-          <option value="BELUM" ${it.pk_status==='BELUM'?'selected':''}>BELUM</option>
-          <option value="SUDAH" ${it.pk_status==='SUDAH'?'selected':''}>SUDAH</option>
-          <option value=""      ${it.pk_status===''?'selected':''}>—</option>
-        </select>
-      </td>
-      <td style="text-align:center">
-        <button class="btn btn-sm" style="padding:4px 10px;font-size:11px"
-          onclick="bdPKEditQty(${it.id},${it.qty})">✎ ${it.qty}</button>
-      </td>
-    </tr>`;
-  }).join('');
+  const flagBg  = {'Y':'#d4edda','N':'var(--surface2)','?':'#FEF3C7'};
+  const flagClr = {'Y':'#155724','N':'#888','?':'#92400E'};
+  const statBg  = {'BELUM':'#FEF3C7','SUDAH':'var(--green-bg)','':'var(--surface2)'};
+  const statClr = {'BELUM':'#92400E','SUDAH':'var(--green)','':'var(--text3)'};
+
+  let seq = 1, html = '';
+  const spanCols = showPrice ? 9 : 7;
+
+  grups.forEach(grup => {
+    const items = grupMap[grup];
+    const grupTotal = items
+      .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+      .reduce((s,it) => s+(it.qty*(it.unit_price||0)), 0);
+
+    // Group header row
+    html += `<tr>
+      <td colspan="${spanCols}"
+        style="background:var(--surface2);font-weight:700;font-size:11px;
+               color:#1F3864;padding:6px 10px;letter-spacing:.04em;
+               border-top:2px solid var(--border2,#CCCAC3)">
+        📁 ${grup}
+        ${showPrice && grupTotal>0 ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">
+          Sub total BELUM: ${fmtRp(grupTotal)}</span>` : ''}
+      </td></tr>`;
+
+    items.forEach(it => {
+      const dim = it.pk_flag==='N'||it.pk_status==='SUDAH' ? 'opacity:.5' : '';
+      const jml = (it.pk_flag==='Y'&&it.pk_status==='BELUM'&&it.unit_price>0)
+        ? it.qty*(it.unit_price||0) : 0;
+      html += `<tr style="${dim}">
+        <td style="text-align:center;color:var(--text3)">${seq++}</td>
+        <td style="white-space:normal;word-break:break-word;line-height:1.4;font-weight:500">${it.name}</td>
+        <td style="text-align:right;font-weight:600">${it.qty}</td>
+        <td style="font-size:12px">${it.unit}</td>
+        ${showPrice ? `
+          <td style="text-align:right;font-size:12px">${it.unit_price>0?fmtRp(it.unit_price):'<span style="color:var(--text3)">—</span>'}</td>
+          <td style="text-align:right;font-weight:700;color:${jml>0?'var(--text)':'var(--text3)'}">${jml>0?fmtRp(jml):'—'}</td>` : ''}
+        <td style="text-align:center">
+          <select onchange="bdPKSaveFlag(${it.id},this.value)"
+            style="font-size:11px;padding:3px 4px;border-radius:5px;width:84px;
+              background:${flagBg[it.pk_flag]||'#fff'};color:${flagClr[it.pk_flag]||'#000'};
+              font-weight:600;border:1px solid ${flagClr[it.pk_flag]||'#ccc'}">
+            <option value="Y" ${it.pk_flag==='Y'?'selected':''}>Y – Beli</option>
+            <option value="N" ${it.pk_flag==='N'?'selected':''}>N – Skip</option>
+            <option value="?" ${it.pk_flag==='?'?'selected':''}>? – Konfirm</option>
+          </select>
+        </td>
+        <td style="text-align:center">
+          <select onchange="bdPKSaveStatus(${it.id},this.value)"
+            style="font-size:11px;padding:3px 4px;border-radius:5px;width:88px;
+              background:${statBg[it.pk_status]||'#fff'};color:${statClr[it.pk_status]||'#000'};
+              font-weight:600;border:1px solid ${statClr[it.pk_status]||'#ccc'}">
+            <option value="BELUM" ${it.pk_status==='BELUM'?'selected':''}>BELUM</option>
+            <option value="SUDAH" ${it.pk_status==='SUDAH'?'selected':''}>SUDAH</option>
+            <option value=""      ${it.pk_status===''     ?'selected':''}>—</option>
+          </select>
+        </td>
+        <td style="text-align:center">
+          <button class="btn btn-sm" style="padding:4px 10px;font-size:11px"
+            onclick="bdPKEditQty(${it.id},${it.qty})">✎ ${it.qty}</button>
+        </td>
+      </tr>`;
+    });
+  });
+
+  tbody.innerHTML = html;
 }
 
-// ── PK: Save flag ke Supabase (auto-save) ─────────────────────
 async function bdPKSaveFlag(itemId, flag) {
   bdMarkDirty();
   const it = bomDetail.data.bom_items.find(x=>x.id===itemId);
@@ -7159,24 +7193,18 @@ async function bdPKSaveFlag(itemId, flag) {
   it.pk_flag = flag;
   if (flag==='N') it.pk_status = '';
   await sb.from('bom_items').update({ pk_flag:flag, pk_status:flag==='N'?'':it.pk_status }).eq('id',itemId);
-  bdMarkSaved();
-  bdRenderPKRows();
-  bdUpdatePKCards();
+  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
 }
 
-// ── PK: Save status ke Supabase (auto-save) ───────────────────
 async function bdPKSaveStatus(itemId, status) {
   bdMarkDirty();
   const it = bomDetail.data.bom_items.find(x=>x.id===itemId);
   if (!it) return;
   it.pk_status = status;
   await sb.from('bom_items').update({ pk_status:status }).eq('id',itemId);
-  bdMarkSaved();
-  bdRenderPKRows();
-  bdUpdatePKCards();
+  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
 }
 
-// ── PK: Edit qty inline ────────────────────────────────────────
 function bdPKEditQty(itemId, currentQty) {
   const val = prompt(`Edit qty (saat ini: ${currentQty}):`, currentQty);
   if (val===null) return;
@@ -7192,26 +7220,15 @@ async function bdPKSaveQty(itemId, newQty) {
   it.qty = newQty;
   await sb.from('bom_items').update({ qty:newQty }).eq('id',itemId);
   await recalcBOMTotal(bomDetail.data.id);
-  bdMarkSaved();
-  bdRenderPKRows();
-  bdUpdatePKCards();
+  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
 }
 
-// ── Update summary cards tanpa re-render tab penuh ────────────
 function bdUpdatePKCards() {
-  // Re-render seluruh tab PK (ringan, data sudah di-update di memori)
   const el = document.getElementById('bdContent');
-  if (el && bomDetail.tab==='pk') {
-    bdRenderPKTab(el);
-    // Restore filter select value
-    const sel = document.getElementById('pkFlt');
-    if (sel) sel.value = bomDetail.filterPK;
-    bdRenderPKRows();
-  }
+  if (el && bomDetail.tab==='pk') { bdRenderPKTab(el); bdRenderPKRows(); }
   if (bomDetail.tab==='komponen') bdRenderBOMTab(el);
 }
 
-// ── Update BOM status ──────────────────────────────────────────
 async function bdUpdateStatus(bomId, status) {
   await sb.from('bom_lists').update({ status }).eq('id', bomId);
   bomDetail.data.status = status;
@@ -7219,67 +7236,78 @@ async function bdUpdateStatus(bomId, status) {
   toast('Status diperbarui: ' + status);
 }
 
-// ── Kembali ke daftar BOM ─────────────────────────────────────
 function bdGoBack() {
   if (bomDetail.dirty) {
-    // dirty harusnya sudah tersimpan (auto-save), tapi tampilkan konfirmasi
     if (!confirm('Ada perubahan yang sedang diproses. Yakin ingin kembali?')) return;
   }
-  bomDetail.data  = null;
-  bomDetail.dirty = false;
+  bomDetail.data = null; bomDetail.dirty = false;
   switchModule('bom');
 }
 
-// Intercept ESC key — jangan close kalau di BOM detail page
 document.addEventListener('keydown', e => {
   if (e.key==='Escape' && bomDetail.data) {
-    e.preventDefault();
-    e.stopPropagation();
-    // Tanya konfirmasi
+    e.preventDefault(); e.stopPropagation();
     if (confirm('Keluar dari BOM Detail dan kembali ke daftar?')) bdGoBack();
     return;
   }
   if (e.key==='Escape') { closeDocViewer(); closeAllModals(); }
 }, true);
 
-// ── PK Export Excel ───────────────────────────────────────────
+// ── Export Excel — grouped ─────────────────────────────────────
 async function bdPKExportExcel() {
   const d = bomDetail.data;
   if (!d) return;
   const items = (d.bom_items||[])
-    .filter(it=>it.pk_flag==='Y'&&it.pk_status==='BELUM')
-    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-  if (!items.length) { toast('Tidak ada item PK=Y & BELUM untuk di-export'); return; }
+    .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+    .sort((a,b) => (a.sort_order||0)-(b.sort_order||0));
+  if (!items.length) { toast('Tidak ada item PK=Y & BELUM'); return; }
 
   const XLSX = window.XLSX;
   if (!XLSX) { toast('Library Excel belum siap'); return; }
 
+  const tgl = fmtDate(new Date().toISOString());
   const aoa = [
     ['PENGAJUAN KEUANGAN (PK)'],
     [`BOM: ${d.title}`],
-    [`Kategori: ${d.unit_category}  |  DRG: ${d.id}  |  Tanggal: ${fmtDate(new Date().toISOString())}`],
+    [`Kategori: ${d.unit_category}  |  ID: ${d.id}  |  Tanggal: ${tgl}`],
     [],
-    ['NO','NAMA ITEM','QTY','UNIT','HARGA SATUAN (IDR)','JUMLAH (IDR)','NOTE/GRUP'],
+    ['NO','NAMA ITEM / KOMPONEN','QTY','UNIT','HARGA SATUAN (IDR)','JUMLAH (IDR)'],
   ];
-  let grand = 0;
-  items.forEach((it,i) => {
-    const jml = it.qty*(it.unit_price||0);
-    grand += jml;
-    aoa.push([i+1, it.name, it.qty, it.unit, it.unit_price||0, jml, it.note||'']);
+
+  const grups = [], grupMap = {};
+  items.forEach(it => {
+    const g = pkGrup(it.note);
+    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
+    grupMap[g].push(it);
   });
+
+  let grand = 0, seq = 1;
+  grups.forEach(grup => {
+    aoa.push(['', grup, '', '', '', '']); // group header
+    grupMap[grup].forEach(it => {
+      const jml = it.qty*(it.unit_price||0);
+      grand += jml;
+      aoa.push([seq++, it.name, it.qty, it.unit, it.unit_price||0, jml]);
+    });
+    const subT = grupMap[grup].reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+    aoa.push(['','Sub Total '+grup,'','','',subT]);
+    aoa.push([]); // spacer
+  });
+
   aoa.push([]);
-  aoa.push(['','','','','GRAND TOTAL', grand, '⚠ Belum termasuk PPN 11% & ongkir']);
-  aoa.push(['','','','','Battery Yuasa & Modul PESS', '—', '⚠ Harga dikonfirmasi Finance']);
+  aoa.push(['','','','','GRAND TOTAL', grand]);
+  aoa.push(['','','','','','⚠ Belum termasuk PPN 11% & ongkir']);
+  aoa.push(['','','','','Battery Yuasa & Modul PESS','→ Konfirmasi Finance']);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:5},{wch:40},{wch:7},{wch:8},{wch:18},{wch:18},{wch:30}];
+  ws['!cols'] = [{wch:5},{wch:42},{wch:7},{wch:8},{wch:18},{wch:18}];
   const wb2 = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb2, ws, 'PK');
   XLSX.writeFile(wb2, `PK_${d.id}.xlsx`);
   toast('Export PK berhasil');
 }
 
-// ── PK Print — compact 1 lembar, tanpa kolom note ────────────
+// ── PK Print — compact 1 lembar, GROUPED by section ──────────
 function bdPKPrint() {
   const d = bomDetail.data;
   if (!d) return;
@@ -7289,58 +7317,77 @@ function bdPKPrint() {
     .sort((a,b) => (a.sort_order||0)-(b.sort_order||0));
   if (!items.length) { toast('Tidak ada item PK=Y & BELUM'); return; }
 
+  // Group by section
+  const grups = [], grupMap = {};
+  items.forEach(it => {
+    const g = pkGrup(it.note);
+    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
+    grupMap[g].push(it);
+  });
+
   const grand = items.reduce((s,it) => s+(it.qty*(it.unit_price||0)), 0);
+  const tgl   = new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const colSpanPrice = showPrice ? 6 : 4;
+
   let seq = 1;
+  let rows = '';
 
-  const rows = items.map(it => `
-    <tr>
-      <td class="c">${seq++}</td>
-      <td>${it.name}</td>
-      <td class="c">${it.qty}</td>
-      <td class="c">${it.unit}</td>
-      ${showPrice ? `
-        <td class="r">${it.unit_price>0 ? fmtRp(it.unit_price) : '—'}</td>
-        <td class="r"><strong>${it.unit_price>0 ? fmtRp(it.qty*it.unit_price) : '—'}</strong></td>` : ''}
-    </tr>`).join('');
+  grups.forEach(grup => {
+    const gItems   = grupMap[grup];
+    const subTotal = gItems.reduce((s,it) => s+(it.qty*(it.unit_price||0)), 0);
 
-  const tgl = new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+    // Group header row
+    rows += `<tr class="grp-hdr">
+      <td colspan="${colSpanPrice}">📁 ${grup}
+        ${showPrice ? `<span style="float:right">${fmtRp(subTotal)}</span>` : ''}
+      </td>
+    </tr>`;
+
+    gItems.forEach(it => {
+      const jml = it.qty*(it.unit_price||0);
+      rows += `<tr>
+        <td class="c">${seq++}</td>
+        <td>${it.name}</td>
+        <td class="c">${it.qty}</td>
+        <td class="c">${it.unit}</td>
+        ${showPrice ? `
+          <td class="r">${it.unit_price>0 ? fmtRp(it.unit_price) : '—'}</td>
+          <td class="r"><strong>${it.unit_price>0 ? fmtRp(jml) : '—'}</strong></td>` : ''}
+      </tr>`;
+    });
+  });
 
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>PK – ${d.id}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:9.5pt;padding:12mm 14mm}
-    /* ── Header ── */
-    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-    .hdr-left h1{font-size:13pt;font-weight:700;color:#1F3864;margin-bottom:3px}
-    .hdr-left .sub{font-size:8.5pt;color:#555;line-height:1.5}
-    .hdr-right{text-align:right;font-size:8.5pt;color:#555;line-height:1.7}
+    body{font-family:Arial,sans-serif;font-size:9pt;padding:11mm 13mm}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+    .hdr-left h1{font-size:12.5pt;font-weight:700;color:#1F3864;margin-bottom:3px}
+    .hdr-left .sub{font-size:8pt;color:#555;line-height:1.5}
+    .hdr-right{text-align:right;font-size:8pt;color:#555;line-height:1.7}
     .hdr-right strong{color:#1F3864}
-    /* ── Table ── */
-    table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9pt}
+    table{width:100%;border-collapse:collapse;margin-top:7px;font-size:8.8pt}
     thead tr{background:#1F3864}
-    thead th{color:#fff;padding:5px 7px;font-size:8.5pt;font-weight:600;text-align:left;border:none}
-    tbody tr:nth-child(even){background:#F4F6FA}
-    tbody tr:hover{background:#EBF3FB}
-    td{padding:4px 7px;border-bottom:1px solid #E8EDF3;vertical-align:middle}
-    .c{text-align:center} .r{text-align:right;font-variant-numeric:tabular-nums}
-    /* ── Grand total ── */
-    .grand td{background:#1F3864!important;color:#fff;font-weight:700;font-size:10pt;padding:6px 7px;border:none}
-    /* ── Footer ── */
-    .footer{margin-top:12px;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:6px}
-    /* ── Sign block ── */
-    .signs{display:flex;gap:0;margin-top:18px}
-    .sign-box{flex:1;border:1px solid #ddd;padding:8px 10px;font-size:8.5pt}
-    .sign-box .role{font-weight:700;color:#1F3864;margin-bottom:36px}
-    .sign-box .name{border-top:1px solid #aaa;padding-top:4px;color:#555}
-    @media print{
-      body{padding:10mm 12mm}
-      @page{size:A4;margin:0}
-    }
+    thead th{color:#fff;padding:5px 7px;font-size:8pt;font-weight:600;text-align:left;border:none}
+    td{padding:3.5px 7px;border-bottom:1px solid #EDF0F5;vertical-align:middle}
+    /* group header row */
+    tr.grp-hdr td{
+      background:#D6E4F7;color:#1F3864;font-weight:700;
+      font-size:8.5pt;padding:4px 7px;letter-spacing:.03em;
+      border-top:1.5px solid #B0C8E8;border-bottom:none}
+    .c{text-align:center}.r{text-align:right;font-variant-numeric:tabular-nums}
+    tfoot tr.grand td{background:#1F3864;color:#fff;font-weight:700;font-size:9.5pt;
+      padding:5px 7px;border:none}
+    .footer{margin-top:10px;font-size:7.5pt;color:#888;border-top:1px solid #ddd;padding-top:5px}
+    .signs{display:flex;gap:0;margin-top:16px}
+    .sign-box{flex:1;border:1px solid #ddd;padding:7px 9px;font-size:8pt}
+    .sign-box .role{font-weight:700;color:#1F3864;margin-bottom:32px}
+    .sign-box .name{border-top:1px solid #aaa;padding-top:3px;color:#555}
+    @media print{body{padding:9mm 11mm} @page{size:A4;margin:0}}
   </style></head><body>
 
-  <!-- Header -->
   <div class="hdr">
     <div class="hdr-left">
       <h1>PENGAJUAN KEUANGAN (PK)</h1>
@@ -7353,24 +7400,22 @@ function bdPKPrint() {
     <div class="hdr-right">
       <strong>Tanggal:</strong> ${tgl}<br>
       <strong>Total Item:</strong> ${items.length} item<br>
-      ${showPrice ? `<strong>Total Nilai:</strong> ${fmtRp(grand)}` : ''}
+      ${showPrice ? `<strong>Total Nilai PK:</strong> ${fmtRp(grand)}` : ''}
     </div>
   </div>
 
-  <!-- Table -->
   <table>
     <thead><tr>
-      <th style="width:28px">#</th>
+      <th style="width:26px">#</th>
       <th>Nama Item / Komponen</th>
-      <th style="width:42px" class="c">Qty</th>
-      <th style="width:40px" class="c">Unit</th>
+      <th style="width:40px" class="c">Qty</th>
+      <th style="width:38px" class="c">Unit</th>
       ${showPrice ? `
-        <th style="width:110px" class="r">Harga Satuan</th>
-        <th style="width:118px" class="r">Jumlah (IDR)</th>` : ''}
+        <th style="width:108px" class="r">Harga Satuan</th>
+        <th style="width:115px" class="r">Jumlah (IDR)</th>` : ''}
     </tr></thead>
     <tbody>${rows}</tbody>
-    ${showPrice ? `
-    <tfoot>
+    ${showPrice ? `<tfoot>
       <tr class="grand">
         <td colspan="4" class="r">GRAND TOTAL</td>
         <td class="r">${fmtRp(grand)}</td>
@@ -7379,7 +7424,6 @@ function bdPKPrint() {
     </tfoot>` : ''}
   </table>
 
-  <!-- Sign block -->
   <div class="signs">
     <div class="sign-box"><div class="role">Dibuat Oleh</div><div class="name">(__________________)</div></div>
     <div class="sign-box"><div class="role">Diperiksa</div><div class="name">(__________________)</div></div>
@@ -7387,12 +7431,10 @@ function bdPKPrint() {
     <div class="sign-box"><div class="role">Diketahui</div><div class="name">(__________________)</div></div>
   </div>
 
-  <!-- Footer -->
   <div class="footer">
-    * Harga belum termasuk PPN 11% dan ongkos kirim. &nbsp;|&nbsp;
+    * Harga belum termasuk PPN 11% dan ongkos kirim. &nbsp;·&nbsp;
     * Battery Yuasa & Modul PESS tidak termasuk — harga dikonfirmasi Finance terpisah.
   </div>
-
   <script>window.onload = () => window.print()<\/script>
   </body></html>`);
   win.document.close();
