@@ -7279,56 +7279,122 @@ async function bdPKExportExcel() {
   toast('Export PK berhasil');
 }
 
-// ── PK Print ─────────────────────────────────────────────────
+// ── PK Print — compact 1 lembar, tanpa kolom note ────────────
 function bdPKPrint() {
   const d = bomDetail.data;
   if (!d) return;
   const showPrice = can('nilai_po');
   const items = (d.bom_items||[])
-    .filter(it=>it.pk_flag==='Y'&&it.pk_status==='BELUM')
-    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-  const grand = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
-  let seq=1;
-  const rows = items.map(it=>`<tr>
-    <td>${seq++}</td><td>${it.name}${it.note?'<br><small style="color:#888">'+it.note+'</small>':''}</td>
-    <td class="r">${it.qty}</td><td>${it.unit}</td>
-    ${showPrice?`<td class="r">${fmtRp(it.unit_price)}</td><td class="r"><strong>${fmtRp(it.qty*(it.unit_price||0))}</strong></td>`:''}
+    .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+    .sort((a,b) => (a.sort_order||0)-(b.sort_order||0));
+  if (!items.length) { toast('Tidak ada item PK=Y & BELUM'); return; }
+
+  const grand = items.reduce((s,it) => s+(it.qty*(it.unit_price||0)), 0);
+  let seq = 1;
+
+  const rows = items.map(it => `
+    <tr>
+      <td class="c">${seq++}</td>
+      <td>${it.name}</td>
+      <td class="c">${it.qty}</td>
+      <td class="c">${it.unit}</td>
+      ${showPrice ? `
+        <td class="r">${it.unit_price>0 ? fmtRp(it.unit_price) : '—'}</td>
+        <td class="r"><strong>${it.unit_price>0 ? fmtRp(it.qty*it.unit_price) : '—'}</strong></td>` : ''}
     </tr>`).join('');
+
+  const tgl = new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>PK – ${d.title}</title>
-    <style>
-      body{font-family:Arial,sans-serif;font-size:10.5pt;margin:15mm}
-      h2{font-size:14pt;margin:0 0 3px} .meta{color:#555;font-size:9.5pt;margin-bottom:14px}
-      table{width:100%;border-collapse:collapse}
-      th{background:#1F3864;color:#fff;padding:6px 8px;font-size:9.5pt;text-align:left}
-      td{padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:10pt;vertical-align:top}
-      .r{text-align:right} tr.grand{font-weight:700;background:#EEF2FF}
-      .note{font-size:9pt;color:#555;margin-top:2px}
-      @media print{body{margin:10mm}}
-    </style></head><body>
-    <h2>PENGAJUAN KEUANGAN (PK)</h2>
-    <div class="meta">
-      BOM: <strong>${d.title}</strong> &nbsp;|&nbsp; ${d.unit_category} &nbsp;|&nbsp;
-      ${d.id} &nbsp;|&nbsp; ${fmtDate(new Date().toISOString())}
+  <title>PK – ${d.id}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:9.5pt;padding:12mm 14mm}
+    /* ── Header ── */
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+    .hdr-left h1{font-size:13pt;font-weight:700;color:#1F3864;margin-bottom:3px}
+    .hdr-left .sub{font-size:8.5pt;color:#555;line-height:1.5}
+    .hdr-right{text-align:right;font-size:8.5pt;color:#555;line-height:1.7}
+    .hdr-right strong{color:#1F3864}
+    /* ── Table ── */
+    table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9pt}
+    thead tr{background:#1F3864}
+    thead th{color:#fff;padding:5px 7px;font-size:8.5pt;font-weight:600;text-align:left;border:none}
+    tbody tr:nth-child(even){background:#F4F6FA}
+    tbody tr:hover{background:#EBF3FB}
+    td{padding:4px 7px;border-bottom:1px solid #E8EDF3;vertical-align:middle}
+    .c{text-align:center} .r{text-align:right;font-variant-numeric:tabular-nums}
+    /* ── Grand total ── */
+    .grand td{background:#1F3864!important;color:#fff;font-weight:700;font-size:10pt;padding:6px 7px;border:none}
+    /* ── Footer ── */
+    .footer{margin-top:12px;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:6px}
+    /* ── Sign block ── */
+    .signs{display:flex;gap:0;margin-top:18px}
+    .sign-box{flex:1;border:1px solid #ddd;padding:8px 10px;font-size:8.5pt}
+    .sign-box .role{font-weight:700;color:#1F3864;margin-bottom:36px}
+    .sign-box .name{border-top:1px solid #aaa;padding-top:4px;color:#555}
+    @media print{
+      body{padding:10mm 12mm}
+      @page{size:A4;margin:0}
+    }
+  </style></head><body>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>PENGAJUAN KEUANGAN (PK)</h1>
+      <div class="sub">
+        <strong>${d.title}</strong><br>
+        ${d.unit_category} &nbsp;·&nbsp; ${d.id}
+        ${d.po_id ? '&nbsp;·&nbsp; PO: '+d.po_id : ''}
+      </div>
     </div>
-    <table><thead><tr>
-      <th style="width:30px">#</th><th>Nama Item</th>
-      <th style="width:48px" class="r">Qty</th><th style="width:44px">Unit</th>
-      ${showPrice?'<th style="width:115px" class="r">Harga Sat.</th><th style="width:125px" class="r">Jumlah</th>':''}
-    </tr></thead><tbody>
-    ${rows}
-    ${showPrice?`<tr class="grand">
-      <td colspan="4" class="r">GRAND TOTAL</td>
-      <td class="r">${fmtRp(grand)}</td><td></td>
-    </tr>`:''}
-    </tbody></table>
-    <div style="margin-top:32px;font-size:9pt;color:#777">
-      * Harga belum termasuk PPN 11% dan ongkos kirim.<br>
-      * Battery Yuasa NP 65-12 & Modul PESS: harga dikonfirmasi Finance (tidak termasuk di atas).
+    <div class="hdr-right">
+      <strong>Tanggal:</strong> ${tgl}<br>
+      <strong>Total Item:</strong> ${items.length} item<br>
+      ${showPrice ? `<strong>Total Nilai:</strong> ${fmtRp(grand)}` : ''}
     </div>
-    <script>window.onload=()=>window.print()<\/script>
-    </body></html>`);
+  </div>
+
+  <!-- Table -->
+  <table>
+    <thead><tr>
+      <th style="width:28px">#</th>
+      <th>Nama Item / Komponen</th>
+      <th style="width:42px" class="c">Qty</th>
+      <th style="width:40px" class="c">Unit</th>
+      ${showPrice ? `
+        <th style="width:110px" class="r">Harga Satuan</th>
+        <th style="width:118px" class="r">Jumlah (IDR)</th>` : ''}
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    ${showPrice ? `
+    <tfoot>
+      <tr class="grand">
+        <td colspan="4" class="r">GRAND TOTAL</td>
+        <td class="r">${fmtRp(grand)}</td>
+        <td></td>
+      </tr>
+    </tfoot>` : ''}
+  </table>
+
+  <!-- Sign block -->
+  <div class="signs">
+    <div class="sign-box"><div class="role">Dibuat Oleh</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Diperiksa</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Disetujui Finance</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Diketahui</div><div class="name">(__________________)</div></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    * Harga belum termasuk PPN 11% dan ongkos kirim. &nbsp;|&nbsp;
+    * Battery Yuasa & Modul PESS tidak termasuk — harga dikonfirmasi Finance terpisah.
+  </div>
+
+  <script>window.onload = () => window.print()<\/script>
+  </body></html>`);
   win.document.close();
 }
 
