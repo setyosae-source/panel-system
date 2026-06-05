@@ -6918,15 +6918,90 @@ function bdRenderBOMTab(el) {
   const canManage= can('bom_manage');
   const total    = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
 
+  // Group by section (pakai pkGrup — split by '|', ambil bagian pertama)
+  const grups = [], grupMap = {};
+  items.forEach(it => {
+    const g = pkGrup(it.note);
+    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
+    grupMap[g].push(it);
+  });
+
+  // Build rows HTML dengan group header
+  let seq = 1, rowsHtml = '';
+  const numCols = showPrice ? (canManage ? 8 : 7) : (canManage ? 6 : 5);
+
+  grups.forEach(grup => {
+    const gItems    = grupMap[grup];
+    const grupTotal = gItems.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+
+    // Group header
+    rowsHtml += `<tr>
+      <td colspan="${numCols}"
+        style="background:var(--surface2);font-weight:700;font-size:11px;color:#1F3864;
+               padding:6px 10px;letter-spacing:.04em;
+               border-top:2px solid var(--border2,#CCCAC3);border-bottom:none">
+        📁 ${grup}
+        ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">
+          ${fmtRp(grupTotal)}</span>` : ''}
+      </td>
+    </tr>`;
+
+    gItems.forEach(it => {
+      // Sub-note: buang prefix grup dari kolom note
+      const noteRaw  = (it.note||'');
+      const subNote  = noteRaw.includes('|') ? noteRaw.split('|').slice(1).join('|').trim() : '';
+
+      rowsHtml += `<tr>
+        <td style="color:var(--text3);text-align:center">${seq++}</td>
+        <td class="mono" style="white-space:normal;word-break:break-all;font-size:11px">${it.part_number||'—'}</td>
+        <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
+        <td style="text-align:right">${it.qty}</td>
+        <td>${it.unit}</td>
+        ${showPrice ? `
+          <td style="text-align:right">${fmtRp(it.unit_price)}</td>
+          <td style="text-align:right;font-weight:600">${fmtRp(it.qty*(it.unit_price||0))}</td>` : ''}
+        <td style="font-size:11px;color:var(--text2);white-space:normal;word-break:break-word">${subNote||'—'}</td>
+        ${canManage ? `<td style="white-space:nowrap;text-align:center">
+          <button class="btn btn-sm" onclick="openBOMEditItem(${it.id},'${d.id}')">✎</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id},'${d.id}')">✕</button>
+        </td>` : ''}
+      </tr>`;
+    });
+
+    // Sub-total row per grup
+    if (showPrice) {
+      rowsHtml += `<tr style="background:var(--lyellow,#FFF2CC)">
+        <td colspan="${canManage?6:5}" style="text-align:right;font-size:12px;
+          font-weight:600;color:var(--yellow,#7F4A00);padding:4px 10px">
+          Sub Total ${grup}
+        </td>
+        <td style="text-align:right;font-weight:700;color:var(--yellow,#7F4A00);
+          font-size:12px">${fmtRp(grupTotal)}</td>
+        ${canManage?'<td></td><td></td>':'<td></td>'}
+      </tr>`;
+    }
+  });
+
+  // Grand total row
+  const grandRow = showPrice && items.length ? `
+    <tr style="background:var(--text);color:#fff">
+      <td colspan="${canManage?6:5}" style="text-align:right;font-weight:700;
+        font-size:13px;padding:7px 10px;color:#fff">GRAND TOTAL</td>
+      <td style="text-align:right;font-weight:700;font-size:13px;color:#fff">${fmtRp(total)}</td>
+      ${canManage?'<td></td><td></td>':'<td></td>'}
+    </tr>` : '';
+
   el.innerHTML = `
     <!-- toolbar -->
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;font-size:12px;color:var(--text3)">${items.length} komponen &nbsp;
-        ${showPrice ? `&middot; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
+      <div style="flex:1;font-size:12px;color:var(--text3)">
+        ${items.length} komponen &nbsp;·&nbsp; ${grups.length} grup
+        ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
       </div>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',false)">📊 Excel</button>
-      <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',true)">🖨 Print</button>
+      <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',true)">🖨 Print +harga</button>
+      <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',false)">🖨 Print</button>
     </div>
 
     <div class="table-card">
@@ -6937,36 +7012,16 @@ function bdRenderBOMTab(el) {
               <th style="width:36px">#</th>
               <th style="min-width:80px">Part No.</th>
               <th style="min-width:220px">Nama Komponen</th>
-              <th style="width:55px;text-align:right">Qty</th>
-              <th style="width:50px">Unit</th>
-              ${showPrice ? '<th style="width:130px;text-align:right">Harga Sat.</th><th style="width:130px;text-align:right">Subtotal</th>' : ''}
-              <th style="min-width:120px">Note</th>
+              <th style="width:50px;text-align:right">Qty</th>
+              <th style="width:48px">Unit</th>
+              ${showPrice ? '<th style="width:128px;text-align:right">Harga Sat.</th><th style="width:128px;text-align:right">Subtotal</th>' : ''}
+              <th style="min-width:100px">Keterangan</th>
               ${canManage ? '<th style="width:76px"></th>' : ''}
             </tr>
           </thead>
           <tbody>
-            ${items.length ? items.map((it,idx) => `
-              <tr>
-                <td style="color:var(--text3);text-align:center">${idx+1}</td>
-                <td class="mono" style="white-space:normal;word-break:break-all;font-size:11px">${it.part_number||'—'}</td>
-                <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
-                <td style="text-align:right">${it.qty}</td>
-                <td>${it.unit}</td>
-                ${showPrice ? `<td style="text-align:right">${fmtRp(it.unit_price)}</td>
-                  <td style="text-align:right;font-weight:600">${fmtRp(it.qty*(it.unit_price||0))}</td>` : ''}
-                <td style="font-size:12px;color:var(--text2);white-space:normal;word-break:break-word">${it.note||'—'}</td>
-                ${canManage ? `<td style="white-space:nowrap;text-align:center">
-                  <button class="btn btn-sm" onclick="openBOMEditItem(${it.id},'${d.id}')">✎</button>
-                  <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id},'${d.id}')">✕</button>
-                </td>` : ''}
-              </tr>`).join('')
-            : `<tr><td colspan="${showPrice?(canManage?9:8):(canManage?6:5)}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen</td></tr>`}
-            ${showPrice && items.length ? `
-              <tr style="background:var(--surface2);font-weight:600">
-                <td colspan="${canManage?6:5}" style="text-align:right">TOTAL</td>
-                <td style="text-align:right">${fmtRp(total)}</td>
-                ${canManage?'<td></td><td></td>':'<td></td>'}
-              </tr>` : ''}
+            ${items.length ? rowsHtml + grandRow
+              : `<tr><td colspan="${numCols}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -7656,26 +7711,22 @@ function extractSection(note) {
 // Extract sub-note (after the section/dash). Strips legacy noise (Generated:, [OVERRIDDEN], etc).
 function extractSubNote(note) {
   if (!note) return '';
-  let s = String(note).trim();
-  
-  // For canonical format "Section X NAME - subnote": take part after dash
+  const s = String(note).trim();
+  // Format baru: "A. Grup | keterangan" — ambil bagian setelah pipe
+  if (s.includes('|')) {
+    return s.split('|').slice(1).join('|').trim();
+  }
+  // Format lama (dash separator)
   for (const sep of [' — ', ' – ', ' - ']) {
     const idx = s.indexOf(sep);
-    if (idx > 0) {
-      s = s.substring(idx + sep.length).trim();
-      // Take only first line + clean legacy noise
-      return cleanSubNote(s);
-    }
+    if (idx > 0) return cleanSubNote(s.substring(idx + sep.length).trim());
   }
-  
-  // No dash — legacy format with \n separators. Skip section line, return cleaned remainder.
+  // Format lama (newline)
   const nl = s.indexOf('\n');
-  if (nl > 0) {
-    return cleanSubNote(s.substring(nl + 1));
-  }
-  
+  if (nl > 0) return cleanSubNote(s.substring(nl + 1));
   return '';
 }
+
 
 // Strip "Generated:" prefix, "[OVERRIDDEN]" markers, attribution lines from sub-note
 function cleanSubNote(s) {
@@ -7694,14 +7745,11 @@ function cleanSubNote(s) {
 
 // Group items by section, preserving order
 function groupItemsBySection(items) {
-  const groups = [];
-  const map = {};
+  const groups = [], map = {};
   for (const it of items) {
-    const sec = extractSection(it.note);
-    if (!map[sec]) {
-      map[sec] = { name: sec, items: [] };
-      groups.push(map[sec]);
-    }
+    // Gunakan pkGrup (pipe split) — konsisten dengan tab PK dan BOM view
+    const sec = pkGrup(it.note);
+    if (!map[sec]) { map[sec] = { name: sec, items: [] }; groups.push(map[sec]); }
     map[sec].items.push(it);
   }
   return groups;
