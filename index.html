@@ -6787,83 +6787,386 @@ async function createBOM(opts) {
   goBOMReview(opts);
 }
 
-async function openBOMDetail(bomId) {
-  if (!can('bom_view')) {
-    toast('Anda tidak punya akses untuk membuka detail BOM');
-    return;
-  }
-  const { data } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
+async function openBOMDetail(bomId, initTab) {
+  if (!can('bom_view')) { toast('Anda tidak punya akses untuk membuka detail BOM'); return; }
+  const { data } = await sb.from('bom_lists')
+    .select('*,bom_items(*),app_users:created_by(full_name)')
+    .eq('id', bomId).single();
   if (!data) return;
   bomState.currentBOM = data;
-  const items = (data.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const total = items.reduce((s, it) => s + (it.qty * it.unit_price || 0), 0);
-  const canManage = can('bom_manage');
-  const showPrice = can('nilai_po');
+  bomState.detailTab = initTab || 'komponen';
 
-  openModal(`<div class="modal" style="max-width:1100px;height:calc(100vh - 3rem);display:flex;flex-direction:column">
+  const renderDetailContent = () => {
+    const items = (data.bom_items || []).sort((a,b) => (a.sort_order||0)-(b.sort_order||0));
+    const total = items.reduce((s,it) => s + (it.qty * it.unit_price||0), 0);
+    const canManage = can('bom_manage');
+    const showPrice = can('nilai_po');
+    const tab = bomState.detailTab;
+
+    // ── tab buttons ──
+    const tabBar = `
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1rem">
+        ${[['komponen','📋 BOM'],['pk','⚡ PK – Pengajuan']].map(([t,label]) => `
+          <button onclick="bomState.detailTab='${t}';document.getElementById('bomDetailBody').innerHTML=renderDetailContent()"
+            style="padding:8px 18px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;
+              border-bottom:${tab===t?'3px solid var(--text)':'3px solid transparent'};
+              color:${tab===t?'var(--text)':'var(--text3)'};margin-bottom:-2px;font-family:inherit">
+            ${label}
+          </button>`).join('')}
+      </div>`;
+
+    if (tab === 'komponen') {
+      return tabBar + `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+          <div class="sect-title" style="margin-bottom:0">Komponen (${items.length})</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${canManage ? `<button class="btn btn-sm" onclick="openBOMAddItem('${data.id}')">+ Tambah</button>` : ''}
+            <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}',true)">📊 Excel +harga</button>
+            <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}',false)">📊 Excel</button>
+            <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${data.id}',true)">🖨 Print</button>
+          </div>
+        </div>
+        ${items.length ? `<div class="table-card"><div class="table-wrap"><table style="table-layout:auto">
+          <thead><tr>
+            <th style="width:36px">#</th><th>Part No.</th><th>Nama Komponen</th>
+            <th style="width:60px">Qty</th><th style="width:50px">Unit</th>
+            ${showPrice ? '<th style="width:130px">Harga Sat.</th><th style="width:130px">Subtotal</th>' : ''}
+            <th>Note</th>
+            ${canManage ? '<th style="width:72px"></th>' : ''}
+          </tr></thead>
+          <tbody>
+            ${items.map((it,idx) => `<tr>
+              <td style="color:var(--text3)">${idx+1}</td>
+              <td class="mono" style="white-space:normal;word-break:break-all;font-size:11px">${it.part_number||'—'}</td>
+              <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
+              <td style="text-align:right">${it.qty}</td>
+              <td>${it.unit}</td>
+              ${showPrice ? `<td style="text-align:right">${fmtRp(it.unit_price)}</td><td style="text-align:right;font-weight:600">${fmtRp(it.qty*it.unit_price)}</td>` : ''}
+              <td style="font-size:12px;color:var(--text2);white-space:normal;word-break:break-word">${it.note||'—'}</td>
+              ${canManage ? `<td style="white-space:nowrap">
+                <button class="btn btn-sm" onclick="openBOMEditItem(${it.id},'${data.id}')">✎</button>
+                <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id},'${data.id}')">✕</button>
+              </td>` : ''}
+            </tr>`).join('')}
+            ${showPrice ? `<tr style="background:var(--surface2);font-weight:600">
+              <td colspan="${canManage?6:5}" style="text-align:right">TOTAL</td>
+              <td colspan="2" style="text-align:right">${fmtRp(total)}</td>
+              ${canManage?'<td></td>':''}
+            </tr>` : ''}
+          </tbody>
+        </table></div></div>` : `<div style="text-align:center;padding:2rem;color:var(--text3)">Belum ada komponen</div>`}`;
+    }
+
+    // ── TAB PK ────────────────────────────────────────────────
+    if (tab === 'pk') {
+      const pkItems = items.filter(it => it.pk_flag === 'Y' || it.pk_flag === '?');
+      const allItems = items;
+      const totalPK = allItems
+        .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+        .reduce((s,it) => s+(it.qty*(it.unit_price||0)),0);
+      const totalSudah = allItems
+        .filter(it => it.pk_flag==='Y' && it.pk_status==='SUDAH')
+        .reduce((s,it) => s+(it.qty*(it.unit_price||0)),0);
+      const totalKonfirmasi = allItems
+        .filter(it => it.pk_flag==='?')
+        .reduce((s,it) => s+(it.qty*(it.unit_price||0)),0);
+
+      // summary cards
+      const cntBelum  = allItems.filter(it=>it.pk_flag==='Y'&&it.pk_status==='BELUM').length;
+      const cntSudah  = allItems.filter(it=>it.pk_flag==='Y'&&it.pk_status==='SUDAH').length;
+      const cntN      = allItems.filter(it=>it.pk_flag==='N').length;
+      const cntKonfirm= allItems.filter(it=>it.pk_flag==='?').length;
+
+      const statusBadge = (flag, status) => {
+        if (flag==='N') return `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--text3);font-weight:600">SKIP</span>`;
+        if (flag==='?') return `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:#FFFBEB;color:#92400E;font-weight:600">KONFIRMASI</span>`;
+        if (status==='SUDAH') return `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:var(--green-bg);color:var(--green);font-weight:600">✓ SUDAH</span>`;
+        return `<span style="font-size:10px;padding:2px 8px;border-radius:20px;background:#FEF3C7;color:#92400E;font-weight:600">BELUM</span>`;
+      };
+
+      return tabBar + `
+        <!-- Summary cards -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem">
+          ${[
+            ['Perlu Beli (BELUM)', cntBelum, '#FEF3C7','#92400E', showPrice?fmtRp(totalPK):''],
+            ['Sudah Ada/Dibeli',   cntSudah, 'var(--green-bg)','var(--green)', showPrice?fmtRp(totalSudah):''],
+            ['Tidak Perlu PK',     cntN,     'var(--surface2)','var(--text3)', ''],
+            ['Konfirmasi Harga',   cntKonfirm,'#F5F3FF','#6D28D9', showPrice?fmtRp(totalKonfirmasi):''],
+          ].map(([label,cnt,bg,clr,sub]) => `
+            <div style="background:${bg};border-radius:8px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+              <div style="font-size:22px;font-weight:700;color:${clr}">${cnt} item</div>
+              ${sub?`<div style="font-size:11px;color:${clr};opacity:.8;margin-top:2px">${sub}</div>`:''}
+            </div>`).join('')}
+        </div>
+
+        <!-- Grand total PK -->
+        ${showPrice ? `<div style="background:var(--text);color:#fff;border-radius:8px;padding:10px 16px;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600;font-size:13px">⚡ TOTAL NILAI PK (BELUM)</span>
+          <span style="font-size:18px;font-weight:700;font-family:'DM Mono',monospace">${fmtRp(totalPK)}</span>
+        </div>` : ''}
+
+        <!-- Toolbar -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:12px;font-weight:600;color:var(--text3)">Filter:</span>
+          <select id="pkFilterSel" onchange="renderPKTable('${data.id}')" style="width:auto;padding:5px 10px;font-size:12px">
+            <option value="all">Semua Item</option>
+            <option value="belum" selected>Perlu Beli (BELUM)</option>
+            <option value="sudah">Sudah (SUDAH)</option>
+            <option value="n">Skip (N)</option>
+            <option value="konfirmasi">Konfirmasi (?)</option>
+          </select>
+          <button class="btn btn-sm btn-ghost" onclick="pkExportExcel('${data.id}')">📊 Export PK Excel</button>
+          <button class="btn btn-sm btn-ghost" onclick="pkPrint('${data.id}')">🖨 Print PK</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card" id="pkTableWrap">
+          <div class="table-wrap">
+            <table id="pkTable" style="table-layout:auto">
+              <thead><tr>
+                <th style="width:32px">#</th>
+                <th>Nama Item</th>
+                <th style="width:55px">Qty</th>
+                <th style="width:50px">Unit</th>
+                ${showPrice ? '<th style="width:120px">Harga Sat.</th><th style="width:120px">Nilai PK</th>' : ''}
+                <th style="width:80px">PK?</th>
+                <th style="width:100px">Status</th>
+                <th style="width:55px">Edit Qty</th>
+              </tr></thead>
+              <tbody id="pkTableBody"></tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+    return tabBar;
+  };
+  // expose to window for re-render
+  window.renderDetailContent = renderDetailContent;
+
+  openModal(`<div class="modal" style="max-width:1150px;height:calc(100vh - 3rem);display:flex;flex-direction:column">
     <div class="modal-header" style="flex-shrink:0">
       <div>
         <h2>${data.title}</h2>
         <div style="font-size:12px;color:var(--text3);margin-top:2px">
-          ${data.id} · ${data.unit_category} · ${badge(data.status)} · oleh ${data.app_users?.full_name || '—'} · ${fmtDate(data.created_at)}
+          ${data.id} · ${data.unit_category} · ${badge(data.status)} · oleh ${data.app_users?.full_name||'—'} · ${fmtDate(data.created_at)}
+          ${data.pp_request_id ? ` · 🔗 PP: <strong>${data.pp_request_id}</strong>` : ''}
+          ${data.po_id ? ` · 🔗 PO: <strong>${data.po_id}</strong>` : ''}
         </div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
     </div>
-    <div class="modal-body" style="flex:1 1 0;min-height:0;overflow-y:scroll;overflow-x:hidden">
-      ${data.description ? `<div class="desc-box" style="margin-bottom:1rem">${data.description}</div>` : ''}
-      ${(data.pp_request_id || data.po_id) ? `<div style="font-size:12px;background:var(--surface2);padding:8px;border-radius:6px;margin-bottom:1rem">
-        ${data.pp_request_id ? `🔗 PP Request: <strong>${data.pp_request_id}</strong> ` : ''}
-        ${data.po_id ? `🔗 PO: <strong>${data.po_id}</strong>` : ''}
-      </div>` : ''}
-
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
-        <div class="sect-title" style="margin-bottom:0">Komponen (${items.length})</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${canManage ? `<button class="btn btn-sm" onclick="openBOMAddItem('${data.id}')">+ Tambah Komponen</button>` : ''}
-          <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}', true)">📊 Export Excel (+harga)</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${data.id}', false)">📊 Export Excel (no harga)</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${data.id}', true)">🖨 Print (+harga)</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${data.id}', false)">🖨 Print (no harga)</button>
-        </div>
-      </div>
-
-      ${items.length ? `<div class="table-card" style="overflow:visible"><div class="table-wrap" style="overflow:visible"><table style="table-layout:auto">
-        <thead><tr>
-          <th style="width:40px">#</th>
-          <th>Part Number</th>
-          <th>Nama</th>
-          <th style="width:80px">Qty</th>
-          <th style="width:60px">Unit</th>
-          ${showPrice ? '<th style="width:140px">Harga Satuan</th><th style="width:140px">Subtotal</th>' : ''}
-          <th>Note</th>
-          ${canManage ? '<th style="width:80px"></th>' : ''}
-        </tr></thead>
-        <tbody>${items.map((it, idx) => `
-          <tr>
-            <td style="color:var(--text3)">${idx + 1}</td>
-            <td class="mono" style="white-space:normal;word-break:break-word">${it.part_number || '—'}</td>
-            <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
-            <td>${it.qty}</td>
-            <td>${it.unit}</td>
-            ${showPrice ? `<td>${fmtRp(it.unit_price)}</td><td><strong>${fmtRp(it.qty * it.unit_price)}</strong></td>` : ''}
-            <td style="font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.4">${it.note || '—'}</td>
-            ${canManage ? `<td style="white-space:nowrap">
-              <button class="btn btn-sm" onclick="openBOMEditItem(${it.id}, '${data.id}')">✎</button>
-              <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id}, '${data.id}')">✕</button>
-            </td>` : ''}
-          </tr>`).join('')}
-          ${showPrice ? `<tr style="background:var(--surface2);font-weight:600"><td colspan="${canManage ? 6 : 5}" style="text-align:right">TOTAL</td><td colspan="2">${fmtRp(total)}</td><td colspan="${canManage ? 2 : 1}"></td></tr>` : ''}
-        </tbody>
-      </table></div></div>` : noData('Belum ada komponen')}
+    <div class="modal-body" style="flex:1 1 0;min-height:0;overflow-y:scroll;overflow-x:hidden" id="bomDetailBody">
+      ${renderDetailContent()}
     </div>
-    ${canManage ? `<div class="modal-footer" style="justify-content:space-between">
+    ${can('bom_manage') ? `<div class="modal-footer" style="justify-content:space-between">
       <button class="btn btn-sm btn-danger" onclick="deleteBOM('${data.id}')">Hapus BOM</button>
       <div style="display:flex;gap:6px">
-        ${['Draft', 'Final', 'Archived'].map(s => `<button class="btn btn-sm ${data.status === s ? 'btn-primary' : ''}" onclick="updateBOMStatus('${data.id}','${s}')">${s}</button>`).join('')}
+        ${['Draft','Final','Archived'].map(s=>`<button class="btn btn-sm ${data.status===s?'btn-primary':''}" onclick="updateBOMStatus('${data.id}','${s}')">${s}</button>`).join('')}
       </div>
     </div>` : ''}
   </div>`);
+
+  // render PK table jika tab PK aktif
+  if (bomState.detailTab === 'pk') setTimeout(() => renderPKTable(data.id), 50);
+}
+
+// ─── RENDER PK TABLE ──────────────────────────────────────────
+function renderPKTable(bomId) {
+  const data = bomState.currentBOM;
+  if (!data) return;
+  const items = (data.bom_items||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const showPrice = can('nilai_po');
+  const flt = document.getElementById('pkFilterSel')?.value || 'belum';
+
+  const filtered = items.filter(it => {
+    if (flt==='belum')     return it.pk_flag==='Y' && it.pk_status==='BELUM';
+    if (flt==='sudah')     return it.pk_flag==='Y' && it.pk_status==='SUDAH';
+    if (flt==='n')         return it.pk_flag==='N';
+    if (flt==='konfirmasi')return it.pk_flag==='?';
+    return true; // all
+  });
+
+  const tbody = document.getElementById('pkTableBody');
+  if (!tbody) return;
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="${showPrice?9:7}" style="text-align:center;padding:2rem;color:var(--text3)">Tidak ada item untuk filter ini</td></tr>`;
+    return;
+  }
+
+  const flagColors = { 'Y':'', 'N':'background:var(--surface2)', '?':'background:#FFFBEB' };
+  const statusColors = { 'BELUM':'background:#FEF3C7', 'SUDAH':'background:var(--green-bg)', '':'background:var(--surface2)' };
+
+  let seq = 1;
+  tbody.innerHTML = filtered.map(it => {
+    const rowBg = it.pk_flag==='N' ? 'opacity:.5' : it.pk_status==='SUDAH' ? 'opacity:.6' : '';
+    return `<tr style="${rowBg}">
+      <td style="color:var(--text3);text-align:center">${seq++}</td>
+      <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}
+        ${it.note ? `<div style="font-size:11px;color:var(--text3);font-weight:400">${it.note}</div>` : ''}
+      </td>
+      <td style="text-align:right;font-weight:600" id="pkqty_${it.id}">${it.qty}</td>
+      <td>${it.unit}</td>
+      ${showPrice ? `
+        <td style="text-align:right">${it.unit_price>0 ? fmtRp(it.unit_price) : '<span style="color:var(--text3)">—</span>'}</td>
+        <td style="text-align:right;font-weight:600" id="pknilai_${it.id}">${(it.pk_flag==='Y'&&it.pk_status==='BELUM'&&it.unit_price>0)?fmtRp(it.qty*it.unit_price):'<span style="color:var(--text3)">—</span>'}</td>` : ''}
+      <td style="text-align:center">
+        <select onchange="pkUpdateFlag(${it.id},'${bomId}',this.value)"
+          style="font-size:11px;padding:3px 6px;border-radius:4px;${flagColors[it.pk_flag]||''}">
+          <option value="Y" ${it.pk_flag==='Y'?'selected':''}>Y – Beli</option>
+          <option value="N" ${it.pk_flag==='N'?'selected':''}>N – Skip</option>
+          <option value="?" ${it.pk_flag==='?'?'selected':''}>? – Konfirm</option>
+        </select>
+      </td>
+      <td style="text-align:center">
+        <select onchange="pkUpdateStatus(${it.id},'${bomId}',this.value)"
+          style="font-size:11px;padding:3px 6px;border-radius:4px;${statusColors[it.pk_status]||''}">
+          <option value="BELUM" ${it.pk_status==='BELUM'?'selected':''}>BELUM</option>
+          <option value="SUDAH" ${it.pk_status==='SUDAH'?'selected':''}>SUDAH</option>
+          <option value="" ${it.pk_status===''?'selected':''}>—</option>
+        </select>
+      </td>
+      <td style="text-align:center">
+        <button class="btn btn-sm" style="padding:3px 8px;font-size:11px"
+          onclick="pkEditQty(${it.id},'${bomId}',${it.qty})">✎</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── PK: update pk_flag ───────────────────────────────────────
+async function pkUpdateFlag(itemId, bomId, flag) {
+  const it = bomState.currentBOM.bom_items.find(x=>x.id===itemId);
+  if (!it) return;
+  it.pk_flag = flag;
+  // Jika N → kosongkan status
+  if (flag==='N') it.pk_status = '';
+  await sb.from('bom_items').update({ pk_flag: flag, pk_status: flag==='N'?'':it.pk_status }).eq('id', itemId);
+  renderPKTable(bomId);
+  updatePKSummaryCards();
+  toast('PK diperbarui');
+}
+
+// ─── PK: update pk_status ─────────────────────────────────────
+async function pkUpdateStatus(itemId, bomId, status) {
+  const it = bomState.currentBOM.bom_items.find(x=>x.id===itemId);
+  if (!it) return;
+  it.pk_status = status;
+  await sb.from('bom_items').update({ pk_status: status }).eq('id', itemId);
+  renderPKTable(bomId);
+  updatePKSummaryCards();
+  toast('Status diperbarui');
+}
+
+// ─── PK: edit qty ─────────────────────────────────────────────
+function pkEditQty(itemId, bomId, currentQty) {
+  const val = prompt(`Edit qty untuk item ini (saat ini: ${currentQty}):`, currentQty);
+  if (val === null) return;
+  const newQty = parseFloat(val);
+  if (!newQty || newQty <= 0) { toast('Qty tidak valid'); return; }
+  pkSaveQty(itemId, bomId, newQty);
+}
+
+async function pkSaveQty(itemId, bomId, newQty) {
+  const it = bomState.currentBOM.bom_items.find(x=>x.id===itemId);
+  if (!it) return;
+  it.qty = newQty;
+  await sb.from('bom_items').update({ qty: newQty }).eq('id', itemId);
+  await recalcBOMTotal(bomId);
+  renderPKTable(bomId);
+  updatePKSummaryCards();
+  toast('Qty diperbarui');
+}
+
+// ─── PK: update summary cards tanpa re-render penuh ──────────
+function updatePKSummaryCards() {
+  // Re-render konten body (ringan, tanpa tutup modal)
+  const el = document.getElementById('bomDetailBody');
+  if (el && window.renderDetailContent) el.innerHTML = renderDetailContent();
+  if (bomState.detailTab==='pk') setTimeout(() => renderPKTable(bomState.currentBOM?.id), 20);
+}
+
+// ─── PK: Export Excel ─────────────────────────────────────────
+async function pkExportExcel(bomId) {
+  const data = bomState.currentBOM;
+  if (!data) return;
+  const items = (data.bom_items||[])
+    .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+
+  const XLSX = window.XLSX;
+  if (!XLSX) { toast('Library Excel belum siap'); return; }
+
+  const aoa = [
+    ['PENGAJUAN KEUANGAN (PK)'],
+    [`BOM: ${data.title}`],
+    [`Kategori: ${data.unit_category}`],
+    [`Tanggal: ${fmtDate(new Date().toISOString())}`],
+    [],
+    ['NO','NAMA ITEM','QTY','UNIT','HARGA SATUAN (IDR)','JUMLAH (IDR)','NOTE'],
+  ];
+  let grand = 0;
+  items.forEach((it,i) => {
+    const jml = it.qty * (it.unit_price||0);
+    grand += jml;
+    aoa.push([i+1, it.name, it.qty, it.unit, it.unit_price||0, jml, it.note||'']);
+  });
+  aoa.push([]);
+  aoa.push(['','','','','GRAND TOTAL',grand,'Belum termasuk PPN & ongkir']);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:5},{wch:35},{wch:7},{wch:7},{wch:18},{wch:18},{wch:20}];
+  const wb2 = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb2, ws, 'PK');
+  XLSX.writeFile(wb2, `PK_${data.id}_${data.title.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`);
+  toast('Export PK berhasil');
+}
+
+// ─── PK: Print ────────────────────────────────────────────────
+function pkPrint(bomId) {
+  const data = bomState.currentBOM;
+  if (!data) return;
+  const items = (data.bom_items||[])
+    .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const showPrice = can('nilai_po');
+  const grand = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+
+  let seq=1;
+  const rows = items.map(it=>`
+    <tr>
+      <td>${seq++}</td><td>${it.name}</td><td class="num">${it.qty}</td><td>${it.unit}</td>
+      ${showPrice?`<td class="num">${fmtRp(it.unit_price)}</td><td class="num"><strong>${fmtRp(it.qty*(it.unit_price||0))}</strong></td>`:''}
+      <td>${it.note||''}</td>
+    </tr>`).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>PK – ${data.title}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11pt;margin:20mm}
+      h2{font-size:14pt;margin-bottom:4px} .sub{color:#666;font-size:10pt;margin-bottom:16px}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th{background:#1F3864;color:#fff;padding:6px 8px;font-size:10pt;text-align:left}
+      td{padding:5px 8px;border-bottom:1px solid #ddd;font-size:10pt}
+      .num{text-align:right} .grand{font-weight:700;background:#f0f4ff}
+      @media print{body{margin:10mm}}
+    </style></head><body>
+    <h2>PENGAJUAN KEUANGAN (PK)</h2>
+    <div class="sub">BOM: ${data.title} &nbsp;|&nbsp; ${data.unit_category} &nbsp;|&nbsp; ${fmtDate(new Date().toISOString())}</div>
+    <table><thead><tr>
+      <th style="width:32px">#</th><th>Nama Item</th>
+      <th style="width:50px" class="num">Qty</th><th style="width:45px">Unit</th>
+      ${showPrice?'<th style="width:120px" class="num">Harga Sat.</th><th style="width:130px" class="num">Jumlah</th>':''}
+      <th>Note</th>
+    </tr></thead><tbody>${rows}
+    ${showPrice?`<tr class="grand"><td colspan="5" class="num">GRAND TOTAL</td><td class="num">${fmtRp(grand)}</td><td></td></tr>`:''}
+    </tbody></table>
+    <div style="margin-top:40px;font-size:9pt;color:#666">Harga belum termasuk PPN 11% dan ongkos kirim.</div>
+    <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 async function openBOMAddItem(bomId) {
