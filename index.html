@@ -7028,112 +7028,18 @@ function bdRenderBOMTab(el) {
     </div>`;
 }
 
-// ── TAB PK ─────────────────────────────────────────────────────
-function bdRenderPKTab(el) {
-  const d        = bomDetail.data;
-  const showPrice= can('nilai_po');
-  const items    = (d.bom_items||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
 
-  // Stats
-  const belum   = items.filter(it=>it.pk_flag==='Y'&&it.pk_status==='BELUM');
-  const sudah   = items.filter(it=>it.pk_flag==='Y'&&it.pk_status==='SUDAH');
-  const skip    = items.filter(it=>it.pk_flag==='N');
-  const konfirm = items.filter(it=>it.pk_flag==='?');
-  const nilBelum  = belum.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
-  const nilSudah  = sudah.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
-  const nilKonfirm= konfirm.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+// ══════════════════════════════════════════════════════════════
+// TAB PK — MULTI PK PER BOM
+// Satu BOM bisa release banyak PK request (bertahap/per grup)
+// ══════════════════════════════════════════════════════════════
 
-  el.innerHTML = `
-    <!-- Summary cards -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem">
-      ${[
-        ['PERLU BELI (BELUM)', belum.length,  '#FEF3C7','#92400E', showPrice?fmtRp(nilBelum):'','belum'],
-        ['SUDAH ADA/DIBELI',   sudah.length,  'var(--green-bg)','var(--green)', showPrice?fmtRp(nilSudah):'','sudah'],
-        ['TIDAK PERLU PK',     skip.length,   'var(--surface2)','var(--text3)','','n'],
-        ['KONFIRMASI HARGA',   konfirm.length,'#F5F3FF','#6D28D9', showPrice?fmtRp(nilKonfirm):'','konfirmasi'],
-      ].map(([label,cnt,bg,clr,sub,flt])=>`
-        <div onclick="bdSetPKFilter('${flt}')"
-          style="background:${bg};border-radius:10px;padding:12px 14px;cursor:pointer;
-            border:2px solid ${bomDetail.filterPK===flt?clr:'transparent'};transition:border .15s">
-          <div style="font-size:10px;font-weight:700;color:${clr};text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">${label}</div>
-          <div style="font-size:26px;font-weight:700;color:${clr};line-height:1">${cnt}</div>
-          ${sub?`<div style="font-size:11px;color:${clr};opacity:.8;margin-top:4px">${sub}</div>`:''}
-        </div>`).join('')}
-    </div>
-
-    <!-- Grand Total -->
-    ${showPrice ? `
-      <div style="background:var(--text);color:#fff;border-radius:10px;padding:12px 20px;
-        margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Total Nilai PK</div>
-          <div style="font-size:13px;font-weight:700">Hanya item PK=Y & STATUS=BELUM</div>
-        </div>
-        <div style="font-size:24px;font-weight:700;font-family:'DM Mono',monospace">${fmtRp(nilBelum)}</div>
-      </div>` : ''}
-
-    <!-- Toolbar -->
-    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:12px;font-weight:600;color:var(--text3)">Filter:</span>
-      <select id="pkFlt" onchange="bdSetPKFilter(this.value)"
-        style="width:auto;padding:5px 10px;font-size:12px;border-radius:6px">
-        <option value="all"       ${bomDetail.filterPK==='all'       ?'selected':''}>Semua Item</option>
-        <option value="belum"     ${bomDetail.filterPK==='belum'     ?'selected':''}>Perlu Beli – BELUM</option>
-        <option value="sudah"     ${bomDetail.filterPK==='sudah'     ?'selected':''}>Sudah Ada – SUDAH</option>
-        <option value="n"         ${bomDetail.filterPK==='n'         ?'selected':''}>Skip – Tidak PK</option>
-        <option value="konfirmasi"${bomDetail.filterPK==='konfirmasi'?'selected':''}>Konfirmasi Harga</option>
-      </select>
-      <div style="flex:1"></div>
-      <button class="btn btn-sm btn-ghost" onclick="bdPKExportExcel()">📊 Export Excel PK</button>
-      <button class="btn btn-sm btn-ghost" onclick="bdPKPrint()">🖨 Print PK</button>
-    </div>
-
-    <!-- PK Table -->
-    <div class="table-card">
-      <div class="table-wrap">
-        <table style="table-layout:fixed;width:100%" id="pkTbl">
-          <colgroup>
-            <col style="width:38px">
-            <col><!-- nama -->
-            <col style="width:62px">
-            <col style="width:50px">
-            ${showPrice?'<col style="width:120px"><col style="width:120px">':''}
-            <col style="width:96px">
-            <col style="width:108px">
-            <col style="width:70px">
-          </colgroup>
-          <thead>
-            <tr style="position:sticky;top:0;z-index:5">
-              <th style="text-align:center">#</th>
-              <th>Nama Item</th>
-              <th style="text-align:right">Qty</th>
-              <th>Unit</th>
-              ${showPrice?'<th style="text-align:right">Harga Sat.</th><th style="text-align:right">Nilai PK</th>':''}
-              <th style="text-align:center">PK?</th>
-              <th style="text-align:center">Status</th>
-              <th style="text-align:center">Edit Qty</th>
-            </tr>
-          </thead>
-          <tbody id="pkTblBody"></tbody>
-        </table>
-      </div>
-    </div>`;
-
-  bdRenderPKRows();
-}
-
-function bdSetPKFilter(val) {
-  bomDetail.filterPK = val;
-  // Update select
-  const sel = document.getElementById('pkFlt');
-  if (sel) sel.value = val;
-  // Update card borders
-  ['belum','sudah','n','konfirmasi'].forEach(f => {
-    const cards = document.querySelectorAll('[data-pkcard]');
-    // re-render tab instead (cards re-render on tab switch)
-  });
-  bdRenderPKRows();
-}
+// State PK
+const pkState = {
+  pks:       [],    // list bom_pk_requests untuk BOM ini
+  openPkId:  null,  // PK yang sedang dibuka detailnya
+  pkItems:   [],    // bom_pk_items untuk openPkId
+};
 
 // helper: ambil nama grup dari field note
 function pkGrup(note) {
@@ -7141,148 +7047,653 @@ function pkGrup(note) {
   return (note.split('|')[0] || note).trim();
 }
 
-function bdRenderPKRows() {
-  const tbody = document.getElementById('pkTblBody');
-  if (!tbody) return;
-  const d        = bomDetail.data;
-  const showPrice= can('nilai_po');
-  const flt      = bomDetail.filterPK;
-  const allItems = (d.bom_items||[])
-    .sort((a,b) => (a.sort_order||0)-(b.sort_order||0))
-    .filter(it => {
-      if (flt==='belum')     return it.pk_flag==='Y' && it.pk_status==='BELUM';
-      if (flt==='sudah')     return it.pk_flag==='Y' && it.pk_status==='SUDAH';
-      if (flt==='n')         return it.pk_flag==='N';
-      if (flt==='konfirmasi')return it.pk_flag==='?';
-      return true;
-    });
+// ── Render tab PK utama (daftar PK) ──────────────────────────
+async function bdRenderPKTab(el) {
+  const d = bomDetail.data;
+  el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text3)">
+    <span class="spinner"></span> Memuat data PK...</div>`;
 
-  if (!allItems.length) {
-    const cols = showPrice ? 9 : 7;
-    tbody.innerHTML = `<tr><td colspan="${cols}"
-      style="text-align:center;padding:2.5rem;color:var(--text3)">
-      Tidak ada item untuk filter ini</td></tr>`;
-    return;
+  // Load semua PK untuk BOM ini
+  const { data: pks } = await sb
+    .from('bom_pk_requests')
+    .select('*,bom_pk_items(*)')
+    .eq('bom_id', d.id)
+    .order('created_at', { ascending: true });
+
+  pkState.pks = pks || [];
+
+  renderPKList(el);
+}
+
+function renderPKList(el) {
+  const d    = bomDetail.data;
+  const pks  = pkState.pks;
+  const showPrice = can('nilai_po');
+
+  const statusColor = {
+    Draft:'var(--text3)', Diajukan:'var(--blue-text)',
+    Disetujui:'var(--green)', Ditolak:'var(--red)', Selesai:'var(--teal)'
+  };
+  const statusBg = {
+    Draft:'var(--surface2)', Diajukan:'var(--blue-bg)',
+    Disetujui:'var(--green-bg)', Ditolak:'var(--red-bg)', Selesai:'var(--teal-bg)'
+  };
+
+  // Summary total semua PK
+  const totalPKNilai = pks.reduce((s,pk) => s+(parseFloat(pk.total_nilai)||0), 0);
+  const totalBOM     = (d.bom_items||[]).reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+  const totalItems   = (d.bom_items||[]).length;
+
+  el.innerHTML = `
+    <!-- Summary bar -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+      ${[
+        ['Total Komponen BOM', totalItems+' item', '#1F3864','#D6E4F7'],
+        ['Nilai BOM', showPrice?fmtRp(totalBOM):'—', 'var(--blue-text)','var(--blue-bg)'],
+        ['Total Nilai PK Diajukan', showPrice?fmtRp(totalPKNilai):'—','var(--green)','var(--green-bg)'],
+      ].map(([label,val,clr,bg])=>`
+        <div style="background:${bg};border-radius:10px;padding:12px 16px">
+          <div style="font-size:10px;font-weight:700;color:${clr};text-transform:uppercase;
+            letter-spacing:.07em;margin-bottom:4px">${label}</div>
+          <div style="font-size:20px;font-weight:700;color:${clr}">${val}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Header + tombol buat PK baru -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;color:var(--text)">
+        📋 Daftar PK untuk BOM ini
+        <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">${pks.length} PK</span>
+      </div>
+      ${can('bom_manage') ? `
+        <button class="btn btn-primary btn-sm" onclick="openPKForm()">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Buat PK Baru
+        </button>` : ''}
+    </div>
+
+    ${pks.length === 0 ? `
+      <div style="text-align:center;padding:3rem;color:var(--text3);
+        background:var(--surface);border:1.5px dashed var(--border2);border-radius:10px">
+        <div style="font-size:2rem;margin-bottom:8px">📭</div>
+        <div style="font-weight:600;margin-bottom:4px">Belum ada PK</div>
+        <div style="font-size:12px">Klik <strong>Buat PK Baru</strong> untuk membuat pengajuan pertama</div>
+      </div>` : `
+
+    <!-- PK Cards -->
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${pks.map(pk => {
+        const itemCount = (pk.bom_pk_items||[]).length;
+        const sudahCount= (pk.bom_pk_items||[]).filter(i=>i.status==='SUDAH').length;
+        const pct = itemCount>0 ? Math.round(sudahCount/itemCount*100) : 0;
+        return `
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;
+          padding:14px 16px;cursor:pointer;transition:border-color .15s"
+          onclick="openPKDetail('${pk.id}')"
+          onmouseover="this.style.borderColor='var(--border2)'"
+          onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3)">${pk.no_pk}</span>
+                <span style="font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;
+                  background:${statusBg[pk.status]||'var(--surface2)'};
+                  color:${statusColor[pk.status]||'var(--text3)'}">
+                  ${pk.status}
+                </span>
+              </div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:3px">${pk.judul}</div>
+              ${pk.keterangan?`<div style="font-size:12px;color:var(--text2)">${pk.keterangan}</div>`:''}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              ${showPrice?`<div style="font-size:16px;font-weight:700;color:var(--text)">${fmtRp(pk.total_nilai)}</div>`:''}
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">${itemCount} item</div>
+            </div>
+          </div>
+          <!-- Progress bar -->
+          ${itemCount>0 ? `
+          <div style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;font-size:10px;
+              color:var(--text3);margin-bottom:3px">
+              <span>Progress SUDAH</span>
+              <span>${sudahCount}/${itemCount} item (${pct}%)</span>
+            </div>
+            <div style="height:4px;background:var(--surface2);border-radius:4px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:var(--green);border-radius:4px;
+                transition:width .3s"></div>
+            </div>
+          </div>` : ''}
+          <div style="font-size:10px;color:var(--text3);margin-top:8px">
+            Dibuat: ${fmtDate(pk.created_at)}
+            ${pk.updated_at!==pk.created_at?` · Update: ${fmtDate(pk.updated_at)}`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}`;
+}
+
+// ── Form buat PK baru ─────────────────────────────────────────
+function openPKForm(editPkId) {
+  const d   = bomDetail.data;
+  const pk  = editPkId ? pkState.pks.find(p=>p.id===editPkId) : null;
+
+  // Auto-generate no_pk
+  const nextNo = 'PK-' + String(pkState.pks.length+1).padStart(3,'0') + '/SAE/' +
+    new Date().toLocaleDateString('id-ID',{month:'2-digit',year:'numeric'}).replace('/','.');
+
+  openModal(`<div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>${pk?'Edit PK':'Buat PK Baru'}</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>No. PK <span class="req">*</span></label>
+        <input type="text" id="pkFormNo" value="${pk?.no_pk||nextNo}" placeholder="PK-001/SAE/VI.2026">
+      </div>
+      <div class="form-row">
+        <label>Judul PK <span class="req">*</span></label>
+        <input type="text" id="pkFormJudul" value="${pk?.judul||''}"
+          placeholder="Contoh: PK Batch 1 – Cubicle & MCB">
+      </div>
+      <div class="form-row">
+        <label>Keterangan</label>
+        <textarea id="pkFormKet" rows="2" placeholder="Justifikasi / catatan pengajuan...">${pk?.keterangan||''}</textarea>
+      </div>
+      <div class="form-row">
+        <label>Status</label>
+        <select id="pkFormStatus">
+          ${['Draft','Diajukan','Disetujui','Ditolak','Selesai'].map(s=>
+            `<option ${(pk?.status||'Draft')===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:12px;color:var(--text3);background:var(--surface2);
+        padding:8px 10px;border-radius:6px;margin-top:4px">
+        💡 Setelah buat PK, pilih item-item BOM yang masuk ke PK ini
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="savePKForm(${pk?`'${pk.id}'`:'null'})">
+        ${pk?'Simpan':'Buat PK'}
+      </button>
+    </div>
+  </div>`);
+}
+
+async function savePKForm(editPkId) {
+  const d      = bomDetail.data;
+  const no_pk  = document.getElementById('pkFormNo')?.value.trim();
+  const judul  = document.getElementById('pkFormJudul')?.value.trim();
+  const ket    = document.getElementById('pkFormKet')?.value.trim();
+  const status = document.getElementById('pkFormStatus')?.value;
+
+  if (!no_pk||!judul) { toast('No. PK dan Judul wajib diisi'); return; }
+
+  if (editPkId) {
+    await sb.from('bom_pk_requests')
+      .update({ no_pk, judul, keterangan:ket||null, status })
+      .eq('id', editPkId);
+    toast('PK diperbarui');
+  } else {
+    const newId = 'PKR-' + Date.now().toString(36).toUpperCase();
+    await sb.from('bom_pk_requests').insert({
+      id: newId, bom_id: d.id, no_pk, judul,
+      keterangan: ket||null, status,
+      created_by: currentUser?.id||null
+    });
+    toast('PK baru dibuat: ' + no_pk);
   }
 
-  // Group by note prefix
+  closeAllModals();
+  // Reload PK list
+  await bdRenderPKTab(document.getElementById('bdContent'));
+}
+
+// ── Detail PK — pilih item + update status ────────────────────
+async function openPKDetail(pkId) {
+  const d = bomDetail.data;
+  const pk = pkState.pks.find(p=>p.id===pkId);
+  if (!pk) return;
+  pkState.openPkId = pkId;
+
+  // Load pk_items
+  const { data: pkItems } = await sb
+    .from('bom_pk_items')
+    .select('*,bom_items(id,name,note,unit,part_number,sort_order)')
+    .eq('pk_id', pkId);
+  pkState.pkItems = pkItems || [];
+
+  renderPKDetail(pk);
+}
+
+function renderPKDetail(pk) {
+  const d        = bomDetail.data;
+  const showPrice= can('nilai_po');
+  const bomItems = (d.bom_items||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const pkItems  = pkState.pkItems;
+
+  // Map bom_item_id → pk_item
+  const pkMap = {};
+  pkItems.forEach(pi => { pkMap[pi.bom_item_id] = pi; });
+
+  // Group bom items by section
   const grups = [], grupMap = {};
-  allItems.forEach(it => {
+  bomItems.forEach(it => {
     const g = pkGrup(it.note);
     if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
     grupMap[g].push(it);
   });
 
-  const flagBg  = {'Y':'#d4edda','N':'var(--surface2)','?':'#FEF3C7'};
-  const flagClr = {'Y':'#155724','N':'#888','?':'#92400E'};
-  const statBg  = {'BELUM':'#FEF3C7','SUDAH':'var(--green-bg)','':'var(--surface2)'};
-  const statClr = {'BELUM':'#92400E','SUDAH':'var(--green)','':'var(--text3)'};
+  const statusBadge = s => {
+    const cfg = {BELUM:'#FEF3C7|#92400E', SUDAH:'var(--green-bg)|var(--green)', BATAL:'var(--red-bg)|var(--red)'};
+    const [bg,clr] = (cfg[s]||'var(--surface2)|var(--text3)').split('|');
+    return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;
+      background:${bg};color:${clr}">${s||'—'}</span>`;
+  };
 
-  let seq = 1, html = '';
-  const spanCols = showPrice ? 9 : 7;
+  const colCount = showPrice ? 7 : 5;
 
+  let tableRows = '';
+  let totalNilai = 0;
   grups.forEach(grup => {
-    const items = grupMap[grup];
-    const grupTotal = items
-      .filter(it => it.pk_flag==='Y' && it.pk_status==='BELUM')
-      .reduce((s,it) => s+(it.qty*(it.unit_price||0)), 0);
-
-    // Group header row
-    html += `<tr>
-      <td colspan="${spanCols}"
-        style="background:var(--surface2);font-weight:700;font-size:11px;
-               color:#1F3864;padding:6px 10px;letter-spacing:.04em;
-               border-top:2px solid var(--border2,#CCCAC3)">
+    tableRows += `<tr>
+      <td colspan="${colCount}" style="background:var(--surface2);font-weight:700;font-size:11px;
+        color:#1F3864;padding:5px 10px;border-top:2px solid var(--border2)">
         📁 ${grup}
-        ${showPrice && grupTotal>0 ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">
-          Sub total BELUM: ${fmtRp(grupTotal)}</span>` : ''}
-      </td></tr>`;
+      </td>
+    </tr>`;
 
-    items.forEach(it => {
-      const dim = it.pk_flag==='N'||it.pk_status==='SUDAH' ? 'opacity:.5' : '';
-      const jml = (it.pk_flag==='Y'&&it.pk_status==='BELUM'&&it.unit_price>0)
-        ? it.qty*(it.unit_price||0) : 0;
-      html += `<tr style="${dim}">
-        <td style="text-align:center;color:var(--text3)">${seq++}</td>
-        <td style="white-space:normal;word-break:break-word;line-height:1.4;font-weight:500">${it.name}</td>
-        <td style="text-align:right;font-weight:600">${it.qty}</td>
-        <td style="font-size:12px">${it.unit}</td>
+    grupMap[grup].forEach(it => {
+      const pi = pkMap[it.id];
+      const checked = !!pi;
+      const qtyPK   = pi ? parseFloat(pi.qty_pk) : it.qty;
+      const harga   = pi ? parseFloat(pi.unit_price) : (it.unit_price||0);
+      const nilai   = pi ? parseFloat(pi.nilai||0) : 0;
+      if (checked) totalNilai += nilai;
+
+      tableRows += `<tr style="${!checked?'opacity:.45':''}">
+        <td style="text-align:center;width:36px">
+          <input type="checkbox" ${checked?'checked':''}
+            style="width:15px;height:15px;cursor:pointer"
+            onchange="pkToggleItem('${pk.id}',${it.id},this.checked,${it.qty},${it.unit_price||0})">
+        </td>
+        <td style="font-weight:${checked?'500':'400'};white-space:normal;word-break:break-word;line-height:1.4">
+          ${it.name}
+        </td>
+        <td style="text-align:center;width:42px">${it.unit}</td>
+        <td style="text-align:center;width:70px">
+          ${checked ? `<input type="number" value="${qtyPK}" min="0.001" step="0.001"
+            style="width:62px;text-align:right;padding:3px 5px;font-size:12px;border-radius:4px"
+            onchange="pkUpdateQty('${pk.id}',${it.id},parseFloat(this.value)||0)">` : `<span style="color:var(--text3)">${it.qty}</span>`}
+        </td>
         ${showPrice ? `
-          <td style="text-align:right;font-size:12px">${it.unit_price>0?fmtRp(it.unit_price):'<span style="color:var(--text3)">—</span>'}</td>
-          <td style="text-align:right;font-weight:700;color:${jml>0?'var(--text)':'var(--text3)'}">${jml>0?fmtRp(jml):'—'}</td>` : ''}
-        <td style="text-align:center">
-          <select onchange="bdPKSaveFlag(${it.id},this.value)"
-            style="font-size:11px;padding:3px 4px;border-radius:5px;width:84px;
-              background:${flagBg[it.pk_flag]||'#fff'};color:${flagClr[it.pk_flag]||'#000'};
-              font-weight:600;border:1px solid ${flagClr[it.pk_flag]||'#ccc'}">
-            <option value="Y" ${it.pk_flag==='Y'?'selected':''}>Y – Beli</option>
-            <option value="N" ${it.pk_flag==='N'?'selected':''}>N – Skip</option>
-            <option value="?" ${it.pk_flag==='?'?'selected':''}>? – Konfirm</option>
-          </select>
-        </td>
-        <td style="text-align:center">
-          <select onchange="bdPKSaveStatus(${it.id},this.value)"
-            style="font-size:11px;padding:3px 4px;border-radius:5px;width:88px;
-              background:${statBg[it.pk_status]||'#fff'};color:${statClr[it.pk_status]||'#000'};
-              font-weight:600;border:1px solid ${statClr[it.pk_status]||'#ccc'}">
-            <option value="BELUM" ${it.pk_status==='BELUM'?'selected':''}>BELUM</option>
-            <option value="SUDAH" ${it.pk_status==='SUDAH'?'selected':''}>SUDAH</option>
-            <option value=""      ${it.pk_status===''     ?'selected':''}>—</option>
-          </select>
-        </td>
-        <td style="text-align:center">
-          <button class="btn btn-sm" style="padding:4px 10px;font-size:11px"
-            onclick="bdPKEditQty(${it.id},${it.qty})">✎ ${it.qty}</button>
+          <td style="text-align:right;font-size:12px;width:110px">${checked?fmtRp(harga):'—'}</td>
+          <td style="text-align:right;font-weight:700;width:115px">${checked&&nilai>0?fmtRp(nilai):'—'}</td>` : ''}
+        <td style="text-align:center;width:90px">
+          ${checked ? `
+            <select onchange="pkUpdateItemStatus('${pk.id}',${it.id},this.value)"
+              style="font-size:10px;padding:2px 4px;border-radius:4px;
+                background:${pi.status==='SUDAH'?'var(--green-bg)':'#FEF3C7'};
+                color:${pi.status==='SUDAH'?'var(--green)':'#92400E'};
+                font-weight:600;border:1px solid ${pi.status==='SUDAH'?'var(--green)':'#D97706'}">
+              <option value="BELUM" ${pi.status==='BELUM'?'selected':''}>BELUM</option>
+              <option value="SUDAH" ${pi.status==='SUDAH'?'selected':''}>SUDAH</option>
+              <option value="BATAL" ${pi.status==='BATAL'?'selected':''}>BATAL</option>
+            </select>` : `<span style="color:var(--text3);font-size:11px">—</span>`}
         </td>
       </tr>`;
     });
   });
 
-  tbody.innerHTML = html;
-}
-
-async function bdPKSaveFlag(itemId, flag) {
-  bdMarkDirty();
-  const it = bomDetail.data.bom_items.find(x=>x.id===itemId);
-  if (!it) return;
-  it.pk_flag = flag;
-  if (flag==='N') it.pk_status = '';
-  await sb.from('bom_items').update({ pk_flag:flag, pk_status:flag==='N'?'':it.pk_status }).eq('id',itemId);
-  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
-}
-
-async function bdPKSaveStatus(itemId, status) {
-  bdMarkDirty();
-  const it = bomDetail.data.bom_items.find(x=>x.id===itemId);
-  if (!it) return;
-  it.pk_status = status;
-  await sb.from('bom_items').update({ pk_status:status }).eq('id',itemId);
-  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
-}
-
-function bdPKEditQty(itemId, currentQty) {
-  const val = prompt(`Edit qty (saat ini: ${currentQty}):`, currentQty);
-  if (val===null) return;
-  const newQty = parseFloat(val);
-  if (!newQty||newQty<=0) { toast('Qty tidak valid'); return; }
-  bdPKSaveQty(itemId, newQty);
-}
-
-async function bdPKSaveQty(itemId, newQty) {
-  bdMarkDirty();
-  const it = bomDetail.data.bom_items.find(x=>x.id===itemId);
-  if (!it) return;
-  it.qty = newQty;
-  await sb.from('bom_items').update({ qty:newQty }).eq('id',itemId);
-  await recalcBOMTotal(bomDetail.data.id);
-  bdMarkSaved(); bdRenderPKRows(); bdUpdatePKCards();
-}
-
-function bdUpdatePKCards() {
   const el = document.getElementById('bdContent');
-  if (el && bomDetail.tab==='pk') { bdRenderPKTab(el); bdRenderPKRows(); }
-  if (bomDetail.tab==='komponen') bdRenderBOMTab(el);
+  el.innerHTML = `
+    <!-- Back to PK list -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+      <button class="btn btn-ghost btn-sm" onclick="backToPKList()">
+        ← Daftar PK
+      </button>
+      <div style="width:1px;height:18px;background:var(--border)"></div>
+      <div>
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3)">${pk.no_pk}</span>
+        <span style="font-size:14px;font-weight:600;margin-left:8px">${pk.judul}</span>
+      </div>
+      <div style="flex:1"></div>
+      ${showPrice?`<div style="font-size:15px;font-weight:700">${fmtRp(pk.total_nilai)}</div>`:''}
+      ${can('bom_manage')?`
+        <button class="btn btn-sm" onclick="openPKForm('${pk.id}')">✎ Edit PK</button>
+        <button class="btn btn-sm btn-ghost" onclick="pkExportExcel('${pk.id}')">📊 Excel</button>
+        <button class="btn btn-sm btn-ghost" onclick="pkPrintDetail('${pk.id}')">🖨 Print</button>
+        <button class="btn btn-sm btn-danger" onclick="deletePKRequest('${pk.id}')">Hapus PK</button>`:''}
+    </div>
+
+    <!-- Info bar -->
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      ${[
+        ['Status PK', pk.status],
+        ['Item dipilih', pkItems.length+'/'+bomItems.length],
+        ['Item SUDAH', pkItems.filter(i=>i.status==='SUDAH').length+' item'],
+        showPrice?['Nilai Total PK', fmtRp(pk.total_nilai)]:null,
+      ].filter(Boolean).map(([k,v])=>`
+        <div style="background:var(--surface2);border-radius:7px;padding:6px 12px;font-size:12px">
+          <span style="color:var(--text3)">${k}: </span>
+          <strong>${v}</strong>
+        </div>`).join('')}
+      ${pk.keterangan?`<div style="background:var(--surface2);border-radius:7px;padding:6px 12px;
+        font-size:12px;color:var(--text2)">📝 ${pk.keterangan}</div>`:''}
+    </div>
+
+    <!-- Instruksi -->
+    <div style="font-size:12px;color:var(--text3);background:#FEF3C7;border-left:3px solid #F59E0B;
+      padding:7px 10px;border-radius:4px;margin-bottom:10px">
+      ☑ Centang item yang masuk ke PK ini · Edit qty jika perlu · Update status per item setelah barang diterima
+    </div>
+
+    <!-- Select All per grup helper -->
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-ghost" onclick="pkSelectAll('${pk.id}')">☑ Pilih Semua</button>
+      <button class="btn btn-sm btn-ghost" onclick="pkDeselectAll('${pk.id}')">☐ Hapus Semua</button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-wrap">
+        <table style="table-layout:auto">
+          <thead style="position:sticky;top:0;z-index:5">
+            <tr>
+              <th style="width:36px;text-align:center">☑</th>
+              <th>Nama Komponen</th>
+              <th style="width:42px">Unit</th>
+              <th style="width:70px;text-align:center">Qty PK</th>
+              ${showPrice?'<th style="width:110px;text-align:right">Harga Sat.</th><th style="width:115px;text-align:right">Nilai</th>':''}
+              <th style="width:90px;text-align:center">Status</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+          ${showPrice && pkItems.length ? `
+          <tfoot>
+            <tr style="background:var(--text)">
+              <td colspan="${colCount-2}" style="text-align:right;font-weight:700;color:#fff;padding:7px 10px">
+                TOTAL NILAI PK
+              </td>
+              <td colspan="2" style="text-align:right;font-weight:700;color:#fff;
+                font-size:14px;font-family:'DM Mono',monospace">
+                ${fmtRp(pk.total_nilai)}
+              </td>
+            </tr>
+          </tfoot>` : ''}
+        </table>
+      </div>
+    </div>`;
 }
+
+async function backToPKList() {
+  pkState.openPkId = null;
+  pkState.pkItems  = [];
+  await bdRenderPKTab(document.getElementById('bdContent'));
+}
+
+// ── Toggle item masuk/keluar PK ───────────────────────────────
+async function pkToggleItem(pkId, bomItemId, checked, qty, unitPrice) {
+  if (checked) {
+    await sb.from('bom_pk_items').upsert({
+      pk_id: pkId, bom_item_id: bomItemId,
+      qty_pk: qty, unit_price: unitPrice, status: 'BELUM'
+    }, { onConflict: 'pk_id,bom_item_id' });
+  } else {
+    await sb.from('bom_pk_items').delete()
+      .eq('pk_id', pkId).eq('bom_item_id', bomItemId);
+  }
+  // Reload detail
+  await openPKDetail(pkId);
+  // Refresh pkState.pks
+  const { data: pks } = await sb.from('bom_pk_requests')
+    .select('*,bom_pk_items(*)').eq('bom_id', bomDetail.data.id)
+    .order('created_at', { ascending: true });
+  pkState.pks = pks || [];
+  toast(checked ? '✓ Item ditambahkan ke PK' : 'Item dihapus dari PK');
+}
+
+async function pkUpdateQty(pkId, bomItemId, newQty) {
+  if (!newQty||newQty<=0) return;
+  await sb.from('bom_pk_items').update({ qty_pk: newQty })
+    .eq('pk_id', pkId).eq('bom_item_id', bomItemId);
+  await openPKDetail(pkId);
+  const { data: pks } = await sb.from('bom_pk_requests')
+    .select('*,bom_pk_items(*)').eq('bom_id', bomDetail.data.id)
+    .order('created_at', { ascending: true });
+  pkState.pks = pks || [];
+  toast('Qty diperbarui');
+}
+
+async function pkUpdateItemStatus(pkId, bomItemId, status) {
+  await sb.from('bom_pk_items').update({ status })
+    .eq('pk_id', pkId).eq('bom_item_id', bomItemId);
+  await openPKDetail(pkId);
+  const { data: pks } = await sb.from('bom_pk_requests')
+    .select('*,bom_pk_items(*)').eq('bom_id', bomDetail.data.id)
+    .order('created_at', { ascending: true });
+  pkState.pks = pks || [];
+  toast('Status diperbarui');
+}
+
+async function pkSelectAll(pkId) {
+  const d = bomDetail.data;
+  const items = (d.bom_items||[]);
+  for (const it of items) {
+    await sb.from('bom_pk_items').upsert({
+      pk_id: pkId, bom_item_id: it.id,
+      qty_pk: it.qty, unit_price: it.unit_price||0, status: 'BELUM'
+    }, { onConflict: 'pk_id,bom_item_id' });
+  }
+  await openPKDetail(pkId);
+  toast('Semua item dipilih');
+}
+
+async function pkDeselectAll(pkId) {
+  if (!confirm('Hapus semua item dari PK ini?')) return;
+  await sb.from('bom_pk_items').delete().eq('pk_id', pkId);
+  await openPKDetail(pkId);
+  toast('Semua item dihapus dari PK');
+}
+
+async function deletePKRequest(pkId) {
+  if (!confirm('Hapus PK ini beserta semua item-nya?')) return;
+  await sb.from('bom_pk_requests').delete().eq('id', pkId);
+  pkState.openPkId = null;
+  pkState.pkItems  = [];
+  toast('PK dihapus');
+  await bdRenderPKTab(document.getElementById('bdContent'));
+}
+
+// ── Export Excel PK ──────────────────────────────────────────
+async function pkExportExcel(pkId) {
+  const pk = pkState.pks.find(p=>p.id===pkId);
+  if (!pk) return;
+  const d  = bomDetail.data;
+  const XLSX = window.XLSX;
+  if (!XLSX) { toast('Library Excel belum siap'); return; }
+
+  const { data: pkItems } = await sb
+    .from('bom_pk_items')
+    .select('*,bom_items(id,name,note,unit,part_number,sort_order)')
+    .eq('pk_id', pkId)
+    .order('bom_items(sort_order)');
+
+  const items = (pkItems||[]).sort((a,b)=>
+    (a.bom_items?.sort_order||0)-(b.bom_items?.sort_order||0));
+
+  // Group
+  const grups=[], grupMap={};
+  items.forEach(pi=>{
+    const g=pkGrup(pi.bom_items?.note);
+    if(!grupMap[g]){grupMap[g]=[];grups.push(g);}
+    grupMap[g].push(pi);
+  });
+
+  const tgl = fmtDate(new Date().toISOString());
+  const aoa = [
+    ['PENGAJUAN KEUANGAN (PK)'],
+    [`No. PK: ${pk.no_pk}  |  ${pk.judul}`],
+    [`BOM: ${d.title}  |  ${d.unit_category}  |  Tanggal: ${tgl}`],
+    [`Status: ${pk.status}${pk.keterangan?' | Ket: '+pk.keterangan:''}`],
+    [],
+    ['NO','NAMA KOMPONEN','QTY PK','UNIT','HARGA SATUAN (IDR)','NILAI (IDR)'],
+  ];
+
+  let grand=0, seq=1;
+  grups.forEach(grup=>{
+    aoa.push(['',grup,'','','','']);
+    grupMap[grup].forEach(pi=>{
+      const nilai=parseFloat(pi.nilai||0);
+      grand+=nilai;
+      aoa.push([seq++, pi.bom_items?.name||'', parseFloat(pi.qty_pk),
+        pi.bom_items?.unit||'', parseFloat(pi.unit_price||0), nilai]);
+    });
+    const sub=grupMap[grup].reduce((s,pi)=>s+parseFloat(pi.nilai||0),0);
+    aoa.push(['','Sub Total '+grup,'','','',sub]);
+    aoa.push([]);
+  });
+  aoa.push([]);
+  aoa.push(['','','','','GRAND TOTAL',grand]);
+  aoa.push(['','','','','','⚠ Belum termasuk PPN 11% & ongkir']);
+
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:5},{wch:42},{wch:8},{wch:8},{wch:18},{wch:18}];
+  const wb2=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb2,ws,'PK');
+  XLSX.writeFile(wb2,`${pk.no_pk.replace(/[\/\\]/g,'-')}.xlsx`);
+  toast('Export berhasil');
+}
+
+// ── Print PK detail ──────────────────────────────────────────
+async function pkPrintDetail(pkId) {
+  const pk = pkState.pks.find(p=>p.id===pkId);
+  if (!pk) return;
+  const d  = bomDetail.data;
+  const showPrice = can('nilai_po');
+
+  const { data: pkItems } = await sb
+    .from('bom_pk_items')
+    .select('*,bom_items(id,name,note,unit,part_number,sort_order)')
+    .eq('pk_id', pkId);
+
+  const items=(pkItems||[]).sort((a,b)=>
+    (a.bom_items?.sort_order||0)-(b.bom_items?.sort_order||0));
+
+  const grups=[], grupMap={};
+  items.forEach(pi=>{
+    const g=pkGrup(pi.bom_items?.note);
+    if(!grupMap[g]){grupMap[g]=[];grups.push(g);}
+    grupMap[g].push(pi);
+  });
+
+  const grand=items.reduce((s,pi)=>s+parseFloat(pi.nilai||0),0);
+  const tgl=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const colSpan=showPrice?6:4;
+  let seq=1, rows='';
+
+  grups.forEach(grup=>{
+    const sub=grupMap[grup].reduce((s,pi)=>s+parseFloat(pi.nilai||0),0);
+    rows+=`<tr class="grp-hdr">
+      <td colspan="${colSpan}">📁 ${grup}
+        ${showPrice?`<span style="float:right">${fmtRp(sub)}</span>`:''}
+      </td></tr>`;
+    grupMap[grup].forEach(pi=>{
+      rows+=`<tr>
+        <td class="c">${seq++}</td>
+        <td>${pi.bom_items?.name||''}</td>
+        <td class="c">${parseFloat(pi.qty_pk)}</td>
+        <td class="c">${pi.bom_items?.unit||''}</td>
+        ${showPrice?`<td class="r">${fmtRp(pi.unit_price)}</td>
+          <td class="r"><strong>${fmtRp(pi.nilai)}</strong></td>`:''}
+      </tr>`;
+    });
+  });
+
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>${pk.no_pk}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:9pt;padding:11mm 13mm}
+    .hdr{display:flex;justify-content:space-between;margin-bottom:9px}
+    .hdr-left h1{font-size:12.5pt;font-weight:700;color:#1F3864;margin-bottom:3px}
+    .hdr-left .sub{font-size:8pt;color:#555;line-height:1.6}
+    .hdr-right{text-align:right;font-size:8pt;color:#555;line-height:1.8}
+    .hdr-right strong{color:#1F3864}
+    table{width:100%;border-collapse:collapse;margin-top:7px;font-size:8.8pt}
+    thead tr{background:#1F3864}
+    thead th{color:#fff;padding:5px 7px;font-size:8pt;font-weight:600;text-align:left}
+    td{padding:3.5px 7px;border-bottom:1px solid #EDF0F5;vertical-align:middle}
+    tr.grp-hdr td{background:#D6E4F7;color:#1F3864;font-weight:700;font-size:8.5pt;
+      padding:4px 7px;border-top:1.5px solid #B0C8E8;border-bottom:none}
+    .c{text-align:center}.r{text-align:right;font-variant-numeric:tabular-nums}
+    tfoot tr td{background:#1F3864;color:#fff;font-weight:700;font-size:9.5pt;padding:5px 7px}
+    .signs{display:flex;gap:0;margin-top:16px}
+    .sign-box{flex:1;border:1px solid #ddd;padding:7px 9px;font-size:8pt}
+    .sign-box .role{font-weight:700;color:#1F3864;margin-bottom:32px}
+    .sign-box .name{border-top:1px solid #aaa;padding-top:3px;color:#555}
+    .footer{margin-top:10px;font-size:7.5pt;color:#888;border-top:1px solid #ddd;padding-top:5px}
+    @media print{body{padding:9mm 11mm} @page{size:A4;margin:0}}
+  </style></head><body>
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>PENGAJUAN KEUANGAN (PK)</h1>
+      <div class="sub">
+        <strong>No. PK:</strong> ${pk.no_pk}<br>
+        <strong>${pk.judul}</strong><br>
+        BOM: ${d.title} &nbsp;·&nbsp; ${d.unit_category}
+        ${d.po_id?'&nbsp;·&nbsp; PO: '+d.po_id:''}
+        ${pk.keterangan?'<br>'+pk.keterangan:''}
+      </div>
+    </div>
+    <div class="hdr-right">
+      <strong>Tanggal:</strong> ${tgl}<br>
+      <strong>Status:</strong> ${pk.status}<br>
+      <strong>Total Item:</strong> ${items.length}<br>
+      ${showPrice?`<strong>Total Nilai:</strong> ${fmtRp(grand)}`:''}
+    </div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:26px">#</th><th>Nama Komponen</th>
+      <th style="width:42px" class="c">Qty</th>
+      <th style="width:38px" class="c">Unit</th>
+      ${showPrice?'<th style="width:108px" class="r">Harga Sat.</th><th style="width:115px" class="r">Nilai (IDR)</th>':''}
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    ${showPrice?`<tfoot><tr>
+      <td colspan="4" class="r">GRAND TOTAL</td>
+      <td class="r">${fmtRp(grand)}</td><td></td>
+    </tr></tfoot>`:''}
+  </table>
+  <div class="signs">
+    <div class="sign-box"><div class="role">Dibuat Oleh</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Diperiksa</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Disetujui Finance</div><div class="name">(__________________)</div></div>
+    <div class="sign-box"><div class="role">Diketahui</div><div class="name">(__________________)</div></div>
+  </div>
+  <div class="footer">
+    * Harga belum termasuk PPN 11% dan ongkos kirim.
+    * Item dengan harga Rp 0 (Battery/PESS) dikonfirmasi Finance terpisah.
+  </div>
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// ── Compatibility stubs ───────────────────────────────────────
+function bdSetPKFilter()     {}
+function bdRenderPKRows()    {}
+function bdUpdatePKCards()   {}
+function bdPKSaveFlag()      {}
+function bdPKSaveStatus()    {}
+function bdPKEditQty()       {}
+function bdPKExportExcel()   { if(pkState.openPkId) pkExportExcel(pkState.openPkId); }
+function bdPKPrint()         { if(pkState.openPkId) pkPrintDetail(pkState.openPkId); }
 
 async function bdUpdateStatus(bomId, status) {
   await sb.from('bom_lists').update({ status }).eq('id', bomId);
