@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Timeline Generator - SAE Energy</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#0f1a2e;
+    --panel2:#13233f;
+    --border:#1f3358;
+    --text:#e8eef9;
+    --muted:#8aa0c2;
+    --accent:#f59e0b;
+    --accent2:#3b82f6;
+    --ok:#10b981;
+    --warn:#f59e0b;
+    --bar:#fbbf24;
+    --bar2:#60a5fa;
+    --bar3:#34d399;
+    --bar4:#a78bfa;
+    --danger:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  body{min-height:100vh}
+
+  header{
+    background:linear-gradient(135deg,#0f1a2e 0%,#1a2a4a 100%);
+    border-bottom:1px solid var(--border);
+    padding:14px 20px;
+    position:sticky;top:0;z-index:100;
+    box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  }
+  .header-inner{max-width:1500px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-logo{
+    width:38px;height:38px;border-radius:8px;
+    background:linear-gradient(135deg,var(--accent) 0%,#dc6803 100%);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff;
+  }
+  .brand-text h1{margin:0;font-size:16px;font-weight:700}
+  .brand-text p{margin:0;font-size:11px;color:var(--muted)}
+  .conn-pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;
+    background:var(--panel2);border:1px solid var(--border);padding:4px 10px;border-radius:14px;color:var(--muted);
+  }
+  .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--danger)}
+  .conn-pill.ok .conn-dot{background:var(--ok)}
+  .conn-pill.ok{color:var(--ok);border-color:rgba(16,185,129,0.4)}
+
+  .header-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  button{
+    border:1px solid var(--border);background:var(--panel2);color:var(--text);
+    padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:500;
+    transition:all 0.15s;
+  }
+  button:hover{background:#1d3357;border-color:#2d4a7a}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#1a1a1a;font-weight:600}
+  button.primary:hover{background:#dc6803;border-color:#dc6803;color:#fff}
+  button.success{background:var(--ok);border-color:var(--ok);color:#fff;font-weight:600}
+  button.success:hover{background:#059669;border-color:#059669}
+  button.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+  button.danger:hover{background:var(--danger);color:#fff}
+  button.ghost{background:transparent}
+  button.small{padding:5px 9px;font-size:11px}
+  button:disabled{opacity:0.4;cursor:not-allowed}
+
+  main{max-width:1500px;margin:0 auto;padding:20px;display:grid;grid-template-columns:400px 1fr;gap:20px}
+  @media (max-width:1024px){main{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px}
+  .card-title{font-size:12px;font-weight:700;color:var(--accent);margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;text-transform:uppercase;letter-spacing:0.5px;gap:8px}
+  .card-title .right{display:flex;gap:5px}
+
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500}
+  .field input, .field select, .field textarea{
+    width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    padding:7px 9px;border-radius:5px;font-size:13px;font-family:inherit;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+  .po-info-box{
+    background:var(--panel2);border:1px solid var(--accent);border-radius:6px;
+    padding:10px 12px;margin-bottom:10px;font-size:12px;line-height:1.55;
+  }
+  .po-info-box .po-line{display:flex;justify-content:space-between;gap:8px}
+  .po-info-box .label{color:var(--muted);font-size:11px}
+  .po-info-box .value{color:var(--text);font-weight:500}
+  .po-info-box .po-no{color:var(--accent);font-weight:700;font-size:13px}
+
+  .phase-block{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+  .phase-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .phase-header input.phase-name{flex:1;background:transparent;border:none;color:var(--accent);font-weight:600;font-size:13px;padding:2px 4px;border-bottom:1px dashed transparent}
+  .phase-header input.phase-name:hover,.phase-header input.phase-name:focus{border-bottom-color:var(--border);outline:none}
+  .phase-header input.phase-weight{width:54px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;text-align:right}
+
+  .activity-row{display:grid;grid-template-columns:1fr 48px 48px 50px 24px;gap:5px;align-items:center;margin-bottom:5px;padding:4px;border-radius:4px}
+  .activity-row:hover{background:rgba(255,255,255,0.03)}
+  .activity-row input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px}
+  .activity-row input[type="text"]{font-size:12px}
+  .activity-row input[type="number"]{text-align:center}
+  .activity-row .del-btn{
+    background:transparent;border:none;color:var(--danger);padding:2px;
+    cursor:pointer;font-size:14px;line-height:1;border-radius:3px;
+  }
+  .activity-row .del-btn:hover{background:rgba(239,68,68,0.15)}
+  .activity-row-head{display:grid;grid-template-columns:1fr 48px 48px 50px 24px;gap:5px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:2px 4px;margin-bottom:4px}
+
+  .add-row{
+    background:transparent;border:1px dashed var(--border);color:var(--muted);
+    padding:6px;border-radius:5px;width:100%;font-size:11px;cursor:pointer;
+  }
+  .add-row:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* OUTPUT - Timeline visualization */
+  .timeline-wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .timeline-meta{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .timeline-meta h2{margin:0;font-size:16px;color:var(--text)}
+  .timeline-meta .meta-sub{font-size:12px;color:var(--muted);margin-top:4px}
+  .timeline-meta .meta-stat{font-size:11px;color:var(--muted);text-align:right}
+  .timeline-meta .meta-stat strong{display:block;color:var(--accent);font-size:15px}
+
+  table.gantt{width:100%;border-collapse:collapse;min-width:900px;font-size:11px}
+  table.gantt th, table.gantt td{border:1px solid var(--border);padding:4px 6px;text-align:center;vertical-align:middle}
+  table.gantt th{background:var(--panel2);font-weight:600;color:var(--muted);font-size:10px}
+  table.gantt .month-row th{background:#1a2a4a;color:var(--accent);font-size:11px}
+  table.gantt .col-no{width:24px}
+  table.gantt .col-task{text-align:left;min-width:200px;max-width:280px;padding-left:8px}
+  table.gantt .col-dur{width:32px;color:var(--muted)}
+  table.gantt .col-bobot{width:50px;color:var(--muted)}
+  table.gantt .col-week{width:34px;height:22px;padding:1px}
+  table.gantt .phase-row td{background:#13233f;color:var(--accent);font-weight:700;text-align:left;padding:6px 8px;text-transform:uppercase;font-size:11px;letter-spacing:0.5px}
+  table.gantt .week-cell{position:relative}
+  table.gantt .week-cell.active{background:var(--bar)}
+  table.gantt .week-cell.active.shipment{background:var(--bar2)}
+  table.gantt .week-cell.active.workshop{background:var(--bar3)}
+  table.gantt .week-cell.active.engineering{background:var(--bar4)}
+  table.gantt .week-cell.active.done{background:#6b7280}
+  table.gantt .total-row td{background:var(--panel2);font-weight:700;font-size:10px;color:var(--text);padding:5px}
+  table.gantt .total-row td:first-child{text-align:left;padding-left:8px;color:var(--accent)}
+
+  .scurve-wrap{margin-top:20px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .scurve-wrap h3{margin:0 0 12px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px}
+  .scurve-canvas{width:100%;height:260px;background:var(--panel2);border-radius:6px}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state svg{width:60px;height:60px;opacity:0.4;margin-bottom:12px}
+
+  /* Modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-backdrop.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:12px;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;padding:20px}
+  .modal h2{margin:0 0 16px;font-size:16px;color:var(--accent)}
+  .modal-close{float:right;background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+
+  .po-list{max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+  .po-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;transition:background 0.1s}
+  .po-item:last-child{border-bottom:none}
+  .po-item:hover{background:var(--panel2)}
+  .po-item.selected{background:rgba(245,158,11,0.15);border-left:3px solid var(--accent)}
+  .po-item .po-row1{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px}
+  .po-item .po-no{color:var(--accent);font-weight:600;font-size:12px}
+  .po-item .po-status{font-size:10px;padding:2px 8px;background:var(--panel2);border-radius:10px;color:var(--muted);text-transform:uppercase}
+  .po-item .po-row2{font-size:11px;color:var(--muted)}
+  .po-item .po-row2 strong{color:var(--text);font-weight:500}
+
+  .tmpl-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+  @media (max-width:600px){.tmpl-grid{grid-template-columns:1fr}}
+  .tmpl-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all 0.15s}
+  .tmpl-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .tmpl-card h4{margin:0 0 6px;font-size:13px;color:var(--accent)}
+  .tmpl-card p{margin:0;font-size:11px;color:var(--muted);line-height:1.5}
+
+  .toast{
+    position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--border);
+    padding:10px 16px;border-radius:8px;color:var(--text);font-size:13px;z-index:2000;
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:340px;
+    transform:translateY(20px);opacity:0;transition:all 0.25s;pointer-events:none;
+  }
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast.success{border-color:var(--ok);color:var(--ok)}
+  .toast.error{border-color:var(--danger);color:var(--danger)}
+
+  .saved-list{max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+  .saved-item{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .saved-item:last-child{border-bottom:none}
+  .saved-item:hover{background:var(--panel2)}
+  .saved-item .info{flex:1;min-width:0}
+  .saved-item .name{color:var(--accent);font-weight:600;font-size:12px;margin-bottom:2px}
+  .saved-item .sub{font-size:10px;color:var(--muted)}
+  .saved-item .actions{display:flex;gap:5px;flex-shrink:0}
+
+  /* Print */
+  @media print{
+    body{background:#fff;color:#000}
+    header,.input-col,button,.modal-backdrop{display:none !important}
+    main{display:block;max-width:none;padding:0}
+    .timeline-wrap,.scurve-wrap{background:#fff;border:1px solid #ccc;page-break-inside:avoid}
+    table.gantt th,table.gantt td{border-color:#999;color:#000}
+    table.gantt .phase-row td{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt .month-row th{background:#ddd !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt th{background:#f5f5f5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt .week-cell.active{background:#fbbf24 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt .week-cell.active.shipment{background:#60a5fa !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt .week-cell.active.workshop{background:#34d399 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table.gantt .week-cell.active.engineering{background:#a78bfa !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .timeline-meta h2{color:#000}
+    .scurve-wrap h3{color:#000}
+  }
+
+  .footer-note{font-size:10px;color:var(--muted);margin-top:16px;text-align:center;padding:12px}
+  .legend{display:flex;gap:14px;font-size:10px;margin-top:8px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:5px;color:var(--muted)}
+  .legend-swatch{width:14px;height:10px;border-radius:2px}
+
+  .search-input{
+    width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    padding:8px 10px;border-radius:6px;font-size:13px;margin-bottom:10px;
+  }
+  .search-input:focus{outline:none;border-color:var(--accent)}
+
+  /* MODE TOGGLE */
+  .mode-toggle{display:inline-flex;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:2px}
+  .mode-toggle button{background:transparent;border:none;padding:5px 12px;font-size:11px;border-radius:4px;color:var(--muted);cursor:pointer;font-weight:500}
+  .mode-toggle button.active{background:var(--accent);color:#1a1a1a;font-weight:700}
+  .mode-toggle button:hover:not(.active){color:var(--text)}
+
+  /* PROGRESS UI */
+  .activity-prog-row{display:grid;grid-template-columns:1fr 60px 50px 28px;gap:6px;align-items:center;margin-bottom:6px;padding:5px;border-radius:4px;background:rgba(255,255,255,0.02)}
+  .activity-prog-row .a-name{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .activity-prog-row .a-plan{font-size:10px;color:var(--muted);text-align:center}
+  .activity-prog-row input[type="number"]{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:12px;text-align:center;width:100%}
+  .activity-prog-row .progress-mini{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px;grid-column:1/-1}
+  .activity-prog-row .progress-mini-fill{height:100%;background:linear-gradient(90deg,var(--ok),#22c55e);transition:width 0.2s}
+  .activity-prog-row.complete .progress-mini-fill{background:linear-gradient(90deg,#10b981,#34d399)}
+
+  .progress-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+  .progress-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .progress-card-head .ph-name{font-size:13px;font-weight:600;color:var(--accent)}
+  .progress-card-head .ph-stat{font-size:11px;color:var(--muted)}
+  .progress-card-head .ph-stat strong{color:var(--ok)}
+
+  /* STATUS PILL */
+  .status-pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+    padding:5px 10px;border-radius:14px;
+  }
+  .status-pill.ahead{background:rgba(16,185,129,0.15);color:var(--ok);border:1px solid rgba(16,185,129,0.4)}
+  .status-pill.behind{background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.4)}
+  .status-pill.ontrack{background:rgba(245,158,11,0.15);color:var(--accent);border:1px solid rgba(245,158,11,0.4)}
+  .status-pill.no-data{background:var(--panel2);color:var(--muted);border:1px solid var(--border)}
+
+  /* GANTT cell with actual fill overlay */
+  table.gantt .week-cell.active{position:relative}
+  table.gantt .week-cell.active::after{
+    content:'';position:absolute;left:0;top:0;bottom:0;
+    background:rgba(16,185,129,0.55);width:var(--actual-fill, 0%);
+  }
+  table.gantt .week-cell.actual-row{background:var(--panel2)}
+  table.gantt .week-cell.actual-row.has-actual{background:#10b981;color:#fff}
+  table.gantt .actual-label td{background:#0f2a1f;color:var(--ok);font-weight:600;font-size:10px}
+  table.gantt .actual-label td:first-child{text-align:left;padding-left:8px}
+
+  /* Snapshot list */
+  .snapshot-item{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:10px}
+  .snapshot-item:last-child{border-bottom:none}
+  .snapshot-item .info{flex:1}
+  .snapshot-item .date{color:var(--accent);font-weight:600;font-size:13px;margin-bottom:2px}
+  .snapshot-item .stats{font-size:11px;color:var(--muted)}
+  .snapshot-item .variance{font-size:14px;font-weight:700;text-align:right;min-width:70px}
+  .snapshot-item .variance.pos{color:var(--ok)}
+  .snapshot-item .variance.neg{color:var(--danger)}
+  .snapshot-item .variance.zero{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div class="brand-text">
+        <h1>Project Timeline Generator</h1>
+        <p>SAE Energy · Panel Project System</p>
+      </div>
+      <span class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connText">Offline mode</span></span>
+    </div>
+    <div class="header-actions">
+      <button class="ghost small" onclick="openSettings()">⚙️ Settings</button>
+      <button class="ghost small" onclick="openPOPicker()" id="btnLinkPO" disabled>🔗 Link to PO</button>
+      <button class="ghost small" onclick="openLoadList()" id="btnLoad" disabled>📂 Load</button>
+      <button class="success small" onclick="saveToCloud()" id="btnSave" disabled>💾 Save</button>
+      <button class="ghost small" onclick="loadSample()">📋 Sample</button>
+      <button class="ghost small" onclick="resetProject()">🗑️ New</button>
+      <button class="primary small" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- INPUT COLUMN -->
+  <div class="input-col">
+    <div class="card">
+      <h3 class="card-title">Project Info
+        <div class="right">
+          <button class="small" onclick="openTemplatePicker()" title="Apply preset phases">📋 Template</button>
+        </div>
+      </h3>
+      <div id="poInfoBox" style="display:none"></div>
+      <div class="field"><label>Project Name</label>
+        <input type="text" id="projectName" placeholder="e.g. Gucbir Genset GJP150" oninput="render()">
+      </div>
+      <div class="row">
+        <div class="field"><label>PO Number</label>
+          <input type="text" id="poNumber" placeholder="e.g. C25006.2604006" oninput="render()">
+        </div>
+        <div class="field"><label>Customer / End User</label>
+          <input type="text" id="customer" placeholder="e.g. PT. Multi Fabrindo" oninput="render()">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Start Date</label>
+          <input type="date" id="startDate" oninput="render()">
+        </div>
+        <div class="field"><label>Total Weeks (auto)</label>
+          <input type="text" id="totalWeeks" readonly>
+        </div>
+      </div>
+      <div class="field"><label>Report Date (untuk progress tracking)</label>
+        <input type="date" id="reportDate" oninput="render()">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        <span id="phasesCardTitle">Phases & Activities</span>
+        <div class="right" id="phasesCardActions">
+          <div class="mode-toggle">
+            <button id="modePlanBtn" class="active" onclick="setMode('plan')">📐 Plan</button>
+            <button id="modeProgressBtn" onclick="setMode('progress')">📊 Progress</button>
+          </div>
+        </div>
+      </h3>
+      <div id="planActions" style="display:flex;gap:5px;margin-bottom:10px">
+        <button class="small primary" onclick="addPhase()" style="flex:1">+ Phase</button>
+      </div>
+      <div id="progressActions" style="display:none;gap:5px;margin-bottom:10px">
+        <button class="small success" onclick="takeSnapshot()" style="flex:1">📸 Capture Snapshot</button>
+        <button class="small" onclick="openSnapshotHistory()">📊 History</button>
+      </div>
+      <div id="phasesContainer"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Notes</h3>
+      <div class="field">
+        <textarea id="notes" rows="3" placeholder="Catatan, milestone pembayaran, dll." oninput="render()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT COLUMN -->
+  <div class="output-col">
+    <div class="timeline-wrap" id="timelineOut">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h18M3 12h18M3 20h18" stroke-linecap="round"/></svg>
+        <p>Mulai dengan klik <strong>Sample</strong>, <strong>Link to PO</strong>, atau tambah phase manual.</p>
+      </div>
+    </div>
+
+    <div class="scurve-wrap" id="scurveWrap" style="display:none">
+      <h3>S-Curve Project Progress</h3>
+      <canvas id="scurve" class="scurve-canvas"></canvas>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--accent)"></span> Plan Cumulative</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--ok)"></span> Actual Cumulative</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:#a78bfa;border:1.5px solid #fff"></span> Snapshot</div>
+        <div class="legend-item" style="margin-left:14px;border-left:1px solid var(--border);padding-left:14px">
+          <span class="legend-swatch" style="background:var(--bar4)"></span> Engineering
+        </div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--bar)"></span> Pre-Production</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--bar2)"></span> Manufacturing / Shipment</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--bar3)"></span> QC / Workshop / FAT</div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      © SAE Energy · Panel Project System &nbsp;·&nbsp; Single-file build, hostable on GitHub Pages
+    </div>
+  </div>
+</main>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('settingsModal')">×</button>
+    <h2>⚙️ Supabase Connection</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      Connect to project <code style="color:var(--accent)">sswslwddemackxrrbpre</code> (panel-system) untuk load PO list dan simpan timeline.
+    </p>
+    <div class="field"><label>Supabase URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://sswslwddemackxrrbpre.supabase.co">
+    </div>
+    <div class="field"><label>Anon Public Key</label>
+      <input type="text" id="cfgKey" placeholder="eyJhbGciOi...">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="ghost small" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="primary small" onclick="saveSettings()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PO PICKER MODAL ============ -->
+<div class="modal-backdrop" id="poModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('poModal')">×</button>
+    <h2>🔗 Link to Purchase Order</h2>
+    <input type="text" class="search-input" id="poSearch" placeholder="Search by PO no, customer, project name..." oninput="filterPOList()">
+    <div class="po-list" id="poList">
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Loading...</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;align-items:center">
+      <span style="font-size:11px;color:var(--muted)" id="poCountText"></span>
+      <div style="display:flex;gap:8px">
+        <button class="ghost small" onclick="unlinkPO()">Unlink (standalone)</button>
+        <button class="ghost small" onclick="closeModal('poModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TEMPLATE PICKER MODAL ============ -->
+<div class="modal-backdrop" id="tmplModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('tmplModal')">×</button>
+    <h2>📋 Pilih Template Timeline</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      Template akan <strong style="color:var(--warn)">menimpa</strong> phase & activity yang ada. Project info tetap.
+    </p>
+    <div class="tmpl-grid">
+      <div class="tmpl-card" onclick="applyTemplate('produksi_internal')">
+        <h4>🏭 Produksi Internal</h4>
+        <p>SAE bikin sendiri: Engineering → Produksi → QC → FAT → Pengiriman → Instalasi → Commissioning. ~14 minggu.</p>
+      </div>
+      <div class="tmpl-card" onclick="applyTemplate('supply_import')">
+        <h4>🚢 Supply Material (Import)</h4>
+        <p>Beli ke vendor luar negeri: DP → Production → Shipping → Custom → Arrival → QC → Pickup. ~16 minggu.</p>
+      </div>
+      <div class="tmpl-card" onclick="applyTemplate('supply_local')">
+        <h4>📦 Supply Material (Lokal)</h4>
+        <p>Beli ke vendor lokal: DP → Production → Delivery → QC → Pickup. ~8 minggu.</p>
+      </div>
+      <div class="tmpl-card" onclick="applyTemplate('retrofit')">
+        <h4>🔧 Retrofit / Service</h4>
+        <p>Service di site: Engineering → Material Prep → Mobilisasi → Pekerjaan Site → Commissioning → BAST. ~10 minggu.</p>
+      </div>
+      <div class="tmpl-card" onclick="applyTemplate('blank')">
+        <h4>📝 Blank</h4>
+        <p>Mulai dari kosong. Phase & activity diisi manual.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LOAD LIST MODAL ============ -->
+<div class="modal-backdrop" id="loadModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('loadModal')">×</button>
+    <h2>📂 Saved Timelines</h2>
+    <input type="text" class="search-input" id="loadSearch" placeholder="Search..." oninput="filterLoadList()">
+    <div class="saved-list" id="loadList">
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SNAPSHOT HISTORY MODAL ============ -->
+<div class="modal-backdrop" id="snapshotModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('snapshotModal')">×</button>
+    <h2>📊 Progress Snapshot History</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      Riwayat progress per tanggal report. Snapshot terakhir digunakan untuk S-curve aktual.
+    </p>
+    <div class="saved-list" id="snapshotList">
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Loading...</div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);text-align:center">
+      💡 Tip: Capture snapshot tiap akhir minggu untuk track velocity project.
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+// ============================
+// STATE
+// ============================
+let project = {
+  id: null,           // Supabase timeline id (null if unsaved)
+  po_id: null,        // linked PO id (null if standalone)
+  name: '',
+  po: '',
+  customer: '',
+  startDate: '',
+  reportDate: '',     // current week / report cutoff
+  templateType: 'custom',
+  notes: '',
+  phases: []          // {id?, name, weight, activities:[{id?, name, startWeek, duration, actualProgress}]}
+};
+
+let viewMode = 'plan';   // 'plan' | 'progress'
+let supabase = null;
+let allPOs = [];
+let allTimelines = [];
+let cachedSnapshots = []; // snapshots for current timeline
+
+// ============================
+// COLORING
+// ============================
+function colorForActivity(phaseName, activityName){
+  const s = (phaseName + ' ' + activityName).toLowerCase();
+  if(/engineer|drawing|design|approval/i.test(s)) return 'engineering';
+  if(/ship|manufact|production|assembl|delivery|fabricat/i.test(s)) return 'shipment';
+  if(/workshop|qc|inspect|fat|test|punch|commission|instalasi|bast|sat/i.test(s)) return 'workshop';
+  if(/done|complete|✓/i.test(s)) return 'done';
+  return '';
+}
+
+// ============================
+// SUPABASE CONNECTION
+// ============================
+function initSupabase(){
+  const cfg = JSON.parse(localStorage.getItem('sae_timeline_cfg') || '{}');
+  if(cfg.url && cfg.key){
+    try {
+      supabase = window.supabase.createClient(cfg.url, cfg.key);
+      setConnStatus(true);
+      enableCloudButtons();
+      return true;
+    } catch(e){
+      console.error('Supabase init failed', e);
+    }
+  }
+  setConnStatus(false);
+  return false;
+}
+
+function setConnStatus(ok){
+  const pill = document.getElementById('connPill');
+  const txt = document.getElementById('connText');
+  if(ok){
+    pill.classList.add('ok');
+    txt.textContent = 'Connected · panel-system';
+  } else {
+    pill.classList.remove('ok');
+    txt.textContent = 'Offline mode';
+  }
+}
+
+function enableCloudButtons(){
+  ['btnLinkPO','btnLoad','btnSave'].forEach(id => document.getElementById(id).disabled = false);
+}
+
+function openSettings(){
+  const cfg = JSON.parse(localStorage.getItem('sae_timeline_cfg') || '{}');
+  document.getElementById('cfgUrl').value = cfg.url || 'https://sswslwddemackxrrbpre.supabase.co';
+  document.getElementById('cfgKey').value = cfg.key || '';
+  showModal('settingsModal');
+}
+
+function saveSettings(){
+  const url = document.getElementById('cfgUrl').value.trim();
+  const key = document.getElementById('cfgKey').value.trim();
+  if(!url || !key){ toast('URL dan Key wajib diisi', 'error'); return; }
+  localStorage.setItem('sae_timeline_cfg', JSON.stringify({url, key}));
+  closeModal('settingsModal');
+  if(initSupabase()){
+    toast('Connected to Supabase', 'success');
+  } else {
+    toast('Connection failed', 'error');
+  }
+}
+
+// ============================
+// PO PICKER
+// ============================
+async function openPOPicker(){
+  if(!supabase){ toast('Set Supabase connection dulu di Settings', 'error'); return; }
+  showModal('poModal');
+  document.getElementById('poList').innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Loading POs...</div>';
+  try {
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .select('id, no_po, no_project, customer_name, project_name, tgl_po, tgl_target_kirim, status, has_fat, has_instalasi, has_commissioning')
+      .order('tgl_po', { ascending:false, nullsFirst:false })
+      .limit(200);
+    if(error) throw error;
+    allPOs = data || [];
+    renderPOList(allPOs);
+  } catch(e){
+    document.getElementById('poList').innerHTML = '<div style="padding:30px;text-align:center;color:var(--danger);font-size:12px">Error: '+escapeHtml(e.message)+'</div>';
+  }
+}
+
+function renderPOList(list){
+  const c = document.getElementById('poList');
+  if(!list.length){
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">No POs found.</div>';
+    document.getElementById('poCountText').textContent = '';
+    return;
+  }
+  c.innerHTML = list.map(po => `
+    <div class="po-item ${project.po_id === po.id ? 'selected' : ''}" onclick="selectPO('${po.id}')">
+      <div class="po-row1">
+        <span class="po-no">${escapeHtml(po.no_po || '(no PO no.)')}</span>
+        <span class="po-status">${escapeHtml(po.status || '')}</span>
+      </div>
+      <div class="po-row2">
+        <strong>${escapeHtml(po.customer_name || 'Unknown customer')}</strong>
+        ${po.project_name ? ' · ' + escapeHtml(po.project_name) : ''}
+      </div>
+      <div class="po-row2" style="margin-top:2px">
+        Tgl PO: ${po.tgl_po || '-'} · Target Kirim: ${po.tgl_target_kirim || '-'}
+        ${po.has_fat ? ' · <span style="color:var(--bar3)">FAT</span>' : ''}
+        ${po.has_instalasi ? ' · <span style="color:var(--bar2)">Instalasi</span>' : ''}
+        ${po.has_commissioning ? ' · <span style="color:var(--bar4)">Commissioning</span>' : ''}
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('poCountText').textContent = list.length + ' PO';
+}
+
+function filterPOList(){
+  const q = document.getElementById('poSearch').value.toLowerCase().trim();
+  if(!q){ renderPOList(allPOs); return; }
+  const filtered = allPOs.filter(po =>
+    (po.no_po || '').toLowerCase().includes(q) ||
+    (po.customer_name || '').toLowerCase().includes(q) ||
+    (po.project_name || '').toLowerCase().includes(q) ||
+    (po.no_project || '').toLowerCase().includes(q)
+  );
+  renderPOList(filtered);
+}
+
+function selectPO(poId){
+  const po = allPOs.find(p => p.id === poId);
+  if(!po) return;
+  project.po_id = po.id;
+  project.po = po.no_po || '';
+  project.customer = po.customer_name || '';
+  project.name = po.project_name || (po.no_po || 'Untitled');
+  if(po.tgl_po){
+    // Snap to Sunday of tgl_po week (or use as-is)
+    project.startDate = po.tgl_po;
+  }
+  pushToInputs();
+  renderPOInfoBox(po);
+  closeModal('poModal');
+
+  // If no phases yet, prompt template
+  if(project.phases.length === 0){
+    setTimeout(() => {
+      if(confirm('PO linked. Apply a default template?')){
+        openTemplatePicker();
+      } else {
+        render();
+      }
+    }, 100);
+  } else {
+    render();
+  }
+}
+
+function unlinkPO(){
+  project.po_id = null;
+  document.getElementById('poInfoBox').style.display = 'none';
+  closeModal('poModal');
+  render();
+  toast('PO unlinked - timeline is now standalone', 'success');
+}
+
+function renderPOInfoBox(po){
+  const box = document.getElementById('poInfoBox');
+  if(!po){ box.style.display = 'none'; return; }
+  box.className = 'po-info-box';
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="po-line"><span class="po-no">🔗 ${escapeHtml(po.no_po || '')}</span>
+      <span class="po-status">${escapeHtml(po.status || '')}</span></div>
+    <div class="po-line"><span class="label">Customer</span><span class="value">${escapeHtml(po.customer_name || '-')}</span></div>
+    <div class="po-line"><span class="label">Project</span><span class="value">${escapeHtml(po.project_name || '-')}</span></div>
+    <div class="po-line"><span class="label">Tgl PO / Target Kirim</span><span class="value">${po.tgl_po || '-'} → ${po.tgl_target_kirim || '-'}</span></div>
+  `;
+}
+
+// ============================
+// TEMPLATES
+// ============================
+const TEMPLATES = {
+  produksi_internal: {
+    name: 'Produksi Internal',
+    phases: [
+      { name:'Pre-Production', weight:10, activities:[
+        { name:'PO Release', startWeek:1, duration:1 },
+        { name:'Down Payment', startWeek:1, duration:1 }
+      ]},
+      { name:'Engineering', weight:15, activities:[
+        { name:'Drawing Preparation', startWeek:2, duration:2 },
+        { name:'Drawing Submission', startWeek:3, duration:1 },
+        { name:'Drawing Approval', startWeek:4, duration:1 }
+      ]},
+      { name:'Production', weight:50, activities:[
+        { name:'Material Procurement', startWeek:5, duration:2 },
+        { name:'Fabrication / Assembly', startWeek:6, duration:4 },
+        { name:'Wiring & Internal Test', startWeek:9, duration:2 }
+      ]},
+      { name:'QC & FAT', weight:15, activities:[
+        { name:'Physical Inspection', startWeek:11, duration:1 },
+        { name:'Functional / Routine Test', startWeek:11, duration:1 },
+        { name:'FAT (Factory Acceptance Test)', startWeek:12, duration:1 },
+        { name:'Punchlist', startWeek:12, duration:1 }
+      ]},
+      { name:'Delivery', weight:10, activities:[
+        { name:'Packing & Shipping', startWeek:13, duration:1 },
+        { name:'Delivery to Site', startWeek:14, duration:1 }
+      ]}
+    ]
+  },
+  supply_import: {
+    name: 'Supply Material (Import)',
+    phases: [
+      { name:'Pre-Production', weight:10, activities:[
+        { name:'PO Release', startWeek:1, duration:1 },
+        { name:'PI Receipt', startWeek:1, duration:1 },
+        { name:'Down Payment (20% T/T)', startWeek:2, duration:1 }
+      ]},
+      { name:'Manufacturer Process (Vendor)', weight:75, activities:[
+        { name:'Assembly / Production', startWeek:3, duration:3 },
+        { name:'Shipping Preparation', startWeek:6, duration:1 },
+        { name:'Shipment (Sea Freight)', startWeek:7, duration:8 },
+        { name:'Custom Clearance', startWeek:15, duration:1 },
+        { name:'Arrival at Warehouse', startWeek:15, duration:1 }
+      ]},
+      { name:'In-House Workshop', weight:15, activities:[
+        { name:'Physical Inspection (QC)', startWeek:16, duration:1 },
+        { name:'Functional Inspection (QC)', startWeek:16, duration:1 },
+        { name:'Unit Ready for Pickup', startWeek:16, duration:1 }
+      ]}
+    ]
+  },
+  supply_local: {
+    name: 'Supply Material (Lokal)',
+    phases: [
+      { name:'Pre-Production', weight:15, activities:[
+        { name:'PO Release', startWeek:1, duration:1 },
+        { name:'Down Payment', startWeek:1, duration:1 }
+      ]},
+      { name:'Vendor Process', weight:65, activities:[
+        { name:'Production', startWeek:2, duration:4 },
+        { name:'Delivery to Warehouse', startWeek:6, duration:1 }
+      ]},
+      { name:'In-House QC', weight:20, activities:[
+        { name:'Physical Inspection', startWeek:7, duration:1 },
+        { name:'Functional Test', startWeek:7, duration:1 },
+        { name:'Ready for Pickup', startWeek:8, duration:1 }
+      ]}
+    ]
+  },
+  retrofit: {
+    name: 'Retrofit / Service',
+    phases: [
+      { name:'Engineering & Planning', weight:15, activities:[
+        { name:'Site Survey', startWeek:1, duration:1 },
+        { name:'Engineering Drawing', startWeek:2, duration:2 },
+        { name:'Customer Approval', startWeek:3, duration:1 }
+      ]},
+      { name:'Material Preparation', weight:25, activities:[
+        { name:'Procurement', startWeek:4, duration:2 },
+        { name:'Pre-Assembly Workshop', startWeek:5, duration:2 }
+      ]},
+      { name:'Site Work', weight:45, activities:[
+        { name:'Mobilisasi Tim', startWeek:7, duration:1 },
+        { name:'Pekerjaan Site', startWeek:7, duration:2 },
+        { name:'Demobilisasi', startWeek:9, duration:1 }
+      ]},
+      { name:'Commissioning & Closure', weight:15, activities:[
+        { name:'Commissioning', startWeek:9, duration:1 },
+        { name:'BAST', startWeek:10, duration:1 }
+      ]}
+    ]
+  },
+  blank: {
+    name: 'Blank',
+    phases: []
+  }
+};
+
+function openTemplatePicker(){ showModal('tmplModal'); }
+
+function applyTemplate(key){
+  const tmpl = TEMPLATES[key];
+  if(!tmpl) return;
+  if(project.phases.length > 0){
+    if(!confirm('Template "'+tmpl.name+'" akan menimpa phase & activity yang ada. Lanjut?')) return;
+  }
+  project.templateType = key;
+  project.phases = JSON.parse(JSON.stringify(tmpl.phases || []));
+  closeModal('tmplModal');
+  renderPhases();
+  render();
+  toast('Template "'+tmpl.name+'" applied', 'success');
+}
+
+// ============================
+// SAVE/LOAD CLOUD
+// ============================
+async function saveToCloud(){
+  if(!supabase){ toast('Set Supabase connection dulu', 'error'); return; }
+  syncProjectFromInputs();
+  if(!project.name){ toast('Project name wajib diisi', 'error'); return; }
+  if(!project.phases.length){ toast('Tambah minimal 1 phase', 'error'); return; }
+
+  try {
+    let timelineId = project.id;
+    const tlData = {
+      po_id: project.po_id,
+      name: project.name,
+      customer: project.customer || null,
+      po_number: project.po || null,
+      start_date: project.startDate || null,
+      report_date: project.reportDate || null,
+      template_type: project.templateType || 'custom',
+      notes: project.notes || null,
+      is_active: true
+    };
+
+    if(timelineId){
+      // Update existing
+      const { error: e1 } = await supabase.from('project_timelines').update(tlData).eq('id', timelineId);
+      if(e1) throw e1;
+      // Delete old phases (cascade deletes activities)
+      const { error: e2 } = await supabase.from('timeline_phases').delete().eq('timeline_id', timelineId);
+      if(e2) throw e2;
+    } else {
+      // Insert
+      const { data, error } = await supabase.from('project_timelines').insert(tlData).select('id').single();
+      if(error) throw error;
+      timelineId = data.id;
+      project.id = timelineId;
+    }
+
+    // Insert phases + activities
+    for(let pi=0; pi<project.phases.length; pi++){
+      const ph = project.phases[pi];
+      const { data: phRow, error: pe } = await supabase.from('timeline_phases').insert({
+        timeline_id: timelineId,
+        name: ph.name,
+        weight: Number(ph.weight) || 0,
+        sort_order: pi
+      }).select('id').single();
+      if(pe) throw pe;
+      ph.id = phRow.id;
+
+      if(ph.activities && ph.activities.length){
+        const actsToInsert = ph.activities.map((a, ai) => ({
+          phase_id: phRow.id,
+          name: a.name,
+          start_week: Number(a.startWeek) || 1,
+          duration: Number(a.duration) || 1,
+          actual_progress: Number(a.actualProgress) || 0,
+          sort_order: ai
+        }));
+        const { error: ae } = await supabase.from('timeline_activities').insert(actsToInsert);
+        if(ae) throw ae;
+      }
+    }
+    saveAuto();
+    toast('Saved to cloud · '+ project.phases.length + ' phases', 'success');
+  } catch(e){
+    console.error(e);
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function openLoadList(){
+  if(!supabase){ toast('Set Supabase connection dulu', 'error'); return; }
+  showModal('loadModal');
+  document.getElementById('loadList').innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Loading...</div>';
+  try {
+    const { data, error } = await supabase
+      .from('v_project_timelines')
+      .select('*')
+      .eq('is_active', true)
+      .order('updated_at', { ascending:false })
+      .limit(100);
+    if(error) throw error;
+    allTimelines = data || [];
+    renderLoadList(allTimelines);
+  } catch(e){
+    document.getElementById('loadList').innerHTML = '<div style="padding:30px;text-align:center;color:var(--danger);font-size:12px">Error: '+escapeHtml(e.message)+'</div>';
+  }
+}
+
+function renderLoadList(list){
+  const c = document.getElementById('loadList');
+  if(!list.length){
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Belum ada timeline tersimpan.</div>';
+    return;
+  }
+  c.innerHTML = list.map(t => `
+    <div class="saved-item">
+      <div class="info">
+        <div class="name">${escapeHtml(t.name)}</div>
+        <div class="sub">
+          ${t.po_no_po ? '🔗 ' + escapeHtml(t.po_no_po) + ' · ' : ''}
+          ${escapeHtml(t.customer || t.po_customer_name || '-')} ·
+          ${t.phase_count} phases · ${t.activity_count} activities
+        </div>
+        <div class="sub">Updated: ${new Date(t.updated_at).toLocaleString('id-ID')}</div>
+      </div>
+      <div class="actions">
+        <button class="small primary" onclick="loadTimeline('${t.id}')">Load</button>
+        <button class="small danger" onclick="deleteTimeline('${t.id}','${escapeHtml(t.name).replace(/'/g,"\\'")}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterLoadList(){
+  const q = document.getElementById('loadSearch').value.toLowerCase().trim();
+  if(!q){ renderLoadList(allTimelines); return; }
+  const filtered = allTimelines.filter(t =>
+    (t.name||'').toLowerCase().includes(q) ||
+    (t.customer||'').toLowerCase().includes(q) ||
+    (t.po_no_po||'').toLowerCase().includes(q)
+  );
+  renderLoadList(filtered);
+}
+
+async function loadTimeline(id){
+  try {
+    const { data: tl, error: e1 } = await supabase.from('project_timelines').select('*').eq('id', id).single();
+    if(e1) throw e1;
+    const { data: phases, error: e2 } = await supabase.from('timeline_phases').select('*').eq('timeline_id', id).order('sort_order');
+    if(e2) throw e2;
+    const phaseIds = phases.map(p => p.id);
+    let activities = [];
+    if(phaseIds.length){
+      const { data: acts, error: e3 } = await supabase.from('timeline_activities').select('*').in('phase_id', phaseIds).order('sort_order');
+      if(e3) throw e3;
+      activities = acts;
+    }
+
+    project = {
+      id: tl.id,
+      po_id: tl.po_id,
+      name: tl.name,
+      po: tl.po_number || '',
+      customer: tl.customer || '',
+      startDate: tl.start_date || '',
+      reportDate: tl.report_date || '',
+      templateType: tl.template_type || 'custom',
+      notes: tl.notes || '',
+      phases: phases.map(p => ({
+        id: p.id,
+        name: p.name,
+        weight: Number(p.weight) || 0,
+        activities: activities.filter(a => a.phase_id === p.id).map(a => ({
+          id: a.id,
+          name: a.name,
+          startWeek: Number(a.start_week) || 1,
+          duration: Number(a.duration) || 1,
+          actualProgress: Number(a.actual_progress) || 0
+        }))
+      }))
+    };
+
+    // Load snapshots for this timeline
+    await loadSnapshots(tl.id);
+
+    // Refresh PO info box if linked
+    if(project.po_id){
+      const { data: po } = await supabase.from('purchase_orders').select('*').eq('id', project.po_id).single();
+      if(po) renderPOInfoBox(po);
+    } else {
+      document.getElementById('poInfoBox').style.display = 'none';
+    }
+
+    pushToInputs();
+    renderPhases();
+    render();
+    closeModal('loadModal');
+    toast('Loaded: ' + project.name, 'success');
+  } catch(e){
+    toast('Load failed: ' + e.message, 'error');
+  }
+}
+
+async function deleteTimeline(id, name){
+  if(!confirm('Hapus timeline "'+name+'"? Tidak bisa di-undo.')) return;
+  try {
+    const { error } = await supabase.from('project_timelines').delete().eq('id', id);
+    if(error) throw error;
+    if(project.id === id){
+      resetProject(true);
+    }
+    openLoadList();
+    toast('Deleted', 'success');
+  } catch(e){
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+// ============================
+// SNAPSHOTS
+// ============================
+function calculateCumulatives(){
+  // Returns {planAtReport, actualAtReport, reportWeek}
+  const totalWeeks = Math.max(0, ...project.phases.flatMap(p => p.activities.map(a => (a.startWeek||1) + (a.duration||1) - 1)));
+  if(!totalWeeks) return {planAtReport:0, actualAtReport:0, reportWeek:0};
+
+  const start = parseDate(project.startDate);
+  const weeks = start ? getWeekRanges(start, totalWeeks) : [];
+  const reportWeekIdx = getReportWeekIndex(weeks);
+  const effectiveIdx = reportWeekIdx >= 0 ? reportWeekIdx : totalWeeks - 1;
+
+  let plan = 0, actual = 0;
+  project.phases.forEach(ph => {
+    const totalActWeeks = ph.activities.reduce((s,a)=>s + (a.duration||1), 0) || 1;
+    ph.activities.forEach(a => {
+      const bobot = (ph.weight / totalActWeeks) * (a.duration||1);
+      const perWeek = bobot / (a.duration||1);
+      const startIdx = (a.startWeek||1) - 1;
+      const endIdx = startIdx + (a.duration||1) - 1;
+      // Plan portion completed by reportWeek
+      const planCompletedWeeks = Math.max(0, Math.min(effectiveIdx, endIdx) - startIdx + 1);
+      if(planCompletedWeeks > 0) plan += perWeek * planCompletedWeeks;
+      // Actual = bobot * progress (distributed evenly across duration)
+      const prog = Number(a.actualProgress) || 0;
+      const actualBobot = bobot * (prog/100);
+      const actualPerWeek = actualBobot / (a.duration||1);
+      const actualWeeks = Math.max(0, Math.min(effectiveIdx, endIdx) - startIdx + 1);
+      if(actualWeeks > 0) actual += actualPerWeek * actualWeeks;
+    });
+  });
+  return {planAtReport:plan, actualAtReport:actual, reportWeek:effectiveIdx+1};
+}
+
+async function takeSnapshot(){
+  if(!supabase){ toast('Set Supabase connection dulu', 'error'); return; }
+  if(!project.id){ toast('Save timeline dulu sebelum snapshot', 'error'); return; }
+  if(!project.reportDate){
+    if(!confirm('Report Date belum diisi. Gunakan tanggal hari ini?')) return;
+    project.reportDate = new Date().toISOString().slice(0,10);
+    pushToInputs();
+  }
+
+  const {planAtReport, actualAtReport, reportWeek} = calculateCumulatives();
+  const activityStates = {};
+  project.phases.forEach(ph => {
+    ph.activities.forEach(a => {
+      if(a.id) activityStates[a.id] = Number(a.actualProgress) || 0;
+    });
+  });
+
+  try {
+    const { error } = await supabase.from('timeline_progress_snapshots').insert({
+      timeline_id: project.id,
+      snapshot_date: project.reportDate,
+      snapshot_week: reportWeek,
+      cumulative_plan: Number(planAtReport.toFixed(2)),
+      cumulative_actual: Number(actualAtReport.toFixed(2)),
+      activity_states: activityStates,
+      notes: null
+    });
+    if(error) throw error;
+
+    // Update timeline.last_snapshot_at
+    await supabase.from('project_timelines').update({last_snapshot_at: new Date().toISOString()}).eq('id', project.id);
+
+    toast(`Snapshot saved · Plan ${planAtReport.toFixed(1)}% vs Actual ${actualAtReport.toFixed(1)}%`, 'success');
+    await loadSnapshots(project.id);
+    render();
+  } catch(e){
+    toast('Snapshot failed: ' + e.message, 'error');
+  }
+}
+
+async function loadSnapshots(timelineId){
+  if(!supabase || !timelineId){ cachedSnapshots = []; return; }
+  try {
+    const { data, error } = await supabase
+      .from('timeline_progress_snapshots')
+      .select('*')
+      .eq('timeline_id', timelineId)
+      .order('snapshot_date', { ascending:true });
+    if(error) throw error;
+    cachedSnapshots = data || [];
+  } catch(e){
+    cachedSnapshots = [];
+  }
+}
+
+async function openSnapshotHistory(){
+  if(!supabase){ toast('Set Supabase connection dulu', 'error'); return; }
+  if(!project.id){ toast('Save timeline dulu', 'error'); return; }
+  showModal('snapshotModal');
+  await loadSnapshots(project.id);
+  renderSnapshotList();
+}
+
+function renderSnapshotList(){
+  const c = document.getElementById('snapshotList');
+  if(!cachedSnapshots.length){
+    c.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-size:12px">Belum ada snapshot.<br><br>Klik <strong>📸 Capture Snapshot</strong> untuk mulai tracking progress historis.</div>';
+    return;
+  }
+  c.innerHTML = cachedSnapshots.slice().reverse().map(s => {
+    const v = Number(s.variance) || 0;
+    const vCls = v > 1 ? 'pos' : v < -1 ? 'neg' : 'zero';
+    const vSign = v >= 0 ? '+' : '';
+    return `
+      <div class="snapshot-item">
+        <div class="info">
+          <div class="date">${s.snapshot_date} ${s.snapshot_week ? '(W'+s.snapshot_week+')' : ''}</div>
+          <div class="stats">
+            Plan: <strong style="color:var(--accent)">${Number(s.cumulative_plan).toFixed(1)}%</strong> ·
+            Actual: <strong style="color:var(--ok)">${Number(s.cumulative_actual).toFixed(1)}%</strong>
+          </div>
+        </div>
+        <div class="variance ${vCls}">${vSign}${v.toFixed(1)}%</div>
+        <button class="small danger" onclick="deleteSnapshot('${s.id}')" title="Delete snapshot">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+async function deleteSnapshot(id){
+  if(!confirm('Hapus snapshot ini?')) return;
+  try {
+    const { error } = await supabase.from('timeline_progress_snapshots').delete().eq('id', id);
+    if(error) throw error;
+    await loadSnapshots(project.id);
+    renderSnapshotList();
+    render();
+    toast('Snapshot deleted', 'success');
+  } catch(e){
+    toast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+// ============================
+// PHASE / ACTIVITY MUTATIONS
+// ============================
+function addPhase(){
+  project.phases.push({
+    name: 'PHASE ' + romanize(project.phases.length + 1),
+    weight: 0,
+    activities: []
+  });
+  rebalanceWeights();
+  renderPhases();
+  render();
+}
+
+function addActivity(phaseIdx){
+  // Smart default: next week after last activity in this phase
+  const acts = project.phases[phaseIdx].activities;
+  const nextStart = acts.length ? Math.max(...acts.map(a => (a.startWeek||1) + (a.duration||1) - 1)) + 1 : 1;
+  acts.push({ name:'New Activity', startWeek:nextStart, duration:1 });
+  renderPhases();
+  render();
+}
+
+function removePhase(idx){
+  if(confirm('Hapus phase "' + project.phases[idx].name + '"?')){
+    project.phases.splice(idx,1);
+    renderPhases();
+    render();
+  }
+}
+
+function removeActivity(phaseIdx, actIdx){
+  project.phases[phaseIdx].activities.splice(actIdx,1);
+  renderPhases();
+  render();
+}
+
+function rebalanceWeights(){
+  const total = project.phases.reduce((s,p)=>s + Number(p.weight||0), 0);
+  if(total === 0 && project.phases.length){
+    const each = +(100/project.phases.length).toFixed(2);
+    project.phases.forEach(p => p.weight = each);
+  }
+}
+
+function romanize(n){
+  const map = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+  return map[n-1] || ('P'+n);
+}
+
+// ============================
+// MODE TOGGLE
+// ============================
+function setMode(m){
+  viewMode = m;
+  document.getElementById('modePlanBtn').classList.toggle('active', m === 'plan');
+  document.getElementById('modeProgressBtn').classList.toggle('active', m === 'progress');
+  document.getElementById('planActions').style.display = (m === 'plan') ? 'flex' : 'none';
+  document.getElementById('progressActions').style.display = (m === 'progress') ? 'flex' : 'none';
+  document.getElementById('phasesCardTitle').textContent = (m === 'plan') ? 'Phases & Activities' : 'Update Actual Progress';
+  renderPhases();
+  render();
+}
+
+function updateProgress(pi, ai, val){
+  let v = parseFloat(val);
+  if(isNaN(v)) v = 0;
+  v = Math.max(0, Math.min(100, v));
+  project.phases[pi].activities[ai].actualProgress = v;
+  renderPhases();
+  render();
+}
+
+// ============================
+// PHASE INPUT UI
+// ============================
+function renderPhases(){
+  const c = document.getElementById('phasesContainer');
+  c.innerHTML = '';
+  if(!project.phases.length){
+    c.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px">Belum ada phase. Klik <strong>+ Phase</strong> atau gunakan <strong>📋 Template</strong>.</div>';
+    return;
+  }
+
+  if(viewMode === 'progress'){
+    renderProgressView(c);
+    return;
+  }
+
+  // PLAN MODE
+  project.phases.forEach((ph, pi)=>{
+    const block = document.createElement('div');
+    block.className = 'phase-block';
+    block.innerHTML = `
+      <div class="phase-header">
+        <input class="phase-name" value="${escapeHtml(ph.name)}" onchange="updatePhaseName(${pi}, this.value)">
+        <input class="phase-weight" type="number" min="0" max="100" step="1" value="${ph.weight}" onchange="updatePhaseWeight(${pi}, this.value)" title="Bobot phase (%)">
+        <span style="font-size:11px;color:var(--muted)">%</span>
+        <button class="del-btn" onclick="removePhase(${pi})" title="Hapus phase">✕</button>
+      </div>
+      <div class="activity-row-head">
+        <span>Activity</span><span>Start</span><span>Dur</span><span>Bobot</span><span></span>
+      </div>
+      <div id="acts-${pi}"></div>
+      <button class="add-row" onclick="addActivity(${pi})">+ Activity</button>
+    `;
+    c.appendChild(block);
+    const actContainer = block.querySelector('#acts-'+pi);
+    const totalActWeeks = ph.activities.reduce((s,a)=>s + (a.duration||1), 0) || 1;
+    ph.activities.forEach((a, ai)=>{
+      const row = document.createElement('div');
+      row.className = 'activity-row';
+      const bobot = ((Number(ph.weight)||0) / totalActWeeks) * (a.duration||1);
+      row.innerHTML = `
+        <input type="text" value="${escapeHtml(a.name)}" placeholder="Activity name"
+               onchange="updateActivity(${pi},${ai},'name',this.value)">
+        <input type="number" min="1" value="${a.startWeek}" title="Start week (1-based)"
+               onchange="updateActivity(${pi},${ai},'startWeek',parseInt(this.value)||1)">
+        <input type="number" min="1" value="${a.duration}" title="Duration in weeks"
+               onchange="updateActivity(${pi},${ai},'duration',parseInt(this.value)||1)">
+        <span style="font-size:11px;color:var(--muted);text-align:center">${bobot.toFixed(1)}%</span>
+        <button class="del-btn" onclick="removeActivity(${pi},${ai})" title="Hapus">✕</button>
+      `;
+      actContainer.appendChild(row);
+    });
+  });
+}
+
+function renderProgressView(c){
+  project.phases.forEach((ph, pi) => {
+    const totalActWeeks = ph.activities.reduce((s,a)=>s + (a.duration||1), 0) || 1;
+    // Calculate phase actual %
+    let phWeightSum = 0;
+    let phActualSum = 0;
+    ph.activities.forEach(a => {
+      const w = ((Number(ph.weight)||0) / totalActWeeks) * (a.duration||1);
+      phWeightSum += w;
+      phActualSum += w * ((Number(a.actualProgress)||0) / 100);
+    });
+    const phPct = phWeightSum ? (phActualSum / phWeightSum) * 100 : 0;
+
+    const block = document.createElement('div');
+    block.className = 'progress-card';
+    block.innerHTML = `
+      <div class="progress-card-head">
+        <span class="ph-name">${escapeHtml(ph.name)}</span>
+        <span class="ph-stat">Phase progress: <strong>${phPct.toFixed(0)}%</strong> · weight ${ph.weight}%</span>
+      </div>
+      <div id="prog-acts-${pi}"></div>
+    `;
+    c.appendChild(block);
+    const actC = block.querySelector('#prog-acts-'+pi);
+    ph.activities.forEach((a, ai) => {
+      const bobot = ((Number(ph.weight)||0) / totalActWeeks) * (a.duration||1);
+      const prog = Number(a.actualProgress) || 0;
+      const row = document.createElement('div');
+      row.className = 'activity-prog-row' + (prog >= 100 ? ' complete' : '');
+      row.innerHTML = `
+        <div>
+          <div class="a-name" title="${escapeHtml(a.name)}">${escapeHtml(a.name)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">W${a.startWeek}-W${a.startWeek + a.duration - 1} · ${bobot.toFixed(1)}% bobot</div>
+        </div>
+        <input type="range" min="0" max="100" step="5" value="${prog}"
+               oninput="updateProgress(${pi},${ai},this.value); document.getElementById('prog-num-${pi}-${ai}').value=this.value"
+               style="accent-color:var(--ok)">
+        <input type="number" id="prog-num-${pi}-${ai}" min="0" max="100" step="1" value="${prog}"
+               onchange="updateProgress(${pi},${ai},this.value)">
+        <span style="font-size:11px;color:${prog >= 100 ? 'var(--ok)' : 'var(--muted)'};text-align:center;font-weight:600">${prog >= 100 ? '✓' : prog + '%'}</span>
+        <div class="progress-mini">
+          <div class="progress-mini-fill" style="width:${prog}%"></div>
+        </div>
+      `;
+      actC.appendChild(row);
+    });
+  });
+}
+
+function updatePhaseName(pi, v){ project.phases[pi].name = v; render(); }
+function updatePhaseWeight(pi, v){ project.phases[pi].weight = Number(v)||0; renderPhases(); render(); }
+function updateActivity(pi, ai, key, val){
+  project.phases[pi].activities[ai][key] = val;
+  renderPhases();
+  render();
+}
+
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+// ============================
+// DATE UTILS
+// ============================
+function parseDate(s){ if(!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate()+n); return r; }
+function fmtDM(d){ return d.getDate() + ' ' + ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()]; }
+function fmtMonthYear(d){ return ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()] + ' ' + (d.getFullYear()%100); }
+function monthKey(d){ return d.getFullYear() + '-' + d.getMonth(); }
+
+function getWeekRanges(startDate, totalWeeks){
+  if(!startDate) return [];
+  const out = [];
+  for(let i=0;i<totalWeeks;i++){
+    const ws = addDays(startDate, i*7);
+    const we = addDays(ws, 6);
+    out.push({start:ws, end:we, label: ws.getDate() + '-' + we.getDate(), monthKey:monthKey(ws), monthLabel:fmtMonthYear(ws)});
+  }
+  return out;
+}
+
+// ============================
+// PROJECT INFO SYNC
+// ============================
+function syncProjectFromInputs(){
+  project.name = document.getElementById('projectName').value;
+  project.po = document.getElementById('poNumber').value;
+  project.customer = document.getElementById('customer').value;
+  project.startDate = document.getElementById('startDate').value;
+  project.reportDate = document.getElementById('reportDate').value;
+  project.notes = document.getElementById('notes').value;
+}
+
+function pushToInputs(){
+  document.getElementById('projectName').value = project.name;
+  document.getElementById('poNumber').value = project.po;
+  document.getElementById('customer').value = project.customer;
+  document.getElementById('startDate').value = project.startDate;
+  document.getElementById('reportDate').value = project.reportDate || '';
+  document.getElementById('notes').value = project.notes;
+}
+
+// ============================
+// RENDER MAIN
+// ============================
+function render(){
+  syncProjectFromInputs();
+  saveAuto();
+
+  const totalWeeks = Math.max(
+    0,
+    ...project.phases.flatMap(p => p.activities.map(a => (a.startWeek||1) + (a.duration||1) - 1))
+  );
+  document.getElementById('totalWeeks').value = totalWeeks ? (totalWeeks + ' minggu') : '-';
+
+  if(totalWeeks === 0){
+    document.getElementById('timelineOut').innerHTML = `<div class="empty-state"><p>Belum ada activity. Tambah phase + activity di kiri atau pakai <strong>📋 Template</strong>.</p></div>`;
+    document.getElementById('scurveWrap').style.display = 'none';
+    return;
+  }
+
+  const start = parseDate(project.startDate);
+  const weeks = start ? getWeekRanges(start, totalWeeks) : Array.from({length:totalWeeks},(_,i)=>({label:'W'+(i+1),monthKey:'',monthLabel:''}));
+
+  const computed = project.phases.map(ph => {
+    const totalActWeeks = ph.activities.reduce((s,a)=>s + (a.duration||1), 0) || 1;
+    return {
+      ...ph,
+      activities: ph.activities.map(a => ({
+        ...a,
+        bobot: (ph.weight / totalActWeeks) * (a.duration||1)
+      }))
+    };
+  });
+
+  renderTimeline(computed, weeks, totalWeeks);
+  renderSCurve(computed, weeks, totalWeeks);
+}
+
+function renderTimeline(phases, weeks, totalWeeks){
+  const out = document.getElementById('timelineOut');
+  document.getElementById('scurveWrap').style.display = '';
+
+  const monthGroups = [];
+  weeks.forEach((w) => {
+    const last = monthGroups[monthGroups.length-1];
+    if(last && last.key === w.monthKey){ last.span++; }
+    else monthGroups.push({key:w.monthKey, label:w.monthLabel, span:1});
+  });
+
+  // PLAN cumulative
+  const weeklyBobot = new Array(totalWeeks).fill(0);
+  phases.forEach(ph => {
+    ph.activities.forEach(a => {
+      const perWeek = a.bobot / (a.duration||1);
+      for(let w = (a.startWeek||1)-1; w < (a.startWeek||1)-1 + (a.duration||1); w++){
+        if(w >= 0 && w < totalWeeks) weeklyBobot[w] += perWeek;
+      }
+    });
+  });
+  let cum = 0;
+  const cumulative = weeklyBobot.map(v => (cum += v));
+
+  // ACTUAL cumulative — proportional within activity based on actualProgress
+  // For each activity: contribution = bobot * (actualProgress/100). Distribute over actually-completed weeks linearly.
+  // Simplification: at any week w, activity contributes bobot * min(1, max(0, (w - start + 1)/duration)) * (actualProgress/100)
+  // i.e. progress fills the planned bars from left to right
+  const weeklyActual = new Array(totalWeeks).fill(0);
+  let hasActual = false;
+  phases.forEach(ph => {
+    ph.activities.forEach(a => {
+      const prog = Number(a.actualProgress) || 0;
+      if(prog > 0) hasActual = true;
+      const total = a.bobot * (prog/100);
+      // distribute across planned weeks
+      const dur = a.duration||1;
+      const perWeek = total / dur;
+      // Actual progress should "fill" from start; we count weeks fully completed first.
+      // Simpler model: at week w (1-based plan week index within activity), contribution = perWeek if w <= dur*progress/100, else 0
+      // But for smooth distribution, assume linear: each plan week contributes perWeek proportional to total progress.
+      // Cleanest: distribute total uniformly across the planned activity duration.
+      for(let w = (a.startWeek||1)-1; w < (a.startWeek||1)-1 + dur; w++){
+        if(w >= 0 && w < totalWeeks) weeklyActual[w] += perWeek;
+      }
+    });
+  });
+  let cumA = 0;
+  const cumulativeActual = weeklyActual.map(v => (cumA += v));
+
+  // Report week (1-based)
+  const reportWeekIdx = getReportWeekIndex(weeks); // 0-based or -1 if none
+  const planAtReport = reportWeekIdx >= 0 ? cumulative[reportWeekIdx] : 0;
+  const actualAtReport = reportWeekIdx >= 0 ? cumulativeActual[reportWeekIdx] : (hasActual ? cumulativeActual[cumulativeActual.length-1] : 0);
+  const variance = actualAtReport - planAtReport;
+
+  // Status pill
+  let statusHTML = '';
+  if(hasActual && reportWeekIdx >= 0){
+    let cls = 'ontrack', label = 'On Track';
+    if(variance > 2) { cls = 'ahead'; label = 'Ahead'; }
+    else if(variance < -2) { cls = 'behind'; label = 'Behind'; }
+    statusHTML = `<span class="status-pill ${cls}">● ${label} (${variance>=0?'+':''}${variance.toFixed(1)}%)</span>`;
+  } else if(hasActual){
+    statusHTML = `<span class="status-pill no-data">⚠ Set Report Date untuk variance</span>`;
+  }
+
+  const start = parseDate(project.startDate);
+  let metaHTML = `<div class="timeline-meta">
+    <div>
+      <h2>${escapeHtml(project.name || 'Untitled Project')}</h2>
+      <div class="meta-sub">
+        ${project.po ? 'PO: <strong>'+escapeHtml(project.po)+'</strong> &nbsp;·&nbsp; ' : ''}
+        ${project.customer ? 'Customer: <strong>'+escapeHtml(project.customer)+'</strong>' : ''}
+      </div>
+      ${start ? '<div class="meta-sub">Start: <strong>'+fmtDM(start)+' '+start.getFullYear()+'</strong> &nbsp;·&nbsp; End: <strong>'+fmtDM(weeks[weeks.length-1].end)+' '+weeks[weeks.length-1].end.getFullYear()+'</strong>'+(reportWeekIdx>=0 ? ' &nbsp;·&nbsp; Report Week: <strong>W'+(reportWeekIdx+1)+'</strong>' : '')+'</div>' : ''}
+      <div style="margin-top:8px">${statusHTML}</div>
+    </div>
+    <div class="meta-stat">
+      <strong>${totalWeeks}</strong> minggu
+      <div style="margin-top:4px">${phases.reduce((s,p)=>s+p.activities.length,0)} aktivitas dalam ${phases.length} fase</div>
+      ${hasActual ? `<div style="margin-top:6px;font-size:11px"><span style="color:var(--accent)">Plan: ${planAtReport.toFixed(1)}%</span> · <span style="color:var(--ok)">Actual: ${actualAtReport.toFixed(1)}%</span></div>` : ''}
+    </div>
+  </div>`;
+
+  let tbl = `<table class="gantt"><thead>
+    <tr class="month-row">
+      <th rowspan="2" class="col-no">No.</th>
+      <th rowspan="2" class="col-task">Task</th>
+      <th rowspan="2" class="col-dur">Dur</th>
+      <th rowspan="2" class="col-bobot">Bobot %</th>
+      ${hasActual ? '<th rowspan="2" class="col-bobot" title="Actual progress %">Act %</th>' : ''}
+      ${monthGroups.map(m => `<th colspan="${m.span}">${m.label}</th>`).join('')}
+    </tr>
+    <tr>
+      ${weeks.map((w, i) => `<th class="col-week${reportWeekIdx === i ? '' : ''}" style="${reportWeekIdx === i ? 'background:var(--accent);color:#1a1a1a' : ''}" title="${w.start ? fmtDM(w.start)+' - '+fmtDM(w.end) : ''}">${w.label}</th>`).join('')}
+    </tr>
+  </thead><tbody>`;
+
+  phases.forEach((ph, pi) => {
+    tbl += `<tr class="phase-row"><td colspan="${4 + (hasActual?1:0) + totalWeeks}">${romanize(pi+1)}. ${escapeHtml(ph.name)} &nbsp;·&nbsp; Weight: ${ph.weight}%</td></tr>`;
+    ph.activities.forEach((a, ai) => {
+      const cls = colorForActivity(ph.name, a.name);
+      const prog = Number(a.actualProgress) || 0;
+      let weekCells = '';
+      for(let w=0; w<totalWeeks; w++){
+        const isActive = (w >= (a.startWeek||1)-1) && (w < (a.startWeek||1)-1 + (a.duration||1));
+        const style = isActive && prog > 0 ? `style="--actual-fill:${prog}%"` : '';
+        weekCells += `<td class="col-week week-cell${isActive ? ' active '+cls : ''}" ${style}></td>`;
+      }
+      tbl += `<tr>
+        <td>${ai+1}</td>
+        <td class="col-task">${escapeHtml(a.name)}</td>
+        <td>${a.duration||1}</td>
+        <td>${a.bobot.toFixed(2)}</td>
+        ${hasActual ? `<td style="color:${prog>=100?'var(--ok)':'var(--muted)'};font-weight:${prog>=100?'700':'400'}">${prog>0 ? prog.toFixed(0)+'%' : '-'}</td>` : ''}
+        ${weekCells}
+      </tr>`;
+    });
+  });
+
+  const ofst = hasActual ? 5 : 4;
+  tbl += `<tr class="total-row">
+    <td colspan="${ofst}">BOBOT PLAN / minggu</td>
+    ${weeklyBobot.map(v => `<td>${v ? v.toFixed(1) : '-'}</td>`).join('')}
+  </tr>
+  <tr class="total-row">
+    <td colspan="${ofst}">AKUMULASI PLAN</td>
+    ${cumulative.map(v => `<td>${v.toFixed(1)}%</td>`).join('')}
+  </tr>`;
+  if(hasActual){
+    tbl += `<tr class="actual-label">
+      <td colspan="${ofst}">AKUMULASI AKTUAL</td>
+      ${cumulativeActual.map((v,i) => `<td style="${reportWeekIdx>=0 && i<=reportWeekIdx ? '' : 'opacity:0.4'}">${v.toFixed(1)}%</td>`).join('')}
+    </tr>`;
+  }
+  tbl += `</tbody></table>`;
+
+  out.innerHTML = metaHTML + tbl;
+
+  if(project.notes && project.notes.trim()){
+    const noteDiv = document.createElement('div');
+    noteDiv.style.cssText = 'margin-top:14px;padding:10px 12px;background:var(--panel2);border-left:3px solid var(--accent);border-radius:4px;font-size:12px;white-space:pre-wrap';
+    noteDiv.innerHTML = '<strong style="color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Notes</strong><br>' + escapeHtml(project.notes);
+    out.appendChild(noteDiv);
+  }
+}
+
+function getReportWeekIndex(weeks){
+  if(!project.reportDate || !weeks.length || !weeks[0].start) return -1;
+  const rd = parseDate(project.reportDate);
+  if(!rd) return -1;
+  for(let i=0;i<weeks.length;i++){
+    if(rd >= weeks[i].start && rd <= weeks[i].end) return i;
+  }
+  // If past end, return last week
+  if(rd > weeks[weeks.length-1].end) return weeks.length - 1;
+  return -1;
+}
+
+function renderSCurve(phases, weeks, totalWeeks){
+  const canvas = document.getElementById('scurve');
+  if(!canvas || totalWeeks === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width, h = rect.height;
+  const padL = 40, padR = 14, padT = 14, padB = 30;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+
+  // PLAN cumulative
+  const weeklyBobot = new Array(totalWeeks).fill(0);
+  phases.forEach(ph => {
+    ph.activities.forEach(a => {
+      const perWeek = a.bobot / (a.duration||1);
+      for(let i=(a.startWeek||1)-1; i<(a.startWeek||1)-1 + (a.duration||1); i++){
+        if(i>=0 && i<totalWeeks) weeklyBobot[i] += perWeek;
+      }
+    });
+  });
+  let cum = 0;
+  const cumulative = [0, ...weeklyBobot.map(v => (cum += v))];
+
+  // ACTUAL cumulative (only up to reportWeek)
+  let hasActual = false;
+  const weeklyActual = new Array(totalWeeks).fill(0);
+  phases.forEach(ph => {
+    ph.activities.forEach(a => {
+      const prog = Number(a.actualProgress) || 0;
+      if(prog > 0) hasActual = true;
+      const total = a.bobot * (prog/100);
+      const dur = a.duration||1;
+      const perWeek = total / dur;
+      for(let i=(a.startWeek||1)-1; i<(a.startWeek||1)-1 + dur; i++){
+        if(i>=0 && i<totalWeeks) weeklyActual[i] += perWeek;
+      }
+    });
+  });
+  let cumA = 0;
+  const cumulativeActual = [0, ...weeklyActual.map(v => (cumA += v))];
+
+  const reportWeekIdx = getReportWeekIndex(weeks);
+
+  ctx.clearRect(0,0,w,h);
+
+  // Grid
+  ctx.strokeStyle = '#1f3358';
+  ctx.fillStyle = '#8aa0c2';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.lineWidth = 1;
+  for(let p=0; p<=100; p+=25){
+    const y = padT + plotH - (p/100)*plotH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+plotW, y); ctx.stroke();
+    ctx.fillText(p+'%', 6, y+3);
+  }
+  const step = Math.max(1, Math.ceil(totalWeeks/12));
+  for(let i=0; i<=totalWeeks; i+=step){
+    const x = padL + (i/totalWeeks)*plotW;
+    ctx.fillText('W'+i, x-7, h-padB+14);
+  }
+
+  // Report week vertical line
+  if(reportWeekIdx >= 0){
+    const xR = padL + ((reportWeekIdx+1)/totalWeeks)*plotW;
+    ctx.strokeStyle = 'rgba(245,158,11,0.5)';
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(xR, padT); ctx.lineTo(xR, padT+plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.fillText('Report W'+(reportWeekIdx+1), xR+3, padT+10);
+  }
+
+  // PLAN line (orange)
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  cumulative.forEach((v,i)=>{
+    const x = padL + (i/totalWeeks)*plotW;
+    const y = padT + plotH - (Math.min(v,100)/100)*plotH;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = '#f59e0b';
+  cumulative.forEach((v,i)=>{
+    const x = padL + (i/totalWeeks)*plotW;
+    const y = padT + plotH - (Math.min(v,100)/100)*plotH;
+    ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+  });
+
+  // ACTUAL line (green) — only up to report week or to last activity with progress
+  if(hasActual){
+    // Clip cumulative actual to report week
+    const cutoff = reportWeekIdx >= 0 ? reportWeekIdx + 1 : cumulativeActual.length - 1;
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for(let i=0; i<=cutoff; i++){
+      const x = padL + (i/totalWeeks)*plotW;
+      const y = padT + plotH - (Math.min(cumulativeActual[i],100)/100)*plotH;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#10b981';
+    for(let i=0; i<=cutoff; i++){
+      const x = padL + (i/totalWeeks)*plotW;
+      const y = padT + plotH - (Math.min(cumulativeActual[i],100)/100)*plotH;
+      ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fill();
+    }
+
+    // Final actual value label
+    const finalA = cumulativeActual[cutoff];
+    const xF = padL + (cutoff/totalWeeks)*plotW;
+    const yF = padT + plotH - (Math.min(finalA,100)/100)*plotH;
+    ctx.fillStyle = '#10b981';
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillText('Actual: '+finalA.toFixed(1)+'%', xF - 80, yF + 18);
+  }
+
+  // Snapshot history dots (if any cached)
+  if(cachedSnapshots.length && weeks.length && weeks[0].start){
+    ctx.fillStyle = '#a78bfa';
+    cachedSnapshots.forEach(snap => {
+      if(!snap.snapshot_date) return;
+      const sd = parseDate(snap.snapshot_date);
+      if(!sd) return;
+      // Find week
+      let weekIdx = -1;
+      for(let i=0;i<weeks.length;i++){
+        if(sd >= weeks[i].start && sd <= weeks[i].end){ weekIdx = i+1; break; }
+      }
+      if(weekIdx < 0) return;
+      const x = padL + (weekIdx/totalWeeks)*plotW;
+      const y = padT + plotH - (Math.min(snap.cumulative_actual,100)/100)*plotH;
+      ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }
+
+  // Plan final
+  const finalV = cumulative[cumulative.length-1];
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = 'bold 11px -apple-system, sans-serif';
+  ctx.fillText('Plan: '+finalV.toFixed(1)+'%', padL + plotW - 70, padT + plotH - (Math.min(finalV,100)/100)*plotH - 6);
+}
+
+// ============================
+// SAMPLE & PERSISTENCE
+// ============================
+function loadSample(){
+  project = {
+    id: null,
+    po_id: null,
+    name: 'Gucbir Genset GJP150 - Paiton',
+    po: 'C25006.2604006',
+    customer: 'PT. Multi Fabrindo Gemilang',
+    startDate: '2026-06-14',
+    reportDate: '',
+    templateType: 'supply_import',
+    notes: 'Vendor: Gucbir (Europe, Perkins engine).\nDelivery point: FOT Warehouse PT SAE.\nFAT excluded per PO remarks.\nPayment: 20% DP / 30% pre-shipment / 50% Giro 30d after delivery.',
+    phases: JSON.parse(JSON.stringify(TEMPLATES.supply_import.phases))
+  };
+  cachedSnapshots = [];
+  document.getElementById('poInfoBox').style.display = 'none';
+  pushToInputs();
+  renderPhases();
+  render();
+}
+
+function resetProject(silent){
+  if(!silent && project.phases.length && !confirm('Reset semua data project (yang belum di-save akan hilang)?')) return;
+  project = {id:null, po_id:null, name:'', po:'', customer:'', startDate:'', reportDate:'', templateType:'custom', notes:'', phases:[]};
+  cachedSnapshots = [];
+  document.getElementById('poInfoBox').style.display = 'none';
+  pushToInputs();
+  renderPhases();
+  render();
+}
+
+function saveAuto(){
+  try { localStorage.setItem('sae_timeline_autosave', JSON.stringify(project)); } catch(e){}
+}
+
+function loadAuto(){
+  try {
+    const s = localStorage.getItem('sae_timeline_autosave');
+    if(s){
+      project = JSON.parse(s);
+      pushToInputs();
+      renderPhases();
+      // Re-render PO info if linked
+      if(project.po_id && supabase){
+        supabase.from('purchase_orders').select('*').eq('id', project.po_id).single().then(({data}) => {
+          if(data) renderPOInfoBox(data);
+        });
+      }
+    }
+  } catch(e){}
+}
+
+// ============================
+// UI HELPERS
+// ============================
+function showModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
+});
+
+let toastTimer = null;
+function toast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type||'') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ============================
+// INIT
+// ============================
+window.addEventListener('load', () => {
+  initSupabase();
+  loadAuto();
+  if(!project.phases.length){
+    loadSample();
+  } else {
+    render();
+  }
+});
+window.addEventListener('resize', () => render());
+</script>
+
+</body>
+</html>
