@@ -777,7 +777,7 @@ async function renderPPModule() {
       <div class="table-card">
         <div class="table-wrap">
           <table><colgroup><col style="width:14%"><col style="width:11%"><col style="width:18%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup>
-          <thead><tr><th>No. Request</th><th>Tanggal</th><th>Customer</th><th>Project</th><th>Requestor</th><th>Output</th><th>Status</th></tr></thead>
+          <thead><tr><th style="width:25%;min-width:90px">No. Request</th><th style="width:35%">Customer</th><th style="width:35%">Project</th><th style="width:5%;min-width:30px"></th></tr></thead>
           <tbody id="ppTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
@@ -808,25 +808,56 @@ function setPPFilter(status, el) {
   renderPPTable();
 }
 
+let _ppExpandedId = null;
+
 function renderPPTable() {
   const q = ppSearch.toLowerCase();
   let rows = allPPs.filter(r => {
     const match = [r.id, r.requester_id, r.customer_name, r.project_name].join(' ').toLowerCase().includes(q);
     return match && (!ppFilter || r.status === ppFilter);
   });
+
+  // Sort: tanggal terbaru di atas
+  rows.sort((a, b) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''));
+
   const tbody = document.getElementById('ppTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7">${noData('Belum ada request')}</td></tr>`; return; }
-  tbody.innerHTML = rows.map(r => `
-    <tr onclick="openPPDetail('${r.id}')">
-      <td class="mono">${r.id}</td>
-      <td>${fmtDate(r.date)}</td>
-      <td style="font-weight:500">${r.customer_name || '—'}</td>
-      <td style="color:var(--text2)">${r.project_name || '—'}</td>
-      <td style="color:var(--text2)">${r.app_users?.full_name || '—'}</td>
-      <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span></td>
-      <td>${badge(r.status)}</td>
-    </tr>`).join('');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada request')}</td></tr>`; return; }
+
+  tbody.innerHTML = rows.map(r => {
+    const isExpanded = _ppExpandedId === r.id;
+    const arrow = isExpanded ? '▲' : '▼';
+    const detailRow = !isExpanded ? '' : `
+      <tr class="pp-detail-row">
+        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tanggal</div><div style="margin-top:2px;font-weight:500">${fmtDate(r.date)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${r.project_name || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Requester</div><div style="margin-top:2px">${r.app_users?.full_name || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Output</div><div style="margin-top:2px"><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;font-weight:600">${r.output_type}</span></div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px">${badge(r.status)}</div></div>
+            ${r.description ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Deskripsi</div><div style="margin-top:2px;line-height:1.5">${escapeHtml(r.description)}</div></div>` : ''}
+          </div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" data-rid="${r.id}" onclick="event.stopPropagation();openPPDetail(this.dataset.rid)">Buka Detail</button>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="togglePPRow('${r.id}')" style="cursor:pointer">
+        <td class="mono" style="font-weight:500">${r.id}</td>
+        <td>${r.customer_name || '—'}</td>
+        <td style="color:var(--text2)">${r.project_name || '—'}</td>
+        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+      </tr>
+      ${detailRow}`;
+  }).join('');
+}
+
+function togglePPRow(id) {
+  _ppExpandedId = (_ppExpandedId === id) ? null : id;
+  renderPPTable();
 }
 
 // ─── EXPORT BULANAN PRE-PROJECT ─────────────────────────────
@@ -3679,40 +3710,64 @@ function _buildEtsTable(allItems, dsItemIds) {
   const st = tblState('ets');
   filtered = tblFilterBySearch(filtered, st.search);
 
-  const columns = [
-    { key:'no_po', label:'No. PO', sortable:true, style:'width:14%' },
-    { key:'category', label:'Kategori', sortable:true, style:'width:12%' },
-    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
-    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
-    { key:'status', label:'Status', sortable:false, style:'width:14%' },
-    { key:'action', label:'', sortable:false, style:'width:24%' },
-  ];
+  // Sort: PO terbaru di atas
+  filtered.sort((a, b) => {
+    const da = a.po.tgl_po || a.po.created_at || '';
+    const db = b.po.tgl_po || b.po.created_at || '';
+    return db.localeCompare(da);
+  });
 
-  const getColumns = ({po, item, hasSpec, hasDetailSpec}) => {
-    const badges = [];
-    badges.push(hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">SN</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600">Belum SN</span>');
-    badges.push(hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail Spec</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>');
-    return [
-      `<td class="mono">${po.no_po}</td>`,
-      `<td>${item.category}</td>`,
-      `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
-      `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
-      `<td><div style="display:flex;gap:4px;flex-wrap:wrap">${badges.join('')}</div></td>`,
-      `<td style="white-space:normal"><div style="display:flex;gap:4px;flex-wrap:wrap">
-        <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
-        ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec</button>` : ''}
-        <button class="btn btn-sm" style="background:#1a7a3c;color:#fff;border-color:#1a7a3c" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
-      </div></td>`
-    ];
-  };
+  if (filtered.length === 0) {
+    return { rows: `<tr class="empty-row"><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Tidak ada item</td></tr>` };
+  }
 
-  const rows = filtered.length === 0
-    ? `<tr class="empty-row"><td colspan="${columns.length}">Tidak ada item</td></tr>`
-    : tblGroupedRows('ets', filtered, getColumns, columns.length);
-  return { header: tblSortHeader('ets', columns), rows, columns };
+  const rows = filtered.map(({po, item, hasSpec, hasDetailSpec}) => {
+    const isExpanded = _etsExpandedId === item.id;
+    const arrow = isExpanded ? '▲' : '▼';
+    const itemLabel = `${item.category}${item.model_name ? ' · ' + item.model_name : ''}`;
+    const statusBadges = [
+      hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">SN ✓</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600">Belum SN</span>',
+      hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✓</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>'
+    ].join(' ');
+
+    const detailRow = !isExpanded ? '' : `
+      <tr class="ets-detail-row">
+        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${po.project_name || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Serial Number</div><div class="mono" style="margin-top:2px;font-weight:500">${item.serial_number || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status ETS</div><div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap">${statusBadges}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Qty</div><div style="margin-top:2px">${item.qty || 1}</div></div>
+            ${item.spec_summary ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Spec Summary</div><div style="margin-top:2px">${escapeHtml(item.spec_summary)}</div></div>` : ''}
+          </div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
+            ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec</button>` : ''}
+            <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="toggleEtsRow('${item.id}')" style="cursor:pointer">
+        <td class="mono" style="font-weight:500">${po.no_po}</td>
+        <td>${po.customer_name || '—'}</td>
+        <td>${itemLabel}</td>
+        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+      </tr>
+      ${detailRow}`;
+  }).join('');
+
+  return { rows };
 }
 
 let _etsCache = null;
+let _etsExpandedId = null;
+
+function toggleEtsRow(itemId) {
+  _etsExpandedId = (_etsExpandedId === itemId) ? null : itemId;
+  refresh_ets();
+}
 
 async function renderETSList() {
   const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
@@ -3752,8 +3807,15 @@ async function renderETSList() {
     </div>
     <div class="table-card">
       <div class="table-wrap">
-        <table>
-          <thead data-tbl="ets">${tbl.header}</thead>
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th style="width:25%;min-width:90px">No. PO</th>
+              <th style="width:35%">Customer</th>
+              <th style="width:35%">Item</th>
+              <th style="width:5%;min-width:30px"></th>
+            </tr>
+          </thead>
           <tbody data-tbl="ets">${tbl.rows}</tbody>
         </table>
       </div>
@@ -3765,9 +3827,7 @@ function refresh_ets() {
   if (!_etsCache) { renderETSList(); return; }
   const tbl = _buildEtsTable(_etsCache.allItems, _etsCache.dsItemIds);
   const tbody = document.querySelector('tbody[data-tbl="ets"]');
-  const thead = document.querySelector('thead[data-tbl="ets"]');
   if (tbody) tbody.innerHTML = tbl.rows;
-  if (thead) thead.innerHTML = tbl.header;
   // Update filter button counts juga
   const pendingCount = _etsCache.allItems.filter(x=>x.isPending).length;
   const doneCount = _etsCache.allItems.length - pendingCount;
@@ -3950,21 +4010,14 @@ async function renderPOModule() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table id="poTable" style="table-layout:fixed">
-          <colgroup>
-            <col id="poc0" style="width:120px"><col id="poc1" style="width:180px"><col id="poc2" style="width:180px">
-            <col id="poc3" style="width:120px"><col id="poc4" style="width:90px"><col id="poc5" style="width:110px"><col id="poc6" style="width:100px">
-          </colgroup>
+          <table id="poTable" style="width:100%">
           <thead><tr>
-            <th class="sort-th rsz-th" onclick="sortPO('no_project')">No. Project <span class="sort-arrow" id="sarr_no_project"></span><span class="col-rsz" onmousedown="initColResize(event,0,'poc0')"></span></th>
-            <th class="rsz-th">Project Name<span class="col-rsz" onmousedown="initColResize(event,1,'poc1')"></span></th>
-            <th class="sort-th rsz-th" onclick="sortPO('customer_name')">Customer <span class="sort-arrow" id="sarr_customer_name"></span><span class="col-rsz" onmousedown="initColResize(event,2,'poc2')"></span></th>
-            <th class="sort-th rsz-th" onclick="sortPO('no_po')">No. PO <span class="sort-arrow" id="sarr_no_po"></span><span class="col-rsz" onmousedown="initColResize(event,3,'poc3')"></span></th>
-            <th class="sort-th rsz-th" onclick="sortPO('tgl_po')">Tgl. PO <span class="sort-arrow" id="sarr_tgl_po"></span><span class="col-rsz" onmousedown="initColResize(event,4,'poc4')"></span></th>
-            <th class="sort-th rsz-th" onclick="sortPO('tgl_target_kirim')">Target Kirim <span class="sort-arrow" id="sarr_tgl_target_kirim"></span><span class="col-rsz" onmousedown="initColResize(event,5,'poc5')"></span></th>
-            <th class="sort-th rsz-th" onclick="sortPO('status')">Status <span class="sort-arrow" id="sarr_status"></span></th>
+            <th style="width:25%;min-width:100px">No. PO</th>
+            <th style="width:35%">Customer</th>
+            <th style="width:35%">Project</th>
+            <th style="width:5%;min-width:30px"></th>
           </tr></thead>
-          <tbody id="poTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
+          <tbody id="poTableBody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>
     </div>`;
@@ -4012,29 +4065,61 @@ function sortPO(field) {
   renderPOTable();
 }
 
+let _poExpandedId = null;
+
 function renderPOTable() {
   const q = poSearch.toLowerCase();
   let rows = allPOs.filter(p => [p.no_po, p.customer_name, p.project_name, p.no_project].join(' ').toLowerCase().includes(q) && (!poFilter.length || poFilter.includes(p.status)));
+
+  // Default sort: tgl_po desc (terbaru di atas)
   rows.sort((a, b) => {
     const av = a[poSort.field] || '', bv = b[poSort.field] || '';
     if (poSort.field === 'status') { return (PO_STATUS_ORDER.indexOf(av) - PO_STATUS_ORDER.indexOf(bv)) * (poSort.dir === 'asc' ? 1 : -1); }
     return av.localeCompare(bv) * (poSort.dir === 'asc' ? 1 : -1);
   });
+
   const tbody = document.getElementById('poTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7">${noData('Belum ada PO')}</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada PO')}</td></tr>`; return; }
+
   tbody.innerHTML = rows.map(p => {
     const overdue = p.tgl_target_kirim && p.tgl_target_kirim < today() && p.status !== 'Selesai';
-    return `<tr onclick="openPODetail('${p.id}')">
-      <td class="mono" style="color:var(--accent)">${p.no_project || '—'}</td>
-      <td style="color:var(--text2)">${p.project_name || '—'}</td>
-      <td style="font-weight:500">${p.customer_name || '—'}</td>
-      <td class="mono">${p.no_po}</td>
-      <td>${fmtDate(p.tgl_po)}</td>
-      <td style="color:${overdue ? 'var(--red)' : 'var(--text2)'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</td>
+    const isExpanded = _poExpandedId === p.id;
+    const arrow = isExpanded ? '▲' : '▼';
+    const itemCount = (p.po_items || []).length;
+    const nilai = p.nilai_po ? fmtRp(p.nilai_po) : '—';
 
-    </tr>`;
+    const detailRow = !isExpanded ? '' : `
+      <tr class="po-detail-row">
+        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. Project</div><div class="mono" style="margin-top:2px;font-weight:500;color:var(--accent)">${p.no_project || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tgl PO</div><div style="margin-top:2px;font-weight:500">${fmtDate(p.tgl_po)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Target Kirim</div><div style="margin-top:2px;color:${overdue ? 'var(--red)' : 'inherit'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px"><span class="po-status-badge">${p.status || '—'}</span></div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Jumlah Item</div><div style="margin-top:2px;font-weight:500">${itemCount}</div></div>
+            ${can('nilai_po') ? `<div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Nilai PO</div><div style="margin-top:2px;font-weight:500">${nilai}</div></div>` : ''}
+          </div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" data-pid="${p.id}" onclick="event.stopPropagation();openPODetail(this.dataset.pid)">Buka Detail</button>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="togglePORow('${p.id}')" style="cursor:pointer">
+        <td class="mono" style="font-weight:500">${p.no_po}</td>
+        <td>${p.customer_name || '—'}</td>
+        <td style="color:var(--text2)">${p.project_name || '—'}</td>
+        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+      </tr>
+      ${detailRow}`;
   }).join('');
+}
+
+function togglePORow(id) {
+  _poExpandedId = (_poExpandedId === id) ? null : id;
+  renderPOTable();
 }
 
 // PO DETAIL
@@ -5230,8 +5315,8 @@ async function renderServiceTabContent() {
       <div class="table-card">
         <div class="table-wrap">
           <table><colgroup><col style="width:16%"><col style="width:12%"><col style="width:20%"><col style="width:22%"><col style="width:16%"><col style="width:14%"></colgroup>
-          <thead><tr><th>No. Tiket</th><th>Tanggal</th><th>Customer</th><th>Masalah</th><th>PIC Teknisi</th><th>Status</th></tr></thead>
-          <tbody id="svcTableBody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
+          <thead><tr><th style="width:25%;min-width:90px">No. Tiket</th><th style="width:35%">Customer</th><th style="width:35%">Masalah</th><th style="width:5%;min-width:30px"></th></tr></thead>
+          <tbody id="svcTableBody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>`;
   await loadServices();
@@ -5909,21 +5994,57 @@ function setSvcFilter(status, el) {
   renderSvcTable();
 }
 
+let _svcExpandedId = null;
+
 function renderSvcTable() {
   const q = svcSearch.toLowerCase();
   let rows = allServices.filter(s => [s.id, s.customer_name, s.deskripsi_masalah, s.site_location].join(' ').toLowerCase().includes(q) && (!svcFilter || s.status === svcFilter));
+
+  // Sort: created_at desc (terbaru di atas)
+  rows.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
   const tbody = document.getElementById('svcTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6">${noData('Belum ada tiket service')}</td></tr>`; return; }
-  tbody.innerHTML = rows.map(s => `
-    <tr onclick="openSvcDetail('${s.id}')">
-      <td class="mono">${s.id}</td>
-      <td>${fmtDate(s.tgl_laporan)}</td>
-      <td style="font-weight:500">${s.customer_name || '—'}</td>
-      <td style="color:var(--text2)">${s.deskripsi_masalah}</td>
-      <td>${s.app_users?.full_name || '—'}</td>
-      <td>${badge(s.status)}</td>
-    </tr>`).join('');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada tiket service')}</td></tr>`; return; }
+
+  tbody.innerHTML = rows.map(s => {
+    const isExpanded = _svcExpandedId === s.id;
+    const arrow = isExpanded ? '▲' : '▼';
+    const probTrunc = (s.deskripsi_masalah || '').length > 50
+      ? s.deskripsi_masalah.substring(0, 50) + '…'
+      : s.deskripsi_masalah || '—';
+
+    const detailRow = !isExpanded ? '' : `
+      <tr class="svc-detail-row">
+        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tgl Laporan</div><div style="margin-top:2px;font-weight:500">${fmtDate(s.tgl_laporan)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px">${badge(s.status)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">PIC</div><div style="margin-top:2px;font-weight:500">${s.app_users?.full_name || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Lokasi</div><div style="margin-top:2px">${s.site_location || '—'}</div></div>
+            ${s.unit_info ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Unit Info</div><div style="margin-top:2px">${escapeHtml(s.unit_info)}</div></div>` : ''}
+            <div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Masalah</div><div style="margin-top:2px;line-height:1.5">${escapeHtml(s.deskripsi_masalah || '')}</div></div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" data-sid="${s.id}" onclick="event.stopPropagation();openSvcDetail(this.dataset.sid)">Buka Detail</button>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="toggleSvcRow('${s.id}')" style="cursor:pointer">
+        <td class="mono" style="font-weight:500">${s.id}</td>
+        <td>${s.customer_name || '—'}</td>
+        <td style="color:var(--text2)">${probTrunc}</td>
+        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+      </tr>
+      ${detailRow}`;
+  }).join('');
+}
+
+function toggleSvcRow(id) {
+  _svcExpandedId = (_svcExpandedId === id) ? null : id;
+  renderSvcTable();
 }
 
 async function openSvcDetail(id) {
