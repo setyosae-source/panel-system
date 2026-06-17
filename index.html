@@ -1421,7 +1421,7 @@ async function renderStatistikModule() {
   
   // Fetch additional data
   const [ticketsRes, pksRes, usersRes] = await Promise.all([
-    sb.from('service_tickets').select('id,status,assigned_to,created_at,closed_at,app_users:assigned_to(full_name)'),
+    sb.from('service_tickets').select('id,status,pic_id,created_at,closed_at,app_users!service_tickets_pic_id_fkey(full_name)'),
     sb.from('po_pk').select('po_id,nilai_pengajuan,nilai_realisasi,status,created_at'),
     sb.from('app_users').select('id,full_name,role').eq('is_active',true)
   ]);
@@ -1459,18 +1459,18 @@ function renderStatContent(tickets, pks, users) {
   // Service stats per technician
   const tekStats = {};
   tickets.forEach(t=>{
-    if(!t.assigned_to) return;
-    if(!tekStats[t.assigned_to]) tekStats[t.assigned_to] = {name: t.app_users?.full_name||'?', total:0, aktif:0, selesai:0, totalDays:0, count:0};
-    tekStats[t.assigned_to].total++;
+    if(!t.pic_id) return;
+    if(!tekStats[t.pic_id]) tekStats[t.pic_id] = {name: t.app_users?.full_name||'?', total:0, aktif:0, selesai:0, totalDays:0, count:0};
+    tekStats[t.pic_id].total++;
     if(t.status==='Selesai') {
-      tekStats[t.assigned_to].selesai++;
+      tekStats[t.pic_id].selesai++;
       if(t.closed_at && t.created_at) {
         const days = Math.round((new Date(t.closed_at) - new Date(t.created_at)) / (1000*60*60*24));
-        tekStats[t.assigned_to].totalDays += days;
-        tekStats[t.assigned_to].count++;
+        tekStats[t.pic_id].totalDays += days;
+        tekStats[t.pic_id].count++;
       }
     } else {
-      tekStats[t.assigned_to].aktif++;
+      tekStats[t.pic_id].aktif++;
     }
   });
 
@@ -2567,7 +2567,7 @@ async function renderAssignModule() {
 
 async function renderAssignList() {
   // Load tickets for service tab
-  const {data: tickets} = await sb.from('service_tickets').select('*,app_users:assigned_to(full_name)').neq('status','Selesai').order('created_at',{ascending:false});
+  const {data: tickets} = await sb.from('service_tickets').select('*,app_users!service_tickets_pic_id_fkey(full_name)').neq('status','Selesai').order('created_at',{ascending:false});
 
   // Count items needing PIC produksi
   let prodNeedAssign = 0, prodTotal = 0;
@@ -2579,7 +2579,7 @@ async function renderAssignList() {
     });
   });
 
-  const svcNeedAssign = (tickets||[]).filter(t=>!t.assigned_to).length;
+  const svcNeedAssign = (tickets||[]).filter(t=>!t.pic_id).length;
   const svcTotal = (tickets||[]).length;
 
   const tabBtn = (key, label, count) =>
@@ -2693,10 +2693,10 @@ function renderAssignService(tickets) {
             <div style="font-size:14px;font-weight:600;margin:2px 0">${t.customer_name||'—'}</div>
             <div style="font-size:11px;color:var(--text2)">${t.unit_type||''}${t.complaint?' · '+t.complaint.substring(0,60):''}</div>
             <div style="font-size:12px;margin-top:6px">
-              ${t.assigned_to ? `<span style="color:var(--text2)">PIC: <strong>${t.app_users?.full_name||'?'}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum di-assign</span>'}
+              ${t.pic_id ? `<span style="color:var(--text2)">PIC: <strong>${t.app_users?.full_name||'?'}</strong></span>` : '<span style="color:var(--coral);font-weight:500">⚠ Belum di-assign</span>'}
             </div>
           </div>
-          <button class="btn btn-sm btn-primary" data-tid="${t.id}" onclick="openAssignServiceModal(this.dataset.tid)">${t.assigned_to?'Ubah PIC':'Assign PIC'}</button>
+          <button class="btn btn-sm btn-primary" data-tid="${t.id}" onclick="openAssignServiceModal(this.dataset.tid)">${t.pic_id?'Ubah PIC':'Assign PIC'}</button>
         </div>
       </div>
     `).join('')}
@@ -2851,7 +2851,7 @@ async function openAssignServiceModal(ticketId) {
   const {data: teknisi} = await sb.from('app_users').select('id,full_name,role').in('role',['teknisi','engineering']).eq('is_active',true).order('full_name');
   const list = teknisi||[];
 
-  const opts = list.map(u=>`<option value="${u.id}" ${t.assigned_to===u.id?'selected':''}>${u.full_name} (${u.role==='engineering'?'ET Support':u.role})</option>`).join('');
+  const opts = list.map(u=>`<option value="${u.id}" ${t.pic_id===u.id?'selected':''}>${u.full_name} (${u.role==='engineering'?'ET Support':u.role})</option>`).join('');
 
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>Assign PIC Service</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
@@ -2870,7 +2870,7 @@ async function openAssignServiceModal(ticketId) {
 
 async function saveAssignService(ticketId) {
   const userId = gv('asvcUser') || null;
-  await sb.from('service_tickets').update({assigned_to: userId}).eq('id',ticketId);
+  await sb.from('service_tickets').update({pic_id: userId}).eq('id',ticketId);
   toast('PIC service tersimpan');
   closeAllModals();
   await renderAssignList();
@@ -3523,8 +3523,8 @@ async function renderHomeModule() {
 
   // SERVICE tickets assigned to me
   if(can('service_view')) {
-    const {data: svcAssigned} = await sb.from('service_tickets').select('id,status,assigned_to').neq('status','Selesai');
-    const myTickets = (svcAssigned||[]).filter(t => t.assigned_to===me.id || can('po_manage'));
+    const {data: svcAssigned} = await sb.from('service_tickets').select('id,status,pic_id').neq('status','Selesai');
+    const myTickets = (svcAssigned||[]).filter(t => t.pic_id===me.id || can('po_manage'));
     cards.push({mod:'service', icon:'🔧', title:'Service', desc:'Tiket service aktif', count:myTickets.length, color:'#dc2626'});
   }
 
