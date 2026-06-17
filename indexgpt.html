@@ -109,7 +109,7 @@ textarea{resize:vertical;min-height:76px;padding:8px 10px;line-height:1.6}
 .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .table-wrap{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
 .table-wrap::after{content:'Geser tabel ke samping untuk melihat semua kolom';display:block;font-size:11px;color:var(--text3);padding:6px 10px;border-top:1px solid var(--border);background:var(--surface)}
-table{width:max-content!important;min-width:100%;border-collapse:collapse;table-layout:auto}
+table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:auto}
 thead{background:var(--surface2)}
 th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;overflow:visible;min-width:110px}
 td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px;overflow:visible;text-overflow:clip;white-space:nowrap;vertical-align:middle;max-width:none}
@@ -209,6 +209,25 @@ table td{vertical-align:top;line-height:1.4}
 .role-help-card b{font-size:13px}
 .role-help-card ul{margin:6px 0 0 18px;color:var(--text2);font-size:12px;line-height:1.55}
 .misc-job-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:10px}
+
+
+/* ── HELP & TABLE RESIZE ── */
+.help-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;flex-shrink:0}
+.help-dot:hover{background:var(--blue-bg);color:var(--blue-text);border-color:#bfdbfe}
+.help-pop{font-size:13px;line-height:1.65;color:var(--text2)}
+.role-welcome{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.role-welcome-title{font-size:16px;font-weight:700;margin-bottom:5px}
+.role-welcome-text{font-size:13px;color:var(--text2);line-height:1.55}
+.table-wrap table th{user-select:none}
+.col-rsz{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:col-resize;background:transparent;z-index:5}
+.col-rsz:hover,.col-rsz.dragging{background:var(--blue);opacity:.45}
+.resizable-table th,.resizable-table td{overflow:visible;text-overflow:clip}
+.misc-photo-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.misc-photo-box{flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px}
+.misc-photo-box b{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.misc-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:6px}
+.misc-photo-thumb{aspect-ratio:1;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;cursor:pointer;background:var(--surface)}
+.misc-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px;box-shadow:var(--shadow-lg)}
@@ -328,7 +347,7 @@ table td{vertical-align:top;line-height:1.4}
 .sales-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.125rem;margin-bottom:10px}
 
 /* ── USER MANAGEMENT ── */
-.user-table{width:100%;border-collapse:collapse;font-size:13px}
+.user-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
 .user-table th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
 .user-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .user-table tr:last-child td{border-bottom:none}
@@ -402,7 +421,6 @@ table td{vertical-align:top;line-height:1.4}
         <div class="tab-bar">
           <button class="tab-btn active" id="tabNewBtn" onclick="switchSalesTab('new')">+ Request Baru</button>
           <button class="tab-btn" id="tabMyBtn" onclick="switchSalesTab('my')">Request Saya</button>
-          <button class="tab-btn" id="tabMiscBtn" onclick="switchSalesTab('misc')">Pekerjaan Lainnya</button>
         </div>
         <div id="tabNew">
           <div class="sales-card">
@@ -435,9 +453,6 @@ table td{vertical-align:top;line-height:1.4}
         </div>
         <div id="tabMy" style="display:none">
           <div id="myReqList"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
-        </div>
-        <div id="tabMisc" style="display:none">
-          <div id="salesMiscBody"><div style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</div></div>
         </div>
       </div>
     </div>
@@ -540,6 +555,7 @@ async function doLogin() {
     if (!user) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
     currentUser = user;
     sessionStorage.setItem('panelUser', JSON.stringify(user));
+    sessionStorage.setItem('showRoleWelcome', '1');
     await sb.from('app_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
     startApp();
   } catch (e) { showLoginError('Error: ' + e.message); }
@@ -563,12 +579,14 @@ function startApp() {
     document.getElementById('salesUserBadge').textContent = 'Halo, ' + currentUser.full_name;
     document.getElementById('sDate').value = today();
     loadMyRequests();
+    setTimeout(showRoleWelcomeIfNeeded, 350);
     return;
   }
   document.getElementById('appShell').style.display = 'block';
   buildSidebar();
   // default module
   switchModule('home');
+  setTimeout(showRoleWelcomeIfNeeded, 350);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -581,8 +599,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
 function buildSidebar() {
-  const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', direktur: 'Direktur', other: 'Lainnya / Umum' };
-  const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', direktur: 'role-direktur', other: 'role-other' };
+  const roleLabel = ROLE_LABELS || { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', direktur: 'Direktur', other: 'Lainnya / Umum' };
+  const roleClass = ROLE_CLASSES || { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', direktur: 'role-direktur', other: 'role-other' };
 
   let nav = '<div class="sb-label">Beranda</div>';
   nav += navItem('home', homeIcon(), 'Home', 'nbHome');
@@ -594,7 +612,7 @@ function buildSidebar() {
   if (can('assign') || can('po_manage')) nav += navItem('assign', assignIcon(), 'Assign', 'nbASSIGN');
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
-  nav += navItem('miscjobs', miscJobIcon(), 'Pekerjaan Lainnya', 'nbMISC');
+  if (canReportMiscJob()) nav += navItem('miscjobs', miscJobIcon(), 'Laporan Tambahan', 'nbMISC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('bom_view')) nav += navItem('bom', bomIcon(), 'Tools BOM', '');
   if (can('bom_manage')) nav += `<a href="bom-calculator.html" class="sb-item" style="text-decoration:none"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-3 4h3m-6-8h.01M9 13h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>BOM Calculator</a>`;
@@ -652,7 +670,7 @@ function switchModule(mod) {
   else if (mod === 'assign') renderAssignModule();
   else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
-  else if (mod === 'miscjobs') renderMiscJobsModule();
+  else if (mod === 'miscjobs') { if (canReportMiscJob()) renderMiscJobsModule(); else renderHomeModule(); }
   else if (mod === 'kb') renderKBModule();
   else if (mod === 'bom') renderBOMModule();
   else if (mod === 'audit') renderAuditModule();
@@ -784,6 +802,7 @@ async function renderPPModule() {
       </div>
     </div>
     <div class="page-body">
+      ${roleWelcomeBanner()}
       <div class="stats-grid" id="ppStats"><div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="ppTotal">—</div></div><div class="stat-card" onclick="setPPFilter('Open',this)"><div class="stat-label">Open</div><div class="stat-val blue" id="ppOpen">—</div></div><div class="stat-card" onclick="setPPFilter('In Progress',this)"><div class="stat-label">In Progress</div><div class="stat-val amber" id="ppInprog">—</div></div><div class="stat-card" onclick="setPPFilter('Done',this)"><div class="stat-label">Done</div><div class="stat-val green" id="ppDone">—</div></div></div>
       <div class="toolbar">
         <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari ID, requester, customer..." oninput="ppSearch=this.value;renderPPTable()"></div>
@@ -1253,14 +1272,9 @@ const isSalesMode = new URLSearchParams(location.search).get('mode') === 'sales'
 function switchSalesTab(tab) {
   document.getElementById('tabNew').style.display = tab === 'new' ? 'block' : 'none';
   document.getElementById('tabMy').style.display = tab === 'my' ? 'block' : 'none';
-  const miscTab = document.getElementById('tabMisc');
-  if (miscTab) miscTab.style.display = tab === 'misc' ? 'block' : 'none';
   document.getElementById('tabNewBtn').classList.toggle('active', tab === 'new');
   document.getElementById('tabMyBtn').classList.toggle('active', tab === 'my');
-  const miscBtn = document.getElementById('tabMiscBtn');
-  if (miscBtn) miscBtn.classList.toggle('active', tab === 'misc');
   if (tab === 'my') loadMyRequests();
-  if (tab === 'misc') renderSalesMiscJobs();
 }
 
 let salesFilesData = [];
@@ -3675,7 +3689,7 @@ async function renderHomeModule() {
       <div style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">${initials}</div>
       <div style="flex:1">
         <div style="font-size:18px;font-weight:600">${greeting}, ${me.full_name.split(' ')[0]}!</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div><div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:8px">${escapeHtml(roleMission(role))}</div>
       </div>
     </div>
     
@@ -4028,6 +4042,7 @@ async function renderPOModule() {
       </div>
     </div>
     <div class="page-body">
+      ${roleWelcomeBanner()}
       <div class="stats-grid" id="poStats">
         <div class="stat-card"><div class="stat-label">Total Aktif</div><div class="stat-val blue" id="poActive">—</div></div>
         <div class="stat-card"><div class="stat-label">Engineering</div><div class="stat-val amber" id="poEng">—</div></div>
@@ -6430,17 +6445,134 @@ async function deleteKB(id) {
 }
 
 
+
 // ═══════════════════════════════════════════════════════════
-// PEKERJAAN LAINNYA / GENERAL JOBS MODULE
+// HELP, ROLE WELCOME, TABLE RESIZE
 // ═══════════════════════════════════════════════════════════
-const MISC_JOB_STATUSES = ['Open','Proses','Selesai'];
-function miscJobsLSKey(){ return 'panel_misc_jobs_' + (SB_URL||'local'); }
-function canEditMiscJob(j){ return isAdmin() || j.created_by === currentUser?.id || j.assigned_to === currentUser?.id; }
-function miscJobVisible(j){ return isAdmin() || !j.assigned_to || j.assigned_to === currentUser?.id || j.created_by === currentUser?.id; }
+function canReportMiscJob(){ return !!currentUser && !['sales','direktur'].includes(currentUser.role); }
+function roleMission(role){
+  const m = {
+    owner:'Tugas Anda adalah memantau keseluruhan sistem, memastikan data benar, mengelola user, laporan, nilai PO, dan melakukan koreksi bila ada data operasional yang salah.',
+    admin:'Tugas Anda adalah mengelola operasional harian: membuat/memperbaiki data, mengatur user, membantu assign pekerjaan, menjaga kelengkapan dokumen, dan memantau laporan.',
+    sales:'Tugas Anda adalah membuat request Drawing/BOM dari kebutuhan customer, melampirkan dokumen lengkap, dan memantau request sampai hasil diterima.',
+    engineering:'Tugas Anda adalah menangani request teknis/ETS, membaca dokumen customer, membuat atau mengunggah hasil drawing/BOM, dan memperbarui progress teknis.',
+    produksi:'Tugas Anda adalah melaporkan progress produksi, QC, instalasi/commissioning bila terkait, serta melaporkan pekerjaan tambahan yang Anda lakukan dengan bukti before-after.',
+    logistik:'Tugas Anda adalah mengelola dan memperbarui data pengiriman, dokumen logistik, barang masuk/keluar, serta melaporkan pekerjaan tambahan yang Anda lakukan.',
+    teknisi:'Tugas Anda adalah menangani service, troubleshooting, instalasi, commissioning, dokumentasi lapangan, dan melaporkan pekerjaan tambahan dengan foto before-after.',
+    direktur:'Tugas Anda adalah memonitor statistik, progress PO, keterlambatan, nilai, KPI, dan mengambil keputusan dari data yang tersedia. Role ini tidak untuk input laporan pekerjaan tambahan.',
+    other:'Tugas Anda adalah membantu pekerjaan umum sesuai kebutuhan, lalu melaporkan pekerjaan tambahan yang Anda lakukan lengkap dengan catatan dan foto before-after.'
+  };
+  return m[role] || 'Tugas Anda adalah menggunakan menu sesuai akses yang diberikan dan menjaga data pekerjaan tetap rapi.';
+}
+function showRoleWelcomeIfNeeded(){
+  if(!currentUser || sessionStorage.getItem('showRoleWelcome') !== '1') return;
+  sessionStorage.removeItem('showRoleWelcome');
+  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Selamat datang, ${escapeHtml(currentUser.full_name||'User')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="role-welcome" style="margin-bottom:0"><div class="role-welcome-title">Role: ${escapeHtml((ROLE_LABELS&&ROLE_LABELS[currentUser.role])||currentUser.role)}</div><div class="role-welcome-text">${escapeHtml(roleMission(currentUser.role))}</div></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
+}
+function roleWelcomeBanner(){
+  if(!currentUser) return '';
+  return `<div class="role-welcome"><div class="role-welcome-title">Selamat datang, ${escapeHtml(currentUser.full_name||'User')}</div><div class="role-welcome-text">${escapeHtml(roleMission(currentUser.role))}</div></div>`;
+}
+const HELP_TEXTS = {
+  home:'Ringkasan awal. Cek data penting, tugas yang perlu dipantau, dan gunakan menu kiri untuk masuk ke modul kerja.',
+  'pre-project':'Menu Pre-Project dipakai untuk request awal dari sales/customer, dokumen spesifikasi, hasil Drawing/BOM, dan status request.',
+  'kelola po':'Menu Kelola PO dipakai untuk mencatat PO, item pekerjaan, nilai, dokumen, status, dan progress sampai selesai.',
+  ets:'Menu ETS dipakai engineering untuk membaca request, mengerjakan Drawing/BOM, upload hasil, dan update progress teknis.',
+  produksi:'Menu Produksi dipakai untuk update proses fabrikasi/QC/instalasi/commissioning sesuai item pekerjaan.',
+  assign:'Menu Assign dipakai admin/direktur untuk melihat pembagian pekerjaan dan progress PIC.',
+  service:'Menu Service dipakai untuk tiket gangguan, kunjungan, troubleshooting, foto, dokumen, dan knowledge base.',
+  'laporan tambahan':'Menu ini khusus laporan pekerjaan tambahan yang Anda lakukan sendiri di luar role utama. Isi pekerjaan, catatan, kategori, dan upload foto before-after. Laporan ini masuk KPI pelapor.',
+  'pekerjaan lainnya':'Menu ini khusus laporan pekerjaan tambahan yang Anda lakukan sendiri di luar role utama. Isi pekerjaan, catatan, kategori, dan upload foto before-after. Laporan ini masuk KPI pelapor.',
+  'dashboard statistik':'Dashboard Statistik dipakai untuk melihat ringkasan progress, keterlambatan, dan performa pekerjaan.',
+  laporan:'Menu Laporan dipakai untuk rekap data, export, dan evaluasi operasional.',
+  'kelola user':'Menu Kelola User dipakai admin/owner untuk membuat user, memilih role, mengatur akses tambahan, reset password, dan membaca panduan role.',
+  'knowledge base':'Knowledge Base berisi catatan masalah dan solusi dari service/pekerjaan sebelumnya agar bisa dipakai ulang.',
+  'tools bom':'Tools BOM dipakai untuk membantu pengolahan data BOM dan export sesuai kebutuhan.'
+};
+function getHelpText(label){
+  const k = String(label||'').trim().toLowerCase();
+  return HELP_TEXTS[k] || HELP_TEXTS[currentModule] || 'Petunjuk: isi data sesuai kondisi sebenarnya, gunakan tombol tambah/edit untuk mengubah data, lalu simpan. Pastikan dokumen/foto pendukung diupload bila tersedia.';
+}
+function showHelpPopup(label){
+  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Petunjuk — ${escapeHtml(label||'Menu')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="help-pop">${escapeHtml(getHelpText(label))}</div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
+}
+function addHelpDots(root=document){
+  root.querySelectorAll('.page-title,.tab-btn,.modal-header h2').forEach(el=>{
+    if(el.dataset.helpReady==='1') return;
+    el.dataset.helpReady='1';
+    const label = el.textContent.trim().replace(/^\+\s*/, '');
+    const btn = document.createElement('span');
+    btn.className='help-dot'; btn.textContent='i'; btn.title='Petunjuk'; btn.setAttribute('role','button'); btn.setAttribute('tabindex','0');
+    btn.onclick = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); showHelpPopup(label); };
+    el.insertAdjacentElement('afterend', btn);
+  });
+}
+function makeResizableTables(root=document){
+  root.querySelectorAll('.table-wrap table, table.user-table').forEach((table, ti)=>{
+    if(table.dataset.resizableReady==='1') return;
+    table.dataset.resizableReady='1';
+    table.classList.add('resizable-table');
+    const key = 'tbl_widths_' + (currentModule||'global') + '_' + ti;
+    let saved = {}; try{ saved = JSON.parse(localStorage.getItem(key)||'{}'); }catch(_){ saved = {}; }
+    table.querySelectorAll('thead th').forEach((th, i)=>{
+      if(saved[i]) th.style.width = saved[i];
+      const grip = document.createElement('span'); grip.className='col-rsz';
+      let startX=0,startW=0;
+      grip.addEventListener('mousedown', e=>{ e.preventDefault(); startX=e.clientX; startW=th.offsetWidth; grip.classList.add('dragging');
+        const mm = ev=>{ const w=Math.max(60,startW+(ev.clientX-startX)); th.style.width=w+'px'; };
+        const mu = ()=>{ grip.classList.remove('dragging'); document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); const widths={}; table.querySelectorAll('thead th').forEach((h,j)=>{ if(h.style.width) widths[j]=h.style.width; }); localStorage.setItem(key,JSON.stringify(widths)); };
+        document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
+      });
+      grip.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; startW=th.offsetWidth; grip.classList.add('dragging');
+        const tm = ev=>{ const w=Math.max(60,startW+(ev.touches[0].clientX-startX)); th.style.width=w+'px'; };
+        const tu = ()=>{ grip.classList.remove('dragging'); document.removeEventListener('touchmove',tm); document.removeEventListener('touchend',tu); const widths={}; table.querySelectorAll('thead th').forEach((h,j)=>{ if(h.style.width) widths[j]=h.style.width; }); localStorage.setItem(key,JSON.stringify(widths)); };
+        document.addEventListener('touchmove',tm,{passive:true}); document.addEventListener('touchend',tu);
+      },{passive:true});
+      th.appendChild(grip);
+    });
+  });
+}
+function enhanceUI(root=document){ addHelpDots(root); makeResizableTables(root); }
+const uiEnhancer = new MutationObserver(()=>{ clearTimeout(window._enhanceUITimer); window._enhanceUITimer=setTimeout(()=>enhanceUI(document),80); });
+window.addEventListener('DOMContentLoaded',()=>{ try{ uiEnhancer.observe(document.body,{childList:true,subtree:true}); setTimeout(()=>enhanceUI(document),200); }catch(e){} });
+
+// ═══════════════════════════════════════════════════════════
+// LAPORAN TAMBAHAN / KPI REPORT MODULE
+// ═══════════════════════════════════════════════════════════
+const MISC_JOB_STATUSES = ['Dilaporkan','Diverifikasi','Ditolak'];
+const MISC_CATEGORIES = ['Kebersihan','Bantu Produksi','Packing / Loading','Cek Barang','Dokumen / Administrasi','Workshop','Lainnya'];
+function miscJobsLSKey(){ return 'panel_misc_reports_' + (SB_URL||'local'); }
+function canEditMiscJob(j){ return isAdmin() || j.created_by === currentUser?.id; }
+function miscJobVisible(j){ return isAdmin() || j.created_by === currentUser?.id; }
+function miscEvidence(j){
+  let ev = j?.evidence_files || {before:[],after:[]};
+  if(typeof ev === 'string'){ try{ ev = JSON.parse(ev); }catch(_){ ev = {before:[],after:[]}; } }
+  if(Array.isArray(ev)) ev = {before:ev.filter(x=>x.type==='before'), after:ev.filter(x=>x.type==='after')};
+  return {before: ev.before||[], after: ev.after||[]};
+}
+function miscPhotoHTML(files){
+  if(!files || !files.length) return '<div style="font-size:12px;color:var(--text3);margin-top:6px">Belum ada foto</div>';
+  return `<div class="misc-photo-grid">${files.map(f=>`<div class="misc-photo-thumb" onclick="openDoc('${f.url||fileUrl('service-docs',f.path||f.file_path)}','${escapeHtml(f.name||'foto.jpg')}')"><img src="${f.url||fileUrl('service-docs',f.path||f.file_path)}" alt="${escapeHtml(f.name||'foto')}"></div>`).join('')}</div>`;
+}
+async function uploadMiscEvidenceFiles(inputId, type){
+  const input = document.getElementById(inputId);
+  const files = Array.from(input?.files || []);
+  const out = [];
+  for(const f of files){
+    const safe = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const path = `misc-reports/${currentUser.id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}_${safe}`;
+    try{
+      const { error } = await sb.storage.from('service-docs').upload(path, f);
+      if(error) throw error;
+      out.push({type, name:f.name, size:f.size, path, url: fileUrl('service-docs', path), uploaded_at:new Date().toISOString()});
+    }catch(e){ toast('Upload foto gagal: '+(e.message||e)); }
+  }
+  return out;
+}
 async function loadMiscJobs() {
   let rows = [];
   try {
-    const { data, error } = await sb.from('misc_jobs').select('*,creator:created_by(full_name),assignee:assigned_to(full_name,role)').order('created_at', { ascending:false });
+    const { data, error } = await sb.from('misc_jobs').select('*,creator:created_by(full_name,role)').order('created_at', { ascending:false });
     if (error) throw error;
     rows = data || [];
     window._miscJobsRemoteOK = true;
@@ -6450,47 +6582,42 @@ async function loadMiscJobs() {
   }
   allMiscJobs = rows.filter(miscJobVisible);
   const b = document.getElementById('nbMISC');
-  if (b) b.textContent = allMiscJobs.filter(j => j.status !== 'Selesai').length;
+  if (b) b.textContent = allMiscJobs.filter(j => j.status !== 'Ditolak').length;
   return allMiscJobs;
 }
 async function renderMiscJobsModule() {
+  if(!canReportMiscJob()){ renderHomeModule(); return; }
   document.getElementById('mainContent').innerHTML = `
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <div><div class="page-title">Pekerjaan Lainnya</div><div class="page-sub">Tugas tambahan di luar role: bersih-bersih, bantu produksi, packing, antar dokumen, dll.</div></div>
+        <div><div class="page-title">Laporan Tambahan</div><div class="page-sub">Laporan pekerjaan di luar role utama untuk KPI pribadi</div></div>
       </div>
-      <div class="topbar-right"><button class="btn btn-primary" onclick="openMiscJobForm()">+ Tambah Pekerjaan</button></div>
+      <div class="topbar-right"><button class="btn btn-primary" onclick="openMiscJobForm()">+ Buat Laporan</button></div>
     </div>
     <div class="page-body" id="miscJobsBody">${loading()}</div>`;
   await loadMiscJobs();
   renderMiscJobsList();
 }
-function renderSalesMiscJobs(){
-  const el = document.getElementById('salesMiscBody');
-  if(!el) return;
-  el.innerHTML = `${loading()}`;
-  loadMiscJobs().then(()=>{
-    el.innerHTML = `<div class="sales-card" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><div style="font-size:15px;font-weight:600">Pekerjaan Lainnya</div><div style="font-size:12px;color:var(--text3);margin-top:3px">Buat tugas tambahan di luar request drawing/BOM.</div></div><button class="btn btn-primary" onclick="openMiscJobForm(null,true)">+ Tambah</button></div>` + miscJobsCardsHTML(true);
-  });
-}
 function miscJobsCardsHTML(compact=false){
   const st = tblState('miscjobs');
   const q = (st.search||'').toLowerCase();
-  let rows = allMiscJobs.filter(j => !q || [j.title,j.description,j.status,j.due_date,j.assignee?.full_name,j.creator?.full_name].join(' ').toLowerCase().includes(q));
-  if (rows.length === 0) return noData('Belum ada pekerjaan tambahan');
+  let rows = allMiscJobs.filter(j => !q || [j.title,j.description,j.status,j.category,j.creator?.full_name,j.created_by_name].join(' ').toLowerCase().includes(q));
+  if (rows.length === 0) return noData('Belum ada laporan tambahan');
   return rows.map(j=>{
-    const assignee = j.assignee?.full_name || allUsers.find(u=>u.id===j.assigned_to)?.full_name || (j.assigned_to ? 'User' : 'Semua user');
+    const reporter = j.creator?.full_name || j.created_by_name || (j.created_by===currentUser?.id ? currentUser.full_name : 'User');
+    const ev = miscEvidence(j);
     return `<div class="misc-job-card">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
-        <div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:600">${escapeHtml(j.title)}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">PIC: <b>${escapeHtml(assignee)}</b> · Deadline: ${j.due_date?fmtDate(j.due_date):'—'}</div></div>
-        ${badge(j.status||'Open')}
+        <div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:600">${escapeHtml(j.title)}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">Pelapor: <b>${escapeHtml(reporter)}</b> · ${fmtDate(j.created_at)} · Kategori: ${escapeHtml(j.category||'Umum')}</div></div>
+        ${badge(j.status||'Dilaporkan')}
       </div>
-      ${j.description?`<div class="desc-box" style="margin-top:10px">${escapeHtml(j.description)}</div>`:''}
-      ${j.notes?`<div style="font-size:12px;color:var(--text2);margin-top:8px"><b>Catatan hasil:</b> ${escapeHtml(j.notes)}</div>`:''}
-      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-        ${canEditMiscJob(j)?`<button class="btn btn-sm" onclick="openMiscJobForm('${j.id}',${compact})">Edit</button>`:''}
-        ${j.status!=='Selesai' && canEditMiscJob(j)?`<button class="btn btn-sm btn-primary" onclick="completeMiscJob('${j.id}',${compact})">Tandai Selesai</button>`:''}
+      <div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:8px">${escapeHtml(j.description||'—')}</div>
+      ${j.notes?`<div class="desc-box" style="margin-top:8px">${escapeHtml(j.notes)}</div>`:''}
+      <div class="misc-photo-row"><div class="misc-photo-box"><b>Before</b>${miscPhotoHTML(ev.before)}</div><div class="misc-photo-box"><b>After</b>${miscPhotoHTML(ev.after)}</div></div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${canEditMiscJob(j)?`<button class="btn btn-sm" onclick="openMiscJobForm('${j.id}',${compact})">Edit Laporan</button>`:''}
+        ${isAdmin()?`<button class="btn btn-sm btn-primary" onclick="verifyMiscReport('${j.id}')">Verifikasi KPI</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -6500,60 +6627,62 @@ function renderMiscJobsList(){
   if(!body) return;
   const st = tblState('miscjobs');
   body.innerHTML = `
+    ${roleWelcomeBanner()}
     <div style="background:var(--amber-bg);border:1px solid #fde68a;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;color:var(--amber);font-size:13px;line-height:1.55">
-      <b>Untuk semua user:</b> gunakan modul ini untuk pekerjaan di luar role utama, misalnya bersih-bersih workshop, bantu packing, cek barang datang, antar dokumen, atau tugas tambahan lain. Admin bisa assign ke user tertentu atau biarkan untuk semua user.
-      ${window._miscJobsRemoteOK===false?'<div style="margin-top:6px;color:var(--red)">Catatan: tabel Supabase <b>misc_jobs</b> belum tersedia, sementara data disimpan lokal di browser ini.</div>':''}
+      <b>Laporan tambahan:</b> gunakan menu ini hanya untuk melaporkan pekerjaan yang benar-benar Anda lakukan sendiri di luar role utama. Upload foto <b>before</b> dan <b>after</b> agar bisa dihitung ke KPI pelapor. Sales dan Direktur tidak menggunakan menu ini.
+      ${window._miscJobsRemoteOK===false?'<div style="margin-top:6px;color:var(--red)">Catatan: tabel Supabase <b>misc_jobs</b> belum tersedia/akses gagal, sementara data disimpan lokal di browser ini.</div>':''}
     </div>
-    <div class="toolbar-row"><div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Cari pekerjaan, PIC, status..." value="${st.search||''}" oninput="tblState('miscjobs').search=this.value;renderMiscJobsList()"></div></div>
+    <div class="toolbar-row"><div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Cari laporan, kategori, pelapor, status..." value="${st.search||''}" oninput="tblState('miscjobs').search=this.value;renderMiscJobsList()"></div></div>
     ${miscJobsCardsHTML(false)}`;
+  setTimeout(()=>enhanceUI(document),50);
 }
 async function openMiscJobForm(jobId=null, compact=false){
-  if(!allUsers.length) { try { const {data}=await sb.from('app_users').select('id,full_name,role,is_active').eq('is_active',true).order('full_name'); allUsers=data||allUsers; } catch(e){} }
+  if(!canReportMiscJob()){ toast('Role ini tidak membuat laporan tambahan'); return; }
   const j = jobId ? allMiscJobs.find(x=>x.id===jobId) : null;
-  const opts = ['<option value="">Semua user / belum ditentukan</option>'].concat((allUsers||[]).filter(u=>u.is_active!==false).map(u=>`<option value="${u.id}" ${j?.assigned_to===u.id?'selected':''}>${escapeHtml(u.full_name)} (${ROLE_LABELS[u.role]||u.role})</option>`)).join('');
-  openModal(`<div class="modal modal-sm">
-    <div class="modal-header"><h2>${j?'Edit':'Tambah'} Pekerjaan Lainnya</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+  if(j && !canEditMiscJob(j)){ toast('Laporan hanya bisa diedit oleh pelapor/admin'); return; }
+  const ev = miscEvidence(j);
+  openModal(`<div class="modal">
+    <div class="modal-header"><h2>${j?'Edit':'Buat'} Laporan Tambahan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="form-row"><label>Judul Pekerjaan <span class="req">*</span></label><input type="text" id="mjTitle" value="${escapeHtml(j?.title||'')}" placeholder="Contoh: Bersih-bersih area workshop"></div>
-      <div class="form-row"><label>PIC / Ditugaskan ke</label><select id="mjAssigned">${opts}</select><div class="form-hint">Kosongkan bila pekerjaan boleh diambil/dilihat semua user.</div></div>
-      <div class="form-grid"><div class="form-row"><label>Deadline</label><input type="date" id="mjDue" value="${j?.due_date||''}"></div><div class="form-row"><label>Status</label><select id="mjStatus">${MISC_JOB_STATUSES.map(x=>`<option ${j?.status===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
-      <div class="form-row"><label>Deskripsi / Cara Kerja</label><textarea id="mjDesc" placeholder="Jelaskan cara kerja, area, alat yang dipakai, atau catatan penting.">${escapeHtml(j?.description||'')}</textarea></div>
-      <div class="form-row"><label>Catatan Hasil</label><textarea id="mjNotes" placeholder="Diisi saat/proses selesai.">${escapeHtml(j?.notes||'')}</textarea></div>
+      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:10px 12px;color:var(--blue-text);font-size:12px;line-height:1.55">Isi sebagai laporan pekerjaan yang sudah dilakukan sendiri. Nama pelapor otomatis adalah user yang login dan akan masuk KPI user tersebut.</div>
+      <div class="form-grid"><div class="form-row"><label>Tanggal Pekerjaan</label><input type="date" id="mjDue" value="${j?.due_date||today()}"></div><div class="form-row"><label>Kategori</label><select id="mjCategory">${MISC_CATEGORIES.map(x=>`<option value="${x}" ${(j?.category||'Umum')===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
+      <div class="form-row"><label>Judul Laporan <span class="req">*</span></label><input type="text" id="mjTitle" value="${escapeHtml(j?.title||'')}" placeholder="Contoh: Bersih-bersih area workshop setelah produksi"></div>
+      <div class="form-row"><label>Uraian Pekerjaan <span class="req">*</span></label><textarea id="mjDesc" placeholder="Jelaskan pekerjaan yang dilakukan, area/lokasi, dan hasilnya.">${escapeHtml(j?.description||'')}</textarea></div>
+      <div class="form-row"><label>Catatan Tambahan</label><textarea id="mjNotes" placeholder="Opsional: kendala, alat yang dipakai, saksi, atau catatan admin.">${escapeHtml(j?.notes||'')}</textarea></div>
+      <div class="form-grid"><div class="form-row"><label>Foto Before</label><input type="file" id="mjBefore" accept="image/*" multiple><div class="form-hint">Upload kondisi sebelum pekerjaan. Foto lama: ${ev.before.length} file.</div></div><div class="form-row"><label>Foto After</label><input type="file" id="mjAfter" accept="image/*" multiple><div class="form-hint">Upload kondisi setelah pekerjaan. Foto lama: ${ev.after.length} file.</div></div></div>
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveMiscJob('${jobId||''}',${compact})">Simpan</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveMiscJob('${jobId||''}',${compact})">Simpan Laporan</button></div>
   </div>`);
 }
 async function persistMiscJobsLocal(rows){ localStorage.setItem(miscJobsLSKey(), JSON.stringify(rows)); }
 async function saveMiscJob(jobId='', compact=false){
   const title = gv('mjTitle').trim();
-  if(!title){ toast('Judul pekerjaan wajib diisi'); return; }
-  const payload = { title, assigned_to: gv('mjAssigned')||null, due_date: gv('mjDue')||null, status: gv('mjStatus')||'Open', description: gv('mjDesc').trim(), notes: gv('mjNotes').trim(), updated_at:new Date().toISOString() };
+  const desc = gv('mjDesc').trim();
+  if(!title){ toast('Judul laporan wajib diisi'); return; }
+  if(!desc){ toast('Uraian pekerjaan wajib diisi'); return; }
+  const old = jobId ? allMiscJobs.find(x=>x.id===jobId) : null;
+  const oldEv = miscEvidence(old);
+  const before = [...oldEv.before, ...await uploadMiscEvidenceFiles('mjBefore','before')];
+  const after = [...oldEv.after, ...await uploadMiscEvidenceFiles('mjAfter','after')];
+  const payload = { title, category: gv('mjCategory')||'Lainnya', assigned_to:null, assigned_name:null, due_date: gv('mjDue')||today(), status: old?.status || 'Dilaporkan', description: desc, notes: gv('mjNotes').trim(), evidence_files:{before,after}, updated_at:new Date().toISOString() };
   try{
     if(window._miscJobsRemoteOK !== false){
       if(jobId) await sb.from('misc_jobs').update(payload).eq('id',jobId);
-      else await sb.from('misc_jobs').insert({...payload, id: genId('MJ'), created_by: currentUser.id, created_at:new Date().toISOString()});
+      else await sb.from('misc_jobs').insert({...payload, created_by: currentUser.id, created_by_name: currentUser.full_name, created_at:new Date().toISOString()});
     } else { throw new Error('local fallback'); }
   }catch(e){
-    let rows=[]; try{ rows=JSON.parse(localStorage.getItem(miscJobsLSKey())||'[]'); }catch(_){}
+    let rows=[]; try{ rows=JSON.parse(localStorage.getItem(miscJobsLSKey())||'[]'); }catch(_){ rows=[]; }
     if(jobId){ rows = rows.map(x=>x.id===jobId ? {...x,...payload} : x); }
-    else rows.unshift({...payload, id: genId('MJ'), created_by: currentUser.id, created_at:new Date().toISOString(), creator:{full_name:currentUser.full_name}, assignee: allUsers.find(u=>u.id===payload.assigned_to)||null});
-    await persistMiscJobsLocal(rows);
-    window._miscJobsRemoteOK = false;
+    else rows.unshift({...payload, id: genId('MJ'), created_by: currentUser.id, created_by_name: currentUser.full_name, created_at:new Date().toISOString(), creator:{full_name:currentUser.full_name,role:currentUser.role}});
+    await persistMiscJobsLocal(rows); window._miscJobsRemoteOK = false;
   }
-  toast('Pekerjaan disimpan'); closeAllModals(); await loadMiscJobs(); compact ? renderSalesMiscJobs() : renderMiscJobsList();
+  toast('Laporan tambahan disimpan'); closeAllModals(); await loadMiscJobs(); renderMiscJobsList();
 }
-async function completeMiscJob(jobId, compact=false){
-  const j = allMiscJobs.find(x=>x.id===jobId); if(!j) return;
-  if(!canEditMiscJob(j)){ toast('Tidak punya akses edit pekerjaan ini'); return; }
-  try{
-    if(window._miscJobsRemoteOK !== false) await sb.from('misc_jobs').update({status:'Selesai', completed_at:new Date().toISOString(), updated_at:new Date().toISOString()}).eq('id',jobId);
-    else throw new Error('local fallback');
-  }catch(e){
-    let rows=[]; try{ rows=JSON.parse(localStorage.getItem(miscJobsLSKey())||'[]'); }catch(_){}
-    rows = rows.map(x=>x.id===jobId ? {...x,status:'Selesai',completed_at:new Date().toISOString(),updated_at:new Date().toISOString()} : x);
-    await persistMiscJobsLocal(rows); window._miscJobsRemoteOK=false;
-  }
-  toast('Pekerjaan selesai'); await loadMiscJobs(); compact ? renderSalesMiscJobs() : renderMiscJobsList();
+async function verifyMiscReport(jobId){
+  if(!isAdmin()) return;
+  try{ await sb.from('misc_jobs').update({status:'Diverifikasi', updated_at:new Date().toISOString()}).eq('id',jobId); }
+  catch(e){ toast('Gagal verifikasi: '+(e.message||e)); return; }
+  toast('Laporan diverifikasi untuk KPI'); await loadMiscJobs(); renderMiscJobsList();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6566,12 +6695,12 @@ const ROLE_HINTS = {
   owner: ['Akses penuh semua modul, termasuk nilai PO, user, audit, laporan, dan konfigurasi.', 'Bisa membuat/mengedit/menghapus data inti serta membuka semua dokumen yang dibatasi.', 'Gunakan role ini hanya untuk pemilik/penanggung jawab utama sistem.'],
   admin: ['Mengelola operasional harian: Pre-Project, PO, assign PIC, produksi, service, BOM, laporan, dan user.', 'Buat data baru dari tombol +/Baru, edit dari tombol Edit atau buka detail baris, dan simpan perubahan dari modal.', 'Tidak disarankan dipakai untuk user lapangan biasa karena aksesnya luas.'],
   direktur: ['Mode monitoring dan approval: melihat statistik, PO, progress produksi, service, dan laporan.', 'Gunakan dashboard untuk mengecek keterlambatan, PIC, status, dan dokumen penting.', 'Tidak difokuskan untuk input teknis harian, kecuali akses tambahan diberikan.'],
-  sales: ['Membuat request Drawing/BOM dari form sales, upload dokumen customer, lalu memantau Request Saya.', 'Isi customer, project/PO, jenis output, catatan, dan lampirkan spec/SLD sebelum kirim.', 'Sales tetap bisa menambahkan Pekerjaan Lainnya seperti follow-up, bersih-bersih, atau bantuan umum.'],
+  sales: ['Membuat request Drawing/BOM dari form sales, upload dokumen customer, lalu memantau Request Saya.', 'Isi customer, project/PO, jenis output, catatan, dan lampirkan spec/SLD sebelum kirim.', 'Sales tidak mengisi Laporan Tambahan; fokus pada request customer dan kelengkapan dokumen.'],
   engineering: ['Mengerjakan Pre-Project/ETS dan upload hasil drawing/BOM.', 'Buka detail request, cek dokumen customer, upload hasil, lalu update status sesuai progress.', 'Bisa diberi akses tambahan melalui Akses Modul Custom.'],
-  produksi: ['Mengerjakan item produksi yang di-assign, update progress produksi dan QC sesuai pekerjaan.', 'Buka item dari menu Produksi, isi laporan/foto, lalu ubah status bertahap sampai selesai.', 'Bisa menambahkan pekerjaan non-role di menu Pekerjaan Lainnya.'],
+  produksi: ['Mengerjakan item produksi yang di-assign, update progress produksi dan QC sesuai pekerjaan.', 'Buka item dari menu Produksi, isi laporan/foto, lalu ubah status bertahap sampai selesai.', 'Bila melakukan pekerjaan tambahan di luar produksi, laporkan di menu Laporan Tambahan dengan foto before-after.'],
   logistik: ['Mengelola kebutuhan logistik/pengiriman terkait PO.', 'Cek PO yang perlu material/delivery, update catatan dan status logistik sesuai kondisi lapangan.', 'Akses tambahan dapat dicentang bila perlu membantu modul lain.'],
-  teknisi: ['Menangani service, instalasi, commissioning, SAT, BAST, dan laporan lapangan.', 'Buka tiket/tugas, isi aktivitas, upload foto/dokumen, lalu update status sampai selesai.', 'Untuk pekerjaan umum di luar tiket, gunakan Pekerjaan Lainnya.'],
-  other: ['Role umum untuk helper/pekerjaan tambahan seperti bersih-bersih, bantu packing, rapikan workshop, antar dokumen, atau tugas non-divisi.', 'Akses modul utama bisa dikosongkan; user tetap dapat membuka Pekerjaan Lainnya.', 'Admin dapat memberi modul tambahan bila user ini sesekali membantu produksi, service, atau logistik.']
+  teknisi: ['Menangani service, instalasi, commissioning, SAT, BAST, dan laporan lapangan.', 'Buka tiket/tugas, isi aktivitas, upload foto/dokumen, lalu update status sampai selesai.', 'Untuk pekerjaan umum di luar tiket, buat Laporan Tambahan dengan foto before-after agar masuk KPI.'],
+  other: ['Role umum untuk helper/pekerjaan tambahan seperti bersih-bersih, bantu packing, rapikan workshop, antar dokumen, atau tugas non-divisi.', 'Akses modul utama bisa dikosongkan; user tetap dapat membuat Laporan Tambahan untuk KPI pribadi.', 'Admin dapat memberi modul tambahan bila user ini sesekali membantu produksi, service, atau logistik.']
 };
 function renderRoleHints(selectedRole='') {
   const roles = Object.keys(ROLE_HINTS).filter(r => !selectedRole || r === selectedRole);
@@ -6594,7 +6723,7 @@ async function renderUsersModule() {
     </div>
     <div class="page-body">
       <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;color:var(--blue-text);font-size:13px;line-height:1.55">
-        <b>Panduan role:</b> semua user otomatis mendapat menu <b>Pekerjaan Lainnya</b> untuk tugas di luar role utama, misalnya bersih-bersih, bantu packing, rapikan workshop, atau pekerjaan tambahan lain.
+        <b>Panduan role:</b> user selain <b>Sales</b> dan <b>Direktur</b> dapat membuat <b>Laporan Tambahan</b> untuk pekerjaan yang dilakukan sendiri di luar role utama. Laporan harus berisi catatan dan foto before-after agar masuk KPI pelapor.
       </div>
       <div class="table-card">
         <div class="table-wrap">
@@ -6721,7 +6850,7 @@ async function openUserForm(userId) {
           <option value="">-- Pilih Role --</option>
           ${roles.map(r => `<option value="${r}" ${u?.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`).join('')}
         </select>
-        <div class="form-hint">Pilih role utama. Pekerjaan tambahan di luar role tetap bisa dibuat lewat menu Pekerjaan Lainnya.</div>
+        <div class="form-hint">Pilih role utama. Selain Sales dan Direktur, user bisa membuat Laporan Tambahan untuk pekerjaan di luar role.</div>
       </div>
       <div id="roleHintBox">${renderRoleHints(u?.role || '')}</div>
       <div class="form-row">
