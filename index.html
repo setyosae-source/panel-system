@@ -1780,21 +1780,211 @@ function renderLaporanRingkasan() {
   `;
 }
 
-// ── Placeholder untuk tab Per Divisi & Per Orang (akan dibangun di Fase 3C & 3D) ──
+// ── Tab: Per Divisi ──
 function renderLaporanDivisi() {
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:2rem;text-align:center;color:var(--text3)">
-    <div style="font-size:32px;margin-bottom:.5rem">🏢</div>
-    <div style="font-weight:600;color:var(--text);margin-bottom:.25rem">Tab Per Divisi — Coming Soon</div>
-    <div style="font-size:12px">Fase 3C — Detail KPI per divisi (Engineering, Produksi, Service, Instalasi, Sales)</div>
-  </div>`;
+  const d = laporanState.data;
+  const divisi = d.per_divisi || {};
+  const orang = d.per_orang || [];
+
+  if (Object.keys(divisi).length === 0) {
+    return noData('Belum ada aktivitas tercatat untuk periode ini');
+  }
+
+  // KPI relevant per divisi
+  const DIVISI_KPI = {
+    sales:       [['pp_submitted','PP Diajukan'],['pp_closed','PP Closed']],
+    engineering: [['pp_closed','PP Closed'],['bom_created','BOM Dibuat']],
+    produksi:    [['produksi_items','Items Selesai'],['qc_pass','QC Pass'],['qc_fail','QC Fail'],['material_req','Material Req']],
+    teknisi:     [['service_tickets','Service Closed'],['instalasi_tasks','Instalasi Done'],['bast_signed','BAST Signed']],
+    logistik:    [['material_req','Material Req']],
+    direktur:    [['service_tickets','Service Review']],
+    admin:       [['pp_closed','PP Closed'],['produksi_items','Items'],['service_tickets','Tickets']],
+    owner:       [['pp_closed','PP'],['produksi_items','Items'],['service_tickets','Service']]
+  };
+
+  // Render card per divisi
+  const cards = Object.entries(divisi)
+    .sort((a,b) => (b[1].total_skor||0) - (a[1].total_skor||0))
+    .map(([role, data]) => {
+      const color = ROLE_COLOR_LAPORAN[role] || '#64748b';
+      const label = ROLE_LABEL_LAPORAN[role] || role;
+
+      // Top performer di divisi ini
+      const performers = orang.filter(o => o.role === role)
+        .sort((a,b) => (b.skor||0) - (a.skor||0))
+        .slice(0, 5);
+
+      const kpiList = (DIVISI_KPI[role] || []).map(([key,lbl]) => `
+        <div style="background:#f8fafc;border-radius:6px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">${lbl}</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text)">${data[key] || 0}</div>
+        </div>`).join('');
+
+      const topPerf = performers.length === 0 ? '<div style="font-size:12px;color:var(--text3);padding:8px 0">Belum ada personel aktif</div>' :
+        performers.map((p, i) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:22px;height:22px;background:${i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#fb923c':'#e2e8f0'};color:${i<3?'#fff':'#475569'};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</div>
+              <span style="font-weight:500">${escapeHtml(p.nama)}</span>
+            </div>
+            <span style="font-weight:600;color:${color}">${p.skor}</span>
+          </div>`).join('');
+
+      return `
+        <div style="background:var(--surface);border:1px solid var(--border);border-top:4px solid ${color};border-radius:var(--r-sm);padding:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
+            <div>
+              <div style="font-size:15px;font-weight:700;color:${color}">${label}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">${data.total_user_aktif||0} personel aktif</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Total Skor</div>
+              <div style="font-size:22px;font-weight:700;color:${color}">${data.total_skor||0}</div>
+            </div>
+          </div>
+
+          ${kpiList ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:.75rem">${kpiList}</div>` : ''}
+
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:4px;margin-top:8px">🏆 Top Performer</div>
+          ${topPerf}
+        </div>`;
+    }).join('');
+
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">${cards}</div>`;
 }
 
+// ── Tab: Per Orang ──
+let laporanOrangSort = 'skor';
+let laporanOrangDir  = 'desc';
+let laporanOrangExpanded = null;
+
 function renderLaporanOrang() {
-  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:2rem;text-align:center;color:var(--text3)">
-    <div style="font-size:32px;margin-bottom:.5rem">👤</div>
-    <div style="font-weight:600;color:var(--text);margin-bottom:.25rem">Tab Per Orang — Coming Soon</div>
-    <div style="font-size:12px">Fase 3D — Drill-down per personel dengan detail aktivitas lintas-modul</div>
-  </div>`;
+  const orang = (laporanState.data.per_orang || []).slice();
+
+  if (orang.length === 0) {
+    return noData('Belum ada personel dengan aktivitas tercatat untuk periode ini');
+  }
+
+  // Sort
+  orang.sort((a,b) => {
+    const va = a[laporanOrangSort], vb = b[laporanOrangSort];
+    if (typeof va === 'string') return laporanOrangDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return laporanOrangDir==='asc' ? (va||0)-(vb||0) : (vb||0)-(va||0);
+  });
+
+  const sortBtn = (key, label) => {
+    const active = laporanOrangSort === key;
+    const arrow = active ? (laporanOrangDir==='desc'?' ▼':' ▲') : '';
+    return `<th style="padding:8px;text-align:center;cursor:pointer;font-size:11px;font-weight:600;color:${active?'var(--primary)':'var(--text2)'};text-transform:uppercase;white-space:nowrap" onclick="sortLaporanOrang('${key}')">${label}${arrow}</th>`;
+  };
+
+  const rows = orang.map((o, idx) => {
+    const color = ROLE_COLOR_LAPORAN[o.role] || '#64748b';
+    const label = ROLE_LABEL_LAPORAN[o.role] || o.role;
+    const initial = (o.nama||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const rankBg = idx===0?'#fbbf24':idx===1?'#94a3b8':idx===2?'#fb923c':'#f1f5f9';
+    const rankFg = idx<3?'#fff':'#475569';
+    const isExpanded = laporanOrangExpanded === o.user_id;
+
+    const detailRow = !isExpanded ? '' : `
+      <tr style="background:#f8fafc">
+        <td colspan="10" style="padding:1rem 1.5rem">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+            ${detailKPI('PP Submitted', o.pp_submitted)}
+            ${detailKPI('PP Closed',    o.pp_closed)}
+            ${detailKPI('BOM Created',  o.bom_created)}
+            ${detailKPI('Items Produksi', o.produksi_items, o.produksi_avg_lead_days ? `${o.produksi_avg_lead_days} hari/item` : '')}
+            ${detailKPI('QC Total', o.qc_total, o.qc_total ? `${o.qc_pass} pass / ${o.qc_fail} fail` : '')}
+            ${detailKPI('Material Req', o.material_req)}
+            ${detailKPI('Service Tickets', o.service_tickets, o.service_avg_sla ? `SLA ${o.service_avg_sla} hari` : '')}
+            ${detailKPI('Instalasi Tasks', o.instalasi_tasks)}
+            ${detailKPI('BAST Signed', o.bast_signed)}
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr style="border-top:1px solid var(--border);cursor:pointer;transition:background .1s" onclick="toggleLaporanOrang('${o.user_id}')" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+        <td style="padding:10px;text-align:center"><div style="width:24px;height:24px;background:${rankBg};color:${rankFg};border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${idx+1}</div></td>
+        <td style="padding:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:30px;height:30px;background:${color};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${initial}</div>
+            <div>
+              <div style="font-weight:600;font-size:13px">${escapeHtml(o.nama)}</div>
+              <div style="font-size:10px;color:${color};font-weight:600">${label}</div>
+            </div>
+            <span style="margin-left:auto;color:var(--text3);font-size:11px">${isExpanded?'▲':'▼'}</span>
+          </div>
+        </td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.pp_submitted||0}/${o.pp_closed||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.bom_created||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.produksi_items||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.qc_pass||0}/${o.qc_fail||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.service_tickets||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.instalasi_tasks||0}</td>
+        <td style="padding:10px;text-align:center;font-size:13px">${o.bast_signed||0}</td>
+        <td style="padding:10px;text-align:center;font-size:15px;font-weight:700;color:${color}">${o.skor||0}</td>
+      </tr>
+      ${detailRow}`;
+  }).join('');
+
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">
+      <div style="padding:1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:14px;font-weight:600">Ranking Per Orang</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${orang.length} personel aktif • Klik baris untuk detail</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">Sort by column header</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px">
+          <thead style="background:#f8fafc;border-bottom:2px solid var(--border)">
+            <tr>
+              <th style="padding:8px;text-align:center;font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:600">#</th>
+              ${sortBtn('nama','Nama')}
+              ${sortBtn('pp_submitted','PP S/C')}
+              ${sortBtn('bom_created','BOM')}
+              ${sortBtn('produksi_items','Produksi')}
+              ${sortBtn('qc_pass','QC P/F')}
+              ${sortBtn('service_tickets','Service')}
+              ${sortBtn('instalasi_tasks','Instalasi')}
+              ${sortBtn('bast_signed','BAST')}
+              ${sortBtn('skor','Skor')}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function detailKPI(label, value, sub) {
+  return `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">${label}</div>
+      <div style="font-size:18px;font-weight:700">${value||0}</div>
+      ${sub ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${sub}</div>` : ''}
+    </div>`;
+}
+
+function sortLaporanOrang(key) {
+  if (laporanOrangSort === key) {
+    laporanOrangDir = laporanOrangDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    laporanOrangSort = key;
+    laporanOrangDir = 'desc';
+  }
+  renderLaporanBody();
+}
+
+function toggleLaporanOrang(userId) {
+  laporanOrangExpanded = laporanOrangExpanded === userId ? null : userId;
+  renderLaporanBody();
+}
+
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 
