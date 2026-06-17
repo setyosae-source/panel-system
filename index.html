@@ -777,7 +777,7 @@ async function renderPPModule() {
       <div class="table-card">
         <div class="table-wrap">
           <table><colgroup><col style="width:14%"><col style="width:11%"><col style="width:18%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup>
-          <thead><tr><th style="width:25%;min-width:90px">No. Request</th><th style="width:35%">Customer</th><th style="width:35%">Project</th><th style="width:5%;min-width:30px"></th></tr></thead>
+          <thead><tr><th style="width:20%;min-width:90px">No. Request</th><th style="width:28%">Customer</th><th style="width:28%">Project</th><th style="width:19%">Requestor</th><th style="width:5%;min-width:30px"></th></tr></thead>
           <tbody id="ppTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
@@ -822,14 +822,14 @@ function renderPPTable() {
 
   const tbody = document.getElementById('ppTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada request')}</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada request')}</td></tr>`; return; }
 
   tbody.innerHTML = rows.map(r => {
     const isExpanded = _ppExpandedId === r.id;
     const arrow = isExpanded ? '▲' : '▼';
     const detailRow = !isExpanded ? '' : `
       <tr class="pp-detail-row">
-        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+        <td colspan="5" style="background:#f8fafc;padding:14px 16px;border-top:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tanggal</div><div style="margin-top:2px;font-weight:500">${fmtDate(r.date)}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${r.project_name || '—'}</div></div>
@@ -849,6 +849,7 @@ function renderPPTable() {
         <td class="mono" style="font-weight:500">${r.id}</td>
         <td>${r.customer_name || '—'}</td>
         <td style="color:var(--text2)">${r.project_name || '—'}</td>
+        <td style="color:var(--text2);font-size:11px">${r.app_users?.full_name || '—'}</td>
         <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
       </tr>
       ${detailRow}`;
@@ -1468,7 +1469,7 @@ async function saveMyRequest(reqId) {
 // ═══════════════════════════════════════════════════════════
 // PO MODULE
 // ═══════════════════════════════════════════════════════════
-let poFilter = [], poSearch = '', poSort = { field: 'tgl_po', dir: 'desc' };
+let poFilter = [], poSearch = '', poSort = { field: 'no_project', dir: 'desc' };
 const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'Pengiriman', 'Instalasi', 'Commissioning', 'Selesai'];
 
 
@@ -3710,10 +3711,10 @@ function _buildEtsTable(allItems, dsItemIds) {
   const st = tblState('ets');
   filtered = tblFilterBySearch(filtered, st.search);
 
-  // Sort: PO terbaru di atas
+  // Sort: No. Project desc (terbaru di atas)
   filtered.sort((a, b) => {
-    const da = a.po.tgl_po || a.po.created_at || '';
-    const db = b.po.tgl_po || b.po.created_at || '';
+    const da = a.po.no_project || a.po.no_po || '';
+    const db = b.po.no_project || b.po.no_po || '';
     return db.localeCompare(da);
   });
 
@@ -3734,6 +3735,7 @@ function _buildEtsTable(allItems, dsItemIds) {
       <tr class="ets-detail-row">
         <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. PO</div><div class="mono" style="margin-top:2px;font-weight:500">${po.no_po}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${po.project_name || '—'}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Serial Number</div><div class="mono" style="margin-top:2px;font-weight:500">${item.serial_number || '—'}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status ETS</div><div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap">${statusBadges}</div></div>
@@ -3750,7 +3752,7 @@ function _buildEtsTable(allItems, dsItemIds) {
 
     return `
       <tr onclick="toggleEtsRow('${item.id}')" style="cursor:pointer">
-        <td class="mono" style="font-weight:500">${po.no_po}</td>
+        <td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>
         <td>${po.customer_name || '—'}</td>
         <td>${itemLabel}</td>
         <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
@@ -3810,7 +3812,7 @@ async function renderETSList() {
         <table style="width:100%">
           <thead>
             <tr>
-              <th style="width:25%;min-width:90px">No. PO</th>
+              <th style="width:25%;min-width:90px">No. Project</th>
               <th style="width:35%">Customer</th>
               <th style="width:35%">Item</th>
               <th style="width:5%;min-width:30px"></th>
@@ -3871,10 +3873,10 @@ function _buildProdTable(tasks) {
   const st = tblState('prod');
   const filtered = tblFilterBySearch(tasks, st.search);
 
-  // Sort: PO terbaru di atas (by tgl_po desc, fallback created_at desc)
+  // Sort: No. Project desc (terbaru di atas)
   filtered.sort((a, b) => {
-    const da = a.po.tgl_po || a.po.created_at || '';
-    const db = b.po.tgl_po || b.po.created_at || '';
+    const da = a.po.no_project || a.po.no_po || '';
+    const db = b.po.no_project || b.po.no_po || '';
     return db.localeCompare(da);
   });
 
@@ -3894,6 +3896,7 @@ function _buildProdTable(tasks) {
       <tr class="prod-detail-row">
         <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. PO</div><div class="mono" style="margin-top:2px;font-weight:500">${po.no_po}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${po.project_name || '—'}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Serial Number</div><div class="mono" style="margin-top:2px;font-weight:500">${item.serial_number || '—'}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px"><span style="font-size:11px;background:${sc.bg};color:${sc.color};padding:3px 8px;border-radius:4px;font-weight:600">${item.item_status || 'Belum Produksi'}</span></div></div>
@@ -3909,7 +3912,7 @@ function _buildProdTable(tasks) {
 
     return `
       <tr class="prod-summary-row" data-iid="${item.id}" onclick="toggleProdRow('${item.id}')" style="cursor:pointer">
-        <td class="mono" style="font-weight:500">${po.no_po}</td>
+        <td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>
         <td>${po.customer_name || '—'}</td>
         <td>${itemLabel}</td>
         <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
@@ -3956,7 +3959,7 @@ function renderProduksiList() {
         <table style="width:100%">
           <thead>
             <tr>
-              <th style="width:25%;min-width:90px">No. PO</th>
+              <th style="width:25%;min-width:90px">No. Project</th>
               <th style="width:35%">Customer</th>
               <th style="width:35%">Item</th>
               <th style="width:5%;min-width:30px"></th>
@@ -4012,9 +4015,9 @@ async function renderPOModule() {
         <div class="table-wrap">
           <table id="poTable" style="width:100%">
           <thead><tr>
-            <th style="width:25%;min-width:100px">No. PO</th>
-            <th style="width:35%">Customer</th>
-            <th style="width:35%">Project</th>
+            <th style="width:25%;min-width:100px;cursor:pointer" onclick="sortPO('no_project')">No. Project <span id="parr_no_project"></span></th>
+            <th style="width:35%;cursor:pointer" onclick="sortPO('customer_name')">Customer <span id="parr_customer_name"></span></th>
+            <th style="width:35%;cursor:pointer" onclick="sortPO('project_name')">Project <span id="parr_project_name"></span></th>
             <th style="width:5%;min-width:30px"></th>
           </tr></thead>
           <tbody id="poTableBody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
@@ -4032,6 +4035,50 @@ async function loadPOs() {
   renderPOTable();
   const nbPO = document.getElementById('nbPO');
   if (nbPO) nbPO.textContent = allPOs.filter(p => p.status !== 'Selesai').length;
+  updateNavBadges();
+}
+
+function updateNavBadges() {
+  const me = currentUser;
+  if (!me) return;
+
+  // ── nbPROD: items produksi assigned ke saya yang belum selesai ──
+  let prodCount = 0;
+  (allPOs || []).forEach(p => {
+    (p.po_items || []).forEach(it => {
+      const isMyPic = (p.po_pic || []).some(x => x.item_id === it.id && x.stage === 'Produksi' && x.user_id === me.id);
+      const notDone = it.item_status !== 'Selesai Produksi';
+      if (isMyPic && notDone && it.is_produksi) prodCount++;
+    });
+  });
+  const nbPROD = document.getElementById('nbPROD');
+  if (nbPROD) nbPROD.textContent = prodCount;
+
+  // ── nbETS: items needs_ets yang belum punya SN ──
+  let etsCount = 0;
+  (allPOs || []).forEach(p => {
+    (p.po_items || []).filter(it => it.needs_ets).forEach(it => {
+      if (!it.serial_number) etsCount++;
+    });
+  });
+  const nbETS = document.getElementById('nbETS');
+  if (nbETS) nbETS.textContent = etsCount;
+
+  // ── nbASSIGN: items produksi/instalasi yang belum di-assign ──
+  let assignCount = 0;
+  (allPOs || []).forEach(p => {
+    if (p.status === 'Selesai') return;
+    (p.po_items || []).filter(it => it.is_produksi).forEach(it => {
+      const pics = (p.po_pic || []).filter(x => x.item_id === it.id && x.stage === 'Produksi');
+      if (pics.length === 0) assignCount++;
+    });
+  });
+  const nbASSIGN = document.getElementById('nbASSIGN');
+  if (nbASSIGN) nbASSIGN.textContent = assignCount;
+
+  // ── nbHome: jumlah total tugas pending untuk saya (sum semua card) ──
+  const nbHome = document.getElementById('nbHome');
+  if (nbHome) nbHome.textContent = prodCount;
 }
 
 function renderPOStats() {
@@ -4058,11 +4105,15 @@ function initColResize(e, colIdx, colId) {
 
 function sortPO(field) {
   if (poSort.field === field) poSort.dir = poSort.dir === 'asc' ? 'desc' : 'asc';
-  else { poSort.field = field; poSort.dir = 'asc'; }
-  document.querySelectorAll('.sort-arrow').forEach(el => { el.textContent = ''; el.classList.remove('active'); });
-  const arr = document.getElementById('sarr_' + field);
-  if (arr) { arr.textContent = poSort.dir === 'asc' ? '▲' : '▼'; arr.classList.add('active'); }
+  else { poSort.field = field; poSort.dir = 'desc'; }
   renderPOTable();
+}
+
+function updatePOSortArrows() {
+  ['no_project', 'customer_name', 'project_name'].forEach(f => {
+    const el = document.getElementById('parr_' + f);
+    if (el) el.textContent = (poSort.field === f) ? (poSort.dir === 'asc' ? '▲' : '▼') : '';
+  });
 }
 
 let _poExpandedId = null;
@@ -4093,7 +4144,7 @@ function renderPOTable() {
       <tr class="po-detail-row">
         <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. Project</div><div class="mono" style="margin-top:2px;font-weight:500;color:var(--accent)">${p.no_project || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. PO</div><div class="mono" style="margin-top:2px;font-weight:500">${p.no_po}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tgl PO</div><div style="margin-top:2px;font-weight:500">${fmtDate(p.tgl_po)}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Target Kirim</div><div style="margin-top:2px;color:${overdue ? 'var(--red)' : 'inherit'}">${fmtDate(p.tgl_target_kirim)}${overdue ? ' ⚠' : ''}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px"><span class="po-status-badge">${p.status || '—'}</span></div></div>
@@ -4108,13 +4159,14 @@ function renderPOTable() {
 
     return `
       <tr onclick="togglePORow('${p.id}')" style="cursor:pointer">
-        <td class="mono" style="font-weight:500">${p.no_po}</td>
+        <td class="mono" style="font-weight:500;color:var(--accent)">${p.no_project || p.no_po}</td>
         <td>${p.customer_name || '—'}</td>
         <td style="color:var(--text2)">${p.project_name || '—'}</td>
         <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
       </tr>
       ${detailRow}`;
   }).join('');
+  updatePOSortArrows();
 }
 
 function togglePORow(id) {
@@ -6927,31 +6979,77 @@ function renderBOMTab() {
 }
 
 // ─── TAB 1: DAFTAR BOM ──────────────────────────────────────
+let _bomExpandedId = null;
+
 function renderBOMList() {
   const lists = bomState.lists;
   if (!lists.length) return noData('Belum ada BOM. Buat BOM baru atau generate dari PP/PO.');
+
+  const q = bomState.search.toLowerCase();
+  let filtered = lists.filter(b => !q || [b.id, b.title, b.unit_category, b.description].join(' ').toLowerCase().includes(q));
+
+  // Sort: created_at desc (terbaru di atas)
+  filtered = filtered.slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+
+  if (!filtered.length) {
+    return `<div class="toolbar" style="margin-bottom:.75rem">
+      <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari title, kategori, customer..." value="${bomState.search}" oninput="bomState.search=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMList()"></div>
+    </div>${noData('Tidak ada hasil pencarian')}`;
+  }
+
+  const rows = filtered.map(b => {
+    const isExpanded = _bomExpandedId === b.id;
+    const arrow = isExpanded ? '▲' : '▼';
+    const itemCount = (b.bom_items || []).length;
+    const linkInfo = b.pp_request_id ? 'PP: ' + b.pp_request_id : (b.po_id ? 'PO: ' + b.po_id : '—');
+
+    const detailRow = !isExpanded ? '' : `
+      <tr class="bom-detail-row">
+        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">ID BOM</div><div class="mono" style="margin-top:2px;font-weight:500">${b.id}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Kategori</div><div style="margin-top:2px">${b.unit_category || '—'}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Items</div><div style="margin-top:2px;font-weight:500">${itemCount}</div></div>
+            ${can('nilai_po') ? `<div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Total</div><div style="margin-top:2px;font-weight:500">${fmtRp(b.total_price)}</div></div>` : ''}
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px">${badge(b.status)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tanggal</div><div style="margin-top:2px">${fmtDate(b.created_at)}</div></div>
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Link</div><div style="margin-top:2px">${linkInfo}</div></div>
+            ${b.description ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Deskripsi</div><div style="margin-top:2px">${escapeHtml(b.description)}</div></div>` : ''}
+          </div>
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" data-bid="${b.id}" onclick="event.stopPropagation();openBOMDetail(this.dataset.bid)">Buka Detail</button>
+          </div>
+        </td>
+      </tr>`;
+
+    return `
+      <tr onclick="toggleBOMRow('${b.id}')" style="cursor:pointer">
+        <td style="font-weight:500">${b.title}</td>
+        <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px;white-space:nowrap">${b.unit_category || '—'}</span></td>
+        <td style="text-align:center">${itemCount}</td>
+        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+      </tr>
+      ${detailRow}`;
+  }).join('');
+
   return `
     <div class="toolbar" style="margin-bottom:.75rem">
       <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari title, kategori, customer..." value="${bomState.search}" oninput="bomState.search=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMList()"></div>
     </div>
-    <div class="table-card"><div class="table-wrap"><table>
-      <thead><tr><th>ID BOM</th><th>Title</th><th>Kategori</th><th>Items</th><th>Total</th><th>Link</th><th>Status</th><th>Tanggal</th></tr></thead>
-      <tbody>${lists.filter(b => {
-        const q = bomState.search.toLowerCase();
-        return !q || [b.id, b.title, b.unit_category, b.description].join(' ').toLowerCase().includes(q);
-      }).map(b => `
-        <tr onclick="openBOMDetail('${b.id}')" style="cursor:pointer">
-          <td class="mono">${b.id}</td>
-          <td style="font-weight:500">${b.title}</td>
-          <td><span style="font-size:11px;background:var(--surface2);padding:2px 7px;border-radius:4px">${b.unit_category || '—'}</span></td>
-          <td>${(b.bom_items || []).length}</td>
-          <td>${can('nilai_po') ? fmtRp(b.total_price) : '—'}</td>
-          <td style="font-size:11px;color:var(--text3)">${b.pp_request_id ? 'PP: ' + b.pp_request_id : ''}${b.po_id ? 'PO: ' + b.po_id : ''}${!b.pp_request_id && !b.po_id ? '—' : ''}</td>
-          <td>${badge(b.status)}</td>
-          <td style="font-size:12px;color:var(--text3)">${fmtDate(b.created_at)}</td>
-        </tr>`).join('')}
-      </tbody>
+    <div class="table-card"><div class="table-wrap"><table style="width:100%">
+      <thead><tr>
+        <th style="width:45%;min-width:120px">Title</th>
+        <th style="width:30%">Kategori</th>
+        <th style="width:18%;text-align:center">Items</th>
+        <th style="width:5%;min-width:30px"></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
     </table></div></div>`;
+}
+
+function toggleBOMRow(id) {
+  _bomExpandedId = (_bomExpandedId === id) ? null : id;
+  document.getElementById('bomTabContent').innerHTML = renderBOMList();
 }
 
 // ─── TAB 2: TEMPLATE ───────────────────────────────────────
