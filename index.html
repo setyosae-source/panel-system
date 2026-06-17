@@ -1665,6 +1665,10 @@ function renderLaporanBody() {
       <select onchange="laporanState.month=parseInt(this.value);reloadLaporan()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px">${monthOpts}</select>
       <select onchange="laporanState.year=parseInt(this.value);reloadLaporan()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px">${yearOpts.join('')}</select>
       <div style="flex:1"></div>
+      ${can('laporan_export') ? `
+        <button class="btn btn-sm" onclick="exportLaporanExcel()" style="font-size:12px">📊 Excel</button>
+        <button class="btn btn-sm" onclick="printLaporanPDF()" style="font-size:12px">🖨 PDF</button>
+      ` : ''}
       <div style="font-size:11px;color:var(--text3)">Generated: ${d.generated_at || '—'}</div>
     </div>
 
@@ -1985,6 +1989,278 @@ function toggleLaporanOrang(userId) {
 
 function escapeHtml(s) {
   return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── EXPORT: Excel multi-sheet ──
+function exportLaporanExcel() {
+  const XLSX = window.XLSX;
+  if (!XLSX) { toast('Library Excel belum siap'); return; }
+
+  const d = laporanState.data;
+  if (!d) { toast('Data belum ter-load'); return; }
+
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const periodLabel = `${monthNames[laporanState.month-1]} ${laporanState.year}`;
+  const tgl = fmtDate(new Date().toISOString());
+
+  const wb = XLSX.utils.book_new();
+
+  // Styling helper
+  const HEADER_FILL  = { patternType:'solid', fgColor:{ rgb:'2C3E50' }};
+  const HEADER_FONT  = { bold:true, color:{ rgb:'FFFFFF' }, sz:11 };
+  const SECTION_FILL = { patternType:'solid', fgColor:{ rgb:'D6E5F5' }};
+  const SECTION_FONT = { bold:true, sz:11 };
+  const BORDER_THIN  = { top:{style:'thin',color:{rgb:'CCCCCC'}}, bottom:{style:'thin',color:{rgb:'CCCCCC'}}, left:{style:'thin',color:{rgb:'CCCCCC'}}, right:{style:'thin',color:{rgb:'CCCCCC'}} };
+
+  // ═══════ SHEET 1: RINGKASAN ═══════
+  const org = d.org_summary || {};
+  const orang = d.per_orang || [];
+  const divisi = d.per_divisi || {};
+
+  const totals = orang.reduce((a,o) => {
+    a.pp_submitted += o.pp_submitted||0; a.pp_closed += o.pp_closed||0;
+    a.bom_created += o.bom_created||0; a.produksi += o.produksi_items||0;
+    a.qc_pass += o.qc_pass||0; a.qc_fail += o.qc_fail||0;
+    a.service += o.service_tickets||0; a.instalasi += o.instalasi_tasks||0;
+    a.bast += o.bast_signed||0; a.material += o.material_req||0;
+    return a;
+  }, {pp_submitted:0,pp_closed:0,bom_created:0,produksi:0,qc_pass:0,qc_fail:0,service:0,instalasi:0,bast:0,material:0});
+
+  const qcRate = (totals.qc_pass+totals.qc_fail) > 0 ? Math.round(totals.qc_pass*100/(totals.qc_pass+totals.qc_fail)) : 0;
+
+  const aoa1 = [
+    ['LAPORAN BULANAN — SAE ENERGY'],
+    [`Periode: ${periodLabel}`],
+    [`Tanggal Cetak: ${tgl}`],
+    [],
+    ['RINGKASAN ORGANISASI'],
+    ['Indikator','Nilai'],
+    ['PO Masuk', org.po_masuk||0],
+    ['Total Nilai PO', org.po_nilai||0],
+    [],
+    ['AGREGAT KINERJA TOTAL'],
+    ['Indikator','Nilai','Catatan'],
+    ['PP Diajukan', totals.pp_submitted, ''],
+    ['PP Closed', totals.pp_closed, ''],
+    ['BOM Dibuat', totals.bom_created, ''],
+    ['Items Produksi Selesai', totals.produksi, ''],
+    ['QC Pass', totals.qc_pass, `Rate: ${qcRate}%`],
+    ['QC Fail', totals.qc_fail, ''],
+    ['Material Request', totals.material, ''],
+    ['Service Tickets Closed', totals.service, ''],
+    ['Instalasi Tasks Selesai', totals.instalasi, ''],
+    ['BAST Signed', totals.bast, ''],
+    [],
+    ['SKOR PRODUKTIVITAS PER DIVISI'],
+    ['Divisi','User Aktif','Total Skor']
+  ];
+  Object.entries(divisi)
+    .sort((a,b)=>(b[1].total_skor||0)-(a[1].total_skor||0))
+    .forEach(([role, data]) => {
+      aoa1.push([ROLE_LABEL_LAPORAN[role]||role, data.total_user_aktif||0, data.total_skor||0]);
+    });
+
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa1);
+  ws1['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:2}}, {s:{r:1,c:0},e:{r:1,c:2}}, {s:{r:2,c:0},e:{r:2,c:2}},
+    {s:{r:4,c:0},e:{r:4,c:2}}, {s:{r:9,c:0},e:{r:9,c:2}}, {s:{r:22,c:0},e:{r:22,c:2}}
+  ];
+  ws1['!cols'] = [{wch:32},{wch:18},{wch:25}];
+
+  // Style title row
+  ['A1'].forEach(addr => { if(ws1[addr]) ws1[addr].s = { font:{bold:true,sz:14}, alignment:{horizontal:'center'}}; });
+  // Style section headers
+  ['A5','A10','A23'].forEach(addr => { if(ws1[addr]) ws1[addr].s = { fill:HEADER_FILL, font:HEADER_FONT, alignment:{horizontal:'center'}}; });
+  // Style column headers
+  [['A6','B6'], ['A11','B11','C11'], ['A24','B24','C24']].forEach(row => {
+    row.forEach(addr => { if(ws1[addr]) ws1[addr].s = { fill:SECTION_FILL, font:SECTION_FONT, border:BORDER_THIN }; });
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws1, 'Ringkasan');
+
+  // ═══════ SHEET 2: PER DIVISI ═══════
+  const aoa2 = [
+    ['LAPORAN PER DIVISI'],
+    [`Periode: ${periodLabel}`],
+    [],
+    ['Divisi','User Aktif','PP Diajukan','PP Closed','BOM','Items Produksi','QC Pass','QC Fail','Material Req','Service','Instalasi','BAST','Total Skor']
+  ];
+  Object.entries(divisi)
+    .sort((a,b)=>(b[1].total_skor||0)-(a[1].total_skor||0))
+    .forEach(([role, data]) => {
+      aoa2.push([
+        ROLE_LABEL_LAPORAN[role]||role,
+        data.total_user_aktif||0,
+        data.pp_submitted||0, data.pp_closed||0, data.bom_created||0,
+        data.produksi_items||0, data.qc_pass||0, data.qc_fail||0,
+        data.material_req||0, data.service_tickets||0, data.instalasi_tasks||0,
+        data.bast_signed||0, data.total_skor||0
+      ]);
+    });
+
+  const ws2 = XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:12}}, {s:{r:1,c:0},e:{r:1,c:12}}];
+  ws2['!cols'] = [{wch:16},{wch:11},{wch:13},{wch:11},{wch:8},{wch:14},{wch:9},{wch:9},{wch:13},{wch:10},{wch:11},{wch:8},{wch:12}];
+  if (ws2['A1']) ws2['A1'].s = { font:{bold:true,sz:14}, alignment:{horizontal:'center'}};
+  ['A4','B4','C4','D4','E4','F4','G4','H4','I4','J4','K4','L4','M4'].forEach(addr => {
+    if(ws2[addr]) ws2[addr].s = { fill:HEADER_FILL, font:HEADER_FONT, alignment:{horizontal:'center'}, border:BORDER_THIN };
+  });
+  XLSX.utils.book_append_sheet(wb, ws2, 'Per Divisi');
+
+  // ═══════ SHEET 3: PER ORANG ═══════
+  const aoa3 = [
+    ['LAPORAN PER ORANG'],
+    [`Periode: ${periodLabel}`],
+    [],
+    ['Rank','Nama','Divisi','PP Sub','PP Close','BOM','Produksi','Lead Day','QC Pass','QC Fail','Mat Req','Service','SLA Day','Instalasi','BAST','Skor']
+  ];
+  orang.sort((a,b)=>(b.skor||0)-(a.skor||0)).forEach((o, idx) => {
+    aoa3.push([
+      idx+1, o.nama, ROLE_LABEL_LAPORAN[o.role]||o.role,
+      o.pp_submitted||0, o.pp_closed||0, o.bom_created||0,
+      o.produksi_items||0, o.produksi_avg_lead_days||0,
+      o.qc_pass||0, o.qc_fail||0, o.material_req||0,
+      o.service_tickets||0, o.service_avg_sla||0,
+      o.instalasi_tasks||0, o.bast_signed||0, o.skor||0
+    ]);
+  });
+
+  const ws3 = XLSX.utils.aoa_to_sheet(aoa3);
+  ws3['!merges'] = [{s:{r:0,c:0},e:{r:0,c:15}}, {s:{r:1,c:0},e:{r:1,c:15}}];
+  ws3['!cols'] = [{wch:6},{wch:22},{wch:13},{wch:8},{wch:9},{wch:6},{wch:10},{wch:10},{wch:8},{wch:8},{wch:8},{wch:9},{wch:10},{wch:10},{wch:7},{wch:8}];
+  if (ws3['A1']) ws3['A1'].s = { font:{bold:true,sz:14}, alignment:{horizontal:'center'}};
+  ['A4','B4','C4','D4','E4','F4','G4','H4','I4','J4','K4','L4','M4','N4','O4','P4'].forEach(addr => {
+    if(ws3[addr]) ws3[addr].s = { fill:HEADER_FILL, font:HEADER_FONT, alignment:{horizontal:'center'}, border:BORDER_THIN };
+  });
+  // Freeze panes row 5
+  ws3['!freeze'] = { xSplit:0, ySplit:4 };
+
+  XLSX.utils.book_append_sheet(wb, ws3, 'Per Orang');
+
+  // Save
+  const filename = `Laporan_SAE_${laporanState.year}-${String(laporanState.month).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  toast('Excel berhasil diunduh');
+}
+
+// ── EXPORT: PDF via print window ──
+function printLaporanPDF() {
+  const d = laporanState.data;
+  if (!d) { toast('Data belum ter-load'); return; }
+
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const periodLabel = `${monthNames[laporanState.month-1]} ${laporanState.year}`;
+  const tgl = fmtDate(new Date().toISOString());
+
+  const org = d.org_summary || {};
+  const orang = (d.per_orang || []).slice().sort((a,b)=>(b.skor||0)-(a.skor||0));
+  const divisi = d.per_divisi || {};
+
+  const totals = orang.reduce((a,o) => {
+    a.pp_submitted += o.pp_submitted||0; a.pp_closed += o.pp_closed||0;
+    a.bom_created += o.bom_created||0; a.produksi += o.produksi_items||0;
+    a.qc_pass += o.qc_pass||0; a.qc_fail += o.qc_fail||0;
+    a.service += o.service_tickets||0; a.instalasi += o.instalasi_tasks||0;
+    a.bast += o.bast_signed||0;
+    return a;
+  }, {pp_submitted:0,pp_closed:0,bom_created:0,produksi:0,qc_pass:0,qc_fail:0,service:0,instalasi:0,bast:0});
+
+  const divisiRows = Object.entries(divisi)
+    .sort((a,b)=>(b[1].total_skor||0)-(a[1].total_skor||0))
+    .map(([role, data]) => `
+      <tr>
+        <td><b>${ROLE_LABEL_LAPORAN[role]||role}</b></td>
+        <td>${data.total_user_aktif||0}</td>
+        <td>${data.pp_closed||0}</td>
+        <td>${data.bom_created||0}</td>
+        <td>${data.produksi_items||0}</td>
+        <td>${data.service_tickets||0}</td>
+        <td>${data.instalasi_tasks||0}</td>
+        <td>${data.bast_signed||0}</td>
+        <td style="text-align:right"><b>${data.total_skor||0}</b></td>
+      </tr>`).join('');
+
+  const orangRows = orang.map((o, idx) => `
+    <tr>
+      <td style="text-align:center">${idx+1}</td>
+      <td>${escapeHtml(o.nama)}</td>
+      <td>${ROLE_LABEL_LAPORAN[o.role]||o.role}</td>
+      <td>${o.pp_submitted||0}/${o.pp_closed||0}</td>
+      <td>${o.bom_created||0}</td>
+      <td>${o.produksi_items||0}</td>
+      <td>${o.qc_pass||0}/${o.qc_fail||0}</td>
+      <td>${o.service_tickets||0}</td>
+      <td>${o.instalasi_tasks||0}</td>
+      <td>${o.bast_signed||0}</td>
+      <td style="text-align:right"><b>${o.skor||0}</b></td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Laporan SAE — ${periodLabel}</title>
+    <style>
+      @page { size:A4; margin:1.2cm; }
+      body { font-family:Arial,sans-serif; font-size:10pt; color:#1e293b; margin:0; }
+      h1 { font-size:16pt; margin:0 0 4px; text-align:center; }
+      h2 { font-size:12pt; margin:16px 0 6px; padding:4px 8px; background:#2C3E50; color:#fff; }
+      .meta { text-align:center; font-size:9pt; color:#64748b; margin-bottom:14px; }
+      table { width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:8px; }
+      th { background:#D6E5F5; padding:5px 6px; border:1px solid #94a3b8; text-align:center; font-weight:700; }
+      td { padding:4px 6px; border:1px solid #cbd5e1; }
+      .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px; }
+      .kpi { border:1px solid #94a3b8; padding:6px 8px; }
+      .kpi .lbl { font-size:8pt; color:#64748b; text-transform:uppercase; font-weight:700; }
+      .kpi .val { font-size:14pt; font-weight:700; }
+      .footer { font-size:8pt; color:#94a3b8; text-align:center; margin-top:14px; }
+      @media print { .no-print { display:none; } }
+      .no-print { padding:12px; background:#fef3c7; border-bottom:1px solid #f59e0b; text-align:center; }
+      .no-print button { padding:6px 14px; font-size:12pt; cursor:pointer; }
+    </style></head><body>
+    <div class="no-print">
+      <button onclick="window.print()">🖨 Print / Save as PDF</button>
+      &nbsp;&nbsp;<button onclick="window.close()">Tutup</button>
+    </div>
+
+    <h1>LAPORAN BULANAN — SAE ENERGY</h1>
+    <div class="meta">Periode: <b>${periodLabel}</b> • Tanggal Cetak: ${tgl}</div>
+
+    <h2>Ringkasan Organisasi</h2>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="lbl">PO Masuk</div><div class="val">${org.po_masuk||0}</div></div>
+      <div class="kpi"><div class="lbl">Total Nilai</div><div class="val">${fmtRp(org.po_nilai)}</div></div>
+      <div class="kpi"><div class="lbl">PP S/C</div><div class="val">${totals.pp_submitted}/${totals.pp_closed}</div></div>
+      <div class="kpi"><div class="lbl">BOM</div><div class="val">${totals.bom_created}</div></div>
+      <div class="kpi"><div class="lbl">Produksi</div><div class="val">${totals.produksi}</div></div>
+      <div class="kpi"><div class="lbl">QC P/F</div><div class="val">${totals.qc_pass}/${totals.qc_fail}</div></div>
+      <div class="kpi"><div class="lbl">Service</div><div class="val">${totals.service}</div></div>
+      <div class="kpi"><div class="lbl">Instalasi</div><div class="val">${totals.instalasi}</div></div>
+    </div>
+
+    <h2>Per Divisi</h2>
+    <table>
+      <thead><tr>
+        <th>Divisi</th><th>User Aktif</th><th>PP Close</th><th>BOM</th><th>Produksi</th>
+        <th>Service</th><th>Instalasi</th><th>BAST</th><th>Skor</th>
+      </tr></thead>
+      <tbody>${divisiRows || '<tr><td colspan="9" style="text-align:center;color:#94a3b8">Belum ada data</td></tr>'}</tbody>
+    </table>
+
+    <h2>Per Orang — Ranking</h2>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Nama</th><th>Divisi</th><th>PP S/C</th><th>BOM</th><th>Prod</th>
+        <th>QC P/F</th><th>Svc</th><th>Inst</th><th>BAST</th><th>Skor</th>
+      </tr></thead>
+      <tbody>${orangRows || '<tr><td colspan="11" style="text-align:center;color:#94a3b8">Belum ada data</td></tr>'}</tbody>
+    </table>
+
+    <div class="footer">PT. Sarana Andalan Elektrika (SAE Energy) — Generated by Panel System V2</div>
+  </body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1000');
+  if (!w) { toast('Pop-up diblokir browser, izinkan dulu lalu coba lagi'); return; }
+  w.document.write(html);
+  w.document.close();
+  toast('Klik tombol Print di window baru untuk save PDF');
 }
 
 
