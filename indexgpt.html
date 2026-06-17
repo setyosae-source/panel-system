@@ -215,6 +215,8 @@ table td{vertical-align:top;line-height:1.4}
 .help-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;flex-shrink:0}
 .help-dot:hover{background:var(--blue-bg);color:var(--blue-text);border-color:#bfdbfe}
 .help-pop{font-size:13px;line-height:1.65;color:var(--text2)}
+.help-pop b{color:var(--text);font-weight:700}.help-pop ul,.help-pop ol{margin:6px 0 10px 18px;padding:0}.help-pop li{margin:3px 0}.help-pop .help-note{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;margin-top:8px;color:var(--text2)}
+.form-row label .help-dot,.sect-title .help-dot,.wizard-step .help-dot,.period-btn .help-dot{margin-left:6px;vertical-align:middle}.modal-body .help-dot{flex-shrink:0}
 .role-welcome{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
 .role-welcome-title{font-size:16px;font-weight:700;margin-bottom:5px}
 .role-welcome-text{font-size:13px;color:var(--text2);line-height:1.55}
@@ -6474,33 +6476,78 @@ function roleWelcomeBanner(){
   return `<div class="role-welcome"><div class="role-welcome-title">Selamat datang, ${escapeHtml(currentUser.full_name||'User')}</div><div class="role-welcome-text">${escapeHtml(roleMission(currentUser.role))}</div></div>`;
 }
 const HELP_TEXTS = {
-  home:'Ringkasan awal. Cek data penting, tugas yang perlu dipantau, dan gunakan menu kiri untuk masuk ke modul kerja.',
-  'pre-project':'Menu Pre-Project dipakai untuk request awal dari sales/customer, dokumen spesifikasi, hasil Drawing/BOM, dan status request.',
-  'kelola po':'Menu Kelola PO dipakai untuk mencatat PO, item pekerjaan, nilai, dokumen, status, dan progress sampai selesai.',
-  ets:'Menu ETS dipakai engineering untuk membaca request, mengerjakan Drawing/BOM, upload hasil, dan update progress teknis.',
-  produksi:'Menu Produksi dipakai untuk update proses fabrikasi/QC/instalasi/commissioning sesuai item pekerjaan.',
-  assign:'Menu Assign dipakai admin/direktur untuk melihat pembagian pekerjaan dan progress PIC.',
-  service:'Menu Service dipakai untuk tiket gangguan, kunjungan, troubleshooting, foto, dokumen, dan knowledge base.',
-  'laporan tambahan':'Menu ini khusus laporan pekerjaan tambahan yang Anda lakukan sendiri di luar role utama. Isi pekerjaan, catatan, kategori, dan upload foto before-after. Laporan ini masuk KPI pelapor.',
-  'pekerjaan lainnya':'Menu ini khusus laporan pekerjaan tambahan yang Anda lakukan sendiri di luar role utama. Isi pekerjaan, catatan, kategori, dan upload foto before-after. Laporan ini masuk KPI pelapor.',
-  'dashboard statistik':'Dashboard Statistik dipakai untuk melihat ringkasan progress, keterlambatan, dan performa pekerjaan.',
-  laporan:'Menu Laporan dipakai untuk rekap data, export, dan evaluasi operasional.',
-  'kelola user':'Menu Kelola User dipakai admin/owner untuk membuat user, memilih role, mengatur akses tambahan, reset password, dan membaca panduan role.',
-  'knowledge base':'Knowledge Base berisi catatan masalah dan solusi dari service/pekerjaan sebelumnya agar bisa dipakai ulang.',
-  'tools bom':'Tools BOM dipakai untuk membantu pengolahan data BOM dan export sesuai kebutuhan.'
+  home:`<b>Beranda / Home</b><ul><li>Lihat ringkasan tugas sesuai role Anda.</li><li>Gunakan menu kiri untuk masuk ke modul kerja.</li><li>Bila ada angka badge, itu menandakan data yang perlu dicek.</li></ul>`,
+  'pre-project':`<b>Pre-Project</b><ul><li>Dipakai untuk permintaan awal Drawing/BOM dari Sales atau customer.</li><li>Buka detail request untuk melihat dokumen customer, status, dan hasil pekerjaan.</li><li>Engineering mengupload hasil Drawing/BOM di detail request.</li><li>Pastikan status diperbarui agar Sales tahu progress terbaru.</li></ul>`,
+  'kelola po':`<b>Kelola PO</b><ul><li>Masukkan PO, item pekerjaan, nilai, deadline, dokumen, dan status.</li><li>Klik baris PO untuk membuka detail terdalam: item, dokumen, progress, PK, dan catatan.</li><li>Gunakan resize kolom tabel bila data terlalu panjang.</li><li>Update status sesuai tahapan aktual, jangan melompati proses tanpa catatan.</li></ul>`,
+  ets:`<b>ETS / Engineering Technical Support</b><ul><li>Buka request yang masuk, baca dokumen customer, cek spesifikasi teknis.</li><li>Upload hasil Drawing/BOM pada detail request.</li><li>Isi catatan jika ada revisi, dokumen kurang, atau perlu klarifikasi.</li><li>Ubah status setelah hasil siap agar requester bisa menindaklanjuti.</li></ul>`,
+  produksi:`<b>Produksi</b><ul><li>Gunakan menu ini untuk melihat item produksi yang harus dikerjakan.</li><li>Buka detail terdalam untuk melihat item, progress, foto/dokumen, QC, instalasi, atau commissioning.</li><li>Update status berdasarkan kondisi nyata di workshop/lapangan.</li><li>Pekerjaan di luar item produksi dilaporkan di menu <b>Laporan Tambahan</b>.</li></ul>`,
+  assign:`<b>Assign</b><ul><li>Dipakai admin/direktur untuk melihat pembagian pekerjaan ke PIC.</li><li>Cek siapa mengerjakan apa, progress terakhir, dan potensi keterlambatan.</li><li>Jika ada pekerjaan tambahan yang dilakukan sendiri, jangan dicatat di sini; gunakan Laporan Tambahan.</li></ul>`,
+  service:`<b>Service</b><ul><li>Catat tiket gangguan, kunjungan, troubleshooting, spare part, retrofit, atau resolved.</li><li>Buka detail tiket untuk menambah log aktivitas, upload foto/dokumen, dan ubah tahapan.</li><li>Gunakan catatan teknis yang jelas agar bisa masuk Knowledge Base.</li><li>Pekerjaan umum di luar tiket service dicatat sebagai Laporan Tambahan.</li></ul>`,
+  'laporan tambahan':`<b>Laporan Tambahan untuk KPI pribadi</b><ol><li>Klik <b>+ Buat Laporan</b>.</li><li>Isi tanggal pekerjaan sesuai hari pekerjaan dilakukan.</li><li>Pilih kategori yang paling mendekati jenis pekerjaan.</li><li>Tulis judul singkat dan jelas.</li><li>Isi uraian: apa yang dikerjakan, lokasi/area, alat yang dipakai, dan hasilnya.</li><li>Upload foto <b>Before</b> sebelum pekerjaan dan <b>After</b> setelah selesai.</li><li>Klik <b>Simpan Laporan</b>. Nama pelapor otomatis dari user login.</li></ol><div class="help-note">Laporan ini bukan tugas yang diberikan orang lain. Ini adalah laporan pekerjaan tambahan yang Anda lakukan sendiri dan akan masuk KPI pelapor setelah diverifikasi admin.</div>`,
+  'pekerjaan lainnya':`<b>Pekerjaan Lainnya sekarang menjadi Laporan Tambahan</b><ul><li>Tidak ada penunjukan PIC.</li><li>Tidak ada penerima tugas.</li><li>Yang menginput adalah pelapor dan masuk KPI pelapor.</li><li>Wajib sertakan bukti before-after.</li></ul>`,
+  'dashboard statistik':`<b>Dashboard Statistik</b><ul><li>Untuk membaca performa, progress, dan keterlambatan.</li><li>Gunakan filter/periode bila tersedia.</li><li>Angka KPI Laporan Tambahan dihitung dari laporan yang dibuat pelapor dan diverifikasi.</li></ul>`,
+  laporan:`<b>Laporan</b><ul><li>Gunakan untuk rekap operasional dan export data.</li><li>Cek filter tanggal/periode sebelum export.</li><li>Pastikan data sumber sudah benar sebelum dipakai untuk evaluasi.</li></ul>`,
+  'kelola user':`<b>Kelola User</b><ol><li>Klik <b>+ User Baru</b> untuk membuat akun.</li><li>Isi nama, username, password, dan role utama.</li><li>Baca hint role sebelum menyimpan.</li><li>Centang akses custom hanya bila user perlu modul tambahan.</li><li>Sales dan Direktur tidak mengisi Laporan Tambahan; role lain dapat melaporkan pekerjaan tambahan untuk KPI.</li></ol>`,
+  'knowledge base':`<b>Knowledge Base</b><ul><li>Berisi catatan masalah dan solusi yang bisa dipakai ulang.</li><li>Isi judul masalah, kategori unit, gejala, penyebab, solusi, dan catatan penting.</li><li>Gunakan bahasa teknis yang bisa dipahami teknisi berikutnya.</li></ul>`,
+  'tools bom':`<b>Tools BOM</b><ul><li>Dipakai untuk bantu olah BOM dan export.</li><li>Pastikan nama barang, qty, satuan, merk, dan harga sudah benar sebelum export.</li></ul>`,
+  'request baru':`<b>Tab Request Baru</b><ol><li>Isi tanggal, customer, project/PO bila ada.</li><li>Pilih output: Drawing, BOM, atau Drawing & BOM.</li><li>Tulis spesifikasi/catatan kebutuhan.</li><li>Upload dokumen customer seperti spec, SLD, foto panel, atau referensi.</li><li>Klik Kirim Request.</li></ol>`,
+  'request saya':`<b>Tab Request Saya</b><ul><li>Menampilkan request yang Anda buat.</li><li>Buka detail untuk melihat status, catatan Engineering, dan file hasil.</li><li>Jika dokumen kurang, buat revisi/catatan sesuai fitur yang tersedia.</li></ul>`,
+  'buat laporan tambahan':`<b>Modal Buat Laporan Tambahan</b><ol><li>Isi tanggal pekerjaan, bukan tanggal input bila berbeda.</li><li>Pilih kategori pekerjaan.</li><li>Judul dibuat singkat, contoh: “Rapikan area kabel workshop”.</li><li>Uraian wajib detail: lokasi, kegiatan, hasil, dan durasi bila perlu.</li><li>Upload foto Before dan After. Foto harus menunjukkan perubahan yang jelas.</li><li>Klik Simpan Laporan.</li></ol>`,
+  'edit laporan tambahan':`<b>Edit Laporan Tambahan</b><ul><li>Gunakan untuk memperbaiki judul, uraian, catatan, kategori, atau menambah foto.</li><li>Foto lama tetap tersimpan; upload baru akan ditambahkan.</li><li>Jika sudah diverifikasi, perubahan sebaiknya hanya dilakukan admin atau dengan catatan yang jelas.</li></ul>`,
+  'tanggal pekerjaan':`Pilih tanggal saat pekerjaan benar-benar dilakukan. Ini dipakai untuk urutan laporan dan perhitungan KPI periode tersebut.`,
+  kategori:`Pilih jenis pekerjaan yang paling sesuai. Jika tidak ada yang cocok, pilih <b>Lainnya</b> dan jelaskan di uraian.`,
+  'judul laporan':`Tulis ringkas dan spesifik. Contoh bagus: “Bersihkan area finishing panel 125VDC”. Hindari judul terlalu umum seperti “kerja” atau “bantu”.`,
+  'uraian pekerjaan':`Isi teknis pekerjaan: lokasi/area, kondisi awal, pekerjaan yang dilakukan, alat/bahan yang dipakai, hasil akhir, dan kendala bila ada. Uraian ini menjadi dasar penilaian KPI.`,
+  'catatan tambahan':`Opsional. Isi saksi, durasi, kendala, kebutuhan follow-up, atau catatan admin/verifikator.`,
+  'foto before':`Upload foto kondisi sebelum pekerjaan. Ambil dari sudut yang jelas agar bisa dibandingkan dengan foto after. Bisa upload lebih dari satu.`,
+  'foto after':`Upload foto kondisi setelah pekerjaan selesai. Pastikan hasil pekerjaan terlihat jelas dan sebaiknya dari sudut yang mirip dengan foto before.`,
+  'simpan laporan':`Menyimpan laporan ke Supabase. Setelah tersimpan, laporan berstatus <b>Dilaporkan</b> dan menunggu verifikasi admin agar masuk KPI final.`,
+  'edit laporan':`Membuka laporan yang sudah dibuat untuk diperbaiki atau ditambah foto before-after. Hanya pelapor/admin yang bisa mengedit.`,
+  'verifikasi kpi':`Khusus admin/owner. Klik setelah laporan dinilai valid. Status berubah menjadi <b>Diverifikasi</b> dan laporan dapat dihitung sebagai KPI pelapor.`,
+  'cari laporan':`Ketik kata kunci judul, kategori, pelapor, uraian, atau status untuk menyaring daftar laporan.`,
+  username:`Isi username unik untuk login. Gunakan nama pendek tanpa spasi agar mudah diketik di HP.`,
+  password:`Isi password awal. Setelah user login, simpan baik-baik karena sistem memakai login custom.`,
+  role:`Pilih role utama sesuai tugas harian user. Role menentukan menu default yang muncul. Akses tambahan dapat dicentang bila diperlukan.`,
+  'akses modul custom':`Centang hanya modul tambahan yang benar-benar diperlukan user. Jangan memberi akses luas jika tidak dibutuhkan.`,
+  'dokumen dari customer':`Upload dokumen pendukung customer: spesifikasi, SLD, foto panel, data teknis, email, atau file referensi. Dokumen lengkap mempercepat Engineering.`,
+  'jenis output':`Pilih hasil yang diminta customer: Drawing, BOM, Drawing & BOM, atau Lainnya bila output khusus.`,
+  customer:`Isi nama customer/perusahaan dengan jelas agar mudah dicari dan direkap.`,
+  'project / no. po':`Isi nama project atau nomor PO bila sudah ada. Jika belum ada, boleh dikosongkan atau isi nama pekerjaan sementara.`
 };
+function normalizeHelpKey(label){
+  return String(label||'').trim().toLowerCase()
+    .replace(/^\+\s*/,'')
+    .replace(/^\d+\s*/,'')
+    .replace(/[:*]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
 function getHelpText(label){
-  const k = String(label||'').trim().toLowerCase();
-  return HELP_TEXTS[k] || HELP_TEXTS[currentModule] || 'Petunjuk: isi data sesuai kondisi sebenarnya, gunakan tombol tambah/edit untuk mengubah data, lalu simpan. Pastikan dokumen/foto pendukung diupload bila tersedia.';
+  const k = normalizeHelpKey(label);
+  return HELP_TEXTS[k] || HELP_TEXTS[currentModule] || `<b>Petunjuk pengisian</b><ul><li>Isi data sesuai kondisi sebenarnya.</li><li>Gunakan tombol tambah/edit untuk membuat atau memperbaiki data.</li><li>Upload dokumen/foto bila tersedia.</li><li>Klik simpan setelah data lengkap.</li><li>Jika ragu, baca petunjuk di judul modal/menu terdekat.</li></ul>`;
 }
 function showHelpPopup(label){
-  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Petunjuk — ${escapeHtml(label||'Menu')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="help-pop">${escapeHtml(getHelpText(label))}</div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
+  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Petunjuk — ${escapeHtml(label||'Menu')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="help-pop">${getHelpText(label)}</div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
 }
 function addHelpDots(root=document){
-  root.querySelectorAll('.page-title,.tab-btn,.modal-header h2').forEach(el=>{
+  const selectors = [
+    '.page-title',
+    '.tab-btn',
+    '.period-btn',
+    '.wizard-step',
+    '.modal-header h2',
+    '.modal-body .form-row > label',
+    '.modal-body .sect-title',
+    '.page-body .sect-title',
+    '[data-help]'
+  ].join(',');
+  root.querySelectorAll(selectors).forEach(el=>{
     if(el.dataset.helpReady==='1') return;
+    if(el.closest('.help-dot')) return;
     el.dataset.helpReady='1';
-    const label = el.textContent.trim().replace(/^\+\s*/, '');
+    const raw = el.getAttribute('data-help') || el.textContent || '';
+    const label = raw.trim().replace(/^\+\s*/, '').replace(/\s+/g,' ');
+    if(!label) return;
     const btn = document.createElement('span');
     btn.className='help-dot'; btn.textContent='i'; btn.title='Petunjuk'; btn.setAttribute('role','button'); btn.setAttribute('tabindex','0');
     btn.onclick = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); showHelpPopup(label); };
@@ -6593,7 +6640,7 @@ async function renderMiscJobsModule() {
         <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <div><div class="page-title">Laporan Tambahan</div><div class="page-sub">Laporan pekerjaan di luar role utama untuk KPI pribadi</div></div>
       </div>
-      <div class="topbar-right"><button class="btn btn-primary" onclick="openMiscJobForm()">+ Buat Laporan</button></div>
+      <div class="topbar-right"><button class="btn btn-primary" data-help="Buat Laporan Tambahan" onclick="openMiscJobForm()">+ Buat Laporan</button></div>
     </div>
     <div class="page-body" id="miscJobsBody">${loading()}</div>`;
   await loadMiscJobs();
@@ -6616,8 +6663,8 @@ function miscJobsCardsHTML(compact=false){
       ${j.notes?`<div class="desc-box" style="margin-top:8px">${escapeHtml(j.notes)}</div>`:''}
       <div class="misc-photo-row"><div class="misc-photo-box"><b>Before</b>${miscPhotoHTML(ev.before)}</div><div class="misc-photo-box"><b>After</b>${miscPhotoHTML(ev.after)}</div></div>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-        ${canEditMiscJob(j)?`<button class="btn btn-sm" onclick="openMiscJobForm('${j.id}',${compact})">Edit Laporan</button>`:''}
-        ${isAdmin()?`<button class="btn btn-sm btn-primary" onclick="verifyMiscReport('${j.id}')">Verifikasi KPI</button>`:''}
+        ${canEditMiscJob(j)?`<button class="btn btn-sm" data-help="Edit Laporan" onclick="openMiscJobForm('${j.id}',${compact})">Edit Laporan</button>`:''}
+        ${isAdmin()?`<button class="btn btn-sm btn-primary" data-help="Verifikasi KPI" onclick="verifyMiscReport('${j.id}')">Verifikasi KPI</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -6632,7 +6679,7 @@ function renderMiscJobsList(){
       <b>Laporan tambahan:</b> gunakan menu ini hanya untuk melaporkan pekerjaan yang benar-benar Anda lakukan sendiri di luar role utama. Upload foto <b>before</b> dan <b>after</b> agar bisa dihitung ke KPI pelapor. Sales dan Direktur tidak menggunakan menu ini.
       ${window._miscJobsRemoteOK===false?'<div style="margin-top:6px;color:var(--red)">Catatan: tabel Supabase <b>misc_jobs</b> belum tersedia/akses gagal, sementara data disimpan lokal di browser ini.</div>':''}
     </div>
-    <div class="toolbar-row"><div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" placeholder="Cari laporan, kategori, pelapor, status..." value="${st.search||''}" oninput="tblState('miscjobs').search=this.value;renderMiscJobsList()"></div></div>
+    <div class="toolbar-row"><div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" data-help="Cari Laporan" placeholder="Cari laporan, kategori, pelapor, status..." value="${st.search||''}" oninput="tblState('miscjobs').search=this.value;renderMiscJobsList()"></div></div>
     ${miscJobsCardsHTML(false)}`;
   setTimeout(()=>enhanceUI(document),50);
 }
@@ -6645,13 +6692,22 @@ async function openMiscJobForm(jobId=null, compact=false){
     <div class="modal-header"><h2>${j?'Edit':'Buat'} Laporan Tambahan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:10px 12px;color:var(--blue-text);font-size:12px;line-height:1.55">Isi sebagai laporan pekerjaan yang sudah dilakukan sendiri. Nama pelapor otomatis adalah user yang login dan akan masuk KPI user tersebut.</div>
-      <div class="form-grid"><div class="form-row"><label>Tanggal Pekerjaan</label><input type="date" id="mjDue" value="${j?.due_date||today()}"></div><div class="form-row"><label>Kategori</label><select id="mjCategory">${MISC_CATEGORIES.map(x=>`<option value="${x}" ${(j?.category||'Umum')===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
-      <div class="form-row"><label>Judul Laporan <span class="req">*</span></label><input type="text" id="mjTitle" value="${escapeHtml(j?.title||'')}" placeholder="Contoh: Bersih-bersih area workshop setelah produksi"></div>
-      <div class="form-row"><label>Uraian Pekerjaan <span class="req">*</span></label><textarea id="mjDesc" placeholder="Jelaskan pekerjaan yang dilakukan, area/lokasi, dan hasilnya.">${escapeHtml(j?.description||'')}</textarea></div>
-      <div class="form-row"><label>Catatan Tambahan</label><textarea id="mjNotes" placeholder="Opsional: kendala, alat yang dipakai, saksi, atau catatan admin.">${escapeHtml(j?.notes||'')}</textarea></div>
-      <div class="form-grid"><div class="form-row"><label>Foto Before</label><input type="file" id="mjBefore" accept="image/*" multiple><div class="form-hint">Upload kondisi sebelum pekerjaan. Foto lama: ${ev.before.length} file.</div></div><div class="form-row"><label>Foto After</label><input type="file" id="mjAfter" accept="image/*" multiple><div class="form-hint">Upload kondisi setelah pekerjaan. Foto lama: ${ev.after.length} file.</div></div></div>
+      <div class="form-section">
+        <div class="form-section-title" data-help="Buat Laporan Tambahan">1. Identitas Pekerjaan</div>
+        <div class="form-grid"><div class="form-row"><label data-help="Tanggal Pekerjaan">Tanggal Pekerjaan</label><input type="date" id="mjDue" value="${j?.due_date||today()}"></div><div class="form-row"><label data-help="Kategori">Kategori</label><select id="mjCategory">${MISC_CATEGORIES.map(x=>`<option value="${x}" ${(j?.category||'Umum')===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
+        <div class="form-row"><label data-help="Judul Laporan">Judul Laporan <span class="req">*</span></label><input type="text" id="mjTitle" value="${escapeHtml(j?.title||'')}" placeholder="Contoh: Bersih-bersih area workshop setelah produksi"></div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title" data-help="Uraian Pekerjaan">2. Uraian Teknis</div>
+        <div class="form-row"><label data-help="Uraian Pekerjaan">Uraian Pekerjaan <span class="req">*</span></label><textarea id="mjDesc" placeholder="Jelaskan pekerjaan yang dilakukan, area/lokasi, dan hasilnya.">${escapeHtml(j?.description||'')}</textarea></div>
+        <div class="form-row"><label data-help="Catatan Tambahan">Catatan Tambahan</label><textarea id="mjNotes" placeholder="Opsional: kendala, alat yang dipakai, saksi, atau catatan admin.">${escapeHtml(j?.notes||'')}</textarea></div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title" data-help="Foto Before">3. Bukti Foto Before / After</div>
+        <div class="form-grid"><div class="form-row"><label data-help="Foto Before">Foto Before</label><input type="file" id="mjBefore" accept="image/*" multiple><div class="form-hint">Upload kondisi sebelum pekerjaan. Foto lama: ${ev.before.length} file.</div></div><div class="form-row"><label data-help="Foto After">Foto After</label><input type="file" id="mjAfter" accept="image/*" multiple><div class="form-hint">Upload kondisi setelah pekerjaan. Foto lama: ${ev.after.length} file.</div></div></div>
+      </div>
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveMiscJob('${jobId||''}',${compact})">Simpan Laporan</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" data-help="Simpan Laporan" onclick="saveMiscJob('${jobId||''}',${compact})">Simpan Laporan</button></div>
   </div>`);
 }
 async function persistMiscJobsLocal(rows){ localStorage.setItem(miscJobsLSKey(), JSON.stringify(rows)); }
