@@ -448,14 +448,14 @@ let salesFiles = [];
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════
 const ROLE_PERMS = {
-  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1 },
-  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1 },
+  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
+  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
   sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1, bom_export: 1 },
   engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1 },
   produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
   logistik: { po_view: 1, po_logistik: 1 },
   teknisi: { teknisi: 1,  service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 },
-  direktur: { direktur: 1, nilai_po: 1, pp_view: 1, po_view: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, kb_view: 1, assign: 1, statistik: 1 }
+  direktur: { direktur: 1, nilai_po: 1, pp_view: 1, po_view: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, kb_view: 1, assign: 1, statistik: 1, laporan_view: 1 }
 };
 
 function getPerms() {
@@ -547,7 +547,8 @@ function buildSidebar() {
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('bom_view')) nav += navItem('bom', bomIcon(), 'Tools BOM', '');
   if (can('bom_manage')) nav += `<a href="bom-calculator.html" class="sb-item" style="text-decoration:none"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-3 4h3m-6-8h.01M9 13h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>BOM Calculator</a>`;
-  if (can('users') || isOwner()) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; }
+  if (can('users') || isOwner() || can('laporan_view')) { nav += '<div class="sb-divider"></div><div class="sb-label">Admin</div>'; }
+  if (can('laporan_view')) nav += navItem('laporan', laporanIcon(), 'Laporan', '');
   if (isOwner()) nav += navItem('audit', auditIcon(), 'Audit Log', '');
   if (can('users')) nav += navItem('users', usersIcon(), 'Kelola User', '');
 
@@ -602,8 +603,11 @@ function switchModule(mod) {
   else if (mod === 'kb') renderKBModule();
   else if (mod === 'bom') renderBOMModule();
   else if (mod === 'audit') renderAuditModule();
+  else if (mod === 'laporan') renderLaporanModule();
   else if (mod === 'users') renderUsersModule();
 }
+
+function laporanIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-4M3 21h18M3 3h18"/></svg>'; }
 
 function openSidebar() { document.getElementById('mainSidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
 function closeSidebar() { document.getElementById('mainSidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
@@ -1563,6 +1567,237 @@ function renderStatContent(tickets, pks, users) {
 // ═══════════════════════════════════════════════════════════
 let auditFilter = {modul:'all', user:'all', search:''};
 
+// ═══════════════════════════════════════════════════════════
+// MODUL LAPORAN — Ringkasan bulanan, Per Divisi, Per Orang
+// ═══════════════════════════════════════════════════════════
+
+const ROLE_LABEL_LAPORAN = {
+  owner:'Owner', admin:'Admin', sales:'Sales', engineering:'Engineering',
+  produksi:'Produksi', logistik:'Logistik', teknisi:'Teknisi', direktur:'Direktur'
+};
+
+const ROLE_COLOR_LAPORAN = {
+  owner:'#7c3aed', admin:'#dc2626', sales:'#0891b2', engineering:'#059669',
+  produksi:'#ea580c', logistik:'#65a30d', teknisi:'#0284c7', direktur:'#9333ea'
+};
+
+let laporanState = {
+  tab: 'ringkasan',        // 'ringkasan' | 'divisi' | 'orang'
+  month: new Date().getMonth() + 1,
+  year:  new Date().getFullYear(),
+  data:  null,             // hasil fn_laporan_bulanan
+  trend: null              // 12-bulan PO masuk
+};
+
+async function renderLaporanModule() {
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `<div class="topbar">
+    <button class="btn btn-ghost btn-sm icon-only" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div><div class="page-title">Laporan</div><div class="page-sub">Ringkasan bulanan kinerja divisi dan personel</div></div>
+  </div>
+  <div class="page-body" id="laporanBody">${loading()}</div>`;
+
+  await loadLaporanData();
+  renderLaporanBody();
+}
+
+async function loadLaporanData() {
+  try {
+    // Panggil RPC untuk ringkasan bulan terpilih
+    const { data: bulanData, error: e1 } = await sb.rpc('fn_laporan_bulanan', {
+      p_month: laporanState.month,
+      p_year:  laporanState.year
+    });
+    if (e1) throw e1;
+    laporanState.data = bulanData || {};
+
+    // Ambil trend PO 12 bulan terakhir
+    const cutoff = new Date(laporanState.year, laporanState.month - 12, 1).toISOString().slice(0,10);
+    const { data: trend } = await sb
+      .from('v_po_masuk_monthly')
+      .select('*')
+      .gte('bulan', cutoff)
+      .order('bulan', { ascending: true });
+    laporanState.trend = trend || [];
+  } catch (err) {
+    console.error('Laporan load error:', err);
+    laporanState.data = null;
+    toast('Gagal load laporan: ' + (err.message || err));
+  }
+}
+
+function renderLaporanBody() {
+  const body = document.getElementById('laporanBody');
+  if (!body) return;
+
+  if (!laporanState.data) {
+    body.innerHTML = `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:1rem;border-radius:var(--r-sm);font-size:13px">
+      <strong>Gagal memuat data laporan.</strong> Pastikan SQL views & RPC <code>fn_laporan_bulanan</code> sudah ter-create di Supabase.
+    </div>`;
+    return;
+  }
+
+  const d = laporanState.data;
+  const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // Period picker
+  const monthOpts = monthNames.map((m,i)=>`<option value="${i+1}" ${laporanState.month===i+1?'selected':''}>${m}</option>`).join('');
+  const currentYear = new Date().getFullYear();
+  const yearOpts = [];
+  for (let y = currentYear - 3; y <= currentYear + 1; y++) {
+    yearOpts.push(`<option value="${y}" ${laporanState.year===y?'selected':''}>${y}</option>`);
+  }
+
+  // Tab buttons
+  const tabBtn = (key, label) => {
+    const active = laporanState.tab === key;
+    return `<button onclick="laporanState.tab='${key}';renderLaporanBody()" style="padding:8px 16px;border:1px solid ${active?'var(--primary)':'var(--border)'};background:${active?'var(--primary)':'var(--surface)'};color:${active?'#fff':'var(--text)'};border-radius:var(--r-sm);font-size:13px;cursor:pointer;font-weight:${active?'600':'400'}">${label}</button>`;
+  };
+
+  let content = '';
+  if (laporanState.tab === 'ringkasan') content = renderLaporanRingkasan();
+  else if (laporanState.tab === 'divisi') content = renderLaporanDivisi();
+  else if (laporanState.tab === 'orang') content = renderLaporanOrang();
+
+  body.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;background:var(--surface);padding:12px;border:1px solid var(--border);border-radius:var(--r-sm)">
+      <div style="font-size:12px;color:var(--text3);font-weight:600">PERIODE:</div>
+      <select onchange="laporanState.month=parseInt(this.value);reloadLaporan()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px">${monthOpts}</select>
+      <select onchange="laporanState.year=parseInt(this.value);reloadLaporan()" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px">${yearOpts.join('')}</select>
+      <div style="flex:1"></div>
+      <div style="font-size:11px;color:var(--text3)">Generated: ${d.generated_at || '—'}</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      ${tabBtn('ringkasan','📊 Ringkasan Bulanan')}
+      ${tabBtn('divisi','🏢 Per Divisi')}
+      ${tabBtn('orang','👤 Per Orang')}
+    </div>
+
+    ${content}
+  `;
+}
+
+async function reloadLaporan() {
+  document.getElementById('laporanBody').innerHTML = loading();
+  await loadLaporanData();
+  renderLaporanBody();
+}
+
+// ── Tab: Ringkasan Bulanan ──
+function renderLaporanRingkasan() {
+  const d = laporanState.data;
+  const org = d.org_summary || {};
+  const orang = d.per_orang || [];
+  const divisi = d.per_divisi || {};
+
+  // Total agregat dari per_orang
+  const totals = orang.reduce((acc, o) => {
+    acc.pp_submitted += o.pp_submitted || 0;
+    acc.pp_closed    += o.pp_closed    || 0;
+    acc.bom_created  += o.bom_created  || 0;
+    acc.produksi     += o.produksi_items || 0;
+    acc.qc_pass      += o.qc_pass      || 0;
+    acc.qc_fail      += o.qc_fail      || 0;
+    acc.service      += o.service_tickets || 0;
+    acc.instalasi    += o.instalasi_tasks || 0;
+    acc.bast         += o.bast_signed  || 0;
+    return acc;
+  }, { pp_submitted:0, pp_closed:0, bom_created:0, produksi:0, qc_pass:0, qc_fail:0, service:0, instalasi:0, bast:0 });
+
+  const qcRate = (totals.qc_pass + totals.qc_fail) > 0
+    ? Math.round(totals.qc_pass * 100 / (totals.qc_pass + totals.qc_fail))
+    : null;
+
+  const kpiCard = (label, value, sub, color) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ${color};border-radius:var(--r-sm);padding:14px">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">${label}</div>
+      <div style="font-size:24px;font-weight:700;color:var(--text);margin-top:4px">${value}</div>
+      ${sub ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>` : ''}
+    </div>`;
+
+  // Trend chart 12 bulan
+  const trend = laporanState.trend || [];
+  const maxVal = Math.max(1, ...trend.map(t => t.total_po || 0));
+  const chartW = 700, chartH = 160, padding = 30;
+  const barW = trend.length ? Math.min(50, (chartW - padding*2) / trend.length - 4) : 20;
+
+  const bars = trend.map((t, i) => {
+    const x = padding + i * ((chartW - padding*2) / Math.max(1, trend.length));
+    const h = ((t.total_po || 0) / maxVal) * (chartH - padding*2);
+    const y = chartH - padding - h;
+    const lbl = new Date(t.bulan).toLocaleDateString('id-ID', { month:'short', year:'2-digit' });
+    return `
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#3b82f6" rx="3"></rect>
+      <text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">${t.total_po || 0}</text>
+      <text x="${x + barW/2}" y="${chartH - padding + 14}" text-anchor="middle" font-size="10" fill="#94a3b8">${lbl}</text>
+    `;
+  }).join('');
+
+  const trendChart = trend.length === 0 ? noData('Belum ada data PO untuk trend') : `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:.5rem">📈 Trend PO Masuk — 12 bulan terakhir</div>
+      <div style="overflow-x:auto">
+        <svg viewBox="0 0 ${chartW} ${chartH}" style="width:100%;max-width:${chartW}px;height:auto">
+          <line x1="${padding}" y1="${chartH-padding}" x2="${chartW-padding}" y2="${chartH-padding}" stroke="#cbd5e1" stroke-width="1"></line>
+          ${bars}
+        </svg>
+      </div>
+    </div>`;
+
+  // Divisi badges
+  const divisiBadges = Object.entries(divisi).map(([role, data]) => {
+    const color = ROLE_COLOR_LAPORAN[role] || '#64748b';
+    const label = ROLE_LABEL_LAPORAN[role] || role;
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ${color};border-radius:var(--r-sm);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <div style="font-size:12px;color:var(--text3);text-transform:uppercase;font-weight:600">${label}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">${data.total_user_aktif || 0} user aktif</div>
+        </div>
+        <div style="font-size:22px;font-weight:700;color:${color}">${data.total_skor || 0}</div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:1rem">
+      ${kpiCard('PO Masuk', org.po_masuk || 0, fmtRp(org.po_nilai), '#3b82f6')}
+      ${kpiCard('PP Submitted', totals.pp_submitted, `${totals.pp_closed} closed`, '#22c55e')}
+      ${kpiCard('Items Produksi', totals.produksi, `${totals.bom_created} BOM dibuat`, '#f59e0b')}
+      ${kpiCard('Service Closed', totals.service, '', '#ef4444')}
+      ${kpiCard('Instalasi Done', totals.instalasi, `${totals.bast} BAST`, '#8b5cf6')}
+      ${kpiCard('QC Pass Rate', qcRate !== null ? qcRate + '%' : '—', `${totals.qc_pass}/${totals.qc_pass+totals.qc_fail}`, '#10b981')}
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:.75rem">Skor Produktivitas per Divisi</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px">
+        ${divisiBadges || noData('Belum ada aktivitas tercatat')}
+      </div>
+    </div>
+
+    ${trendChart}
+  `;
+}
+
+// ── Placeholder untuk tab Per Divisi & Per Orang (akan dibangun di Fase 3C & 3D) ──
+function renderLaporanDivisi() {
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:2rem;text-align:center;color:var(--text3)">
+    <div style="font-size:32px;margin-bottom:.5rem">🏢</div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:.25rem">Tab Per Divisi — Coming Soon</div>
+    <div style="font-size:12px">Fase 3C — Detail KPI per divisi (Engineering, Produksi, Service, Instalasi, Sales)</div>
+  </div>`;
+}
+
+function renderLaporanOrang() {
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:2rem;text-align:center;color:var(--text3)">
+    <div style="font-size:32px;margin-bottom:.5rem">👤</div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:.25rem">Tab Per Orang — Coming Soon</div>
+    <div style="font-size:12px">Fase 3D — Drill-down per personel dengan detail aktivitas lintas-modul</div>
+  </div>`;
+}
+
+
 async function renderAuditModule() {
   const main = document.getElementById('mainContent');
   main.innerHTML = `<div class="topbar">
@@ -1571,10 +1806,12 @@ async function renderAuditModule() {
   </div>
   <div class="page-body" id="auditBody"><div style="text-align:center;padding:3rem;color:var(--text3)">Memuat...</div></div>`;
 
-  // Fetch all logs from po_logs and service_logs
-  const [poLogsRes, svcLogsRes, usersRes] = await Promise.all([
+  // Fetch all logs from po_logs, service_logs, pp_logs, bom_logs
+  const [poLogsRes, svcLogsRes, ppLogsRes, bomLogsRes, usersRes] = await Promise.all([
     sb.from('po_logs').select('*,purchase_orders(no_po,customer_name),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
     sb.from('service_logs').select('*,service_tickets(customer_name,id),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
+    sb.from('pp_logs').select('*,pp_requests(id,customer_name,project_name),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
+    sb.from('bom_logs').select('*,bom_lists(id,title,unit_category),app_users(full_name,role)').order('created_at',{ascending:false}).limit(500),
     sb.from('app_users').select('id,full_name')
   ]);
 
@@ -1601,6 +1838,28 @@ async function renderAuditModule() {
     action: l.tahapan,
     detail: (l.catatan||'') + (l.hasil?' ⇒ '+l.hasil:'')
   }));
+  (ppLogsRes.data||[]).forEach(l => allLogs.push({
+    id: l.id,
+    modul: 'PP',
+    when: l.created_at,
+    user_name: l.app_users?.full_name || '—',
+    user_id: l.user_id,
+    target: l.pp_requests?.id || l.request_id || '—',
+    target_sub: l.pp_requests?.customer_name || l.pp_requests?.project_name || '',
+    action: l.action,
+    detail: l.detail || ''
+  }));
+  (bomLogsRes.data||[]).forEach(l => allLogs.push({
+    id: l.id,
+    modul: 'BOM',
+    when: l.created_at,
+    user_name: l.app_users?.full_name || '—',
+    user_id: l.user_id,
+    target: l.bom_lists?.id || l.bom_id || '—',
+    target_sub: l.bom_lists?.title || l.bom_lists?.unit_category || '',
+    action: l.action,
+    detail: l.detail || ''
+  }));
   
   allLogs.sort((a,b)=>new Date(b.when)-new Date(a.when));
   window._allAuditLogs = allLogs;
@@ -1625,7 +1884,12 @@ function renderAuditList() {
 
   const userOpts = users.map(u=>`<option value="${u.id}" ${auditFilter.user===u.id?'selected':''}>${u.full_name}</option>`).join('');
   const modulBadge = (m) => {
-    const colors = {'PO':{bg:'#dbeafe',color:'#1e40af'}, 'Service':{bg:'#fee2e2',color:'#991b1b'}};
+    const colors = {
+      'PP':{bg:'#dcfce7',color:'#166534'},
+      'PO':{bg:'#dbeafe',color:'#1e40af'},
+      'BOM':{bg:'#ede9fe',color:'#5b21b6'},
+      'Service':{bg:'#fee2e2',color:'#991b1b'}
+    };
     const c = colors[m]||{bg:'#f1f5f9',color:'#475569'};
     return `<span style="font-size:10px;background:${c.bg};color:${c.color};padding:2px 8px;border-radius:4px;font-weight:600">${m}</span>`;
   };
@@ -1635,7 +1899,9 @@ function renderAuditList() {
       <input type="text" placeholder="Cari aktivitas, target, user..." value="${auditFilter.search}" oninput="auditFilter.search=this.value;renderAuditList()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm)">
       <select onchange="auditFilter.modul=this.value;renderAuditList()" style="padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)">
         <option value="all" ${auditFilter.modul==='all'?'selected':''}>Semua Modul</option>
+        <option value="PP" ${auditFilter.modul==='PP'?'selected':''}>PP</option>
         <option value="PO" ${auditFilter.modul==='PO'?'selected':''}>PO</option>
+        <option value="BOM" ${auditFilter.modul==='BOM'?'selected':''}>BOM</option>
         <option value="Service" ${auditFilter.modul==='Service'?'selected':''}>Service</option>
       </select>
       <select onchange="auditFilter.user=this.value;renderAuditList()" style="padding:8px;border:1px solid var(--border);border-radius:var(--r-sm)">
@@ -3312,7 +3578,7 @@ async function openPODetail(id) {
     <div class="pk-card">
       <div class="pk-header"><div style="font-size:13px;font-weight:600">${k.keperluan}</div><span style="font-size:11px;font-weight:600;background:var(--surface2);padding:2px 8px;border-radius:20px">${k.status}</span></div>
       <div style="font-size:12px;color:var(--text2)">Pengajuan: <strong>${fmtRp(k.nilai_pengajuan)}</strong>${k.nilai_realisasi ? ' &middot; Realisasi: ' + fmtRp(k.nilai_realisasi) : ''} &middot; ${fmtDate(k.tgl_pengajuan)}</div>
-      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button><button class="btn btn-sm" onclick="openPKForm('${p.id}','${k.id}')">Edit</button></div>` : ''}
+      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button><button class="btn btn-sm" onclick="openPOPKForm('${p.id}','${k.id}')">Edit</button></div>` : ''}
     </div>`) .join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
 
   // Logs
@@ -3362,7 +3628,7 @@ async function openPODetail(id) {
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Permohonan Keuangan (${pks.length})</div>
-          ${can('po_pk') ? `<button class="btn btn-sm" onclick="openPKForm('${p.id}')">+ Ajukan PK</button>` : ''}
+          ${can('po_pk') ? `<button class="btn btn-sm" onclick="openPOPKForm('${p.id}')">+ Ajukan PK</button>` : ''}
         </div>
         ${pksHtml}
       </div>
@@ -4191,7 +4457,7 @@ async function deleteItem(itemId, poId) {
 }
 
 // PK FORM
-async function openPKForm(poId, pkId) {
+async function openPOPKForm(poId, pkId) {
   const p = allPOs.find(x => x.id === poId);
   const k = pkId ? (p?.po_pk || []).find(x => x.id === pkId) : null;
   openModal(`<div class="modal modal-sm">
@@ -7106,7 +7372,7 @@ function renderPKList(el) {
         <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">${pks.length} PK</span>
       </div>
       ${can('bom_manage') ? `
-        <button class="btn btn-primary btn-sm" onclick="openPKForm()">
+        <button class="btn btn-primary btn-sm" onclick="openBOMPKForm()">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
           </svg>
@@ -7175,7 +7441,7 @@ function renderPKList(el) {
 }
 
 // ── Form buat PK baru ─────────────────────────────────────────
-function openPKForm(editPkId) {
+function openBOMPKForm(editPkId) {
   const d   = bomDetail.data;
   const pk  = editPkId ? pkState.pks.find(p=>p.id===editPkId) : null;
 
@@ -7363,7 +7629,7 @@ function renderPKDetail(pk) {
       <div style="flex:1"></div>
       ${showPrice?`<div style="font-size:15px;font-weight:700">${fmtRp(pk.total_nilai)}</div>`:''}
       ${can('bom_manage')?`
-        <button class="btn btn-sm" onclick="openPKForm('${pk.id}')">✎ Edit PK</button>
+        <button class="btn btn-sm" onclick="openBOMPKForm('${pk.id}')">✎ Edit PK</button>
         <button class="btn btn-sm btn-ghost" onclick="pkExportExcel('${pk.id}')">📊 Excel</button>
         <button class="btn btn-sm btn-ghost" onclick="pkPrintDetail('${pk.id}')">🖨 Print</button>
         <button class="btn btn-sm btn-danger" onclick="deletePKRequest('${pk.id}')">Hapus PK</button>`:''}
@@ -7692,8 +7958,6 @@ function bdUpdatePKCards()   {}
 function bdPKSaveFlag()      {}
 function bdPKSaveStatus()    {}
 function bdPKEditQty()       {}
-function bdPKExportExcel()   { if(pkState.openPkId) pkExportExcel(pkState.openPkId); }
-function bdPKPrint()         { if(pkState.openPkId) pkPrintDetail(pkState.openPkId); }
 
 async function bdUpdateStatus(bomId, status) {
   await sb.from('bom_lists').update({ status }).eq('id', bomId);
@@ -7912,8 +8176,6 @@ function updatePKSummaryCards(){ bdUpdatePKCards(); }
 async function pkUpdateFlag(itemId,bomId,flag)   { await bdPKSaveFlag(itemId,flag); }
 async function pkUpdateStatus(itemId,bomId,stat) { await bdPKSaveStatus(itemId,stat); }
 async function pkSaveQty(itemId,bomId,qty)       { await bdPKSaveQty(itemId,qty); }
-function pkExportExcel() { bdPKExportExcel(); }
-function pkPrint()       { bdPKPrint(); }
 
 
 async function openBOMAddItem(bomId) {
@@ -7966,16 +8228,6 @@ async function openBOMAddItem(bomId) {
     sv('biUnit', c.unit || 'pcs');
     sv('biPrice', c.price || 0);
   };
-}
-
-function onBOMItemCompSelect(compId) {
-  if (!compId) return;
-  const c = bomState.components.find(x => x.id == compId);
-  if (!c) return;
-  sv('biPN', c.part_number || '');
-  sv('biName', c.name);
-  sv('biUnit', c.unit || 'pcs');
-  sv('biPrice', c.price || 0);
 }
 
 function onBOMItemCompSelect(compId) {
