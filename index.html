@@ -250,6 +250,44 @@ tr:hover td{background:var(--bg);cursor:pointer}
   .kv{grid-template-columns:100px 1fr}
   .page-body{padding:0 1rem 2rem}
   .topbar{padding:1rem 1rem .75rem}
+  /* Touch target: min 36px tinggi untuk semua tombol */
+  .btn{min-height:36px;padding:8px 14px}
+  .btn-sm{min-height:32px;padding:7px 12px;font-size:12px}
+  /* Tabel jadi font lebih kecil di mobile + cell padding rapat */
+  table th, table td{padding:6px 8px !important;font-size:12px}
+  /* Modal footer: stack tombol-tombol kalau berdesakan */
+  .modal-footer{flex-wrap:wrap;gap:6px}
+  .modal-footer .btn{flex:1;min-width:100px;justify-content:center}
+  /* Topbar title: kurangi line-height + size */
+  .page-title{font-size:16px !important;line-height:1.3}
+  .page-sub{font-size:11px !important}
+  /* Toolbar row: wrap buttons & search */
+  .toolbar-row{flex-wrap:wrap;gap:6px}
+  .toolbar-row .search-wrap{min-width:100%;order:-1}
+  /* Form input lebih besar untuk touch */
+  input[type=text], input[type=password], input[type=date], input[type=email],
+  input[type=tel], input[type=number], select, textarea{
+    font-size:14px;padding:8px 10px
+  }
+  /* KPI cards di laporan: 2 kolom mobile */
+  .stats-grid{gap:8px}
+  /* Sidebar item lebih tinggi untuk touch */
+  .sb-item{padding:11px 14px !important}
+}
+@media(max-width:480px){
+  /* Phone sempit: 1 kolom KPI */
+  .stats-grid{grid-template-columns:1fr}
+  .kv{grid-template-columns:90px 1fr;font-size:12px}
+  .topbar{padding:.75rem .75rem .5rem}
+  .page-body{padding:0 .75rem 1.5rem}
+  /* Hide non-essential text di topbar */
+  .page-sub{display:none}
+  /* Modal padding lebih rapat */
+  .modal-body{padding:.875rem}
+  .modal-header{padding:.875rem}
+  .modal-footer{padding:.75rem .875rem}
+  /* Tabel: font lebih kecil lagi */
+  table th, table td{padding:5px 6px !important;font-size:11px}
 }
 
 /* ── LOGIN ── */
@@ -6192,15 +6230,75 @@ async function loadUsers() {
   const tbody = document.getElementById('userTableBody');
   if (!tbody) return;
   if (!allUsers.length) { tbody.innerHTML = `<tr><td colspan="6">${noData()}</td></tr>`; return; }
-  tbody.innerHTML = allUsers.map(u => `
+  tbody.innerHTML = allUsers.map(u => {
+    const waBtn = u.phone_wa
+      ? `<button class="btn btn-sm" title="Reset password & kirim WA" data-uid="${u.id}" onclick="openResetPwModal(this.dataset.uid)" style="background:#dcfce7;color:#166534">🔑 Reset+WA</button>`
+      : '';
+    const phoneIndicator = u.phone_wa
+      ? `<span title="+${u.phone_wa}" style="font-size:11px;color:var(--green)">📱 WA</span>`
+      : `<span title="Belum ada nomor WA" style="font-size:11px;color:var(--text3)">— no WA</span>`;
+    return `
     <tr>
       <td class="mono">${u.username}</td>
-      <td style="font-weight:500">${u.full_name}</td>
+      <td style="font-weight:500">${u.full_name}<div>${phoneIndicator}</div></td>
       <td><span class="role-badge ${ROLE_CLASSES[u.role] || ''}">${ROLE_LABELS[u.role] || u.role}</span></td>
       <td><span style="font-size:11px;font-weight:600;color:${u.is_active ? 'var(--green)' : 'var(--text3)'}">${u.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
       <td style="color:var(--text3);font-size:12px">${u.last_login ? fmtDateTime(u.last_login) : '—'}</td>
-      <td><button class="btn btn-sm" data-uid="${u.id}" onclick="openUserForm(this.dataset.uid)">Edit</button></td>
-    </tr>`).join('');
+      <td style="white-space:nowrap"><div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" data-uid="${u.id}" onclick="openUserForm(this.dataset.uid)">Edit</button>
+        ${waBtn}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Reset password + kirim WA cepat ──
+async function openResetPwModal(userId) {
+  const u = allUsers.find(x => x.id === userId);
+  if (!u) { toast('User tidak ditemukan'); return; }
+  if (!u.phone_wa) { toast('User belum punya nomor WA. Edit dulu untuk tambah WA.'); return; }
+
+  const html = `<div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>🔑 Reset Password — ${escapeHtml(u.full_name)}</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+        Generate password baru dan langsung kirim ke WA <b>+${u.phone_wa}</b>
+      </div>
+      <div class="form-row">
+        <label>Password Baru <span class="req">*</span></label>
+        <div style="display:flex;gap:6px;align-items:stretch">
+          <input type="text" id="rpNewPw" placeholder="Password baru" style="flex:1">
+          <button type="button" class="btn btn-sm btn-ghost" onclick="generateRandomPw('rpNewPw')" style="padding:0 12px">🎲</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="doResetPw('${u.id}')">Reset & Kirim WA</button>
+    </div>
+  </div>`;
+  openModal(html, 'resetPwModal', true);
+  // Auto-generate satu di awal
+  setTimeout(() => generateRandomPw('rpNewPw'), 100);
+}
+
+async function doResetPw(userId) {
+  const pw = gv('rpNewPw').trim();
+  if (!pw || pw.length < 4) { toast('Password minimal 4 karakter'); return; }
+  const u = allUsers.find(x => x.id === userId);
+  if (!u) return;
+
+  const hash = await sha256(pw);
+  const { error } = await sb.from('app_users').update({ password_hash: hash }).eq('id', userId);
+  if (error) { toast('Gagal reset: ' + error.message); return; }
+
+  toast('✓ Password di-reset');
+  closeAllModals();
+  await loadUsers();
+  setTimeout(() => showSendCredentialModal(u.full_name, u.username, pw, u.phone_wa), 300);
 }
 
 const MODULE_LIST = [
@@ -6242,7 +6340,15 @@ async function openUserForm(userId) {
       </div>
       <div class="form-row">
         <label>Password${u ? ' <span style="font-weight:400;color:var(--text3)">(kosongkan jika tidak diubah)</span>' : ' <span class="req">*</span>'}</label>
-        <input type="password" id="ufPassword" placeholder="Password" autocomplete="new-password">
+        <div style="display:flex;gap:6px;align-items:stretch">
+          <input type="password" id="ufPassword" placeholder="Password" autocomplete="new-password" style="flex:1">
+          <button type="button" class="btn btn-sm btn-ghost" onclick="togglePwVisibility('ufPassword',this)" style="padding:0 12px" title="Lihat/Sembunyikan">👁</button>
+          <button type="button" class="btn btn-sm btn-ghost" onclick="generateRandomPw('ufPassword')" style="padding:0 12px" title="Generate password acak">🎲</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>No. WhatsApp <span style="font-weight:400;color:var(--text3)">(untuk kirim credential)</span></label>
+        <input type="text" id="ufPhone" value="${u?.phone_wa || ''}" placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx" inputmode="tel">
       </div>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:10px"><input type="checkbox" id="ufActive" ${u?.is_active !== false ? 'checked' : ''}><span>Aktif</span></label>
       
@@ -6293,7 +6399,10 @@ async function saveUser(editId) {
     });
   }
 
-  const payload = { username, full_name: fullName, role, is_active: document.getElementById('ufActive').checked, permissions };
+  const phoneRaw = gv('ufPhone').trim();
+  const phoneNorm = normalizeWA(phoneRaw);
+
+  const payload = { username, full_name: fullName, role, is_active: document.getElementById('ufActive').checked, permissions, phone_wa: phoneNorm || null };
   if (pw) payload.password_hash = await sha256(pw);
   if (editId) {
     if (!pw) delete payload.password_hash;
@@ -6305,6 +6414,99 @@ async function saveUser(editId) {
   toast(editId ? 'User diperbarui' : 'User baru dibuat');
   closeAllModals();
   await loadUsers();
+
+  // Jika ada password baru di-set DAN ada nomor WA, tawarkan kirim credential
+  if (pw && phoneNorm) {
+    setTimeout(() => showSendCredentialModal(fullName, username, pw, phoneNorm), 300);
+  } else if (pw && !phoneNorm) {
+    // Password baru tapi tidak ada WA — kasih warning ringan
+    setTimeout(() => toast('💡 Tip: isi No. WA agar bisa kirim credential otomatis'), 800);
+  }
+}
+
+// ── Helper untuk WA ──
+function normalizeWA(raw) {
+  if (!raw) return '';
+  let n = raw.replace(/[^\d]/g, '');           // buang spasi, tanda baca
+  if (n.startsWith('0')) n = '62' + n.slice(1); // 08xx → 628xx
+  else if (n.startsWith('8')) n = '62' + n;     // 8xx → 628xx
+  else if (n.startsWith('620')) n = '62' + n.slice(3); // 6208xx → 628xx (typo umum)
+  // Validasi minimal: 62 + 9 digit
+  if (n.length < 11 || !n.startsWith('62')) return '';
+  return n;
+}
+
+function togglePwVisibility(inputId, btn) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = '🙈'; }
+  else { el.type = 'password'; btn.textContent = '👁'; }
+}
+
+function generateRandomPw(inputId) {
+  // Generate password 8 karakter: 4 huruf + 4 angka, acak posisi
+  const huruf = 'abcdefghjkmnpqrstuvwxyz'; // skip i, l, o (bingung sama 1,0)
+  const angka = '23456789';                 // skip 0, 1 (bingung sama o, l)
+  const chars = [];
+  for (let i = 0; i < 4; i++) chars.push(huruf[Math.floor(Math.random()*huruf.length)]);
+  for (let i = 0; i < 4; i++) chars.push(angka[Math.floor(Math.random()*angka.length)]);
+  // Shuffle
+  chars.sort(() => Math.random() - 0.5);
+  const el = document.getElementById(inputId);
+  if (el) { el.value = chars.join(''); el.type = 'text'; }
+}
+
+function showSendCredentialModal(fullName, username, password, phoneWA) {
+  const loginUrl = window.location.origin + window.location.pathname;
+  const msg = `Halo ${fullName},\n\nAkun *Panel System SAE Energy* Anda sudah siap:\n\n👤 Username: *${username}*\n🔑 Password: *${password}*\n🌐 Login: ${loginUrl}\n\nMohon segera login dan ganti password jika diperlukan.\nJaga kerahasiaan akun Anda.\n\n— SAE Energy`;
+  const waUrl = `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
+
+  const html = `<div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 style="color:var(--green)">✓ User berhasil dibuat</h2>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#78350f">
+        ⚠ Password hanya ditampilkan SEKALI di sini. Pastikan sudah dikirim sebelum tutup modal.
+      </div>
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:12px;font-family:monospace;font-size:13px;line-height:1.7">
+        <div>Nama: <b>${escapeHtml(fullName)}</b></div>
+        <div>Username: <b>${escapeHtml(username)}</b></div>
+        <div>Password: <b style="background:#fff3cd;padding:2px 6px;border-radius:3px">${escapeHtml(password)}</b></div>
+        <div>WA: <b>+${phoneWA}</b></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="flex:1;min-width:140px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;background:#25d366;border-color:#25d366">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#fff"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg>
+          Kirim via WA
+        </a>
+        <button class="btn" onclick="copyCredential('${encodeURIComponent(msg)}')" style="flex:1;min-width:140px">📋 Copy Teks</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px;text-align:center">
+        Tombol WA membuka aplikasi WhatsApp dengan pesan siap kirim
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeAllModals()">Selesai</button>
+    </div>
+  </div>`;
+  openModal(html, 'sendCredModal', false);
+}
+
+function copyCredential(encodedMsg) {
+  const text = decodeURIComponent(encodedMsg);
+  navigator.clipboard.writeText(text).then(() => toast('✓ Pesan tersalin ke clipboard'))
+    .catch(() => {
+      // Fallback untuk browser lama
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('✓ Pesan tersalin'); }
+      catch(e) { toast('Browser tidak mendukung copy otomatis'); }
+      document.body.removeChild(ta);
+    });
 }
 // ═══════════════════════════════════════════════════════════
 // SPEC FIELDS & SERIAL NUMBER (dari sistem lama)
