@@ -121,6 +121,8 @@ tr:hover td{background:var(--bg);cursor:pointer}
 .col-rsz:hover,.col-rsz.dragging{background:var(--blue);opacity:.5}
 .empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);white-space:normal}
 .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+table td.mono{white-space:normal;word-break:break-word;line-height:1.35}
+table td{vertical-align:top;line-height:1.4}
 /* Grouped table rows */
 .group-row td{background:var(--surface2);font-weight:600;cursor:pointer;user-select:none;padding:8px 10px}
 .group-row:hover td{background:var(--bg)}
@@ -777,7 +779,7 @@ async function renderPPModule() {
       <div class="table-card">
         <div class="table-wrap">
           <table><colgroup><col style="width:14%"><col style="width:11%"><col style="width:18%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup>
-          <thead><tr><th style="width:20%;min-width:90px">No. Request</th><th style="width:28%">Customer</th><th style="width:28%">Project</th><th style="width:19%">Requestor</th><th style="width:5%;min-width:30px"></th></tr></thead>
+          <thead><tr><th style="width:18%;min-width:80px">No. Request</th><th style="width:24%">Customer</th><th style="width:24%">Project</th><th style="width:15%">Requestor</th><th style="width:14%">Status</th><th style="width:5%;min-width:28px"></th></tr></thead>
           <tbody id="ppTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
@@ -822,14 +824,14 @@ function renderPPTable() {
 
   const tbody = document.getElementById('ppTableBody');
   if (!tbody) return;
-  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada request')}</td></tr>`; return; }
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">${noData('Belum ada request')}</td></tr>`; return; }
 
   tbody.innerHTML = rows.map(r => {
     const isExpanded = _ppExpandedId === r.id;
     const arrow = isExpanded ? '▲' : '▼';
     const detailRow = !isExpanded ? '' : `
       <tr class="pp-detail-row">
-        <td colspan="5" style="background:#f8fafc;padding:14px 16px;border-top:none">
+        <td colspan="6" style="background:#f8fafc;padding:14px 16px;border-top:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tanggal</div><div style="margin-top:2px;font-weight:500">${fmtDate(r.date)}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${r.project_name || '—'}</div></div>
@@ -850,7 +852,8 @@ function renderPPTable() {
         <td>${r.customer_name || '—'}</td>
         <td style="color:var(--text2)">${r.project_name || '—'}</td>
         <td style="color:var(--text2);font-size:11px">${r.app_users?.full_name || '—'}</td>
-        <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
+        <td>${badge(r.status)}</td>
+        <td style="text-align:center;color:var(--text3);width:28px">${arrow}</td>
       </tr>
       ${detailRow}`;
   }).join('');
@@ -1793,18 +1796,20 @@ function renderLaporanRingkasan() {
   // Trend chart 12 bulan
   const trend = laporanState.trend || [];
   const maxVal = Math.max(1, ...trend.map(t => t.total_po || 0));
-  const chartW = 700, chartH = 160, padding = 30;
-  const barW = trend.length ? Math.min(50, (chartW - padding*2) / trend.length - 4) : 20;
+  const chartW = 700, chartH = 240, padTop = 30, padBot = 50, padSide = 30;
+  const barW = trend.length ? Math.min(50, (chartW - padSide*2) / trend.length - 4) : 20;
+  const barAreaH = chartH - padTop - padBot;
 
   const bars = trend.map((t, i) => {
-    const x = padding + i * ((chartW - padding*2) / Math.max(1, trend.length));
-    const h = ((t.total_po || 0) / maxVal) * (chartH - padding*2);
-    const y = chartH - padding - h;
+    const x = padSide + i * ((chartW - padSide*2) / Math.max(1, trend.length));
+    const h = ((t.total_po || 0) / maxVal) * barAreaH;
+    const y = chartH - padBot - h;
     const lbl = new Date(t.bulan).toLocaleDateString('id-ID', { month:'short', year:'2-digit' });
     return `
       <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#3b82f6" rx="3"></rect>
-      <text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#475569" font-weight="600">${t.total_po || 0}</text>
-      <text x="${x + barW/2}" y="${chartH - padding + 14}" text-anchor="middle" font-size="10" fill="#94a3b8">${lbl}</text>
+      <text x="${x + barW/2}" y="${y - 6}" text-anchor="middle" font-size="11" fill="#475569" font-weight="600">${t.total_po || 0}</text>
+      <text x="${x + barW/2}" y="${chartH - padBot + 16}" text-anchor="middle" font-size="11" fill="#475569">${lbl.split(' ')[0]}</text>
+      <text x="${x + barW/2}" y="${chartH - padBot + 30}" text-anchor="middle" font-size="10" fill="#94a3b8">${lbl.split(' ')[1] || ''}</text>
     `;
   }).join('');
 
@@ -1812,8 +1817,8 @@ function renderLaporanRingkasan() {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
       <div style="font-size:13px;font-weight:600;margin-bottom:.5rem">📈 Trend PO Masuk — 12 bulan terakhir</div>
       <div style="overflow-x:auto">
-        <svg viewBox="0 0 ${chartW} ${chartH}" style="width:100%;max-width:${chartW}px;height:auto">
-          <line x1="${padding}" y1="${chartH-padding}" x2="${chartW-padding}" y2="${chartH-padding}" stroke="#cbd5e1" stroke-width="1"></line>
+        <svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:${chartW}px;height:auto;min-height:220px;display:block">
+          <line x1="${padSide}" y1="${chartH-padBot}" x2="${chartW-padSide}" y2="${chartH-padBot}" stroke="#cbd5e1" stroke-width="1"></line>
           ${bars}
         </svg>
       </div>
@@ -2472,10 +2477,14 @@ function groupItemsByProject(items) {
   const groups = {};
   items.forEach(it => {
     const key = (it.po.customer_name||'—') + ' ⁞ ' + (it.po.project_name || it.po.no_project || '(tanpa project)');
-    if(!groups[key]) groups[key] = {key, customer:it.po.customer_name||'—', project:it.po.project_name||it.po.no_project||'(tanpa project)', items:[]};
+    if(!groups[key]) groups[key] = {key, customer:it.po.customer_name||'—', project:it.po.project_name||it.po.no_project||'(tanpa project)', items:[], _maxNoProject:''};
     groups[key].items.push(it);
+    // Track max no_project in this group untuk sort grup
+    const np = it.po.no_project || it.po.no_po || '';
+    if (np > groups[key]._maxNoProject) groups[key]._maxNoProject = np;
   });
-  return Object.values(groups).sort((a,b)=>a.key.localeCompare(b.key));
+  // Sort grup: No. Project terbaru di atas (desc)
+  return Object.values(groups).sort((a,b) => b._maxNoProject.localeCompare(a._maxNoProject));
 }
 
 function toggleGroup(groupKey, prefix='g') {
@@ -2684,7 +2693,7 @@ function _buildAprodTable(items) {
   const st = tblState('aprod');
   const filtered = tblFilterBySearch(items, st.search);
   const columns = [
-    { key:'no_po', label:'No. PO', sortable:true, style:'width:13%' },
+    { key:'no_project', label:'No. Project', sortable:true, style:'width:13%' },
     { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
     { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
     { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
@@ -2692,7 +2701,7 @@ function _buildAprodTable(items) {
     { key:'action', label:'', sortable:false, style:'width:15%' },
   ];
   const getColumns = ({po, item, pics}) => [
-    `<td class="mono">${po.no_po}</td>`,
+    `<td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>`,
     `<td>${item.category}</td>`,
     `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
     `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
@@ -2953,7 +2962,7 @@ function _buildAinstTable(items) {
   const st = tblState('ainst');
   const filtered = tblFilterBySearch(items, st.search);
   const columns = [
-    { key:'no_po', label:'No. PO', sortable:true, style:'width:12%' },
+    { key:'no_project', label:'No. Project', sortable:true, style:'width:12%' },
     { key:'category', label:'Kategori', sortable:true, style:'width:10%' },
     { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
     { key:'serial_number', label:'Serial Number', sortable:true, style:'width:17%' },
@@ -2964,7 +2973,7 @@ function _buildAinstTable(items) {
   const getColumns = ({po, item, pics}) => {
     const flags = [po.has_instalasi?'Instalasi':'', po.has_commissioning?'Commissioning':''].filter(Boolean).join(' + ');
     return [
-      `<td class="mono">${po.no_po}</td>`,
+      `<td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>`,
       `<td>${item.category}</td>`,
       `<td style="font-weight:500">${item.model_name||'<span style="color:var(--text3)">(belum ada model)</span>'}</td>`,
       `<td class="mono">${item.serial_number || '<span style="color:var(--text3);font-family:inherit">—</span>'}</td>`,
