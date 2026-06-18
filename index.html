@@ -7710,6 +7710,12 @@ async function openBOMForm(opts) {
   if (!bomState.components || !bomState.components.length) {
     toast('Memuat data komponen...');
     await loadBOMData();
+  } else {
+    // Always refresh templates so newly-added ones appear without page reload
+    const { data: freshTmpls } = await sb.from('bom_templates')
+      .select('*,bom_template_items(*)').eq('is_active', true)
+      .order('unit_category').order('name');
+    if (freshTmpls) bomState.templates = freshTmpls;
   }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>BOM Baru — Step 1: Info</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
@@ -7718,8 +7724,12 @@ async function openBOMForm(opts) {
       <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
         <select id="bomCategory" onchange="onBOMCategoryChange()">
           <option value="">-- Pilih --</option>
-          ${BOM_UNIT_CATEGORIES.map(c => `<option>${c}</option>`).join('')}
+          ${BOM_UNIT_CATEGORIES.map(c => {
+            const n = (bomState.templates || []).filter(t => t.unit_category === c).length;
+            return `<option value="${c}">${c}${n ? ` (${n} template)` : ''}</option>`;
+          }).join('')}
         </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Setelah pilih kategori, dropdown template muncul kalau tersedia.</div>
       </div>
       <div class="form-row" id="bomTemplateRow" style="display:none">
         <label>Generate dari Template (opsional)</label>
