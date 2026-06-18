@@ -385,12 +385,39 @@ function pendingChangesCount() {
   return Object.keys(pendingChanges).length;
 }
 
-const PANEL_TYPES = {
-  'ACDB': { name: 'ACDB 400/230VAC', desc: '3-phase, ACB MTZ, mixed outgoing 4P/3P/2P', engine: 'calculate_acdb', deriveFn: 'derive_acdb_vars' },
-  'DCDB_110V': { name: 'DCDB 110V', desc: 'DC system 110V, 2-pole outgoing, auto-transfer', engine: 'calculate_dcdb_110v', deriveFn: 'derive_dcdb_110v_vars' },
-  'DCDB_48V': { name: 'DCDB 48V', desc: 'DC system 48V, compact 1-cubicle, 2P outgoing', engine: 'calculate_dcdb_48v', deriveFn: 'derive_dcdb_48v_vars' },
-  'LVDP': { name: 'LVDP umum', desc: 'Distribution panel 100-630A, MCCB main', engine: 'calculate_lvdp', deriveFn: 'derive_lvdp_vars' }
+let PANEL_TYPES = {
+  'ACDB': { name: 'ACDB 400/230VAC', desc: '3-phase, ACB MTZ, mixed outgoing 4P/3P/2P', engine: 'calculate_acdb', deriveFn: 'derive_acdb_vars', category: 'Distribution', sort_order: 100 },
+  'DCDB_110V': { name: 'DCDB 110V', desc: 'DC system 110V, 2-pole outgoing, auto-transfer', engine: 'calculate_dcdb_110v', deriveFn: 'derive_dcdb_110v_vars', category: 'Distribution', sort_order: 110 },
+  'DCDB_48V': { name: 'DCDB 48V', desc: 'DC system 48V, compact 1-cubicle, 2P outgoing', engine: 'calculate_dcdb_48v', deriveFn: 'derive_dcdb_48v_vars', category: 'Distribution', sort_order: 120 },
+  'LVDP': { name: 'LVDP umum', desc: 'Distribution panel 100-630A, MCCB main', engine: 'calculate_lvdp', deriveFn: 'derive_lvdp_vars', category: 'Distribution', sort_order: 130 }
 };
+
+// Loaded async from panel_types table — merges into PANEL_TYPES.
+// Schema-driven types have __schema (parameters array) flag.
+async function loadPanelTypes() {
+  try {
+    const { data, error } = await sb.from('panel_types').select('*').eq('is_active', true).order('sort_order');
+    if (error) throw error;
+    (data || []).forEach(pt => {
+      // Skip if already hard-coded (legacy) — table is a superset/override
+      if (PANEL_TYPES[pt.code]) {
+        PANEL_TYPES[pt.code].category = pt.category;
+        PANEL_TYPES[pt.code].sort_order = pt.sort_order;
+        return;
+      }
+      PANEL_TYPES[pt.code] = {
+        name: pt.name,
+        desc: pt.description || '',
+        engine: pt.engine_fn,
+        category: pt.category,
+        sort_order: pt.sort_order,
+        __schema: pt.is_schema_driven ? (pt.parameters || []) : null
+      };
+    });
+  } catch (e) {
+    console.warn('loadPanelTypes failed (legacy types only):', e);
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // PERMISSIONS (same as Panel System V2)
@@ -442,6 +469,7 @@ function startApp() {
   document.getElementById('appShell').classList.remove('hidden');
   document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
   document.getElementById('userRole').textContent = (currentUser.role || '').toUpperCase();
+  loadPanelTypes();   // load extra panel types from panel_types table (UPS, etc)
   loadPPRequests();   // load list of pp_requests untuk dropdown
   goPage('list');
 }
@@ -706,23 +734,55 @@ function renderNewCalcPage(opts = {}) {
 }
 
 function renderPanelPicker() {
+  // Group by category (Power / Distribution)
+  const groups = {};
+  Object.entries(PANEL_TYPES).forEach(([key, p]) => {
+    const cat = p.category || 'Distribution';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push([key, p]);
+  });
+  // Sort each group by sort_order
+  Object.values(groups).forEach(arr => arr.sort((a, b) => (a[1].sort_order || 999) - (b[1].sort_order || 999)));
+
+  // Preferred display order
+  const catOrder = ['Power', 'Distribution'];
+  const catsSorted = catOrder.filter(c => groups[c]).concat(Object.keys(groups).filter(c => !catOrder.includes(c)));
+
+  const renderCard = ([key, p]) => `
+    <button class="panel-card" onclick="selectPanelType('${key}')">
+      <div class="panel-card-title">${escapeHtml(p.name)}</div>
+      <div class="panel-card-desc">${escapeHtml(p.desc)}</div>
+    </button>`;
+
+  const sections = catsSorted.map(cat => `
+    <div style="margin-bottom:1.25rem">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3, #888);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:.5rem">${escapeHtml(cat)}</div>
+      <div class="panel-picker">${groups[cat].map(renderCard).join('')}</div>
+    </div>`).join('');
+
   $('pageBody').innerHTML = `
     <div class="card" style="max-width:900px">
       <div class="form-section-title">Step 1 dari 3 — Pilih Tipe Panel</div>
-      <div class="panel-picker">
-        ${Object.entries(PANEL_TYPES).map(([key, p]) => `
-          <button class="panel-card" onclick="selectPanelType('${key}')">
-            <div class="panel-card-title">${escapeHtml(p.name)}</div>
-            <div class="panel-card-desc">${escapeHtml(p.desc)}</div>
-          </button>
-        `).join('')}
-      </div>
+      ${sections}
     </div>`;
 }
 
 function selectPanelType(type) {
   selectedPanelType = type;
-  // Set sensible defaults per panel
+  const p = PANEL_TYPES[type];
+
+  // Schema-driven panel types (UPS, future Rectifier/Inverter): set defaults from schema
+  if (p && p.__schema) {
+    p.__schema.forEach(f => {
+      if (calcParameters[f.key] === undefined || calcParameters[f.key] === null || calcParameters[f.key] === '') {
+        calcParameters[f.key] = f.default;
+      }
+    });
+    renderCalcForm();
+    return;
+  }
+
+  // Legacy hard-coded defaults
   if (type === 'ACDB') {
     calcParameters.voltage = 400;
     calcParameters.main_breaker_amp = 1000;
@@ -748,10 +808,37 @@ function selectPanelType(type) {
 
 function renderCalcForm() {
   const p = PANEL_TYPES[selectedPanelType];
-  
+  const isSchemaDriven = !!(p && p.__schema);
+
   // Generate panel-specific fields
   let paramFields = '';
-  if (selectedPanelType === 'ACDB' || selectedPanelType === 'LVDP') {
+
+  if (isSchemaDriven) {
+    // Schema-driven: render form from parameters JSONB schema
+    const fields = p.__schema.map(f => {
+      const val = calcParameters[f.key] ?? f.default ?? '';
+      const req = f.required ? '<span class="req">*</span>' : '';
+      const hint = f.hint ? `<div class="form-hint">${escapeHtml(f.hint)}</div>` : '';
+      let input;
+      if (f.type === 'select') {
+        const opts = (f.options || []).map(o =>
+          `<option value="${o}" ${String(val)===String(o)?'selected':''}>${escapeHtml(String(o))}</option>`).join('');
+        input = `<select id="fSchema_${f.key}" onchange="setParam('${f.key}', this.value)">${opts}</select>`;
+      } else if (f.type === 'checkbox') {
+        input = `<label class="flex" style="cursor:pointer"><input type="checkbox" id="fSchema_${f.key}" ${val ? 'checked' : ''} onchange="setParam('${f.key}', this.checked)" style="width:16px"><span style="font-size:13px">${escapeHtml(f.label)}</span></label>`;
+        return `<div class="form-row">${input}${hint}</div>`;
+      } else {
+        const minMax = (f.min!==undefined?`min="${f.min}"`:'') + ' ' + (f.max!==undefined?`max="${f.max}"`:'');
+        input = `<input type="${f.type||'text'}" id="fSchema_${f.key}" ${minMax} value="${escapeHtml(String(val))}" oninput="setParam('${f.key}', this.value)">`;
+      }
+      return `<div class="form-row">
+        <label>${escapeHtml(f.label)}${req}</label>
+        ${input}
+        ${hint}
+      </div>`;
+    }).join('');
+    paramFields = `<div class="form-grid-3">${fields}</div>`;
+  } else if (selectedPanelType === 'ACDB' || selectedPanelType === 'LVDP') {
     paramFields = `
       <div class="form-grid-3">
         <div class="form-row">
@@ -870,7 +957,7 @@ function renderCalcForm() {
         ${paramFields}
       </div>
       
-      <!-- SECTION 3: OUTGOING CIRCUITS -->
+      ${isSchemaDriven ? '' : `<!-- SECTION 3: OUTGOING CIRCUITS -->
       <div class="card mb-2">
         <div class="flex" style="justify-content:space-between;margin-bottom:.875rem">
           <div class="form-section-title" style="margin-bottom:0">Outgoing Circuits</div>
@@ -880,7 +967,7 @@ function renderCalcForm() {
         <div class="form-hint mt-1">
           Total outgoing: <strong id="totalSlotsDisplay">${totalSlots()}</strong> slot
         </div>
-      </div>
+      </div>`}
       
       <!-- ACTION BUTTONS -->
       <div class="flex" style="justify-content:flex-end;gap:8px;margin-top:1rem">
@@ -987,41 +1074,68 @@ function onPPRequestChange() {
 // GENERATE BOM (call Supabase RPC)
 // ═══════════════════════════════════════════════════════════════════════
 async function generateBOM() {
+  const p = PANEL_TYPES[selectedPanelType];
+  const isSchemaDriven = !!(p && p.__schema);
+
   // Validate
   if (!calcParameters.customer || !calcParameters.project_name) {
     return toast('Customer dan Project Name wajib diisi', 'warn');
   }
-  if (calcParameters.outgoing.length === 0) {
-    return toast('Tambahkan minimal 1 outgoing circuit', 'warn');
-  }
-  for (let i = 0; i < calcParameters.outgoing.length; i++) {
-    const o = calcParameters.outgoing[i];
-    if (!o.amp || !o.slots) {
-      return toast(`Outgoing #${i+1}: Amp & Slots harus terisi`, 'warn');
+  if (!isSchemaDriven) {
+    if (calcParameters.outgoing.length === 0) {
+      return toast('Tambahkan minimal 1 outgoing circuit', 'warn');
+    }
+    for (let i = 0; i < calcParameters.outgoing.length; i++) {
+      const o = calcParameters.outgoing[i];
+      if (!o.amp || !o.slots) {
+        return toast(`Outgoing #${i+1}: Amp & Slots harus terisi`, 'warn');
+      }
+    }
+  } else {
+    // Schema-driven: validate required fields from schema
+    for (const f of p.__schema) {
+      if (f.required && (calcParameters[f.key] === undefined || calcParameters[f.key] === null || calcParameters[f.key] === '')) {
+        return toast(`Field "${f.label}" wajib diisi`, 'warn');
+      }
     }
   }
   
   showLoadingModal('Membuat calculator session...');
   
   try {
-    // 1. Build parameters JSON (sesuai schema engine)
-    const params = {
-      voltage: calcParameters.voltage,
-      outgoing: calcParameters.outgoing.map(o => ({
-        label: o.label || '—',
-        pole: o.pole,
-        amp: parseFloat(o.amp),
-        slots: parseInt(o.slots)
-      }))
-    };
-    if (calcParameters.charger_count) params.charger_count = parseInt(calcParameters.charger_count);
-    if (calcParameters.charger_amp) params.charger_amp = parseFloat(calcParameters.charger_amp);
-    if (calcParameters.main_breaker_amp) params.main_breaker_amp = parseFloat(calcParameters.main_breaker_amp);
-    if (calcParameters.cubicle_count) params.cubicle_count = parseInt(calcParameters.cubicle_count);
-    params.bus_coupler = !!calcParameters.bus_coupler;
-    params.sas_required = !!calcParameters.sas_required;
-    params.control_external = !!calcParameters.control_external;
-    params.power_meter_required = !!calcParameters.power_meter_required;
+    // 1. Build parameters JSON
+    let params;
+    if (isSchemaDriven) {
+      // Schema-driven: only schema fields go into params
+      params = {};
+      p.__schema.forEach(f => {
+        let v = calcParameters[f.key];
+        if (f.type === 'number' || f.type === 'select') {
+          const n = parseFloat(v);
+          if (!isNaN(n)) v = n;
+        }
+        params[f.key] = v;
+      });
+    } else {
+      // Legacy: outgoing + named params
+      params = {
+        voltage: calcParameters.voltage,
+        outgoing: calcParameters.outgoing.map(o => ({
+          label: o.label || '—',
+          pole: o.pole,
+          amp: parseFloat(o.amp),
+          slots: parseInt(o.slots)
+        }))
+      };
+      if (calcParameters.charger_count) params.charger_count = parseInt(calcParameters.charger_count);
+      if (calcParameters.charger_amp) params.charger_amp = parseFloat(calcParameters.charger_amp);
+      if (calcParameters.main_breaker_amp) params.main_breaker_amp = parseFloat(calcParameters.main_breaker_amp);
+      if (calcParameters.cubicle_count) params.cubicle_count = parseInt(calcParameters.cubicle_count);
+      params.bus_coupler = !!calcParameters.bus_coupler;
+      params.sas_required = !!calcParameters.sas_required;
+      params.control_external = !!calcParameters.control_external;
+      params.power_meter_required = !!calcParameters.power_meter_required;
+    }
     
     // 2. Insert ke panel_calc_inputs
     const calcId = genId('CALC-' + selectedPanelType.replace('_', ''));
