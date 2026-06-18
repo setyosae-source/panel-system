@@ -7984,7 +7984,7 @@ function bomSheetRender(ctx) {
     return `<tr data-row="${ri}" class="${selectedRows[ri] ? 'selected-row' : ''}">
       <td class="row-head ${selectedRows[ri] ? 'selected' : ''}" onclick="bomSheetSelectRow(event,'${ctx}',${ri})">${ri + 1}</td>
       ${cols.map((c, ci) => {
-        const ro = c.readonly ? 'false' : 'true';
+        const ro = c.readonly ? 'readonly' : 'true';
         const cellVal = bomSheetHtml(bomCellDisplay(it, c));
         const numeric = c.type === 'number' || c.key === 'subtotal';
         return `<td data-col-key="${c.key}">
@@ -8004,13 +8004,17 @@ function bomSheetRender(ctx) {
   host.innerHTML = `
     <div class="bom-sheet-card">
       <div class="bom-sheet-toolbar">
-        <button class="btn btn-sm" onclick="bomSheetAddRow('${ctx}')">+ Baris</button>
+        <button class="btn btn-sm" onclick="bomSheetAddRow('${ctx}')">+ Baris Akhir</button>
+        <button class="btn btn-sm" onclick="bomSheetInsertRow('${ctx}','above')">Sisip Atas</button>
+        <button class="btn btn-sm" onclick="bomSheetInsertRow('${ctx}','below')">Sisip Bawah</button>
+        <button class="btn btn-sm" onclick="bomSheetMoveRows('${ctx}',-1)">↑ Naik</button>
+        <button class="btn btn-sm" onclick="bomSheetMoveRows('${ctx}',1)">↓ Turun</button>
         <button class="btn btn-sm btn-danger" onclick="bomSheetDeleteRows('${ctx}')">Hapus Baris</button>
         <button class="btn btn-sm" onclick="bomSheetAddColumn('${ctx}')">+ Kolom</button>
         <button class="btn btn-sm btn-danger" onclick="bomSheetDeleteColumn('${ctx}')">Hapus/Sembunyikan Kolom</button>
         <button class="btn btn-sm" onclick="bomSheetResetColumns('${ctx}')">Tampilkan Semua Kolom</button>
         ${ctx === 'detail' ? `<button class="btn btn-sm btn-primary" onclick="saveBOMSheetDetail()">💾 Simpan Perubahan</button>` : ''}
-        <span class="hint">Paste dari Excel/Sheets langsung ke cell. Tab/Enter/arrow untuk pindah cell. Drag batas judul kolom untuk resize.</span>
+        <span class="hint">Pilih nomor baris dulu. Bisa sisip atas/bawah, pindah naik/turun, paste dari Excel/Sheets, Tab/Enter/arrow pindah cell, drag batas judul kolom untuk resize.</span>
       </div>
       <div class="bom-sheet-wrap">
         <table class="bom-sheet-table" id="${ctx}SheetTable">
@@ -8053,6 +8057,9 @@ function bomSheetKeydown(e, ctx, row, col) {
   let nr = row, nc = col;
   if (e.key === 'Tab') { e.preventDefault(); nc = col + (e.shiftKey ? -1 : 1); }
   else if (e.key === 'Enter') { e.preventDefault(); nr = row + (e.shiftKey ? -1 : 1); }
+  else if ((e.altKey || e.ctrlKey) && e.key === 'ArrowUp') { e.preventDefault(); bomSheetSelectOnlyRow(ctx, row); bomSheetMoveRows(ctx, -1); return; }
+  else if ((e.altKey || e.ctrlKey) && e.key === 'ArrowDown') { e.preventDefault(); bomSheetSelectOnlyRow(ctx, row); bomSheetMoveRows(ctx, 1); return; }
+  else if ((e.altKey || e.ctrlKey) && e.key === 'Insert') { e.preventDefault(); bomSheetSelectOnlyRow(ctx, row); bomSheetInsertRow(ctx, e.shiftKey ? 'below' : 'above'); return; }
   else if (e.key === 'ArrowDown' && !e.shiftKey) { e.preventDefault(); nr = row + 1; }
   else if (e.key === 'ArrowUp' && !e.shiftKey) { e.preventDefault(); nr = row - 1; }
   else if (e.key === 'ArrowRight' && !e.shiftKey && window.getSelection()?.toString() === '') { e.preventDefault(); nc = col + 1; }
@@ -8088,19 +8095,99 @@ function bomSheetPaste(e, ctx, row, col) {
   bomSheetRender(ctx);
   setTimeout(() => bomSheetFocusDom(ctx, row, col), 0);
 }
-function bomSheetAddRow(ctx, count=1, render=true) {
+function bomSheetNewBlankRow(ctx, sortOrder=1) {
+  return {
+    tmpRowId: ctx === 'review' ? 'r_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
+    _rowUid: ctx === 'detail' ? 'bd_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
+    component_id: null, part_number:'', name:'', qty:1, unit:'pcs', unit_price:0, note:'', _extra:{},
+    sort_order: sortOrder
+  };
+}
+function bomSheetNormalizeRows(ctx) {
   const items = bomSheetGetItems(ctx);
-  for (let i=0;i<count;i++) {
-    const row = {
-      tmpRowId: ctx === 'review' ? 'r_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
-      _rowUid: ctx === 'detail' ? 'bd_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
-      component_id: null, part_number:'', name:'', qty:1, unit:'pcs', unit_price:0, note:'', _extra:{},
-      sort_order: items.length + 1
-    };
-    items.push(row);
+  items.forEach((it, i) => {
+    it.sort_order = i + 1;
+    if (ctx === 'review' && !it.tmpRowId) it.tmpRowId = 'r_' + i + '_' + Date.now();
+    if (ctx === 'detail' && !it._rowUid) it._rowUid = 'bd_' + (it.id || 'new') + '_' + i + '_' + Date.now();
+  });
+}
+function bomSheetSelectedRowIndexes(ctx) {
+  const state = bomSheetGetState(ctx), items = bomSheetGetItems(ctx);
+  if (!state) return [];
+  let rows = Object.keys(state.selectedRows || {}).map(Number);
+  if (!rows.length && state.selectedRow != null) rows = [state.selectedRow];
+  return [...new Set(rows)].filter(i => i >= 0 && i < items.length).sort((a,b)=>a-b);
+}
+function bomSheetSelectOnlyRow(ctx, row) {
+  const state = bomSheetGetState(ctx), items = bomSheetGetItems(ctx);
+  if (!state || !items.length) return;
+  const r = Math.max(0, Math.min(row, items.length - 1));
+  state.selectedRow = r;
+  state.selectedRows = { [r]: true };
+}
+function bomSheetAddRow(ctx, count=1, render=true) {
+  const state = bomSheetGetState(ctx);
+  const items = bomSheetGetItems(ctx);
+  const startIdx = items.length;
+  for (let i=0;i<count;i++) items.push(bomSheetNewBlankRow(ctx, items.length + 1));
+  bomSheetNormalizeRows(ctx);
+  if (state && render) {
+    state.selectedRows = {};
+    state.selectedRow = startIdx;
   }
   if (ctx === 'detail') bdMarkDirty();
-  if (render) bomSheetRender(ctx);
+  if (render) {
+    bomSheetRender(ctx);
+    setTimeout(() => bomSheetFocusDom(ctx, startIdx, Math.max(0, state?.selectedCol || 0)), 0);
+  }
+}
+function bomSheetInsertRow(ctx, where='below') {
+  const state = bomSheetGetState(ctx);
+  const items = bomSheetGetItems(ctx);
+  if (!state) return;
+  let rows = bomSheetSelectedRowIndexes(ctx);
+  let idx;
+  if (!items.length) idx = 0;
+  else idx = where === 'above' ? rows[0] : rows[rows.length - 1] + 1;
+  idx = Math.max(0, Math.min(idx, items.length));
+  items.splice(idx, 0, bomSheetNewBlankRow(ctx, idx + 1));
+  bomSheetNormalizeRows(ctx);
+  state.selectedRows = { [idx]: true };
+  state.selectedRow = idx;
+  if (ctx === 'detail') bdMarkDirty();
+  bomSheetRender(ctx);
+  setTimeout(() => bomSheetFocusDom(ctx, idx, Math.max(0, state.selectedCol || 0)), 0);
+}
+function bomSheetMoveRows(ctx, direction) {
+  const state = bomSheetGetState(ctx);
+  const items = bomSheetGetItems(ctx);
+  if (!state || !items.length) return;
+  const rows = bomSheetSelectedRowIndexes(ctx);
+  if (!rows.length) return;
+  const dir = direction < 0 ? -1 : 1;
+  if (dir < 0 && rows[0] === 0) return;
+  if (dir > 0 && rows[rows.length - 1] === items.length - 1) return;
+  const selected = new Set(rows);
+  if (dir < 0) {
+    for (const idx of rows) {
+      if (!selected.has(idx - 1)) {
+        [items[idx - 1], items[idx]] = [items[idx], items[idx - 1]];
+      }
+    }
+  } else {
+    for (const idx of [...rows].reverse()) {
+      if (!selected.has(idx + 1)) {
+        [items[idx + 1], items[idx]] = [items[idx], items[idx + 1]];
+      }
+    }
+  }
+  bomSheetNormalizeRows(ctx);
+  state.selectedRows = {};
+  rows.map(i => i + dir).forEach(i => state.selectedRows[i] = true);
+  state.selectedRow = Math.max(0, Math.min(items.length - 1, (state.selectedRow || rows[0]) + dir));
+  if (ctx === 'detail') bdMarkDirty();
+  bomSheetRender(ctx);
+  setTimeout(() => bomSheetFocusDom(ctx, state.selectedRow, Math.max(0, state.selectedCol || 0)), 0);
 }
 function bomSheetSelectRow(e, ctx, row) {
   const state = bomSheetGetState(ctx);
