@@ -369,6 +369,40 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 
 /* ── RESTRICTED ── */
 .restricted-blur{filter:blur(5px);user-select:none;pointer-events:none}
+
+/* ══════════════ EXCEL-LIKE TABLE (Tools BOM) ══════════════ */
+.xls-table{table-layout:fixed;width:100%;border-collapse:collapse}
+.xls-table th{position:relative;background:var(--surface2);font-weight:600;font-size:11px;text-align:left;padding:6px 8px;border:1px solid var(--border);user-select:none}
+.xls-table td{padding:0;border:1px solid var(--border);vertical-align:middle;background:var(--surface)}
+.xls-table td.xls-row-num{background:var(--surface2);text-align:center;font-size:11px;color:var(--text3);padding:4px;user-select:none;cursor:pointer;font-variant-numeric:tabular-nums}
+.xls-table tr.xls-selected td.xls-row-num{background:var(--text);color:#fff;font-weight:600}
+.xls-table tr.xls-section-header td{background:#D6E5F5;font-weight:700;font-size:11px;color:#1F3864;padding:5px 10px;letter-spacing:.04em;border-top:2px solid var(--border2,#CCCAC3);text-align:left}
+.xls-table tr.xls-subtotal td{background:#FFF2CC;font-weight:600;font-size:12px;color:#7F4A00;padding:4px 10px}
+.xls-table tr.xls-grandtotal td{background:var(--text);color:#fff;font-weight:700;font-size:13px;padding:7px 10px}
+.xls-table tr:hover td.xls-row-num{background:#E8F0FE}
+.xls-cell{width:100%;border:none;outline:none;padding:5px 8px;font:inherit;font-size:13px;background:transparent;box-sizing:border-box}
+.xls-cell:focus{outline:2px solid #1E88E5;outline-offset:-2px;background:#fff;z-index:1;position:relative}
+.xls-cell[data-type="num"]{text-align:right;font-variant-numeric:tabular-nums}
+.xls-cell[data-type="money"]{text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+.xls-cell.xls-dirty{background:#FFFDE7}
+.xls-cell.xls-saved{background:#E8F5E9;transition:background .4s}
+.xls-cell.xls-error{background:#FFEBEE;color:var(--red)}
+.xls-resize-handle{position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:2;user-select:none}
+.xls-resize-handle:hover,.xls-resize-handle.active{background:rgba(30,136,229,.4)}
+.xls-toolbar{display:flex;gap:6px;align-items:center;padding:8px;background:var(--surface2);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;flex-wrap:wrap}
+.xls-toolbar .btn{padding:4px 10px;font-size:12px;line-height:1.4}
+.xls-toolbar .xls-tb-divider{width:1px;height:18px;background:var(--border);margin:0 4px}
+.xls-toolbar .xls-status{font-size:11px;color:var(--text3);margin-left:auto}
+.xls-toolbar .xls-status.saving{color:#1E88E5}
+.xls-toolbar .xls-status.saved{color:var(--green)}
+.xls-toolbar .xls-status.error{color:var(--red)}
+.xls-subtotal-cell{font-weight:600;text-align:right;padding:5px 8px;font-variant-numeric:tabular-nums;background:#FAFAFA;font-size:13px}
+.xls-action-cell{text-align:center;padding:2px;background:var(--surface2)}
+.xls-action-cell button{padding:2px 6px;font-size:11px;line-height:1;border:none;background:transparent;cursor:pointer;color:var(--text3);border-radius:3px}
+.xls-action-cell button:hover{background:rgba(0,0,0,.06);color:var(--text)}
+.xls-action-cell button.danger:hover{background:#FEE;color:var(--red)}
+.xls-help{font-size:11px;color:var(--text3);padding:6px 10px;background:#F0F4F8;border-radius:4px;margin-top:6px}
+.xls-help kbd{display:inline-block;padding:1px 5px;font-family:monospace;font-size:10px;background:var(--surface);border:1px solid var(--border);border-radius:3px;box-shadow:0 1px 0 var(--border)}
 </style>
 </head>
 <body>
@@ -8272,6 +8306,14 @@ function bdRenderTab() {
 
 // ── TAB BOM ────────────────────────────────────────────────────
 function bdRenderBOMTab(el) {
+  // Editors get the Excel-like inline-editable view; viewers keep the read-only grouped table
+  if (can('bom_manage')) {
+    return bdRenderBOMTabXLS(el);
+  }
+  return bdRenderBOMTabReadOnly(el);
+}
+
+function bdRenderBOMTabReadOnly(el) {
   const d        = bomDetail.data;
   const items    = (d.bom_items||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const showPrice= can('nilai_po');
@@ -9834,6 +9876,535 @@ async function exportBOMPrint(bomId, withPrice) {
 
 // ─── GENID for BOM (uses existing pattern) ───────────────────
 // Already handled by genId('BOM') from existing code
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXCEL-LIKE TABLE UTILITY
+// Keyboard navigation, column resize, auto-save, insert/delete row
+// ═══════════════════════════════════════════════════════════════════════
+const XLS = {
+  // Attach behaviors to a table by id. Returns controller.
+  attach(tableId, opts) {
+    const tbl = document.getElementById(tableId);
+    if (!tbl) return null;
+    const ctrl = {
+      tableId, opts: opts || {},
+      saveTimers: {},   // rowId -> { field -> setTimeout id }
+      activeCell: null,
+    };
+    XLS._setupKeyboard(tbl, ctrl);
+    XLS._setupResize(tbl, ctrl);
+    XLS._setupRowClick(tbl, ctrl);
+    XLS._setupAutoSave(tbl, ctrl);
+    XLS._loadColWidths(tbl, ctrl);
+    return ctrl;
+  },
+
+  _setupKeyboard(tbl, ctrl) {
+    tbl.addEventListener('keydown', (e) => {
+      const cell = e.target.closest('.xls-cell');
+      if (!cell) return;
+      const tr = cell.closest('tr');
+      const td = cell.closest('td');
+      if (!tr || !td) return;
+
+      const cellIdx = Array.from(tr.children).indexOf(td);
+      let move = null;
+
+      if (e.key === 'ArrowDown' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        move = XLS._findNextRow(tr, cellIdx, +1);
+        if (!move && e.key === 'Enter' && ctrl.opts.onInsertRow) {
+          // Enter at last row → insert new row below
+          const rowId = tr.dataset.rowId;
+          if (rowId) ctrl.opts.onInsertRow(rowId, false /*below*/);
+        }
+      } else if (e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey)) {
+        e.preventDefault();
+        move = XLS._findNextRow(tr, cellIdx, -1);
+      } else if (e.key === 'ArrowRight' && cell.selectionStart === cell.value.length) {
+        e.preventDefault();
+        move = XLS._findNextCellInRow(tr, cellIdx, +1);
+      } else if (e.key === 'ArrowLeft' && cell.selectionStart === 0) {
+        e.preventDefault();
+        move = XLS._findNextCellInRow(tr, cellIdx, -1);
+      } else if (e.key === 'Escape') {
+        // Revert to last saved value
+        if (cell.dataset.original !== undefined) {
+          cell.value = cell.dataset.original;
+          cell.classList.remove('xls-dirty');
+        }
+        cell.blur();
+      }
+
+      if (move) {
+        move.focus();
+        if (move.select) move.select();
+      }
+    });
+  },
+
+  _findNextRow(tr, cellIdx, dir) {
+    let next = dir > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+    while (next) {
+      if (next.classList.contains('xls-section-header') || next.classList.contains('xls-subtotal') || next.classList.contains('xls-grandtotal')) {
+        next = dir > 0 ? next.nextElementSibling : next.previousElementSibling;
+        continue;
+      }
+      const td = next.children[cellIdx];
+      if (td) {
+        const inp = td.querySelector('.xls-cell');
+        if (inp) return inp;
+      }
+      next = dir > 0 ? next.nextElementSibling : next.previousElementSibling;
+    }
+    return null;
+  },
+
+  _findNextCellInRow(tr, cellIdx, dir) {
+    let idx = cellIdx + dir;
+    while (idx >= 0 && idx < tr.children.length) {
+      const td = tr.children[idx];
+      const inp = td.querySelector('.xls-cell');
+      if (inp) return inp;
+      idx += dir;
+    }
+    // Wrap to next row
+    return XLS._findNextRow(tr, dir > 0 ? 0 : tr.children.length - 1, dir);
+  },
+
+  _setupResize(tbl, ctrl) {
+    if (ctrl.opts.resizable === false) return;
+    const ths = tbl.querySelectorAll('thead th');
+    ths.forEach((th, i) => {
+      if (th.dataset.noResize === '1') return;
+      const handle = document.createElement('div');
+      handle.className = 'xls-resize-handle';
+      th.appendChild(handle);
+      let startX = 0, startW = 0;
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startW = th.getBoundingClientRect().width;
+        handle.classList.add('active');
+        const onMove = (ev) => {
+          const w = Math.max(40, startW + (ev.clientX - startX));
+          th.style.width = w + 'px';
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          handle.classList.remove('active');
+          XLS._saveColWidths(tbl, ctrl);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  },
+
+  _saveColWidths(tbl, ctrl) {
+    if (!ctrl.opts.persistKey) return;
+    const widths = Array.from(tbl.querySelectorAll('thead th')).map(th => th.style.width || '');
+    try { localStorage.setItem('xls-col-' + ctrl.opts.persistKey, JSON.stringify(widths)); } catch(e){}
+  },
+
+  _loadColWidths(tbl, ctrl) {
+    if (!ctrl.opts.persistKey) return;
+    try {
+      const widths = JSON.parse(localStorage.getItem('xls-col-' + ctrl.opts.persistKey) || '[]');
+      const ths = tbl.querySelectorAll('thead th');
+      widths.forEach((w, i) => { if (w && ths[i]) ths[i].style.width = w; });
+    } catch(e){}
+  },
+
+  _setupRowClick(tbl, ctrl) {
+    tbl.addEventListener('click', (e) => {
+      const tr = e.target.closest('tr');
+      if (!tr || !tr.dataset.rowId) return;
+      tbl.querySelectorAll('tr.xls-selected').forEach(r => r.classList.remove('xls-selected'));
+      tr.classList.add('xls-selected');
+    });
+  },
+
+  _setupAutoSave(tbl, ctrl) {
+    if (!ctrl.opts.onCellSave) return;
+    tbl.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('.xls-cell');
+      if (cell) {
+        cell.dataset.original = cell.value;
+        ctrl.activeCell = cell;
+      }
+    });
+    tbl.addEventListener('input', (e) => {
+      const cell = e.target.closest('.xls-cell');
+      if (!cell) return;
+      cell.classList.add('xls-dirty');
+      cell.classList.remove('xls-saved', 'xls-error');
+      const tr = cell.closest('tr');
+      const rowId = tr?.dataset.rowId;
+      const field = cell.dataset.field;
+      if (!rowId || !field) return;
+      // Debounce 700ms per cell
+      ctrl.saveTimers[rowId] = ctrl.saveTimers[rowId] || {};
+      if (ctrl.saveTimers[rowId][field]) clearTimeout(ctrl.saveTimers[rowId][field]);
+      ctrl.saveTimers[rowId][field] = setTimeout(() => XLS._doSave(cell, ctrl), 700);
+    });
+    tbl.addEventListener('focusout', (e) => {
+      const cell = e.target.closest('.xls-cell');
+      if (!cell || !cell.classList.contains('xls-dirty')) return;
+      const tr = cell.closest('tr');
+      const rowId = tr?.dataset.rowId;
+      const field = cell.dataset.field;
+      if (ctrl.saveTimers[rowId]?.[field]) {
+        clearTimeout(ctrl.saveTimers[rowId][field]);
+        XLS._doSave(cell, ctrl);
+      }
+    });
+  },
+
+  async _doSave(cell, ctrl) {
+    const tr = cell.closest('tr');
+    const rowId = tr?.dataset.rowId;
+    const field = cell.dataset.field;
+    const type = cell.dataset.type;
+    let value = cell.value;
+    if (type === 'num' || type === 'money') {
+      value = parseFloat(value);
+      if (isNaN(value)) value = 0;
+    }
+    if (ctrl.opts.setStatus) ctrl.opts.setStatus('saving');
+    try {
+      await ctrl.opts.onCellSave(rowId, field, value, cell);
+      cell.classList.remove('xls-dirty');
+      cell.classList.add('xls-saved');
+      cell.dataset.original = String(value);
+      setTimeout(() => cell.classList.remove('xls-saved'), 1200);
+      if (ctrl.opts.setStatus) ctrl.opts.setStatus('saved');
+    } catch (err) {
+      cell.classList.remove('xls-dirty');
+      cell.classList.add('xls-error');
+      console.error('XLS save error', err);
+      if (ctrl.opts.setStatus) ctrl.opts.setStatus('error', err.message || 'Save failed');
+    }
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXCEL-LIKE EDIT for BOM Detail page
+// Replaces the read-only bdRenderBOMTab with inline editable Excel-like
+// ═══════════════════════════════════════════════════════════════════════
+let _xlsBOMCtrl = null;
+
+function bdRenderBOMTabXLS(el) {
+  const d        = bomDetail.data;
+  const items    = (d.bom_items||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const showPrice= can('nilai_po');
+  const canManage= can('bom_manage');
+
+  // Build flat row list: section headers interleaved with items
+  // Section taken from note prefix (before first '|')
+  let seq = 1;
+  const grups = [], grupMap = {};
+  items.forEach(it => {
+    const g = pkGrup(it.note) || 'Tanpa Section';
+    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
+    grupMap[g].push(it);
+  });
+
+  // Header columns: # | Part No | Nama | Qty | Unit | [Harga | Subtotal] | Note | Actions
+  const headerCols = [
+    `<th style="width:38px" data-no-resize="1">#</th>`,
+    `<th style="width:100px">Part No.</th>`,
+    `<th style="min-width:260px">Nama Komponen</th>`,
+    `<th style="width:70px">Qty</th>`,
+    `<th style="width:60px">Unit</th>`,
+    showPrice ? `<th style="width:120px">Harga</th><th style="width:130px" data-no-resize="1">Subtotal</th>` : '',
+    `<th style="min-width:180px">Note</th>`,
+    canManage ? `<th style="width:88px" data-no-resize="1">Action</th>` : '',
+  ].filter(Boolean).join('');
+
+  // Build rows HTML
+  let rowsHtml = '';
+  grups.forEach(grup => {
+    const gItems = grupMap[grup];
+    const grupTotal = gItems.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+    const colCount = 5 + (showPrice ? 2 : 0) + 1 + (canManage ? 1 : 0);
+
+    // Section header row (read-only divider)
+    rowsHtml += `<tr class="xls-section-header"><td colspan="${colCount}">
+      📁 ${escapeHtml(grup)}
+      ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">${fmtRp(grupTotal)}</span>` : ''}
+    </td></tr>`;
+
+    gItems.forEach(it => {
+      const noteRaw = it.note || '';
+      const subNote = noteRaw.includes('|') ? noteRaw.split('|').slice(1).join('|').trim() : '';
+      rowsHtml += `<tr data-row-id="${it.id}" data-section="${escapeHtml(grup)}">
+        <td class="xls-row-num">${seq++}</td>
+        <td><input class="xls-cell" data-field="part_number" value="${escapeHtml(it.part_number || '')}"></td>
+        <td><input class="xls-cell" data-field="name" value="${escapeHtml(it.name || '')}"></td>
+        <td><input class="xls-cell" data-field="qty" data-type="num" type="number" step="0.001" value="${it.qty}"></td>
+        <td><input class="xls-cell" data-field="unit" value="${escapeHtml(it.unit || 'pcs')}"></td>
+        ${showPrice ? `
+          <td><input class="xls-cell" data-field="unit_price" data-type="money" type="number" step="0.01" value="${it.unit_price || 0}"></td>
+          <td class="xls-subtotal-cell" data-subtotal-row="${it.id}">${fmtRp((it.qty||0) * (it.unit_price||0))}</td>
+        ` : ''}
+        <td><input class="xls-cell" data-field="note_sub" value="${escapeHtml(subNote)}"></td>
+        ${canManage ? `
+          <td class="xls-action-cell">
+            <button onclick="bdXLSInsertRow('${it.id}',true)" title="Sisip baris di atas (Ctrl+Shift+↑)">↑+</button>
+            <button onclick="bdXLSInsertRow('${it.id}',false)" title="Sisip baris di bawah (Ctrl+Shift+↓ atau Enter)">↓+</button>
+            <button onclick="bdXLSDuplicateRow('${it.id}')" title="Duplikat baris (Ctrl+D)">⎘</button>
+            <button class="danger" onclick="bdXLSDeleteRow('${it.id}')" title="Hapus baris (Ctrl+−)">✕</button>
+          </td>` : ''}
+      </tr>`;
+    });
+
+    // Subtotal row per group (read-only)
+    if (showPrice) {
+      const subColspan = (canManage?6:5);
+      rowsHtml += `<tr class="xls-subtotal" data-section-total="${escapeHtml(grup)}">
+        <td colspan="${subColspan}" style="text-align:right">Sub Total ${escapeHtml(grup)}</td>
+        <td class="xls-subtotal-cell" data-grup-total="${escapeHtml(grup)}" style="background:#FFF2CC;color:#7F4A00">${fmtRp(grupTotal)}</td>
+        <td></td>
+        ${canManage ? '<td></td>' : ''}
+      </tr>`;
+    }
+  });
+
+  // Grand total
+  const total = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+  const grandRow = showPrice && items.length ? `
+    <tr class="xls-grandtotal">
+      <td colspan="${canManage?6:5}" style="text-align:right">GRAND TOTAL</td>
+      <td id="xlsGrandTotal" style="text-align:right">${fmtRp(total)}</td>
+      <td></td>
+      ${canManage?'<td></td>':''}
+    </tr>` : '';
+
+  el.innerHTML = `
+    <div class="xls-toolbar">
+      <button class="btn" onclick="bdXLSAddRow()" title="Tambah baris di akhir">+ Tambah Baris</button>
+      <button class="btn" onclick="bdXLSAddSection()" title="Tambah section/grup baru">+ Section</button>
+      <div class="xls-tb-divider"></div>
+      <button class="btn btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
+      <button class="btn btn-ghost" onclick="exportBOMExcel('${d.id}',false)">📊 Excel</button>
+      <button class="btn btn-ghost" onclick="exportBOMPrint('${d.id}',true)">🖨 Print</button>
+      <span class="xls-status" id="xlsStatus">${items.length} item${grups.length>1?' · '+grups.length+' section':''}${showPrice?' · Total: '+fmtRp(total):''}</span>
+    </div>
+    <div class="table-wrap" style="border:1px solid var(--border);border-top:none">
+      <table id="bdBOMTable" class="xls-table">
+        <thead><tr>${headerCols}</tr></thead>
+        <tbody>${items.length ? rowsHtml + grandRow : `<tr><td colspan="${5+(showPrice?2:0)+1+(canManage?1:0)}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen — klik <strong>+ Tambah Baris</strong></td></tr>`}</tbody>
+      </table>
+    </div>
+    <div class="xls-help">
+      <kbd>↑</kbd> <kbd>↓</kbd> pindah baris &nbsp;·&nbsp;
+      <kbd>Tab</kbd> next cell &nbsp;·&nbsp;
+      <kbd>Enter</kbd> baris bawah (kosong = sisip baru) &nbsp;·&nbsp;
+      <kbd>Esc</kbd> batal edit &nbsp;·&nbsp;
+      <kbd>Ctrl</kbd>+<kbd>D</kbd> duplikat &nbsp;·&nbsp;
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↑/↓</kbd> sisip baris &nbsp;·&nbsp;
+      Drag border kolom untuk resize. Auto-save 0.7s setelah edit.
+    </div>
+  `;
+
+  // Attach Excel-like behavior
+  if (_xlsBOMCtrl) _xlsBOMCtrl = null;
+  _xlsBOMCtrl = XLS.attach('bdBOMTable', {
+    persistKey: 'bom-' + d.id,
+    onCellSave: bdXLSCellSave,
+    onInsertRow: (rowId, before) => bdXLSInsertRow(rowId, before),
+    setStatus: (state, msg) => {
+      const s = document.getElementById('xlsStatus');
+      if (!s) return;
+      s.classList.remove('saving','saved','error');
+      if (state === 'saving') { s.classList.add('saving'); s.textContent = '💾 Menyimpan...'; }
+      else if (state === 'saved') { s.classList.add('saved'); s.textContent = '✓ Tersimpan'; setTimeout(() => bdXLSRefreshStatus(), 1500); }
+      else if (state === 'error') { s.classList.add('error'); s.textContent = '⚠ Gagal: ' + (msg||''); }
+    }
+  });
+
+  // Global Ctrl+D / Ctrl+- / Ctrl+Shift+Arrow shortcuts
+  if (!window._bdXLSShortcutsBound) {
+    window._bdXLSShortcutsBound = true;
+    document.addEventListener('keydown', (e) => {
+      const tbl = document.getElementById('bdBOMTable');
+      if (!tbl || !tbl.contains(document.activeElement)) return;
+      const cell = document.activeElement;
+      const tr = cell.closest && cell.closest('tr[data-row-id]');
+      if (!tr) return;
+      const rowId = tr.dataset.rowId;
+      if (e.ctrlKey && e.key === 'd' && !e.shiftKey) {
+        e.preventDefault(); bdXLSDuplicateRow(rowId);
+      } else if (e.ctrlKey && (e.key === '-' || e.key === '_')) {
+        e.preventDefault(); bdXLSDeleteRow(rowId);
+      } else if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') {
+        e.preventDefault(); bdXLSInsertRow(rowId, true);
+      } else if (e.ctrlKey && e.shiftKey && e.key === 'ArrowDown') {
+        e.preventDefault(); bdXLSInsertRow(rowId, false);
+      }
+    });
+  }
+}
+
+function bdXLSRefreshStatus() {
+  const d = bomDetail.data;
+  const items = d.bom_items || [];
+  const showPrice = can('nilai_po');
+  const total = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+  const grups = new Set(items.map(it => pkGrup(it.note) || 'Tanpa Section'));
+  const s = document.getElementById('xlsStatus');
+  if (s) s.textContent = `${items.length} item${grups.size>1?' · '+grups.size+' section':''}${showPrice?' · Total: '+fmtRp(total):''}`;
+}
+
+async function bdXLSCellSave(rowId, field, value, cellEl) {
+  const item = bomDetail.data.bom_items.find(x => String(x.id) === String(rowId));
+  if (!item) throw new Error('Item not found');
+
+  // Special handling for note_sub: rebuild full note with section prefix
+  if (field === 'note_sub') {
+    const section = cellEl.closest('tr').dataset.section || '';
+    value = section + (value ? ' | ' + value : '');
+    field = 'note';
+  }
+
+  const patch = { [field]: value };
+  const { error } = await sb.from('bom_items').update(patch).eq('id', rowId);
+  if (error) throw error;
+
+  // Update local state
+  item[field] = value;
+
+  // If qty or price changed → update subtotal cell + group subtotal + grand total
+  if (field === 'qty' || field === 'unit_price') {
+    const sub = (item.qty || 0) * (item.unit_price || 0);
+    const subEl = document.querySelector(`[data-subtotal-row="${rowId}"]`);
+    if (subEl) subEl.textContent = fmtRp(sub);
+    // Recompute total for the group
+    const grupName = pkGrup(item.note) || 'Tanpa Section';
+    const grupItems = bomDetail.data.bom_items.filter(x => (pkGrup(x.note) || 'Tanpa Section') === grupName);
+    const grupTotal = grupItems.reduce((s,x)=>s+((x.qty||0)*(x.unit_price||0)),0);
+    const grupEl = document.querySelector(`[data-grup-total="${grupName.replace(/"/g,'&quot;')}"]`);
+    if (grupEl) grupEl.textContent = fmtRp(grupTotal);
+    // Grand total
+    const grand = bomDetail.data.bom_items.reduce((s,x)=>s+((x.qty||0)*(x.unit_price||0)),0);
+    const gtEl = document.getElementById('xlsGrandTotal');
+    if (gtEl) gtEl.textContent = fmtRp(grand);
+    // Also update bom_lists.total_price
+    sb.from('bom_lists').update({ total_price: grand }).eq('id', bomDetail.data.id);
+    bomDetail.data.total_price = grand;
+  }
+}
+
+async function bdXLSAddRow() {
+  const bomId = bomDetail.data.id;
+  // Pick last sort_order + 1
+  const items = bomDetail.data.bom_items || [];
+  const maxSO = items.reduce((m,it) => Math.max(m, it.sort_order || 0), 0);
+  // Default section = last item's section, or 'Tanpa Section'
+  const lastSec = items.length ? (pkGrup(items[items.length-1].note) || '') : '';
+  const note = lastSec ? lastSec + ' | ' : '';
+  await bdXLSInsertItemAtSO(bomId, maxSO + 10, '', note);
+}
+
+async function bdXLSAddSection() {
+  const name = prompt('Nama section baru (mis: "C. CONTROL"):');
+  if (!name || !name.trim()) return;
+  const bomId = bomDetail.data.id;
+  const items = bomDetail.data.bom_items || [];
+  const maxSO = items.reduce((m,it) => Math.max(m, it.sort_order || 0), 0);
+  await bdXLSInsertItemAtSO(bomId, maxSO + 10, '', name.trim() + ' | ');
+}
+
+async function bdXLSInsertRow(refRowId, before) {
+  const bomId = bomDetail.data.id;
+  const items = bomDetail.data.bom_items || [];
+  const ref = items.find(x => String(x.id) === String(refRowId));
+  if (!ref) return;
+
+  // Pick sort_order: midpoint between ref and its neighbor
+  const sorted = items.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx = sorted.findIndex(x => String(x.id) === String(refRowId));
+  let newSO;
+  if (before) {
+    const prev = idx > 0 ? sorted[idx-1] : null;
+    newSO = prev ? ((prev.sort_order || 0) + (ref.sort_order || 0)) / 2 : (ref.sort_order || 0) - 5;
+  } else {
+    const next = idx < sorted.length-1 ? sorted[idx+1] : null;
+    newSO = next ? ((next.sort_order || 0) + (ref.sort_order || 0)) / 2 : (ref.sort_order || 0) + 5;
+  }
+  // Inherit section from ref
+  const section = pkGrup(ref.note) || '';
+  const note = section ? section + ' | ' : '';
+  await bdXLSInsertItemAtSO(bomId, newSO, '', note);
+}
+
+async function bdXLSDuplicateRow(rowId) {
+  const items = bomDetail.data.bom_items || [];
+  const src = items.find(x => String(x.id) === String(rowId));
+  if (!src) return;
+  const sorted = items.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx = sorted.findIndex(x => String(x.id) === String(rowId));
+  const next = idx < sorted.length-1 ? sorted[idx+1] : null;
+  const newSO = next ? ((next.sort_order || 0) + (src.sort_order || 0)) / 2 : (src.sort_order || 0) + 5;
+  const payload = {
+    bom_id: bomDetail.data.id, sort_order: newSO,
+    component_id: src.component_id, part_number: src.part_number,
+    name: src.name, unit: src.unit, qty: src.qty,
+    unit_price: src.unit_price, note: src.note,
+    pk_flag: src.pk_flag || 'Y', pk_status: src.pk_status || 'BELUM'
+  };
+  try {
+    const { data, error } = await sb.from('bom_items').insert(payload).select().single();
+    if (error) throw error;
+    bomDetail.data.bom_items.push(data);
+    await bdReloadBOM();
+  } catch (e) { toast('Gagal duplikat: ' + e.message); }
+}
+
+async function bdXLSDeleteRow(rowId) {
+  if (!confirm('Hapus baris ini?')) return;
+  try {
+    const { error } = await sb.from('bom_items').delete().eq('id', rowId);
+    if (error) throw error;
+    bomDetail.data.bom_items = bomDetail.data.bom_items.filter(x => String(x.id) !== String(rowId));
+    await bdReloadBOM();
+  } catch (e) { toast('Gagal hapus: ' + e.message); }
+}
+
+async function bdXLSInsertItemAtSO(bomId, sortOrder, name, note) {
+  const payload = {
+    bom_id: bomId, sort_order: sortOrder, name: name || '(klik untuk isi nama)',
+    qty: 1, unit: 'pcs', unit_price: 0, note: note || '',
+    pk_flag: 'Y', pk_status: 'BELUM'
+  };
+  try {
+    const { data, error } = await sb.from('bom_items').insert(payload).select().single();
+    if (error) throw error;
+    bomDetail.data.bom_items.push(data);
+    await bdReloadBOM();
+    // Focus name cell of new row
+    setTimeout(() => {
+      const tr = document.querySelector(`tr[data-row-id="${data.id}"]`);
+      if (tr) {
+        const nameCell = tr.querySelector('[data-field="name"]');
+        if (nameCell) { nameCell.focus(); nameCell.select(); }
+      }
+    }, 100);
+  } catch (e) { toast('Gagal sisip: ' + e.message); }
+}
+
+async function bdReloadBOM() {
+  // Re-fetch BOM data and re-render the BOM tab
+  const { data, error } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomDetail.data.id).single();
+  if (error) { toast('Reload gagal: ' + error.message); return; }
+  bomDetail.data = data;
+  if (bomDetail.tab === 'komponen') {
+    const contentEl = document.getElementById('bdContent');
+    if (contentEl) bdRenderBOMTabXLS(contentEl);
+  }
+}
 
 </script>
 </body>
