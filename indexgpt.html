@@ -394,6 +394,23 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .bom-sheet-total{font-size:12px;font-weight:700;color:var(--green);margin-left:4px}
 .bom-sheet-modal{width:min(96vw,1500px)!important;max-width:96vw!important}
 .bom-sheet-modal .modal-body{padding:.75rem;gap:.5rem}
+
+/* ── BOM ENGINEERING GENERATOR ── */
+.bom-mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:.25rem 0 .75rem}
+.bom-mode-card{border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;background:var(--surface);cursor:pointer;transition:all .15s}
+.bom-mode-card:hover{border-color:var(--border2);background:var(--surface2)}
+.bom-mode-card.active{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg);background:#fff}
+.bom-mode-card .t{font-size:13px;font-weight:700;margin-bottom:3px}
+.bom-mode-card .d{font-size:11px;color:var(--text3);line-height:1.35}
+.bom-gen-panel{border:1px solid var(--border);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.bom-gen-section{padding:10px 12px;border-bottom:1px solid var(--border)}
+.bom-gen-section:last-child{border-bottom:none}
+.bom-gen-title{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.bom-gen-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.bom-gen-kpi > div{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 8px;font-size:11px;color:var(--text3)}
+.bom-gen-kpi strong{display:block;color:var(--text);font-size:13px;margin-top:2px}
+.bom-gen-warning{font-size:12px;line-height:1.5;color:var(--amber);background:var(--amber-bg);border-left:3px solid #F59E0B;padding:8px 10px;border-radius:6px}
+@media(max-width:768px){.bom-mode-grid{grid-template-columns:1fr}.bom-gen-kpi{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
   .bom-sheet-modal{width:100vw!important;max-width:100vw!important;border-radius:0!important;max-height:100vh!important}
   .bom-sheet-wrap{max-height:68vh}
@@ -7097,9 +7114,34 @@ let bomState = {
   lists: [],
   currentBOM: null,               // { ...bom_lists, items:[] }
   showPriceInExport: true,
+  engineeringRules: [],
+  sizingTables: [],
+  priceHistory: [],
+  priceCache: null,
 };
 
 const BOM_UNIT_CATEGORIES = ['UPS', 'Rectifier', 'Inverter', 'ACDB', 'DCDB', 'Lainnya'];
+
+
+// Optional engineering-rule tables. Generator tetap jalan dengan fallback internal
+// saat tabel Supabase rule/sizing/price_history belum dibuat.
+async function loadBOMEngineeringRefs() {
+  try {
+    const { data, error } = await sb.from('bom_engineering_rules')
+      .select('*').eq('is_active', true).order('unit_type').order('sort_order');
+    if (!error && data) bomState.engineeringRules = data;
+  } catch (e) { bomState.engineeringRules = []; }
+  try {
+    const { data, error } = await sb.from('bom_sizing_tables')
+      .select('*').eq('is_active', true).order('table_type').order('sort_order');
+    if (!error && data) bomState.sizingTables = data;
+  } catch (e) { bomState.sizingTables = []; }
+  try {
+    const { data, error } = await sb.from('bom_price_history')
+      .select('*').order('created_at', { ascending:false }).limit(1000);
+    if (!error && data) bomState.priceHistory = data;
+  } catch (e) { bomState.priceHistory = []; }
+}
 
 async function logBOM(bomId, action, detail) {
   try {
@@ -7143,6 +7185,7 @@ async function loadBOMData() {
   bomState.components = comps.data || [];
   bomState.templates = tmpls.data || [];
   bomState.lists = lists.data || [];
+  await loadBOMEngineeringRefs();
 }
 
 function setBOMTab(tab) {
@@ -7737,73 +7780,203 @@ async function openBOMForm(opts) {
   // opts: { ppRequestId, poId, poItemId, poItemLabel } untuk shortcut dari PP/PO
   opts = opts || {};
   if (!can('bom_manage')) return;
-  // Ensure components & templates loaded — needed for searchable picker & template dropdown
   if (!bomState.components || !bomState.components.length) {
     toast('Memuat data komponen...');
     await loadBOMData();
   } else {
-    // Always refresh templates so newly-added ones appear without page reload
     const { data: freshTmpls } = await sb.from('bom_templates')
       .select('*,bom_template_items(*)').eq('is_active', true)
       .order('unit_category').order('name');
     if (freshTmpls) bomState.templates = freshTmpls;
+    await loadBOMEngineeringRefs();
   }
-  openModal(`<div class="modal modal-sm">
-    <div class="modal-header"><h2>BOM Baru — Step 1: Info</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+  openModal(`<div class="modal" style="width:min(96vw,980px);max-width:96vw">
+    <div class="modal-header"><h2>BOM Baru — Step 1: Info & Generator</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
-      <div class="form-row"><label>Title BOM <span class="req">*</span></label><input type="text" id="bomTitle" placeholder="Contoh: BOM UPS 10kVA - PT ABC"></div>
-      <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
-        <select id="bomCategory" onchange="onBOMCategoryChange()">
-          <option value="">-- Pilih --</option>
-          ${BOM_UNIT_CATEGORIES.map(c => {
-            const n = (bomState.templates || []).filter(t => t.unit_category === c).length;
-            return `<option value="${c}">${c}${n ? ` (${n} template)` : ''}</option>`;
-          }).join('')}
-        </select>
-        <div style="font-size:11px;color:var(--text3);margin-top:4px">Setelah pilih kategori, dropdown template muncul kalau tersedia.</div>
+      <div class="form-row"><label>Mode Pembuatan</label>
+        <input type="hidden" id="bomMode" value="generator">
+        <div class="bom-mode-grid" id="bomModeCards">
+          <div class="bom-mode-card" data-mode="manual" onclick="setBOMMode('manual')"><div class="t">Spreadsheet Manual</div><div class="d">Mulai kosong, isi/paste bebas seperti Excel.</div></div>
+          <div class="bom-mode-card" data-mode="template" onclick="setBOMMode('template')"><div class="t">Dari Template</div><div class="d">Ambil template standar yang sudah dibuat.</div></div>
+          <div class="bom-mode-card active" data-mode="generator" onclick="setBOMMode('generator')"><div class="t">Generator Engineering</div><div class="d">Rectifier/Inverter/UPS otomatis dari parameter teknis.</div></div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Title BOM <span class="req">*</span></label><input type="text" id="bomTitle" placeholder="Contoh: BOM UPS 10kVA - PT ABC"></div>
+        <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
+          <select id="bomCategory" onchange="onBOMCategoryChange()">
+            <option value="">-- Pilih --</option>
+            ${BOM_UNIT_CATEGORIES.map(c => {
+              const n = (bomState.templates || []).filter(t => t.unit_category === c).length;
+              return `<option value="${c}" ${c==='UPS'?'selected':''}>${c}${n ? ` (${n} template)` : ''}</option>`;
+            }).join('')}
+          </select>
+        </div>
       </div>
       <div class="form-row" id="bomTemplateRow" style="display:none">
-        <label>Generate dari Template (opsional)</label>
+        <label>Generate dari Template</label>
         <select id="bomTemplate"><option value="">-- Mulai dari kosong --</option></select>
       </div>
-      <div class="form-row"><label>Deskripsi</label><textarea id="bomDesc"></textarea></div>
+      <div id="bomGeneratorPanel">${renderBOMGeneratorFields()}</div>
+      <div class="form-row"><label>Deskripsi</label><textarea id="bomDesc" placeholder="Catatan project/kebutuhan khusus"></textarea></div>
       ${opts.ppRequestId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PP: <strong>${opts.ppRequestId}</strong></div>` : ''}
       ${opts.poItemId ? `<div style="font-size:12px;color:var(--text3);background:var(--surface2);padding:8px;border-radius:6px">📎 Akan ter-link ke PO Item: <strong>${opts.poItemLabel || opts.poItemId}</strong></div>` : ''}
-      <div style="font-size:12px;color:var(--text3);margin-top:8px;padding:8px;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:4px">
-        ⚠️ Setelah klik <strong>Lanjut Review</strong>, Anda akan melihat tabel komponen yang bisa diedit. Pastikan setiap komponen sudah benar (qty, harga, note) sebelum simpan — template tidak selalu 100% sama dengan kebutuhan.
+      <div class="bom-gen-warning">
+        Generator hanya membuat <strong>BOM awal</strong>. Hasil tetap masuk ke spreadsheet review supaya engineering bisa koreksi, tambah/sisip baris, ubah harga, dan paste dari Excel sebelum disimpan.
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
-      <button class="btn btn-primary" onclick='goBOMReview(${JSON.stringify(opts)})'>Lanjut Review →</button>
+      <button class="btn btn-primary" onclick='goBOMReview(${JSON.stringify(opts)})'>Generate / Lanjut Review →</button>
     </div>
   </div>`);
+  setTimeout(() => { setBOMMode('generator'); onBOMCategoryChange(); toggleBOMGeneratorBypass(); updateBOMGeneratorPreview(); }, 0);
 }
 
+function renderBOMGeneratorFields() {
+  return `<div class="bom-gen-panel">
+    <div class="bom-gen-section">
+      <div class="bom-gen-title">1. Produk & Kapasitas</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Tipe Produk</label><select id="genUnitType" onchange="onBOMGenTypeChange()"><option>UPS</option><option>Rectifier</option><option>Inverter</option></select></div>
+        <div class="form-row"><label>Kapasitas</label><div style="display:flex;gap:6px"><input type="number" step="0.01" id="genCapacity" value="10" oninput="updateBOMGeneratorPreview()"><select id="genCapacityUnit" onchange="updateBOMGeneratorPreview()"><option>kVA</option><option>kW</option><option>A</option></select></div></div>
+        <div class="form-row"><label>Power Factor</label><input type="number" step="0.01" id="genPF" value="0.8" oninput="updateBOMGeneratorPreview()"></div>
+        <div class="form-row"><label>Efficiency</label><input type="number" step="0.01" id="genEff" value="0.9" oninput="updateBOMGeneratorPreview()"></div>
+      </div>
+      <div class="bom-gen-kpi" id="bomGenPreview"></div>
+    </div>
+    <div class="bom-gen-section">
+      <div class="bom-gen-title">2. AC Input</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Input Phase</label><select id="genInputPhase" onchange="updateBOMGeneratorPreview()"><option>3P</option><option>1P</option></select></div>
+        <div class="form-row"><label>Input Voltage VAC</label><input type="number" id="genInputVoltage" value="380" oninput="updateBOMGeneratorPreview()"></div>
+        <div class="form-row"><label>Input Trafo Secondary Phase</label><select id="genInputSecPhase"><option value="">Auto/Tidak Ada</option><option>3P</option><option>1P</option></select></div>
+        <div class="form-row"><label>Input Trafo Secondary VAC</label><input type="number" id="genInputSecVoltage" placeholder="Opsional, contoh 220"></div>
+      </div>
+    </div>
+    <div class="bom-gen-section">
+      <div class="bom-gen-title">3. Bypass</div>
+      <div class="form-row" style="margin-bottom:8px"><label><input type="checkbox" id="genBypassEnabled" checked onchange="toggleBOMGeneratorBypass();updateBOMGeneratorPreview()"> Pakai bypass</label></div>
+      <div id="genBypassFields" class="form-grid">
+        <div class="form-row"><label>Bypass Primary Phase</label><select id="genBypassPriPhase" onchange="updateBOMGeneratorPreview()"><option>3P</option><option>1P</option></select></div>
+        <div class="form-row"><label>Bypass Primary VAC</label><input type="number" id="genBypassPriVoltage" value="480" oninput="updateBOMGeneratorPreview()"></div>
+        <div class="form-row"><label>Bypass Secondary Phase</label><select id="genBypassSecPhase" onchange="updateBOMGeneratorPreview()"><option>1P</option><option>3P</option></select></div>
+        <div class="form-row"><label>Bypass Secondary VAC</label><input type="number" id="genBypassSecVoltage" value="230" oninput="updateBOMGeneratorPreview()"></div>
+      </div>
+    </div>
+    <div class="bom-gen-section">
+      <div class="bom-gen-title">4. DC Bus & Battery</div>
+      <div class="form-grid">
+        <div class="form-row"><label>DC Bus VDC</label><input type="number" id="genDcBus" value="110" oninput="updateBOMGeneratorPreview()"></div>
+        <div class="form-row"><label>Battery Ah</label><input type="number" id="genBatteryAh" value="200" oninput="updateBOMGeneratorPreview()"></div>
+      </div>
+    </div>
+    <div class="bom-gen-section">
+      <div class="bom-gen-title">5. Output</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Output Phase</label><select id="genOutputPhase" onchange="updateBOMGeneratorPreview()"><option>1P</option><option>3P</option><option>DC</option></select></div>
+        <div class="form-row"><label>Output Voltage</label><input type="number" id="genOutputVoltage" value="230" oninput="updateBOMGeneratorPreview()"></div>
+        <div class="form-row"><label>Jumlah Output Feeder</label><input type="number" id="genOutputFeeders" value="1" min="1"></div>
+        <div class="form-row"><label>Panel</label><select id="genPanelType"><option>Indoor</option><option>Outdoor</option></select></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function setBOMMode(mode) {
+  sv('bomMode', mode);
+  document.querySelectorAll('#bomModeCards .bom-mode-card').forEach(c => c.classList.toggle('active', c.dataset.mode === mode));
+  const gen = document.getElementById('bomGeneratorPanel');
+  if (gen) gen.style.display = mode === 'generator' ? 'block' : 'none';
+  onBOMCategoryChange();
+}
+function onBOMModeChange() { setBOMMode(gv('bomMode') || 'manual'); }
 function onBOMCategoryChange() {
+  const mode = gv('bomMode') || 'manual';
   const cat = gv('bomCategory');
   const row = document.getElementById('bomTemplateRow');
   const sel = document.getElementById('bomTemplate');
-  if (!cat) { row.style.display = 'none'; return; }
+  if (mode === 'generator') {
+    if (['UPS','Rectifier','Inverter'].includes(cat)) sv('genUnitType', cat);
+    if (row) row.style.display = 'none';
+    onBOMGeneratorProductAdjust();
+    return;
+  }
+  if (!row || !sel) return;
+  if (mode !== 'template' || !cat) { row.style.display = 'none'; return; }
   const tmpls = bomState.templates.filter(t => t.unit_category === cat);
   if (!tmpls.length) { row.style.display = 'none'; return; }
   row.style.display = 'block';
   sel.innerHTML = '<option value="">-- Mulai dari kosong --</option>' + tmpls.map(t => `<option value="${t.id}">${t.name} (${(t.bom_template_items || []).length} komponen)</option>`).join('');
 }
+function onBOMGenTypeChange() {
+  const t = gv('genUnitType') || 'UPS';
+  sv('bomCategory', t);
+  onBOMGeneratorProductAdjust();
+}
+function onBOMGeneratorProductAdjust() {
+  const t = gv('genUnitType') || gv('bomCategory') || 'UPS';
+  const capUnit = document.getElementById('genCapacityUnit');
+  const outPhase = document.getElementById('genOutputPhase');
+  if (!capUnit || !outPhase) return;
+  if (t === 'Rectifier') {
+    capUnit.value = capUnit.value === 'kVA' ? 'A' : capUnit.value;
+    outPhase.value = 'DC';
+    if (!gv('genOutputVoltage')) sv('genOutputVoltage', gv('genDcBus') || 110);
+    document.getElementById('genBypassEnabled').checked = false;
+  } else if (t === 'Inverter') {
+    if (capUnit.value === 'A') capUnit.value = 'kVA';
+    if (outPhase.value === 'DC') outPhase.value = '1P';
+  } else {
+    if (capUnit.value === 'A') capUnit.value = 'kVA';
+    if (outPhase.value === 'DC') outPhase.value = '1P';
+  }
+  toggleBOMGeneratorBypass();
+  updateBOMGeneratorPreview();
+}
+function toggleBOMGeneratorBypass() {
+  const enabled = !!document.getElementById('genBypassEnabled')?.checked;
+  const box = document.getElementById('genBypassFields');
+  if (box) box.style.display = enabled ? 'grid' : 'none';
+}
+function collectBOMGeneratorSpec() {
+  const num = (id, def=0) => bomParseNumber(gv(id)) || def;
+  return {
+    unitType: gv('genUnitType') || gv('bomCategory') || 'UPS',
+    capacity: num('genCapacity', 10),
+    capacityUnit: gv('genCapacityUnit') || 'kVA',
+    pf: Math.min(1, Math.max(0.1, num('genPF', 0.8))),
+    eff: Math.min(1, Math.max(0.1, num('genEff', 0.9))),
+    inputPhase: gv('genInputPhase') || '3P',
+    inputVoltage: num('genInputVoltage', 380),
+    inputSecPhase: gv('genInputSecPhase'),
+    inputSecVoltage: num('genInputSecVoltage', 0),
+    bypassEnabled: !!document.getElementById('genBypassEnabled')?.checked,
+    bypassPriPhase: gv('genBypassPriPhase') || '3P',
+    bypassPriVoltage: num('genBypassPriVoltage', 480),
+    bypassSecPhase: gv('genBypassSecPhase') || '1P',
+    bypassSecVoltage: num('genBypassSecVoltage', 230),
+    dcBus: num('genDcBus', 110),
+    batteryAh: num('genBatteryAh', 0),
+    outputPhase: gv('genOutputPhase') || '1P',
+    outputVoltage: num('genOutputVoltage', 230),
+    outputFeeders: Math.max(1, parseInt(gv('genOutputFeeders')) || 1),
+    panelType: gv('genPanelType') || 'Indoor'
+  };
+}
 
-// ─── Step 2: Review tabel komponen ──────────────────────────
-let _bomReviewData = null;  // { meta, items }
-
-function goBOMReview(opts) {
+async function goBOMReview(opts) {
   opts = opts || {};
-  const title = gv('bomTitle').trim(), cat = gv('bomCategory'), tmplId = gv('bomTemplate');
+  const title = gv('bomTitle').trim(), cat = gv('bomCategory'), tmplId = gv('bomTemplate'), mode = gv('bomMode') || 'manual';
   if (!title || !cat) { toast('Title dan Kategori wajib'); return; }
   const desc = gv('bomDesc').trim() || null;
-
-  // Build initial items from template (or empty)
   let items = [];
-  if (tmplId) {
+  let templateName = null;
+  let generatorSpec = null;
+
+  if (mode === 'template' && tmplId) {
     const tmpl = bomState.templates.find(t => t.id == tmplId);
+    templateName = tmpl?.name || null;
     if (tmpl) {
       items = (tmpl.bom_template_items || [])
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
@@ -7821,15 +7994,234 @@ function goBOMReview(opts) {
             sort_order: idx + 1
           };
         });
+      items = await bomApplyRecommendedPrices(items);
     }
+  } else if (mode === 'generator') {
+    generatorSpec = collectBOMGeneratorSpec();
+    toast('Generate BOM engineering...');
+    items = await generateBOMItemsFromEngineeringInput(generatorSpec);
+    templateName = 'Generator Engineering';
   }
 
   _bomReviewData = {
-    meta: { title, unit_category: cat, description: desc, opts, templateName: tmplId ? bomState.templates.find(t => t.id == tmplId)?.name : null },
+    meta: { title, unit_category: cat, description: desc, opts, templateName, mode, generatorSpec },
     items
   };
-
+  if (mode === 'generator') bomInitGeneratedReviewSheet(items);
   renderBOMReviewModal();
+}
+
+// ─── Engineering Generator: sizing & auto items ─────────────
+const BOM_STD_BREAKERS = [6,10,16,20,25,32,40,50,63,80,100,125,160,200,250,315,400,500,630,800,1000,1250,1600,2000,2500];
+const BOM_STD_TRAFO_KVA = [1,2,3,5,7.5,10,15,20,25,30,40,50,60,75,100,125,160,200,250,315,400,500,630,800,1000];
+const BOM_STD_CABLES = [
+  { amp:10, size:'1.5' }, { amp:16, size:'2.5' }, { amp:25, size:'4' }, { amp:32, size:'6' },
+  { amp:50, size:'10' }, { amp:63, size:'16' }, { amp:100, size:'25' }, { amp:125, size:'35' },
+  { amp:160, size:'50' }, { amp:200, size:'70' }, { amp:250, size:'95' }, { amp:315, size:'120' },
+  { amp:400, size:'185' }, { amp:500, size:'240' }, { amp:630, size:'300' }
+];
+function bomNextStd(list, value) { return list.find(x => x >= value) || list[list.length - 1]; }
+function bomPhaseDivisor(phase, voltage) { return phase === '3P' ? Math.sqrt(3) * voltage : voltage; }
+function bomCurrentFromVA(va, voltage, phase) { return voltage > 0 ? va / bomPhaseDivisor(phase, voltage) : 0; }
+function bomPickCable(current, up=1) {
+  let idx = BOM_STD_CABLES.findIndex(c => current <= c.amp);
+  if (idx < 0) idx = BOM_STD_CABLES.length - 1;
+  idx = Math.min(BOM_STD_CABLES.length - 1, idx + up);
+  return BOM_STD_CABLES[idx];
+}
+function bomCableCoreText(phase) { return phase === '3P' ? '4 x' : (phase === 'DC' ? '2 x' : '2 x'); }
+function bomCalcElectrical(spec) {
+  const cap = spec.capacity || 0;
+  const unit = spec.capacityUnit;
+  let kva = cap, kw = cap * (spec.pf || 0.8), outputVA = cap * 1000;
+  if (unit === 'kW') { kw = cap; kva = cap / (spec.pf || 0.8); outputVA = kva * 1000; }
+  if (unit === 'A') { kw = (spec.dcBus || spec.outputVoltage || 110) * cap / 1000; kva = kw / (spec.pf || 0.8); outputVA = kva * 1000; }
+  const outputA = spec.outputPhase === 'DC' ? (unit === 'A' ? cap : (kw * 1000 / (spec.outputVoltage || spec.dcBus || 110))) : bomCurrentFromVA(outputVA, spec.outputVoltage, spec.outputPhase);
+  const inputA = bomCurrentFromVA((kw * 1000) / (spec.eff || 0.9) / (spec.pf || 0.8), spec.inputVoltage, spec.inputPhase);
+  const bypassA = spec.bypassEnabled ? bomCurrentFromVA(outputVA, spec.bypassPriVoltage, spec.bypassPriPhase) : 0;
+  const dcA = (unit === 'A' && spec.unitType === 'Rectifier') ? cap : ((kw * 1000) / Math.max(1, (spec.dcBus || 110) * (spec.eff || 0.9)));
+  const chargeA = Math.max((spec.batteryAh || 0) * 0.1, spec.unitType === 'Rectifier' ? dcA : Math.min(dcA, (spec.batteryAh || 0) * 0.2 || dcA));
+  return { kva, kw, outputVA, inputA, bypassA, outputA, dcA, chargeA,
+    inputBr: bomNextStd(BOM_STD_BREAKERS, inputA * 1.25),
+    bypassBr: bomNextStd(BOM_STD_BREAKERS, bypassA * 1.25),
+    outputBr: bomNextStd(BOM_STD_BREAKERS, (outputA / Math.max(1, spec.outputFeeders || 1)) * 1.25),
+    dcBr: bomNextStd(BOM_STD_BREAKERS, dcA * 1.25),
+    battBr: bomNextStd(BOM_STD_BREAKERS, Math.max(dcA, chargeA) * 1.25),
+    trafoKva: bomNextStd(BOM_STD_TRAFO_KVA, kva * 1.1) };
+}
+function updateBOMGeneratorPreview() {
+  const box = document.getElementById('bomGenPreview');
+  if (!box) return;
+  const spec = collectBOMGeneratorSpec();
+  const e = bomCalcElectrical(spec);
+  box.innerHTML = `
+    <div>Input Current<strong>${e.inputA.toFixed(1)} A → ${e.inputBr}A</strong></div>
+    <div>DC/Battery Current<strong>${e.dcA.toFixed(1)} A → ${e.battBr}A</strong></div>
+    <div>Output Current<strong>${e.outputA.toFixed(1)} A → ${e.outputBr}A</strong></div>
+    <div>Trafo Estimasi<strong>${e.trafoKva} kVA</strong></div>`;
+}
+function bomRawItem(section, name, specText, qty, unit, category, tokens, note, flags={}) {
+  return { section, name, specText, qty: qty || 1, unit: unit || 'pcs', category: category || 'Lainnya', tokens: tokens || [], note: note || '', flags };
+}
+function bomAddCable(raw, section, label, phase, current, note) {
+  const cab = bomPickCable(current, 1);
+  raw.push(bomRawItem(section, `${label} ${bomCableCoreText(phase)} ${cab.size}mm²`, `${current.toFixed(1)}A → kabel naik 1 rating: ${cab.size}mm²`, 1, 'lot', 'Cable', ['kabel','cable',cab.size], note));
+  raw.push(bomRawItem(section, `Skun/Lug ${cab.size}mm²`, `Untuk kabel ${cab.size}mm²`, phase === '3P' ? 8 : 4, 'pcs', 'Terminal', ['skun','lug',cab.size], note));
+}
+function bomBaseGeneratedRawItems(spec) {
+  const e = bomCalcElectrical(spec);
+  const raw = [];
+  const t = spec.unitType;
+  const inputSpec = `${spec.inputPhase} ${spec.inputVoltage}VAC ${e.inputBr}A`;
+  raw.push(bomRawItem('AC Input', `MCCB/MCB Input ${inputSpec}`, inputSpec, 1, 'pcs', 'Breaker', ['mccb','mcb','input',`${e.inputBr}a`], 'Auto: breaker input = arus input × 1.25'));
+  raw.push(bomRawItem('AC Input', `Terminal Input ${spec.inputPhase} ${spec.inputVoltage}VAC`, inputSpec, 1, 'set', 'Terminal', ['terminal','input'], 'Auto: terminal input'));
+  bomAddCable(raw, 'AC Input', 'Kabel Input', spec.inputPhase, e.inputA, 'Auto: kabel berdasarkan arus, naik 1 rating atas');
+  raw.push(bomRawItem('AC Protection', `SPD/Varistor Input ${spec.inputVoltage}VAC`, `${spec.inputVoltage}VAC ${spec.inputPhase}`, 1, 'set', 'SPD', ['spd','varistor',String(spec.inputVoltage)], 'Auto: proteksi surge/varistor input'));
+  const needInputTrafo = !!spec.inputSecVoltage || ['UPS','Rectifier'].includes(t);
+  if (needInputTrafo) {
+    const sec = spec.inputSecVoltage ? `${spec.inputSecPhase || spec.inputPhase} ${spec.inputSecVoltage}VAC` : 'secondary sesuai design';
+    raw.push(bomRawItem('Input Transformer', `Trafo Input Isolation ${spec.inputPhase} ${spec.inputVoltage}VAC / ${sec} ${e.trafoKva}kVA`, `${spec.inputVoltage}/${spec.inputSecVoltage || 'AUTO'}VAC ${e.trafoKva}kVA`, 1, 'unit', 'Transformer', ['trafo','transformer','input',`${e.trafoKva}kva`], 'Auto: trafo input dari kapasitas × margin'));
+  }
+  if (spec.bypassEnabled && t === 'UPS') {
+    const bySpec = `${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC ${e.bypassBr}A`;
+    raw.push(bomRawItem('Bypass', `MCCB/MCB Bypass Primary ${bySpec}`, bySpec, 1, 'pcs', 'Breaker', ['mccb','mcb','bypass',`${e.bypassBr}a`], 'Auto: breaker bypass primary'));
+    raw.push(bomRawItem('Bypass', `Terminal Bypass Primary ${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC`, bySpec, 1, 'set', 'Terminal', ['terminal','bypass'], 'Auto: terminal bypass primary'));
+    bomAddCable(raw, 'Bypass', 'Kabel Bypass Primary', spec.bypassPriPhase, e.bypassA, 'Auto: kabel bypass berdasarkan arus, naik 1 rating atas');
+    raw.push(bomRawItem('Bypass Protection', `SPD/Varistor Bypass ${spec.bypassPriVoltage}VAC`, `${spec.bypassPriVoltage}VAC`, 1, 'set', 'SPD', ['spd','varistor','bypass'], 'Auto: proteksi bypass'));
+    if (spec.bypassPriVoltage !== spec.bypassSecVoltage || spec.bypassPriPhase !== spec.bypassSecPhase) {
+      raw.push(bomRawItem('Bypass Transformer', `Trafo Bypass ${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC / ${spec.bypassSecPhase} ${spec.bypassSecVoltage}VAC ${e.trafoKva}kVA`, `${spec.bypassPriVoltage}/${spec.bypassSecVoltage}VAC ${e.trafoKva}kVA`, 1, 'unit', 'Transformer', ['trafo','transformer','bypass',`${e.trafoKva}kva`], 'Auto: bypass primary/secondary berbeda'));
+    }
+    raw.push(bomRawItem('Bypass', `Contactor/Static Switch Bypass ${e.bypassBr}A`, `${e.bypassBr}A`, 1, 'set', 'Contactor', ['contactor','static','bypass'], 'Auto: perpindahan bypass'));
+  }
+  if (['UPS','Rectifier'].includes(t)) {
+    const rectA = t === 'Rectifier' ? e.dcBr : bomNextStd(BOM_STD_BREAKERS, e.chargeA * 1.25);
+    raw.push(bomRawItem('Rectifier/Charger', `Rectifier/Charger Module ${spec.dcBus}VDC ${rectA}A`, `${spec.dcBus}VDC ${rectA}A`, 1, 'set', 'Rectifier', ['rectifier','charger',`${spec.dcBus}v`,`${rectA}a`], 'Auto: modul rectifier/charger'));
+    raw.push(bomRawItem('DC Filter', `Induktor/Smoothing Choke DC ${spec.dcBus}VDC ${e.dcBr}A`, `${spec.dcBus}VDC ${e.dcBr}A`, 1, 'pcs', 'Inductor', ['inductor','induktor','choke',`${e.dcBr}a`], 'Auto: smoothing DC'));
+    raw.push(bomRawItem('DC Bus', `Capacitor DC Bus ${spec.dcBus}VDC`, `${spec.dcBus}VDC`, 1, 'set', 'Capacitor', ['capacitor','elco','dc bus',`${spec.dcBus}v`], 'Auto: capacitor bank DC bus'));
+    raw.push(bomRawItem('DC Bus', `Busbar DC ${spec.dcBus}VDC ${e.dcBr}A`, `${spec.dcBus}VDC ${e.dcBr}A`, 1, 'set', 'Busbar', ['busbar','dc',`${e.dcBr}a`], 'Auto: busbar DC'));
+  }
+  if (spec.batteryAh || t !== 'Rectifier') {
+    raw.push(bomRawItem('Battery', `MCCB/MCB Battery DC ${spec.dcBus}VDC ${e.battBr}A`, `${spec.dcBus}VDC ${e.battBr}A`, 1, 'pcs', 'Breaker', ['mccb','mcb','battery','dc',`${e.battBr}a`], 'Auto: breaker battery/DC = arus DC × 1.25'));
+    raw.push(bomRawItem('Battery', `Terminal Battery + / - ${spec.dcBus}VDC`, `${spec.dcBus}VDC ${spec.batteryAh || ''}Ah`, 1, 'set', 'Terminal', ['terminal','battery'], 'Auto: terminal battery'));
+    bomAddCable(raw, 'Battery', 'Kabel Battery Merah/Hitam', 'DC', Math.max(e.dcA, e.chargeA), 'Auto: kabel battery berdasarkan arus DC, naik 1 rating atas');
+  }
+  if (['UPS','Inverter'].includes(t)) {
+    raw.push(bomRawItem('Inverter', `IGBT/Inverter Module ${spec.dcBus}VDC ${e.dcBr}A`, `${spec.dcBus}VDC ${e.dcBr}A`, 1, 'set', 'IGBT', ['igbt','inverter',`${spec.dcBus}v`,`${e.dcBr}a`], 'Auto: modul inverter'));
+    raw.push(bomRawItem('Inverter', `Driver IGBT / Control Inverter`, `Untuk inverter ${spec.dcBus}VDC`, 1, 'set', 'Control', ['driver','igbt','control'], 'Auto: driver inverter'));
+    raw.push(bomRawItem('Cooling', `Heatsink + Fan Inverter ${e.dcBr}A`, `${e.dcBr}A`, 1, 'set', 'Cooling', ['heatsink','fan','cooling'], 'Auto: pendinginan power module'));
+    raw.push(bomRawItem('Output Filter', `Induktor/Filter Output ${spec.outputPhase} ${spec.outputVoltage}VAC ${e.outputBr}A`, `${spec.outputVoltage}VAC ${e.outputBr}A`, 1, 'pcs', 'Inductor', ['inductor','filter','output',`${e.outputBr}a`], 'Auto: filter output inverter'));
+    raw.push(bomRawItem('Inverter Transformer', `Trafo Inverter ${spec.dcBus}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC ${e.trafoKva}kVA`, `${spec.dcBus}VDC/${spec.outputVoltage}VAC ${e.trafoKva}kVA`, 1, 'unit', 'Transformer', ['trafo','transformer','inverter',`${e.trafoKva}kva`], 'Auto: trafo output/inverter'));
+  }
+  const outLabel = spec.outputPhase === 'DC' ? `${spec.outputVoltage || spec.dcBus}VDC` : `${spec.outputPhase} ${spec.outputVoltage}VAC`;
+  raw.push(bomRawItem('Output', `MCB/MCCB Output ${outLabel} ${e.outputBr}A`, `${outLabel} ${e.outputBr}A per feeder`, spec.outputFeeders, 'pcs', 'Breaker', ['mccb','mcb','output',`${e.outputBr}a`], 'Auto: breaker output per feeder'));
+  raw.push(bomRawItem('Output', `Terminal Output ${outLabel}`, outLabel, 1, 'set', 'Terminal', ['terminal','output'], 'Auto: terminal output'));
+  bomAddCable(raw, 'Output', 'Kabel Output', spec.outputPhase, e.outputA / Math.max(1, spec.outputFeeders || 1), 'Auto: kabel output per feeder, naik 1 rating atas');
+  if (spec.outputPhase !== 'DC') raw.push(bomRawItem('Output Protection', `SPD/Varistor Output ${spec.outputVoltage}VAC`, `${spec.outputVoltage}VAC`, 1, 'set', 'SPD', ['spd','varistor','output'], 'Auto: proteksi output'));
+  raw.push(bomRawItem('Metering', `Meter Digital V/A ${outLabel}`, outLabel, 1, 'pcs', 'Meter', ['meter','volt','ampere'], 'Auto: metering output'));
+  raw.push(bomRawItem('Control', `SMPS / Control Supply`, `Supply kontrol`, 1, 'pcs', 'Power Supply', ['smps','power supply'], 'Auto: supply control'));
+  raw.push(bomRawItem('Control', `Terminal Control & Alarm Dry Contact`, `Alarm/status`, 1, 'set', 'Terminal', ['terminal','alarm','control'], 'Auto: terminal kontrol/alarm'));
+  raw.push(bomRawItem('Mechanical', `Panel Enclosure ${spec.panelType}`, `${spec.panelType}`, 1, 'unit', 'Enclosure', ['panel','enclosure',spec.panelType], 'Auto: enclosure panel'));
+  raw.push(bomRawItem('Mechanical', `DIN Rail + Wiring Duct + Label`, `Aksesoris panel`, 1, 'lot', 'Mechanical Acc', ['din rail','duct','label'], 'Auto: aksesoris wiring'));
+  raw.push(bomRawItem('Mechanical', `Fan Filter / Ventilasi Panel`, `Cooling panel`, 1, 'set', 'Cooling', ['fan','filter','ventilasi'], 'Auto: ventilasi panel'));
+  return raw;
+}
+function bomScoreGeneratedComponent(c, raw) {
+  const text = `${c.part_number || ''} ${c.name || ''} ${c.category || ''}`.toLowerCase();
+  let score = 0;
+  if ((c.category || '').toLowerCase() === (raw.category || '').toLowerCase()) score += 40;
+  for (const tk of (raw.tokens || [])) {
+    const t = String(tk || '').toLowerCase().replace(/\s+/g,'');
+    if (!t) continue;
+    const compact = text.replace(/\s+/g,'');
+    if (compact.includes(t)) score += 12;
+  }
+  const nameWords = String(raw.name || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2).slice(0, 8);
+  for (const w of nameWords) if (text.includes(w)) score += 3;
+  return score;
+}
+function bomFindGeneratedMaster(raw) {
+  const comps = bomState.components || [];
+  let best = null, bestScore = 0;
+  for (const c of comps) {
+    const score = bomScoreGeneratedComponent(c, raw);
+    if (score > bestScore) { best = c; bestScore = score; }
+  }
+  return bestScore >= 45 ? best : null;
+}
+async function bomBuildPriceCache() {
+  if (bomState.priceCache) return bomState.priceCache;
+  const cache = { byPN:{}, byName:{} };
+  const put = (pn, name, price) => {
+    const n = bomParseNumber(price);
+    if (!n || n <= 0) return;
+    if (pn && !cache.byPN[String(pn).toLowerCase()]) cache.byPN[String(pn).toLowerCase()] = n;
+    if (name && !cache.byName[String(name).toLowerCase()]) cache.byName[String(name).toLowerCase()] = n;
+  };
+  (bomState.priceHistory || []).forEach(r => put(r.part_number, r.name, r.unit_price));
+  try {
+    const { data, error } = await sb.from('bom_items').select('part_number,name,unit_price').gt('unit_price', 0).limit(2000);
+    if (!error && data) data.forEach(r => put(r.part_number, r.name, r.unit_price));
+  } catch (e) {}
+  (bomState.components || []).forEach(c => put(c.part_number, c.name, c.price));
+  bomState.priceCache = cache;
+  return cache;
+}
+async function bomRecommendedPrice(comp, raw) {
+  const cache = await bomBuildPriceCache();
+  if (comp?.part_number && cache.byPN[String(comp.part_number).toLowerCase()]) return cache.byPN[String(comp.part_number).toLowerCase()];
+  if (comp?.name && cache.byName[String(comp.name).toLowerCase()]) return cache.byName[String(comp.name).toLowerCase()];
+  if (raw?.name && cache.byName[String(raw.name).toLowerCase()]) return cache.byName[String(raw.name).toLowerCase()];
+  return bomParseNumber(comp?.price) || 0;
+}
+async function bomApplyRecommendedPrices(items) {
+  for (const it of items) {
+    const comp = it.component_id ? (bomState.components || []).find(c => c.id === it.component_id) : null;
+    const p = await bomRecommendedPrice(comp, { name: it.name });
+    if (p > 0) it.unit_price = p;
+  }
+  return items;
+}
+async function generateBOMItemsFromEngineeringInput(spec) {
+  const raw = bomBaseGeneratedRawItems(spec);
+  const items = [];
+  for (let i=0;i<raw.length;i++) {
+    const r = raw[i];
+    const comp = bomFindGeneratedMaster(r);
+    const price = await bomRecommendedPrice(comp, r);
+    const notFound = !comp;
+    items.push({
+      tmpRowId: 'gen_' + i + '_' + Date.now(),
+      component_id: comp?.id || null,
+      part_number: comp?.part_number || 'AUTO/TBD',
+      name: comp?.name || r.name,
+      unit: comp?.unit || r.unit || 'pcs',
+      qty: r.qty || 1,
+      unit_price: price || 0,
+      note: r.note || '',
+      sort_order: i + 1,
+      _extra: {
+        x_section: r.section,
+        x_spec_auto: r.specText,
+        x_sizing_basis: r.note,
+        x_master_status: notFound ? 'Belum ada master' : 'Master matched',
+        x_no_auto_master: notFound ? '1' : '',
+        x_source: 'Engineering Generator'
+      }
+    });
+  }
+  return items;
+}
+function bomInitGeneratedReviewSheet(items) {
+  const sheet = bomNewSheetState(can('nilai_po'));
+  sheet.customCols = [
+    { key:'x_section', label:'Section', width:150, custom:true },
+    { key:'x_spec_auto', label:'Spec Auto', width:250, custom:true },
+    { key:'x_master_status', label:'Master', width:130, custom:true },
+    { key:'x_sizing_basis', label:'Dasar Sizing', width:260, custom:true },
+    { key:'x_source', label:'Source', width:150, custom:true }
+  ];
+  sheet.customCols.forEach(c => sheet.colWidths[c.key] = c.width);
+  _bomReviewData.sheet = sheet;
 }
 
 
@@ -7892,6 +8284,27 @@ function bomNewSheetState(showPrice) {
     colWidths: Object.fromEntries(bomDefaultColumns(showPrice).map(c => [c.key, c.width]))
   };
 }
+const BOM_EXTRA_LABELS = {
+  x_section:'Section', x_spec_auto:'Spec Auto', x_sizing_basis:'Dasar Sizing',
+  x_master_status:'Master', x_no_auto_master:'No Auto Master', x_source:'Source'
+};
+function bomEnsureExtraColumnsInSheet(state, items) {
+  if (!state) return;
+  state.customCols = state.customCols || [];
+  state.colWidths = state.colWidths || {};
+  const existing = new Set(state.customCols.map(c => c.key));
+  for (const it of (items || [])) {
+    const ex = it._extra || bomReadExtra(it.note);
+    Object.keys(ex || {}).forEach(k => {
+      if (!k.startsWith('x_') || existing.has(k) || k === 'x_no_auto_master') return;
+      existing.add(k);
+      const label = BOM_EXTRA_LABELS[k] || k.replace(/^x_/, '').replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+      const width = k === 'x_spec_auto' || k === 'x_sizing_basis' ? 250 : 150;
+      state.customCols.push({ key:k, label, width, custom:true });
+      state.colWidths[k] = state.colWidths[k] || width;
+    });
+  }
+}
 function bomReviewState() {
   if (!_bomReviewData) return null;
   const showPrice = can('nilai_po');
@@ -7901,6 +8314,7 @@ function bomReviewState() {
     if (!it._extra) it._extra = bomReadExtra(it.note);
     it.note = bomStripExtra(it.note);
   });
+  bomEnsureExtraColumnsInSheet(_bomReviewData.sheet, _bomReviewData.items || []);
   return _bomReviewData.sheet;
 }
 function bomDetailState(showPrice) {
@@ -7918,6 +8332,7 @@ function bomDetailState(showPrice) {
         note: bomStripExtra(it.note),
         _extra: bomReadExtra(it.note)
       }));
+    bomEnsureExtraColumnsInSheet(bomDetail.sheet, bomDetail.sheetItems || []);
   }
   return bomDetail.sheet;
 }
@@ -7961,11 +8376,66 @@ function bomSetCellValue(ctx, rowIdx, col, value) {
   }
   if (ctx === 'detail') bdMarkDirty();
 }
+
+function bomSheetGetHost(ctx) {
+  return document.getElementById(ctx === 'review' ? 'reviewSheetHost' : 'bdSheetHost');
+}
+function bomSheetGetWrap(ctx) {
+  return bomSheetGetHost(ctx)?.querySelector('.bom-sheet-wrap') || null;
+}
+function bomSheetCaptureScroll(ctx) {
+  const host = bomSheetGetHost(ctx);
+  const wrap = host?.querySelector('.bom-sheet-wrap');
+  const modalBody = host?.closest('.modal-body');
+  const main = document.getElementById('mainContent');
+  return {
+    wrapTop: wrap ? wrap.scrollTop : 0,
+    wrapLeft: wrap ? wrap.scrollLeft : 0,
+    modalTop: modalBody ? modalBody.scrollTop : 0,
+    mainTop: main ? main.scrollTop : 0
+  };
+}
+function bomSheetRestoreScroll(ctx, snap) {
+  if (!snap) return;
+  const wrap = bomSheetGetWrap(ctx);
+  const host = bomSheetGetHost(ctx);
+  const modalBody = host?.closest('.modal-body');
+  const main = document.getElementById('mainContent');
+  if (wrap) {
+    wrap.scrollTop = snap.wrapTop || 0;
+    wrap.scrollLeft = snap.wrapLeft || 0;
+  }
+  if (modalBody) modalBody.scrollTop = snap.modalTop || 0;
+  if (main) main.scrollTop = snap.mainTop || 0;
+}
+function bomSheetEnsureCellVisible(el) {
+  const wrap = el?.closest('.bom-sheet-wrap');
+  if (!el || !wrap) return;
+  const cell = el.closest('td') || el;
+  const row = el.closest('tr') || cell;
+  const pad = 12;
+  const rowTop = row.offsetTop;
+  const rowBottom = rowTop + row.offsetHeight;
+  const viewTop = wrap.scrollTop;
+  const viewBottom = viewTop + wrap.clientHeight;
+  if (rowTop < viewTop + pad) wrap.scrollTop = Math.max(0, rowTop - pad);
+  else if (rowBottom > viewBottom - pad) wrap.scrollTop = rowBottom - wrap.clientHeight + pad;
+
+  const cellLeft = cell.offsetLeft;
+  const cellRight = cellLeft + cell.offsetWidth;
+  const viewLeft = wrap.scrollLeft;
+  const viewRight = viewLeft + wrap.clientWidth;
+  const frozenLeft = 44;
+  if (cellLeft < viewLeft + frozenLeft + pad) wrap.scrollLeft = Math.max(0, cellLeft - frozenLeft - pad);
+  else if (cellRight > viewRight - pad) wrap.scrollLeft = cellRight - wrap.clientWidth + pad;
+}
+
 function bomSheetRender(ctx) {
+  const scrollSnap = bomSheetCaptureScroll(ctx);
   const state = bomSheetGetState(ctx);
   const items = bomSheetGetItems(ctx);
   const cols = bomSheetGetVisibleColumns(ctx);
-  const host = document.getElementById(ctx === 'review' ? 'reviewSheetHost' : 'bdSheetHost');
+  const host = bomSheetGetHost(ctx);
   if (!host || !state) return;
 
   const total = items.reduce((s,it)=>s+((bomParseNumber(it.qty)||0)*(bomParseNumber(it.unit_price)||0)),0);
@@ -8028,6 +8498,7 @@ function bomSheetRender(ctx) {
         ${can('nilai_po') ? `<span class="bom-sheet-total">Total: ${fmtRp(total)}</span>` : ''}
       </div>
     </div>`;
+  requestAnimationFrame(() => bomSheetRestoreScroll(ctx, scrollSnap));
 }
 function bomSheetFocusCell(ctx, row, col) {
   const state = bomSheetGetState(ctx);
@@ -8070,11 +8541,24 @@ function bomSheetKeydown(e, ctx, row, col) {
   if (nc < 0) { nc = cols.length - 1; nr--; }
   if (nr >= items.length) { bomSheetAddRow(ctx, 1, false); nr = items.length; }
   nr = Math.max(0, nr);
-  setTimeout(() => bomSheetFocusDom(ctx, nr, nc), 0);
+  bomSheetScheduleFocus(ctx, nr, nc);
 }
-function bomSheetFocusDom(ctx, row, col) {
+function bomSheetFocusDom(ctx, row, col, opts={}) {
   const el = document.querySelector(`.bom-sheet-cell[data-ctx="${ctx}"][data-row="${row}"][data-col="${col}"]`);
-  if (el) { el.focus(); document.execCommand?.('selectAll', false, null); }
+  if (!el) return;
+  const wrap = el.closest('.bom-sheet-wrap');
+  const beforeTop = wrap ? wrap.scrollTop : 0;
+  const beforeLeft = wrap ? wrap.scrollLeft : 0;
+  try { el.focus({ preventScroll: true }); } catch (err) { el.focus(); }
+  document.execCommand?.('selectAll', false, null);
+  if (wrap) {
+    wrap.scrollTop = beforeTop;
+    wrap.scrollLeft = beforeLeft;
+  }
+  if (opts.ensureVisible !== false) bomSheetEnsureCellVisible(el);
+}
+function bomSheetScheduleFocus(ctx, row, col, opts={}) {
+  requestAnimationFrame(() => requestAnimationFrame(() => bomSheetFocusDom(ctx, row, col, opts)));
 }
 function bomSheetPaste(e, ctx, row, col) {
   const txt = e.clipboardData?.getData('text/plain') || '';
@@ -8093,7 +8577,7 @@ function bomSheetPaste(e, ctx, row, col) {
     });
   });
   bomSheetRender(ctx);
-  setTimeout(() => bomSheetFocusDom(ctx, row, col), 0);
+  bomSheetScheduleFocus(ctx, row, col);
 }
 function bomSheetNewBlankRow(ctx, sortOrder=1) {
   return {
@@ -8138,7 +8622,7 @@ function bomSheetAddRow(ctx, count=1, render=true) {
   if (ctx === 'detail') bdMarkDirty();
   if (render) {
     bomSheetRender(ctx);
-    setTimeout(() => bomSheetFocusDom(ctx, startIdx, Math.max(0, state?.selectedCol || 0)), 0);
+    bomSheetScheduleFocus(ctx, startIdx, Math.max(0, state?.selectedCol || 0));
   }
 }
 function bomSheetInsertRow(ctx, where='below') {
@@ -8156,7 +8640,7 @@ function bomSheetInsertRow(ctx, where='below') {
   state.selectedRow = idx;
   if (ctx === 'detail') bdMarkDirty();
   bomSheetRender(ctx);
-  setTimeout(() => bomSheetFocusDom(ctx, idx, Math.max(0, state.selectedCol || 0)), 0);
+  bomSheetScheduleFocus(ctx, idx, Math.max(0, state.selectedCol || 0));
 }
 function bomSheetMoveRows(ctx, direction) {
   const state = bomSheetGetState(ctx);
@@ -8187,7 +8671,7 @@ function bomSheetMoveRows(ctx, direction) {
   state.selectedRow = Math.max(0, Math.min(items.length - 1, (state.selectedRow || rows[0]) + dir));
   if (ctx === 'detail') bdMarkDirty();
   bomSheetRender(ctx);
-  setTimeout(() => bomSheetFocusDom(ctx, state.selectedRow, Math.max(0, state.selectedCol || 0)), 0);
+  bomSheetScheduleFocus(ctx, state.selectedRow, Math.max(0, state.selectedCol || 0));
 }
 function bomSheetSelectRow(e, ctx, row) {
   const state = bomSheetGetState(ctx);
@@ -8333,6 +8817,7 @@ async function saveBOMSheetDetail() {
     }
   }
   await recalcBOMTotal(d.id);
+  await bomRecordPriceHistory(d.id, items);
   await logBOM(d.id, 'Edit Spreadsheet', `${items.length} baris disimpan${deleted.length ? ', ' + deleted.length + ' baris dihapus' : ''}`);
   toast('BOM spreadsheet tersimpan');
   bomDetail.sheet = null;
@@ -8538,6 +9023,25 @@ function findMasterByName(name) {
   return bomState.components.find(c => (c.name || '').trim().toLowerCase() === target);
 }
 
+
+async function bomRecordPriceHistory(sourceBomId, items) {
+  try {
+    const rows = (items || [])
+      .filter(it => (bomParseNumber(it.unit_price) || 0) > 0 && !/^AUTO\/TBD/i.test(String(it.part_number || '')))
+      .map(it => ({
+        component_id: it.component_id || null,
+        part_number: it.part_number || null,
+        name: it.name || null,
+        unit: it.unit || 'pcs',
+        unit_price: bomParseNumber(it.unit_price) || 0,
+        source_bom_id: sourceBomId || null,
+        created_by: currentUser?.id != null ? String(currentUser.id) : null
+      }));
+    if (rows.length) await sb.from('bom_price_history').insert(rows);
+  } catch (e) { console.warn('bomRecordPriceHistory skipped:', e); }
+  bomState.priceCache = null;
+}
+
 async function saveBOMFromReview() {
   bomApplyReviewExtraToNotes();
   const { meta, items } = _bomReviewData;
@@ -8557,6 +9061,12 @@ async function saveBOMFromReview() {
 
   for (const it of items) {
     const cleanName = it.name.trim();
+    const keepAsFreeText = /^AUTO\/TBD/i.test(String(it.part_number || '')) || String(it._extra?.x_no_auto_master || '').trim() === '1';
+    if (keepAsFreeText) {
+      it.component_id = null;
+      it.part_number = it.part_number || 'AUTO/TBD';
+      continue;
+    }
     // 1) Cek di cache batch
     const cacheKey = cleanName.toLowerCase();
     if (newCompsCache[cacheKey]) {
@@ -8630,6 +9140,7 @@ async function saveBOMFromReview() {
     });
   }
   await recalcBOMTotal(id);
+  await bomRecordPriceHistory(id, items);
 
   if (meta.templateName) {
     await logBOM(id, 'Review Selesai', `${items.length} komponen ter-review dari template`);
