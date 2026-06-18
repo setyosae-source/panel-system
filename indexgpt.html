@@ -41,7 +41,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .sb-logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
 .sb-nav{padding:.75rem .625rem;flex:1;display:flex;flex-direction:column;gap:2px}
 .sb-label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:.5rem .5rem .25rem}
-.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit;transition:all .15s}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:none;text-align:left;font-family:inherit;transition:all .15s}
 .sb-item svg{width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0}
 .sb-item:hover{background:var(--surface2);color:var(--text)}
 .sb-item.active{background:var(--text);color:#fff}
@@ -81,13 +81,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .toolbar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
 .search-wrap{flex:1;min-width:180px;position:relative}
 .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text3);stroke:currentColor;fill:none;pointer-events:none}
-.search-wrap input[type=text]{width:100%;padding:8px 10px 8px 32px}
+.search-wrap input[type=text]{padding:8px 10px 8px 32px}
 
 /* ── INPUTS ── */
 input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{
   font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);
   background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
-  outline:none;transition:border-color .15s;box-sizing:border-box;width:100%
+  outline:none;transition:border-color .15s;box-sizing:border-box;
 }
 input:focus,select:focus,textarea:focus{border-color:var(--border2)}
 select{padding:8px 10px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9893' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;appearance:none}
@@ -107,12 +107,11 @@ textarea{resize:vertical;min-height:76px;padding:8px 10px;line-height:1.6}
 
 /* ── TABLE ── */
 .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-.table-wrap{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
-.table-wrap::after{content:'Geser tabel ke samping untuk melihat semua kolom';display:block;font-size:11px;color:var(--text3);padding:6px 10px;border-top:1px solid var(--border);background:var(--surface)}
-table{width:max-content;min-width:100%;border-collapse:collapse;table-layout:auto}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;table-layout:fixed}
 thead{background:var(--surface2)}
-th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;overflow:visible;min-width:110px}
-td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px;overflow:visible;text-overflow:clip;white-space:nowrap;vertical-align:middle;max-width:none}
+th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden}
+td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--bg);cursor:pointer}
 .sort-th{cursor:pointer;user-select:none}.sort-th:hover{color:var(--text2)}
@@ -122,8 +121,26 @@ tr:hover td{background:var(--bg);cursor:pointer}
 .col-rsz:hover,.col-rsz.dragging{background:var(--blue);opacity:.5}
 .empty-row td,.loading-row td{text-align:center;padding:2.5rem;color:var(--text3);white-space:normal}
 .mono{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
-table td.mono{white-space:nowrap;word-break:normal;line-height:1.35}
 table td{vertical-align:top;line-height:1.4}
+
+/* ── Tabel: data tampil utuh + scrollable horizontal ── */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.table-card table{width:auto;min-width:100%}
+.table-card thead th,
+.table-card tbody td{white-space:nowrap}
+/* Expand/detail row (colspan) — allow wrap karena isi multi-line */
+.table-card tbody tr[class*="-detail-row"] td,
+.table-card tbody td[colspan]:not([colspan="1"]){white-space:normal;word-break:break-word}
+
+/* ── Column resize handle ── */
+.table-card thead th{position:relative}
+.table-card thead th::after{
+  content:'';position:absolute;top:0;right:0;width:8px;height:100%;
+  cursor:col-resize;background:transparent;touch-action:none;z-index:5
+}
+.table-card thead th:hover::after{background:rgba(59,130,246,.2)}
+.table-card thead th.col-resizing::after{background:rgba(59,130,246,.5)}
+body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important;user-select:none !important}
 /* Grouped table rows */
 .group-row td{background:var(--surface2);font-weight:600;cursor:pointer;user-select:none;padding:8px 10px}
 .group-row:hover td{background:var(--bg)}
@@ -145,7 +162,7 @@ table td{vertical-align:top;line-height:1.4}
 
 /* ── MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(4px)}
-.modal{background:var(--surface);border-radius:var(--r-lg);width:100%;max-width:680px;box-shadow:var(--shadow-lg);margin:auto;display:flex;flex-direction:column;max-height:calc(100vh - 3rem)}
+.modal{background:var(--surface);border-radius:var(--r-lg);max-width:680px;box-shadow:var(--shadow-lg);margin:auto;display:flex;flex-direction:column;max-height:calc(100vh - 3rem)}
 .modal-sm{max-width:460px}
 .modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0}
 .modal-header h2{font-size:15px;font-weight:600}
@@ -204,32 +221,6 @@ table td{vertical-align:top;line-height:1.4}
 .role-logistik{background:var(--teal-bg);color:var(--teal)}
 .role-teknisi{background:var(--coral-bg);color:var(--coral)}
 .role-direktur{background:#fef3c7;color:#854d0e}
-.role-other{background:#F3F4F6;color:#374151}
-.role-help-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px}
-.role-help-card b{font-size:13px}
-.role-help-card ul{margin:6px 0 0 18px;color:var(--text2);font-size:12px;line-height:1.55}
-.misc-job-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:10px}
-
-
-/* ── HELP & TABLE RESIZE ── */
-.help-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--text3);font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;flex-shrink:0}
-.help-dot:hover{background:var(--blue-bg);color:var(--blue-text);border-color:#bfdbfe}
-.help-pop{font-size:13px;line-height:1.65;color:var(--text2)}
-.help-pop b{color:var(--text);font-weight:700}.help-pop ul,.help-pop ol{margin:6px 0 10px 18px;padding:0}.help-pop li{margin:3px 0}.help-pop .help-note{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;margin-top:8px;color:var(--text2)}
-.form-row label .help-dot,.sect-title .help-dot,.wizard-step .help-dot,.period-btn .help-dot{margin-left:6px;vertical-align:middle}.modal-body .help-dot{flex-shrink:0}
-.role-welcome{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
-.role-welcome-title{font-size:16px;font-weight:700;margin-bottom:5px}
-.role-welcome-text{font-size:13px;color:var(--text2);line-height:1.55}
-.table-wrap table th{user-select:none}
-.col-rsz{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:col-resize;background:transparent;z-index:5}
-.col-rsz:hover,.col-rsz.dragging{background:var(--blue);opacity:.45}
-.resizable-table th,.resizable-table td{overflow:visible;text-overflow:clip}
-.misc-photo-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.misc-photo-box{flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px}
-.misc-photo-box b{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
-.misc-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:6px}
-.misc-photo-thumb{aspect-ratio:1;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;cursor:pointer;background:var(--surface)}
-.misc-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:1.25rem;right:1.25rem;background:var(--text);color:#fff;padding:10px 16px;border-radius:var(--r-sm);font-size:13px;font-weight:500;z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;max-width:320px;box-shadow:var(--shadow-lg)}
@@ -243,8 +234,8 @@ table td{vertical-align:top;line-height:1.4}
 .doc-viewer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:flex;flex-direction:column}
 .doc-viewer-bar{background:#1A1917;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .doc-viewer-bar .fname{color:#fff;font-size:13px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.doc-viewer-frame{flex:1;width:100%;border:none;background:#fff}
-.doc-viewer-img{max-width:100%;max-height:100%;object-fit:contain;margin:auto;display:block;padding:16px}
+.doc-viewer-frame{flex:1;border:none;background:#fff}
+.doc-viewer-img{max-max-height:100%;object-fit:contain;margin:auto;display:block;padding:16px}
 .doc-viewer-fallback{color:#aaa;text-align:center;padding:3rem;font-size:14px}
 
 /* ── PK CARD ── */
@@ -274,7 +265,7 @@ table td{vertical-align:top;line-height:1.4}
   .hamburger{display:flex}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .form-grid{grid-template-columns:1fr}
-  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-width:100%;margin:auto 0 0;max-height:90vh}
+  .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-margin:auto 0 0;max-height:90vh}
   .overlay{align-items:flex-end;padding:0}
   .kv{grid-template-columns:100px 1fr}
   .page-body{padding:0 1rem 2rem}
@@ -292,7 +283,7 @@ table td{vertical-align:top;line-height:1.4}
   .page-sub{font-size:11px !important}
   /* Toolbar row: wrap buttons & search */
   .toolbar-row{flex-wrap:wrap;gap:6px}
-  .toolbar-row .search-wrap{min-width:100%;order:-1}
+  .toolbar-row .search-wrap{min-order:-1}
   /* Form input lebih besar untuk touch */
   input[type=text], input[type=password], input[type=date], input[type=email],
   input[type=tel], input[type=number], select, textarea{
@@ -321,7 +312,7 @@ table td{vertical-align:top;line-height:1.4}
 
 /* ── LOGIN ── */
 .login-shell{min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1rem}
-.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.5rem 2rem;width:100%;max-width:360px;box-shadow:var(--shadow-lg)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.5rem 2rem;max-width:360px;box-shadow:var(--shadow-lg)}
 .login-logo{display:flex;align-items:center;gap:10px;margin-bottom:2rem}
 .login-logo-icon{width:38px;height:38px;background:var(--text);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .login-logo-icon svg{width:18px;height:18px;stroke:#fff;fill:none}
@@ -331,7 +322,7 @@ table td{vertical-align:top;line-height:1.4}
 .login-card p{font-size:13px;color:var(--text2);margin-bottom:1.5rem}
 .login-field{margin-bottom:.875rem}
 .login-field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px}
-.login-field input{width:100%;padding:10px 12px;font-size:14px}
+.login-field input{padding:10px 12px;font-size:14px}
 .login-error{background:var(--red-bg);color:var(--red);font-size:13px;padding:8px 12px;border-radius:var(--r-sm);margin-bottom:.875rem;display:none}
 
 /* ── PERIOD TABS ── */
@@ -342,14 +333,14 @@ table td{vertical-align:top;line-height:1.4}
 /* ── SALES SHELL ── */
 .sales-shell{min-height:100vh;height:100vh;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
 .sales-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:50}
-.sales-body{flex:1;padding:1.5rem 1rem;max-width:700px;margin:0 auto;width:100%;overflow-y:auto;}
+.sales-body{flex:1;padding:1.5rem 1rem;max-width:700px;margin:0 auto;overflow-y:auto;}
 .tab-bar{display:flex;gap:2px;background:var(--surface2);border-radius:var(--r-sm);padding:3px;margin-bottom:1.25rem}
 .tab-btn{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;border-radius:5px;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s}
 .tab-btn.active{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .sales-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.125rem;margin-bottom:10px}
 
 /* ── USER MANAGEMENT ── */
-.user-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+.user-table{border-collapse:collapse;font-size:13px}
 .user-table th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
 .user-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .user-table tr:last-child td{border-bottom:none}
@@ -374,10 +365,41 @@ table td{vertical-align:top;line-height:1.4}
 /* ── PHOTO GRID ── */
 .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:8px}
 .photo-thumb{aspect-ratio:1;border-radius:var(--r-sm);overflow:hidden;cursor:pointer;border:1px solid var(--border)}
-.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-thumb img{height:100%;object-fit:cover}
 
 /* ── RESTRICTED ── */
 .restricted-blur{filter:blur(5px);user-select:none;pointer-events:none}
+
+/* ── BOM Spreadsheet Editor ── */
+.bom-sheet-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.bom-sheet-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.bom-sheet-toolbar .hint{font-size:11px;color:var(--text3);margin-left:auto}
+.bom-sheet-wrap{overflow:auto;max-height:62vh;background:#fff}
+.bom-sheet-table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:max-content;min-width:100%;font-family:'DM Sans',sans-serif}
+.bom-sheet-table th,.bom-sheet-table td{border-right:1px solid #DADCE0;border-bottom:1px solid #DADCE0;padding:0;height:28px;white-space:nowrap;overflow:hidden;background:#fff;vertical-align:middle}
+.bom-sheet-table th{position:sticky;top:0;z-index:4;background:#F8F9FA;color:#444;font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;text-align:left}
+.bom-sheet-table .corner{left:0;z-index:6;width:44px;text-align:center;background:#F1F3F4}
+.bom-sheet-table .row-head{position:sticky;left:0;z-index:3;width:44px;background:#F8F9FA;text-align:center;color:#5f6368;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;user-select:none}
+.bom-sheet-table .row-head.selected,.bom-sheet-table th.selected-col{background:#D6E4F7;color:#1E40AF}
+.bom-sheet-cell{width:100%;height:100%;min-height:28px;padding:5px 7px;outline:none;font-size:12px;line-height:18px;overflow:hidden;text-overflow:ellipsis}
+.bom-sheet-cell:focus{box-shadow:inset 0 0 0 2px var(--blue);background:#fff;position:relative;z-index:2}
+.bom-sheet-cell.readonly{background:#F8F9FA;color:var(--text2);font-weight:600}
+.bom-sheet-cell.num{text-align:right;font-variant-numeric:tabular-nums}
+.bom-sheet-table tr.selected-row td .bom-sheet-cell{background:#EFF6FF}
+.bom-sheet-col-resize{position:absolute;right:-3px;top:0;width:7px;height:100%;cursor:col-resize;z-index:10}
+.bom-sheet-col-resize:hover{background:rgba(28,78,216,.25)}
+.bom-sheet-col-title{display:flex;align-items:center;gap:4px;padding:0 7px;height:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative}
+.bom-sheet-status{font-size:11px;color:var(--text3);padding:6px 8px;border-top:1px solid var(--border);background:var(--surface)}
+.bom-sheet-status strong{color:var(--text)}
+.bom-sheet-total{font-size:12px;font-weight:700;color:var(--green);margin-left:4px}
+.bom-sheet-modal{width:min(96vw,1500px)!important;max-width:96vw!important}
+.bom-sheet-modal .modal-body{padding:.75rem;gap:.5rem}
+@media(max-width:768px){
+  .bom-sheet-modal{width:100vw!important;max-width:100vw!important;border-radius:0!important;max-height:100vh!important}
+  .bom-sheet-wrap{max-height:68vh}
+  .bom-sheet-toolbar .hint{width:100%;margin-left:0}
+}
+
 </style>
 </head>
 <body>
@@ -400,7 +422,7 @@ table td{vertical-align:top;line-height:1.4}
         <label>Password</label>
         <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;margin-top:.5rem;font-size:14px" onclick="doLogin()" id="btnLogin">Masuk</button>
+      <button class="btn btn-primary" style="justify-content:center;padding:10px;margin-top:.5rem;font-size:14px" onclick="doLogin()" id="btnLogin">Masuk</button>
     </div>
   </div>
 </div>
@@ -450,7 +472,7 @@ table td{vertical-align:top;line-height:1.4}
               </div>
               <div class="file-list" id="sDocList"></div>
             </div>
-            <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="submitSalesRequest()" id="btnSalesSubmit">Kirim Request</button>
+            <button class="btn btn-primary" style="justify-content:center;padding:10px" onclick="submitSalesRequest()" id="btnSalesSubmit">Kirim Request</button>
           </div>
         </div>
         <div id="tabMy" style="display:none">
@@ -508,7 +530,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 // ═══════════════════════════════════════════════════════════
 let currentUser = null;
 let currentModule = null;
-let allPPs = [], allPOs = [], allServices = [], allKBs = [], allUsers = [], allCustomers = [], allMiscJobs = [];
+let allPPs = [], allPOs = [], allServices = [], allKBs = [], allUsers = [], allCustomers = [];
 let salesFiles = [];
 
 // ═══════════════════════════════════════════════════════════
@@ -557,7 +579,6 @@ async function doLogin() {
     if (!user) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
     currentUser = user;
     sessionStorage.setItem('panelUser', JSON.stringify(user));
-    sessionStorage.setItem('showRoleWelcome', '1');
     await sb.from('app_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
     startApp();
   } catch (e) { showLoginError('Error: ' + e.message); }
@@ -581,14 +602,12 @@ function startApp() {
     document.getElementById('salesUserBadge').textContent = 'Halo, ' + currentUser.full_name;
     document.getElementById('sDate').value = today();
     loadMyRequests();
-    setTimeout(showRoleWelcomeIfNeeded, 350);
     return;
   }
   document.getElementById('appShell').style.display = 'block';
   buildSidebar();
   // default module
   switchModule('home');
-  setTimeout(showRoleWelcomeIfNeeded, 350);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -601,8 +620,8 @@ window.addEventListener('DOMContentLoaded', () => {
 // SIDEBAR
 // ═══════════════════════════════════════════════════════════
 function buildSidebar() {
-  const roleLabel = ROLE_LABELS || { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', direktur: 'Direktur', other: 'Lainnya / Umum' };
-  const roleClass = ROLE_CLASSES || { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', direktur: 'role-direktur', other: 'role-other' };
+  const roleLabel = { owner: 'Owner', admin: 'Admin', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', direktur: 'Direktur' };
+  const roleClass = { owner: 'role-owner', admin: 'role-admin', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', direktur: 'role-direktur' };
 
   let nav = '<div class="sb-label">Beranda</div>';
   nav += navItem('home', homeIcon(), 'Home', 'nbHome');
@@ -614,7 +633,6 @@ function buildSidebar() {
   if (can('assign') || can('po_manage')) nav += navItem('assign', assignIcon(), 'Assign', 'nbASSIGN');
   if (can('teknisi') || can('po_manage')) nav += navItem('produksi', prodIcon(), 'Produksi', 'nbPROD');
   if (can('service_view')) nav += navItem('service', svcIcon(), 'Service', 'nbSVC');
-  if (canReportMiscJob()) nav += navItem('miscjobs', miscJobIcon(), 'Laporan Tambahan', 'nbMISC');
   if (can('kb_view')) nav += navItem('kb', kbIcon(), 'Knowledge Base', '');
   if (can('bom_view')) nav += navItem('bom', bomIcon(), 'Tools BOM', '');
   if (can('bom_manage')) nav += `<a href="bom-calculator.html" class="sb-item" style="text-decoration:none"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-3 4h3m-6-8h.01M9 13h.01M9 17h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>BOM Calculator</a>`;
@@ -647,7 +665,6 @@ function statIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="rou
 function homeIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'; }
 function etsIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'; }
 function prodIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.121 2.121 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'; }
-function miscJobIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 14l2 2 4-4"/></svg>'; }
 
 function ppIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`; }
 function poIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`; }
@@ -672,7 +689,6 @@ function switchModule(mod) {
   else if (mod === 'assign') renderAssignModule();
   else if (mod === 'produksi') renderProduksiModule();
   else if (mod === 'service') renderServiceModule();
-  else if (mod === 'miscjobs') { if (canReportMiscJob()) renderMiscJobsModule(); else renderHomeModule(); }
   else if (mod === 'kb') renderKBModule();
   else if (mod === 'bom') renderBOMModule();
   else if (mod === 'audit') renderAuditModule();
@@ -804,7 +820,6 @@ async function renderPPModule() {
       </div>
     </div>
     <div class="page-body">
-      ${roleWelcomeBanner()}
       <div class="stats-grid" id="ppStats"><div class="stat-card"><div class="stat-label">Total</div><div class="stat-val" id="ppTotal">—</div></div><div class="stat-card" onclick="setPPFilter('Open',this)"><div class="stat-label">Open</div><div class="stat-val blue" id="ppOpen">—</div></div><div class="stat-card" onclick="setPPFilter('In Progress',this)"><div class="stat-label">In Progress</div><div class="stat-val amber" id="ppInprog">—</div></div><div class="stat-card" onclick="setPPFilter('Done',this)"><div class="stat-label">Done</div><div class="stat-val green" id="ppDone">—</div></div></div>
       <div class="toolbar">
         <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari ID, requester, customer..." oninput="ppSearch=this.value;renderPPTable()"></div>
@@ -812,8 +827,8 @@ async function renderPPModule() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table><colgroup><col style="width:14%"><col style="width:11%"><col style="width:18%"><col style="width:18%"><col style="width:13%"><col style="width:13%"><col style="width:13%"></colgroup>
-          <thead><tr><th style="width:18%;min-width:80px">No. Request</th><th style="width:24%">Customer</th><th style="width:24%">Project</th><th style="width:15%">Requestor</th><th style="width:14%">Status</th><th style="width:5%;min-width:28px"></th></tr></thead>
+          <table><colgroup><col style=""><col style=""><col style=""><col style=""><col style=""><col style=""><col style=""></colgroup>
+          <thead><tr><th style="min-width:80px">No. Request</th><th style="">Customer</th><th style="">Project</th><th style="">Requestor</th><th style="">Status</th><th style="min-width:28px"></th></tr></thead>
           <tbody id="ppTableBody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody></table>
         </div>
       </div>
@@ -916,11 +931,11 @@ function openPPExportModal() {
       <div style="display:flex;gap:8px">
         <div style="flex:1">
           <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Bulan</label>
-          <select id="ppExpMonth" style="width:100%;padding:6px 8px">${monthOpts}</select>
+          <select id="ppExpMonth" style="padding:6px 8px">${monthOpts}</select>
         </div>
         <div style="flex:1">
           <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Tahun</label>
-          <select id="ppExpYear" style="width:100%;padding:6px 8px">${yearOpts}</select>
+          <select id="ppExpYear" style="padding:6px 8px">${yearOpts}</select>
         </div>
       </div>
       <div style="margin-top:10px;font-size:11px;color:var(--text3)">File akan berisi semua request (Open, In Progress, Done) pada bulan & tahun yang dipilih, dengan durasi proses per request.</div>
@@ -1618,7 +1633,7 @@ function renderStatContent(tickets, pks, users) {
           const h = maxPO>0 ? (cnt/maxPO)*140 : 0;
           return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
             <div style="font-size:10px;color:var(--text3);font-weight:600">${cnt||''}</div>
-            <div style="width:100%;height:${h}px;background:${cnt?'var(--brand)':'var(--surface2)'};border-radius:3px 3px 0 0;min-height:${cnt?4:0}px"></div>
+            <div style="height:${h}px;background:${cnt?'var(--brand)':'var(--surface2)'};border-radius:3px 3px 0 0;min-height:${cnt?4:0}px"></div>
           </div>`;
         }).join('')}
       </div>
@@ -1851,7 +1866,7 @@ function renderLaporanRingkasan() {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
       <div style="font-size:13px;font-weight:600;margin-bottom:.5rem">📈 Trend PO Masuk — 12 bulan terakhir</div>
       <div style="overflow-x:auto">
-        <svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:${chartW}px;height:auto;min-height:220px;display:block">
+        <svg viewBox="0 0 ${chartW} ${chartH}" style="width:100%;max-width:${chartW}px;height:auto;display:block">
           <line x1="${padSide}" y1="${chartH-padBot}" x2="${chartW-padSide}" y2="${chartH-padBot}" stroke="#cbd5e1" stroke-width="1"></line>
           ${bars}
         </svg>
@@ -2051,7 +2066,7 @@ function renderLaporanOrang() {
         <div style="font-size:11px;color:var(--text3)">Sort by column header</div>
       </div>
       <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px">
+        <table style="border-collapse:collapse;font-size:12px;min-width:800px">
           <thead style="background:#f8fafc;border-bottom:2px solid var(--border)">
             <tr>
               <th style="padding:8px;text-align:center;font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:600">#</th>
@@ -2312,7 +2327,7 @@ function printLaporanPDF() {
       h1 { font-size:16pt; margin:0 0 4px; text-align:center; }
       h2 { font-size:12pt; margin:16px 0 6px; padding:4px 8px; background:#2C3E50; color:#fff; }
       .meta { text-align:center; font-size:9pt; color:#64748b; margin-bottom:14px; }
-      table { width:100%; border-collapse:collapse; font-size:9pt; margin-bottom:8px; }
+      table {  border-collapse:collapse; font-size:9pt; margin-bottom:8px; }
       th { background:#D6E5F5; padding:5px 6px; border:1px solid #94a3b8; text-align:center; font-weight:700; }
       td { padding:4px 6px; border:1px solid #cbd5e1; }
       .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px; }
@@ -2727,12 +2742,12 @@ function _buildAprodTable(items) {
   const st = tblState('aprod');
   const filtered = tblFilterBySearch(items, st.search);
   const columns = [
-    { key:'no_project', label:'No. Project', sortable:true, style:'width:13%' },
-    { key:'category', label:'Kategori', sortable:true, style:'width:11%' },
-    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
-    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:18%' },
-    { key:'pic', label:'PIC Produksi', sortable:false, style:'width:25%' },
-    { key:'action', label:'', sortable:false, style:'width:15%' },
+    { key:'no_project', label:'No. Project', sortable:true, style:'' },
+    { key:'category', label:'Kategori', sortable:true, style:'' },
+    { key:'model_name', label:'Model', sortable:true, style:'' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'' },
+    { key:'pic', label:'PIC Produksi', sortable:false, style:'' },
+    { key:'action', label:'', sortable:false, style:'' },
   ];
   const getColumns = ({po, item, pics}) => [
     `<td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>`,
@@ -2860,11 +2875,11 @@ async function openAssignProduksiModal(itemId, poId) {
           <div style="display:flex;gap:6px;align-items:end">
             <div style="flex:1">
               <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Tanggal Mulai Produksi</label>
-              <input type="date" id="apicProdDate" value="${today()}" style="width:100%;padding:6px 8px;font-size:13px">
+              <input type="date" id="apicProdDate" value="${today()}" style="padding:6px 8px;font-size:13px">
             </div>
             <div style="flex:1">
               <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:2px">Qty</label>
-              <input type="number" value="${item.qty||1}" disabled style="width:100%;padding:6px 8px;font-size:13px;background:var(--surface)">
+              <input type="number" value="${item.qty||1}" disabled style="padding:6px 8px;font-size:13px;background:var(--surface)">
             </div>
             <button class="btn btn-sm btn-primary" data-iid="${itemId}" data-pid="${poId}" onclick="generateSNForItem(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>
           </div>
@@ -2971,7 +2986,7 @@ async function openAssignServiceModal(ticketId) {
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${t.customer_name||'—'}<br><span style="color:var(--text3)">${t.complaint||''}</span></div>
       <div class="form-row"><label>Pilih Teknisi</label>
-        <select id="asvcUser" style="width:100%;padding:6px 8px"><option value="">-- Tidak di-assign --</option>${opts}</select>
+        <select id="asvcUser" style="padding:6px 8px"><option value="">-- Tidak di-assign --</option>${opts}</select>
       </div>
     </div>
     <div class="modal-footer">
@@ -2996,13 +3011,13 @@ function _buildAinstTable(items) {
   const st = tblState('ainst');
   const filtered = tblFilterBySearch(items, st.search);
   const columns = [
-    { key:'no_project', label:'No. Project', sortable:true, style:'width:12%' },
-    { key:'category', label:'Kategori', sortable:true, style:'width:10%' },
-    { key:'model_name', label:'Model', sortable:true, style:'width:18%' },
-    { key:'serial_number', label:'Serial Number', sortable:true, style:'width:17%' },
-    { key:'flag', label:'Tipe', sortable:false, style:'width:12%' },
-    { key:'pic', label:'PIC Instalasi', sortable:false, style:'width:21%' },
-    { key:'action', label:'', sortable:false, style:'width:10%' },
+    { key:'no_project', label:'No. Project', sortable:true, style:'' },
+    { key:'category', label:'Kategori', sortable:true, style:'' },
+    { key:'model_name', label:'Model', sortable:true, style:'' },
+    { key:'serial_number', label:'Serial Number', sortable:true, style:'' },
+    { key:'flag', label:'Tipe', sortable:false, style:'' },
+    { key:'pic', label:'PIC Instalasi', sortable:false, style:'' },
+    { key:'action', label:'', sortable:false, style:'' },
   ];
   const getColumns = ({po, item, pics}) => {
     const flags = [po.has_instalasi?'Instalasi':'', po.has_commissioning?'Commissioning':''].filter(Boolean).join(' + ');
@@ -3285,7 +3300,7 @@ async function renderProdLaporan() {
             <div style="font-size:11px;color:var(--text2);margin-bottom:8px">oleh <strong>${r.app_users?.full_name||'?'}</strong></div>
             ${r.catatan?`<div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${r.catatan}</div>`:''}
             ${(r.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">
-              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
             </div>`:''}
           </div>
         `).join('')}
@@ -3298,7 +3313,7 @@ function openLaporanForm() {
     <div class="modal-header"><h2>Laporan Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Judul / Topik <span class="req">*</span></label><input type="text" id="lpJudul" placeholder="Misal: Pemasangan komponen utama"></div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan / Detail</label><textarea id="lpCatatan" rows="4" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Catatan progres, masalah, dll..."></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Detail</label><textarea id="lpCatatan" rows="4" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Catatan progres, masalah, dll..."></textarea></div>
       <div class="form-row" style="margin-top:8px">
         <label>Foto (max 10)</label>
         <input type="file" id="lpFoto" multiple accept="image/*" style="margin-top:4px">
@@ -3415,7 +3430,7 @@ async function openMaterialForm() {
         <div class="form-row"><label>Satuan</label><input type="text" id="mtSatuan" placeholder="pcs / m / kg" list="satList" autocomplete="off"></div>
       </div>
       <datalist id="satList"><option value="pcs"><option value="m"><option value="meter"><option value="kg"><option value="set"><option value="lembar"><option value="roll"><option value="batang"></datalist>
-      <div class="form-row" style="margin-top:8px"><label>Alasan / Keterangan</label><textarea id="mtAlasan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Untuk apa material ini..."></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Alasan / Keterangan</label><textarea id="mtAlasan" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Untuk apa material ini..."></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeTopModal()">Batal</button>
@@ -3463,7 +3478,7 @@ function openReceiveMaterial(reqId, qty, satuan) {
       <div class="form-row"><label>Qty Diterima <span class="req">*</span></label>
         <input type="number" id="rcvQty" step="0.01" value="${qty}" min="0"> <span style="font-size:12px;color:var(--text3)">${satuan}</span>
       </div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="rcvNote" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Kondisi material, dll..."></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="rcvNote" rows="2" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" placeholder="Kondisi material, dll..."></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeTopModal()">Batal</button>
@@ -3512,7 +3527,7 @@ async function renderProdQC() {
             <div style="font-size:11px;color:var(--text2);margin-bottom:8px">oleh <strong>${r.app_users?.full_name||'?'}</strong> · ${fmtDateTime(r.created_at)}</div>
             ${r.catatan?`<div style="font-size:13px;color:var(--text);white-space:pre-wrap;margin-bottom:8px">${r.catatan}</div>`:''}
             ${(r.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px">
-              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+              ${r.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
             </div>`:''}
           </div>`;
         }).join('')}
@@ -3525,13 +3540,13 @@ function openQCForm() {
     <div class="modal-header"><h2>Laporan QC / Test Internal</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Status <span class="req">*</span></label>
-        <select id="qcStatus" style="width:100%;padding:6px 8px">
+        <select id="qcStatus" style="padding:6px 8px">
           <option value="Pass">Pass</option>
           <option value="Fail">Fail</option>
         </select>
       </div>
       <div class="form-row" style="margin-top:8px"><label>Hasil Test / Item Tes</label><input type="text" id="qcHasil" placeholder="Misal: Test isolasi, test loading 100%"></div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="qcCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="qcCatatan" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
       <div class="form-row" style="margin-top:8px">
         <label>Foto Bukti Test (max 10)</label>
         <input type="file" id="qcFoto" multiple accept="image/*" style="margin-top:4px">
@@ -3691,7 +3706,7 @@ async function renderHomeModule() {
       <div style="width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700">${initials}</div>
       <div style="flex:1">
         <div style="font-size:18px;font-weight:600">${greeting}, ${me.full_name.split(' ')[0]}!</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div><div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:8px">${escapeHtml(roleMission(role))}</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px">${cards.filter(c=>c.count>0).length ? 'Ada tugas yang menunggu kamu' : 'Tidak ada tugas pending saat ini'}</div>
       </div>
     </div>
     
@@ -3852,13 +3867,13 @@ async function renderETSList() {
     </div>
     <div class="table-card">
       <div class="table-wrap">
-        <table style="width:100%">
+        <table style="">
           <thead>
             <tr>
-              <th style="width:25%;min-width:90px">No. Project</th>
-              <th style="width:35%">Customer</th>
-              <th style="width:35%">Item</th>
-              <th style="width:5%;min-width:30px"></th>
+              <th style="min-width:90px">No. Project</th>
+              <th style="">Customer</th>
+              <th style="">Item</th>
+              <th style="min-width:30px"></th>
             </tr>
           </thead>
           <tbody data-tbl="ets">${tbl.rows}</tbody>
@@ -3999,13 +4014,13 @@ function renderProduksiList() {
     </div>
     <div class="table-card">
       <div class="table-wrap">
-        <table style="width:100%">
+        <table style="">
           <thead>
             <tr>
-              <th style="width:25%;min-width:90px">No. Project</th>
-              <th style="width:35%">Customer</th>
-              <th style="width:35%">Item</th>
-              <th style="width:5%;min-width:30px"></th>
+              <th style="min-width:90px">No. Project</th>
+              <th style="">Customer</th>
+              <th style="">Item</th>
+              <th style="min-width:30px"></th>
             </tr>
           </thead>
           <tbody data-tbl="prod">${tbl.rows}</tbody>
@@ -4044,7 +4059,6 @@ async function renderPOModule() {
       </div>
     </div>
     <div class="page-body">
-      ${roleWelcomeBanner()}
       <div class="stats-grid" id="poStats">
         <div class="stat-card"><div class="stat-label">Total Aktif</div><div class="stat-val blue" id="poActive">—</div></div>
         <div class="stat-card"><div class="stat-label">Engineering</div><div class="stat-val amber" id="poEng">—</div></div>
@@ -4057,12 +4071,12 @@ async function renderPOModule() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table id="poTable" style="width:100%">
+          <table id="poTable" style="">
           <thead><tr>
-            <th style="width:25%;min-width:100px;cursor:pointer" onclick="sortPO('no_project')">No. Project <span id="parr_no_project"></span></th>
-            <th style="width:35%;cursor:pointer" onclick="sortPO('customer_name')">Customer <span id="parr_customer_name"></span></th>
-            <th style="width:35%;cursor:pointer" onclick="sortPO('project_name')">Project <span id="parr_project_name"></span></th>
-            <th style="width:5%;min-width:30px"></th>
+            <th style="min-width:100px;cursor:pointer" onclick="sortPO('no_project')">No. Project <span id="parr_no_project"></span></th>
+            <th style="cursor:pointer" onclick="sortPO('customer_name')">Customer <span id="parr_customer_name"></span></th>
+            <th style="cursor:pointer" onclick="sortPO('project_name')">Project <span id="parr_project_name"></span></th>
+            <th style="min-width:30px"></th>
           </tr></thead>
           <tbody id="poTableBody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
@@ -4582,17 +4596,17 @@ function renderPOItems() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori <span class="req">*</span></label>
-          <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;poFormItems[${i}].needs_ets=defaultNeedsETS(this.value);renderPOItems()" style="width:100%;padding:6px 8px">
+          <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;poFormItems[${i}].needs_ets=defaultNeedsETS(this.value);renderPOItems()" style="padding:6px 8px">
             <option value="">-- Pilih --</option>${ITEM_CATEGORIES.map(c => `<option value="${c}" ${it.category === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Model / Tipe</label>
-          <input type="text" id="piModel_${i}" value="${it.model_name}" placeholder="Auto atau isi manual" style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].model_name=this.value"></div>
+          <input type="text" id="piModel_${i}" value="${it.model_name}" placeholder="Auto atau isi manual" style="padding:6px 8px" oninput="poFormItems[${i}].model_name=this.value"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:8px">
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>
-          <input type="text" id="piSpec_${i}" value="${it.spec_summary}" placeholder="Misal: 110VDC - 60A, 3ph, 10kVA..." style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].spec_summary=this.value"></div>
+          <input type="text" id="piSpec_${i}" value="${it.spec_summary}" placeholder="Misal: 110VDC - 60A, 3ph, 10kVA..." style="padding:6px 8px" oninput="poFormItems[${i}].spec_summary=this.value"></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>
-          <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="width:100%;padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
+          <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
@@ -4681,7 +4695,7 @@ async function openItemForm(poId) {
     <div class="modal-header"><h2>Tambah Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-row"><label>Kategori</label><select id="itCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c => `<option>${c}</option>`).join('')}</select></div>
+        <div class="form-row"><label>Kategori</label><select id="itCat" style="padding:6px 8px">${ITEM_CATEGORIES.map(c => `<option>${c}</option>`).join('')}</select></div>
         <div class="form-row"><label>Model / Tipe</label><input type="text" id="itModel" placeholder="Model name"></div>
       </div>
       <div class="form-row"><label>Spesifikasi</label><input type="text" id="itSpec" placeholder="Misal: 110VDC - 60A"></div>
@@ -4810,7 +4824,7 @@ async function openDetailSpecModal(itemId, poId) {
   window._dsSuggestions = suggestions;
 
   function sel(id, opts, val, placeholder='') {
-    return '<select id="ds_'+id+'" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'
+    return '<select id="ds_'+id+'" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'
       + (placeholder?'<option value="">'+placeholder+'</option>':'')
       + opts.map(o=>'<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>').join('')
       + '</select>';
@@ -4830,7 +4844,7 @@ async function openDetailSpecModal(itemId, poId) {
       return html;
     }
     let html = '<input type="text" id="ds_'+id+'" value="'+(val||'')+'" placeholder="'+placeholder+'" '
-      + 'style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" '
+      + 'style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" '
       + (sugg.length?'list="'+listId+'"':'') + '>';
     if(sugg.length) html += '<datalist id="'+listId+'">'+sugg.map(s=>'<option value="'+s+'">').join('')+'</datalist>';
     return html;
@@ -4906,7 +4920,7 @@ async function openDetailSpecModal(itemId, poId) {
   const docsHtml = section('FOTO & DOKUMEN', dsDocsSection(itemId));
 
     const customHtml = section('KUSTOMISASI',
-    row('Catatan Custom / Tambahan', '<textarea id="ds_custom_notes" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'+(spec.custom_notes||'')+'</textarea>'));
+    row('Catatan Custom / Tambahan', '<textarea id="ds_custom_notes" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">'+(spec.custom_notes||'')+'</textarea>'));
 
   openModal('<div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">'
     + '<div class="modal-header"><div><h2>Detail Spec — '+item.model_name+'</h2><div style="font-size:12px;color:var(--text3)">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
@@ -5053,7 +5067,7 @@ async function openSimpleItemForm(itemId, poId) {
     <div class="modal-header"><h2>${isEdit?'Edit':'Tambah'} Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-row"><label>Kategori</label><select id="sitCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it?.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
+        <div class="form-row"><label>Kategori</label><select id="sitCat" style="padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it?.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
         <div class="form-row"><label>Qty</label><input type="number" id="sitQty" value="${it?.qty||1}" min="1"></div>
       </div>
       <div class="form-row" style="margin-top:8px"><label>Model / Tipe (sesuai PO)</label><input type="text" id="sitModel" value="${it?.model_name||''}" placeholder="Contoh: S-PRO1 110-10A"></div>
@@ -5106,7 +5120,7 @@ async function openEditItemForm(itemId, poId) {
     <div class="modal-header"><h2>Edit Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-row"><label>Kategori</label><select id="itCat" style="width:100%;padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
+        <div class="form-row"><label>Kategori</label><select id="itCat" style="padding:6px 8px">${ITEM_CATEGORIES.map(c=>'<option value="'+c+'"'+(it.category===c?' selected':'')+'>'+c+'</option>').join('')}</select></div>
         <div class="form-row"><label>Model / Tipe</label><input type="text" id="itModel" value="${it.model_name||''}" placeholder="Model name"></div>
       </div>
       <div class="form-row"><label>Spesifikasi</label><input type="text" id="itSpec" value="${it.spec_summary||''}" placeholder="Misal: 110VDC - 60A"></div>
@@ -5217,7 +5231,7 @@ async function openPKStatusModal(pkId, poId) {
     <div class="modal-body">
       <div style="font-size:13px;color:var(--text2);margin-bottom:.875rem">${k?.keperluan} — ${fmtRp(k?.nilai_pengajuan)}</div>
       <div class="form-row"><label>Status Baru <span class="req">*</span></label>
-        <select id="pkNewStatus" style="width:100%;padding:6px 8px">
+        <select id="pkNewStatus" style="padding:6px 8px">
           ${statuses.map(s => `<option ${k?.status === s ? 'selected' : ''}>${s}</option>`).join('')}
         </select>
       </div>
@@ -5410,8 +5424,8 @@ async function renderServiceTabContent() {
       </div>
       <div class="table-card">
         <div class="table-wrap">
-          <table><colgroup><col style="width:16%"><col style="width:12%"><col style="width:20%"><col style="width:22%"><col style="width:16%"><col style="width:14%"></colgroup>
-          <thead><tr><th style="width:25%;min-width:90px">No. Tiket</th><th style="width:35%">Customer</th><th style="width:35%">Masalah</th><th style="width:5%;min-width:30px"></th></tr></thead>
+          <table><colgroup><col style=""><col style=""><col style=""><col style=""><col style=""><col style=""></colgroup>
+          <thead><tr><th style="min-width:90px">No. Tiket</th><th style="">Customer</th><th style="">Masalah</th><th style="min-width:30px"></th></tr></thead>
           <tbody id="svcTableBody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)"><span class="spinner"></span>Memuat...</td></tr></tbody>
         </table></div>
       </div>`;
@@ -5598,7 +5612,7 @@ async function renderInstStatus() {
       <div class="form-row"><label>Tgl Mulai</label><input type="date" id="instTglMulai" value="${task.tgl_mulai||''}" ${!canEdit?'disabled':''}></div>
       <div class="form-row"><label>Tgl Selesai</label><input type="date" id="instTglSelesai" value="${task.tgl_selesai||''}" ${!canEdit?'disabled':''}></div>
     </div>
-    <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="instCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" ${!canEdit?'disabled':''}>${task.catatan||''}</textarea></div>
+    <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="instCatatan" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)" ${!canEdit?'disabled':''}>${task.catatan||''}</textarea></div>
     
     ${canEdit ? `
     <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
@@ -5726,7 +5740,7 @@ async function openPKDinasForm() {
         </div>
         <div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--r-sm);font-size:14px;font-weight:600">Total: <span id="pkTotal">Rp 0</span></div>
       </div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="pkCatatan" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="pkCatatan" rows="2" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeTopModal()">Batal</button>
@@ -5789,7 +5803,7 @@ async function openRealisasiPKForm(pkId) {
         <div class="form-row"><label>Realisasi Lain-lain</label><input type="number" id="rzLain" value="${pk.realisasi_lain||0}" min="0" oninput="hitungRzTotal()"></div>
       </div>
       <div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--r-sm);font-size:14px;font-weight:600">Total Realisasi: <span id="rzTotal">${fmtRp((pk.realisasi_transport||0)+(pk.realisasi_akomodasi||0)+(pk.realisasi_harian||0)+(pk.realisasi_lain||0))}</span></div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan Realisasi</label><textarea id="rzCatatan" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">${pk.catatan_realisasi||''}</textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan Realisasi</label><textarea id="rzCatatan" rows="2" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)">${pk.catatan_realisasi||''}</textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeTopModal()">Batal</button>
@@ -5855,7 +5869,7 @@ async function renderInstSAT() {
             ${s.catatan?`<div style="font-size:12px;color:var(--text);margin:6px 0">${s.catatan}</div>`:''}
             ${(s.documents||[]).length?`<div style="margin-top:6px"><div style="font-size:11px;color:var(--text3);margin-bottom:3px">Dokumen:</div>${s.documents.map(d=>`<a href="${d.url}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;display:inline-block;background:var(--surface);padding:2px 8px;border-radius:3px;border:1px solid var(--border);margin:2px">📎 ${d.name}</a>`).join('')}</div>`:''}
             ${(s.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:6px">
-              ${s.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+              ${s.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
             </div>`:''}
             <div style="font-size:11px;color:var(--text3);margin-top:8px">oleh <strong>${s.app_users?.full_name||'?'}</strong> · ${fmtDateTime(s.created_at)}</div>
           </div>`;
@@ -5872,7 +5886,7 @@ function openSATForm() {
       <div class="form-grid" style="margin-top:8px">
         <div class="form-row"><label>Tanggal Test</label><input type="date" id="satTanggal"></div>
         <div class="form-row"><label>Hasil</label>
-          <select id="satHasil" style="width:100%;padding:6px 8px">
+          <select id="satHasil" style="padding:6px 8px">
             <option value="">--</option>
             <option value="Pass">Pass</option>
             <option value="Fail">Fail</option>
@@ -5880,7 +5894,7 @@ function openSATForm() {
           </select>
         </div>
       </div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="satCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan / Hasil Detail</label><textarea id="satCatatan" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
       <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
         <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text2)">SIGN-OFF CUSTOMER</div>
         <div class="form-grid">
@@ -5976,7 +5990,7 @@ async function renderInstBAST() {
             ${b.catatan?`<div style="font-size:12px;color:var(--text);margin:8px 0">${b.catatan}</div>`:''}
             ${(b.documents||[]).length?`<div style="margin-top:6px">${b.documents.map(d=>`<a href="${d.url}" target="_blank" style="font-size:11px;color:var(--blue);text-decoration:none;display:inline-block;background:var(--surface);padding:2px 8px;border-radius:3px;border:1px solid var(--border);margin:2px">📎 ${d.name}</a>`).join('')}</div>`:''}
             ${(b.photos||[]).length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;margin-top:6px">
-              ${b.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
+              ${b.photos.map(p=>`<a href="${p.url}" target="_blank"><img src="${p.url}" style="height:80px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"></a>`).join('')}
             </div>`:''}
             <div style="font-size:11px;color:var(--text3);margin-top:8px">dibuat oleh <strong>${b.app_users?.full_name||'?'}</strong> · ${fmtDateTime(b.created_at)}</div>
           </div>
@@ -6009,7 +6023,7 @@ function openBASTForm() {
         </div>
         <div class="form-row" style="margin-top:8px"><label>Perusahaan</label><input type="text" id="bastPnPerusahaan" value="${po.customer_name||''}"></div>
       </div>
-      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="bastCatatan" rows="3" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
+      <div class="form-row" style="margin-top:8px"><label>Catatan</label><textarea id="bastCatatan" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm)"></textarea></div>
       <div class="form-row" style="margin-top:8px">
         <label>Dokumen BAST (PDF/Scan)</label>
         <input type="file" id="bastDocs" multiple style="margin-top:4px">
@@ -6256,13 +6270,13 @@ async function openSvcForm(editId) {
       <div class="form-row"><label>Lokasi / Site</label><input type="text" id="svcSite" value="${s?.site_location || ''}" placeholder="Alamat atau nama site"></div>
       <div class="form-row"><label>Deskripsi Masalah <span class="req">*</span></label><textarea id="svcDesc">${s?.deskripsi_masalah || ''}</textarea></div>
       <div class="form-row"><label>PIC Teknisi <span class="req">*</span></label>
-        <select id="svcPIC" style="width:100%;padding:6px 8px">
+        <select id="svcPIC" style="padding:6px 8px">
           <option value="">-- Pilih --</option>
           ${techUsers.map(u => `<option value="${u.id}" ${s?.pic_id === u.id ? 'selected' : ''}>${u.full_name} (${u.role})</option>`).join('')}
         </select>
       </div>
       <div class="form-row"><label>Link ke Unit dari PO (opsional)</label>
-        <select id="svcUnit" style="width:100%;padding:6px 8px">
+        <select id="svcUnit" style="padding:6px 8px">
           <option value="">— Unit tidak ada di sistem —</option>
           ${(poItems || []).map(it => `<option value="${it.id}" ${s?.po_item_id === it.id ? 'selected' : ''}>${it.purchase_orders?.no_po} — ${it.category}${it.model_name ? ' ' + it.model_name : ''}${it.serial_number ? ' (SN: ' + it.serial_number + ')' : ''}</option>`).join('')}
         </select>
@@ -6298,7 +6312,7 @@ function openSvcLogForm(ticketId) {
     <div class="modal-header"><h2>Tambah Log Penanganan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();openSvcDetail('${ticketId}')">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Tahapan <span class="req">*</span></label>
-        <select id="logTahapan" style="width:100%;padding:6px 8px">
+        <select id="logTahapan" style="padding:6px 8px">
           ${TAHAPAN.map(t => `<option>${t}</option>`).join('')}
         </select>
       </div>
@@ -6420,7 +6434,7 @@ async function openKBDetail(id) {
       </div>
       <div class="detail-section">
         <div class="sect-title">Solusi / Penanganan</div>
-        ${isCreator ? `<textarea id="kbSolusiEdit" style="width:100%">${k.ringkasan_solusi || ''}</textarea>` : `<div class="desc-box">${k.ringkasan_solusi || 'Belum ada catatan solusi'}</div>`}
+        ${isCreator ? `<textarea id="kbSolusiEdit" style="">${k.ringkasan_solusi || ''}</textarea>` : `<div class="desc-box">${k.ringkasan_solusi || 'Belum ada catatan solusi'}</div>`}
       </div>
       <div style="font-size:12px;color:var(--text3)">Ref: Tiket ${k.ticket_id} — ${fmtDate(k.service_tickets?.tgl_laporan)}</div>
     </div>
@@ -6446,327 +6460,11 @@ async function deleteKB(id) {
   await loadKBs();
 }
 
-
-
-// ═══════════════════════════════════════════════════════════
-// HELP, ROLE WELCOME, TABLE RESIZE
-// ═══════════════════════════════════════════════════════════
-function canReportMiscJob(){ return !!currentUser && !['sales','direktur'].includes(currentUser.role); }
-function roleMission(role){
-  const m = {
-    owner:'Tugas Anda adalah memantau keseluruhan sistem, memastikan data benar, mengelola user, laporan, nilai PO, dan melakukan koreksi bila ada data operasional yang salah.',
-    admin:'Tugas Anda adalah mengelola operasional harian: membuat/memperbaiki data, mengatur user, membantu assign pekerjaan, menjaga kelengkapan dokumen, dan memantau laporan.',
-    sales:'Tugas Anda adalah membuat request Drawing/BOM dari kebutuhan customer, melampirkan dokumen lengkap, dan memantau request sampai hasil diterima.',
-    engineering:'Tugas Anda adalah menangani request teknis/ETS, membaca dokumen customer, membuat atau mengunggah hasil drawing/BOM, dan memperbarui progress teknis.',
-    produksi:'Tugas Anda adalah melaporkan progress produksi, QC, instalasi/commissioning bila terkait, serta melaporkan pekerjaan tambahan yang Anda lakukan dengan bukti before-after.',
-    logistik:'Tugas Anda adalah mengelola dan memperbarui data pengiriman, dokumen logistik, barang masuk/keluar, serta melaporkan pekerjaan tambahan yang Anda lakukan.',
-    teknisi:'Tugas Anda adalah menangani service, troubleshooting, instalasi, commissioning, dokumentasi lapangan, dan melaporkan pekerjaan tambahan dengan foto before-after.',
-    direktur:'Tugas Anda adalah memonitor statistik, progress PO, keterlambatan, nilai, KPI, dan mengambil keputusan dari data yang tersedia. Role ini tidak untuk input laporan pekerjaan tambahan.',
-    other:'Tugas Anda adalah membantu pekerjaan umum sesuai kebutuhan, lalu melaporkan pekerjaan tambahan yang Anda lakukan lengkap dengan catatan dan foto before-after.'
-  };
-  return m[role] || 'Tugas Anda adalah menggunakan menu sesuai akses yang diberikan dan menjaga data pekerjaan tetap rapi.';
-}
-function showRoleWelcomeIfNeeded(){
-  if(!currentUser || sessionStorage.getItem('showRoleWelcome') !== '1') return;
-  sessionStorage.removeItem('showRoleWelcome');
-  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Selamat datang, ${escapeHtml(currentUser.full_name||'User')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="role-welcome" style="margin-bottom:0"><div class="role-welcome-title">Role: ${escapeHtml((ROLE_LABELS&&ROLE_LABELS[currentUser.role])||currentUser.role)}</div><div class="role-welcome-text">${escapeHtml(roleMission(currentUser.role))}</div></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
-}
-function roleWelcomeBanner(){
-  if(!currentUser) return '';
-  return `<div class="role-welcome"><div class="role-welcome-title">Selamat datang, ${escapeHtml(currentUser.full_name||'User')}</div><div class="role-welcome-text">${escapeHtml(roleMission(currentUser.role))}</div></div>`;
-}
-const HELP_TEXTS = {
-  home:`<b>Beranda / Home</b><ul><li>Lihat ringkasan tugas sesuai role Anda.</li><li>Gunakan menu kiri untuk masuk ke modul kerja.</li><li>Bila ada angka badge, itu menandakan data yang perlu dicek.</li></ul>`,
-  'pre-project':`<b>Pre-Project</b><ul><li>Dipakai untuk permintaan awal Drawing/BOM dari Sales atau customer.</li><li>Buka detail request untuk melihat dokumen customer, status, dan hasil pekerjaan.</li><li>Engineering mengupload hasil Drawing/BOM di detail request.</li><li>Pastikan status diperbarui agar Sales tahu progress terbaru.</li></ul>`,
-  'kelola po':`<b>Kelola PO</b><ul><li>Masukkan PO, item pekerjaan, nilai, deadline, dokumen, dan status.</li><li>Klik baris PO untuk membuka detail terdalam: item, dokumen, progress, PK, dan catatan.</li><li>Gunakan resize kolom tabel bila data terlalu panjang.</li><li>Update status sesuai tahapan aktual, jangan melompati proses tanpa catatan.</li></ul>`,
-  ets:`<b>ETS / Engineering Technical Support</b><ul><li>Buka request yang masuk, baca dokumen customer, cek spesifikasi teknis.</li><li>Upload hasil Drawing/BOM pada detail request.</li><li>Isi catatan jika ada revisi, dokumen kurang, atau perlu klarifikasi.</li><li>Ubah status setelah hasil siap agar requester bisa menindaklanjuti.</li></ul>`,
-  produksi:`<b>Produksi</b><ul><li>Gunakan menu ini untuk melihat item produksi yang harus dikerjakan.</li><li>Buka detail terdalam untuk melihat item, progress, foto/dokumen, QC, instalasi, atau commissioning.</li><li>Update status berdasarkan kondisi nyata di workshop/lapangan.</li><li>Pekerjaan di luar item produksi dilaporkan di menu <b>Laporan Tambahan</b>.</li></ul>`,
-  assign:`<b>Assign</b><ul><li>Dipakai admin/direktur untuk melihat pembagian pekerjaan ke PIC.</li><li>Cek siapa mengerjakan apa, progress terakhir, dan potensi keterlambatan.</li><li>Jika ada pekerjaan tambahan yang dilakukan sendiri, jangan dicatat di sini; gunakan Laporan Tambahan.</li></ul>`,
-  service:`<b>Service</b><ul><li>Catat tiket gangguan, kunjungan, troubleshooting, spare part, retrofit, atau resolved.</li><li>Buka detail tiket untuk menambah log aktivitas, upload foto/dokumen, dan ubah tahapan.</li><li>Gunakan catatan teknis yang jelas agar bisa masuk Knowledge Base.</li><li>Pekerjaan umum di luar tiket service dicatat sebagai Laporan Tambahan.</li></ul>`,
-  'laporan tambahan':`<b>Laporan Tambahan untuk KPI pribadi</b><ol><li>Klik <b>+ Buat Laporan</b>.</li><li>Isi tanggal pekerjaan sesuai hari pekerjaan dilakukan.</li><li>Pilih kategori yang paling mendekati jenis pekerjaan.</li><li>Tulis judul singkat dan jelas.</li><li>Isi uraian: apa yang dikerjakan, lokasi/area, alat yang dipakai, dan hasilnya.</li><li>Upload foto <b>Before</b> sebelum pekerjaan dan <b>After</b> setelah selesai.</li><li>Klik <b>Simpan Laporan</b>. Nama pelapor otomatis dari user login.</li></ol><div class="help-note">Laporan ini bukan tugas yang diberikan orang lain. Ini adalah laporan pekerjaan tambahan yang Anda lakukan sendiri dan akan masuk KPI pelapor setelah diverifikasi admin.</div>`,
-  'pekerjaan lainnya':`<b>Pekerjaan Lainnya sekarang menjadi Laporan Tambahan</b><ul><li>Tidak ada penunjukan PIC.</li><li>Tidak ada penerima tugas.</li><li>Yang menginput adalah pelapor dan masuk KPI pelapor.</li><li>Wajib sertakan bukti before-after.</li></ul>`,
-  'dashboard statistik':`<b>Dashboard Statistik</b><ul><li>Untuk membaca performa, progress, dan keterlambatan.</li><li>Gunakan filter/periode bila tersedia.</li><li>Angka KPI Laporan Tambahan dihitung dari laporan yang dibuat pelapor dan diverifikasi.</li></ul>`,
-  laporan:`<b>Laporan</b><ul><li>Gunakan untuk rekap operasional dan export data.</li><li>Cek filter tanggal/periode sebelum export.</li><li>Pastikan data sumber sudah benar sebelum dipakai untuk evaluasi.</li></ul>`,
-  'kelola user':`<b>Kelola User</b><ol><li>Klik <b>+ User Baru</b> untuk membuat akun.</li><li>Isi nama, username, password, dan role utama.</li><li>Baca hint role sebelum menyimpan.</li><li>Centang akses custom hanya bila user perlu modul tambahan.</li><li>Sales dan Direktur tidak mengisi Laporan Tambahan; role lain dapat melaporkan pekerjaan tambahan untuk KPI.</li></ol>`,
-  'knowledge base':`<b>Knowledge Base</b><ul><li>Berisi catatan masalah dan solusi yang bisa dipakai ulang.</li><li>Isi judul masalah, kategori unit, gejala, penyebab, solusi, dan catatan penting.</li><li>Gunakan bahasa teknis yang bisa dipahami teknisi berikutnya.</li></ul>`,
-  'tools bom':`<b>Tools BOM</b><ul><li>Dipakai untuk bantu olah BOM dan export.</li><li>Pastikan nama barang, qty, satuan, merk, dan harga sudah benar sebelum export.</li></ul>`,
-  'request baru':`<b>Tab Request Baru</b><ol><li>Isi tanggal, customer, project/PO bila ada.</li><li>Pilih output: Drawing, BOM, atau Drawing & BOM.</li><li>Tulis spesifikasi/catatan kebutuhan.</li><li>Upload dokumen customer seperti spec, SLD, foto panel, atau referensi.</li><li>Klik Kirim Request.</li></ol>`,
-  'request saya':`<b>Tab Request Saya</b><ul><li>Menampilkan request yang Anda buat.</li><li>Buka detail untuk melihat status, catatan Engineering, dan file hasil.</li><li>Jika dokumen kurang, buat revisi/catatan sesuai fitur yang tersedia.</li></ul>`,
-  'buat laporan tambahan':`<b>Modal Buat Laporan Tambahan</b><ol><li>Isi tanggal pekerjaan, bukan tanggal input bila berbeda.</li><li>Pilih kategori pekerjaan.</li><li>Judul dibuat singkat, contoh: “Rapikan area kabel workshop”.</li><li>Uraian wajib detail: lokasi, kegiatan, hasil, dan durasi bila perlu.</li><li>Upload foto Before dan After. Foto harus menunjukkan perubahan yang jelas.</li><li>Klik Simpan Laporan.</li></ol>`,
-  'edit laporan tambahan':`<b>Edit Laporan Tambahan</b><ul><li>Gunakan untuk memperbaiki judul, uraian, catatan, kategori, atau menambah foto.</li><li>Foto lama tetap tersimpan; upload baru akan ditambahkan.</li><li>Jika sudah diverifikasi, perubahan sebaiknya hanya dilakukan admin atau dengan catatan yang jelas.</li></ul>`,
-  'tanggal pekerjaan':`Pilih tanggal saat pekerjaan benar-benar dilakukan. Ini dipakai untuk urutan laporan dan perhitungan KPI periode tersebut.`,
-  kategori:`Pilih jenis pekerjaan yang paling sesuai. Jika tidak ada yang cocok, pilih <b>Lainnya</b> dan jelaskan di uraian.`,
-  'judul laporan':`Tulis ringkas dan spesifik. Contoh bagus: “Bersihkan area finishing panel 125VDC”. Hindari judul terlalu umum seperti “kerja” atau “bantu”.`,
-  'uraian pekerjaan':`Isi teknis pekerjaan: lokasi/area, kondisi awal, pekerjaan yang dilakukan, alat/bahan yang dipakai, hasil akhir, dan kendala bila ada. Uraian ini menjadi dasar penilaian KPI.`,
-  'catatan tambahan':`Opsional. Isi saksi, durasi, kendala, kebutuhan follow-up, atau catatan admin/verifikator.`,
-  'foto before':`Upload foto kondisi sebelum pekerjaan. Ambil dari sudut yang jelas agar bisa dibandingkan dengan foto after. Bisa upload lebih dari satu.`,
-  'foto after':`Upload foto kondisi setelah pekerjaan selesai. Pastikan hasil pekerjaan terlihat jelas dan sebaiknya dari sudut yang mirip dengan foto before.`,
-  'simpan laporan':`Menyimpan laporan ke Supabase. Setelah tersimpan, laporan berstatus <b>Dilaporkan</b> dan menunggu verifikasi admin agar masuk KPI final.`,
-  'edit laporan':`Membuka laporan yang sudah dibuat untuk diperbaiki atau ditambah foto before-after. Hanya pelapor/admin yang bisa mengedit.`,
-  'verifikasi kpi':`Khusus admin/owner. Klik setelah laporan dinilai valid. Status berubah menjadi <b>Diverifikasi</b> dan laporan dapat dihitung sebagai KPI pelapor.`,
-  'cari laporan':`Ketik kata kunci judul, kategori, pelapor, uraian, atau status untuk menyaring daftar laporan.`,
-  username:`Isi username unik untuk login. Gunakan nama pendek tanpa spasi agar mudah diketik di HP.`,
-  password:`Isi password awal. Setelah user login, simpan baik-baik karena sistem memakai login custom.`,
-  role:`Pilih role utama sesuai tugas harian user. Role menentukan menu default yang muncul. Akses tambahan dapat dicentang bila diperlukan.`,
-  'akses modul custom':`Centang hanya modul tambahan yang benar-benar diperlukan user. Jangan memberi akses luas jika tidak dibutuhkan.`,
-  'dokumen dari customer':`Upload dokumen pendukung customer: spesifikasi, SLD, foto panel, data teknis, email, atau file referensi. Dokumen lengkap mempercepat Engineering.`,
-  'jenis output':`Pilih hasil yang diminta customer: Drawing, BOM, Drawing & BOM, atau Lainnya bila output khusus.`,
-  customer:`Isi nama customer/perusahaan dengan jelas agar mudah dicari dan direkap.`,
-  'project / no. po':`Isi nama project atau nomor PO bila sudah ada. Jika belum ada, boleh dikosongkan atau isi nama pekerjaan sementara.`
-};
-function normalizeHelpKey(label){
-  return String(label||'').trim().toLowerCase()
-    .replace(/^\+\s*/,'')
-    .replace(/^\d+\s*/,'')
-    .replace(/[:*]/g,'')
-    .replace(/\s+/g,' ')
-    .trim();
-}
-function getHelpText(label){
-  const k = normalizeHelpKey(label);
-  return HELP_TEXTS[k] || HELP_TEXTS[currentModule] || `<b>Petunjuk pengisian</b><ul><li>Isi data sesuai kondisi sebenarnya.</li><li>Gunakan tombol tambah/edit untuk membuat atau memperbaiki data.</li><li>Upload dokumen/foto bila tersedia.</li><li>Klik simpan setelah data lengkap.</li><li>Jika ragu, baca petunjuk di judul modal/menu terdekat.</li></ul>`;
-}
-function showHelpPopup(label){
-  openModal(`<div class="modal modal-sm"><div class="modal-header"><h2>Petunjuk — ${escapeHtml(label||'Menu')}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div><div class="modal-body"><div class="help-pop">${getHelpText(label)}</div></div><div class="modal-footer"><button class="btn btn-primary" onclick="closeAllModals()">Mengerti</button></div></div>`);
-}
-function addHelpDots(root=document){
-  const selectors = [
-    '.page-title',
-    '.tab-btn',
-    '.period-btn',
-    '.wizard-step',
-    '.modal-header h2',
-    '.modal-body .form-row > label',
-    '.modal-body .sect-title',
-    '.page-body .sect-title',
-    '[data-help]'
-  ].join(',');
-  root.querySelectorAll(selectors).forEach(el=>{
-    if(el.dataset.helpReady==='1') return;
-    if(el.closest('.help-dot')) return;
-    el.dataset.helpReady='1';
-    const raw = el.getAttribute('data-help') || el.textContent || '';
-    const label = raw.trim().replace(/^\+\s*/, '').replace(/\s+/g,' ');
-    if(!label) return;
-    const btn = document.createElement('span');
-    btn.className='help-dot'; btn.textContent='i'; btn.title='Petunjuk'; btn.setAttribute('role','button'); btn.setAttribute('tabindex','0');
-    btn.onclick = (ev)=>{ ev.stopPropagation(); ev.preventDefault(); showHelpPopup(label); };
-    el.insertAdjacentElement('afterend', btn);
-  });
-}
-function makeResizableTables(root=document){
-  root.querySelectorAll('.table-wrap table, table.user-table').forEach((table, ti)=>{
-    if(table.dataset.resizableReady==='1') return;
-    table.dataset.resizableReady='1';
-    table.classList.add('resizable-table');
-    const key = 'tbl_widths_' + (currentModule||'global') + '_' + ti;
-    let saved = {}; try{ saved = JSON.parse(localStorage.getItem(key)||'{}'); }catch(_){ saved = {}; }
-    table.querySelectorAll('thead th').forEach((th, i)=>{
-      if(saved[i]) th.style.width = saved[i];
-      const grip = document.createElement('span'); grip.className='col-rsz';
-      let startX=0,startW=0;
-      grip.addEventListener('mousedown', e=>{ e.preventDefault(); startX=e.clientX; startW=th.offsetWidth; grip.classList.add('dragging');
-        const mm = ev=>{ const w=Math.max(60,startW+(ev.clientX-startX)); th.style.width=w+'px'; };
-        const mu = ()=>{ grip.classList.remove('dragging'); document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); const widths={}; table.querySelectorAll('thead th').forEach((h,j)=>{ if(h.style.width) widths[j]=h.style.width; }); localStorage.setItem(key,JSON.stringify(widths)); };
-        document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu);
-      });
-      grip.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; startW=th.offsetWidth; grip.classList.add('dragging');
-        const tm = ev=>{ const w=Math.max(60,startW+(ev.touches[0].clientX-startX)); th.style.width=w+'px'; };
-        const tu = ()=>{ grip.classList.remove('dragging'); document.removeEventListener('touchmove',tm); document.removeEventListener('touchend',tu); const widths={}; table.querySelectorAll('thead th').forEach((h,j)=>{ if(h.style.width) widths[j]=h.style.width; }); localStorage.setItem(key,JSON.stringify(widths)); };
-        document.addEventListener('touchmove',tm,{passive:true}); document.addEventListener('touchend',tu);
-      },{passive:true});
-      th.appendChild(grip);
-    });
-  });
-}
-function enhanceUI(root=document){ addHelpDots(root); makeResizableTables(root); }
-const uiEnhancer = new MutationObserver(()=>{ clearTimeout(window._enhanceUITimer); window._enhanceUITimer=setTimeout(()=>enhanceUI(document),80); });
-window.addEventListener('DOMContentLoaded',()=>{ try{ uiEnhancer.observe(document.body,{childList:true,subtree:true}); setTimeout(()=>enhanceUI(document),200); }catch(e){} });
-
-// ═══════════════════════════════════════════════════════════
-// LAPORAN TAMBAHAN / KPI REPORT MODULE
-// ═══════════════════════════════════════════════════════════
-const MISC_JOB_STATUSES = ['Dilaporkan','Diverifikasi','Ditolak'];
-const MISC_CATEGORIES = ['Kebersihan','Bantu Produksi','Packing / Loading','Cek Barang','Dokumen / Administrasi','Workshop','Lainnya'];
-function miscJobsLSKey(){ return 'panel_misc_reports_' + (SB_URL||'local'); }
-function canEditMiscJob(j){ return isAdmin() || j.created_by === currentUser?.id; }
-function miscJobVisible(j){ return isAdmin() || j.created_by === currentUser?.id; }
-function miscEvidence(j){
-  let ev = j?.evidence_files || {before:[],after:[]};
-  if(typeof ev === 'string'){ try{ ev = JSON.parse(ev); }catch(_){ ev = {before:[],after:[]}; } }
-  if(Array.isArray(ev)) ev = {before:ev.filter(x=>x.type==='before'), after:ev.filter(x=>x.type==='after')};
-  return {before: ev.before||[], after: ev.after||[]};
-}
-function miscPhotoHTML(files){
-  if(!files || !files.length) return '<div style="font-size:12px;color:var(--text3);margin-top:6px">Belum ada foto</div>';
-  return `<div class="misc-photo-grid">${files.map(f=>`<div class="misc-photo-thumb" onclick="openDoc('${f.url||fileUrl('service-docs',f.path||f.file_path)}','${escapeHtml(f.name||'foto.jpg')}')"><img src="${f.url||fileUrl('service-docs',f.path||f.file_path)}" alt="${escapeHtml(f.name||'foto')}"></div>`).join('')}</div>`;
-}
-async function uploadMiscEvidenceFiles(inputId, type){
-  const input = document.getElementById(inputId);
-  const files = Array.from(input?.files || []);
-  const out = [];
-  for(const f of files){
-    const safe = f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-    const path = `misc-reports/${currentUser.id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}_${safe}`;
-    try{
-      const { error } = await sb.storage.from('service-docs').upload(path, f);
-      if(error) throw error;
-      out.push({type, name:f.name, size:f.size, path, url: fileUrl('service-docs', path), uploaded_at:new Date().toISOString()});
-    }catch(e){ toast('Upload foto gagal: '+(e.message||e)); }
-  }
-  return out;
-}
-async function loadMiscJobs() {
-  let rows = [];
-  try {
-    const { data, error } = await sb.from('misc_jobs').select('*,creator:created_by(full_name,role)').order('created_at', { ascending:false });
-    if (error) throw error;
-    rows = data || [];
-    window._miscJobsRemoteOK = true;
-  } catch(e) {
-    window._miscJobsRemoteOK = false;
-    try { rows = JSON.parse(localStorage.getItem(miscJobsLSKey()) || '[]'); } catch(_) { rows = []; }
-  }
-  allMiscJobs = rows.filter(miscJobVisible);
-  const b = document.getElementById('nbMISC');
-  if (b) b.textContent = allMiscJobs.filter(j => j.status !== 'Ditolak').length;
-  return allMiscJobs;
-}
-async function renderMiscJobsModule() {
-  if(!canReportMiscJob()){ renderHomeModule(); return; }
-  document.getElementById('mainContent').innerHTML = `
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:12px">
-        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <div><div class="page-title">Laporan Tambahan</div><div class="page-sub">Laporan pekerjaan di luar role utama untuk KPI pribadi</div></div>
-      </div>
-      <div class="topbar-right"><button class="btn btn-primary" data-help="Buat Laporan Tambahan" onclick="openMiscJobForm()">+ Buat Laporan</button></div>
-    </div>
-    <div class="page-body" id="miscJobsBody">${loading()}</div>`;
-  await loadMiscJobs();
-  renderMiscJobsList();
-}
-function miscJobsCardsHTML(compact=false){
-  const st = tblState('miscjobs');
-  const q = (st.search||'').toLowerCase();
-  let rows = allMiscJobs.filter(j => !q || [j.title,j.description,j.status,j.category,j.creator?.full_name,j.created_by_name].join(' ').toLowerCase().includes(q));
-  if (rows.length === 0) return noData('Belum ada laporan tambahan');
-  return rows.map(j=>{
-    const reporter = j.creator?.full_name || j.created_by_name || (j.created_by===currentUser?.id ? currentUser.full_name : 'User');
-    const ev = miscEvidence(j);
-    return `<div class="misc-job-card">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
-        <div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:600">${escapeHtml(j.title)}</div><div style="font-size:12px;color:var(--text3);margin-top:2px">Pelapor: <b>${escapeHtml(reporter)}</b> · ${fmtDate(j.created_at)} · Kategori: ${escapeHtml(j.category||'Umum')}</div></div>
-        ${badge(j.status||'Dilaporkan')}
-      </div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.55;margin-top:8px">${escapeHtml(j.description||'—')}</div>
-      ${j.notes?`<div class="desc-box" style="margin-top:8px">${escapeHtml(j.notes)}</div>`:''}
-      <div class="misc-photo-row"><div class="misc-photo-box"><b>Before</b>${miscPhotoHTML(ev.before)}</div><div class="misc-photo-box"><b>After</b>${miscPhotoHTML(ev.after)}</div></div>
-      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-        ${canEditMiscJob(j)?`<button class="btn btn-sm" data-help="Edit Laporan" onclick="openMiscJobForm('${j.id}',${compact})">Edit Laporan</button>`:''}
-        ${isAdmin()?`<button class="btn btn-sm btn-primary" data-help="Verifikasi KPI" onclick="verifyMiscReport('${j.id}')">Verifikasi KPI</button>`:''}
-      </div>
-    </div>`;
-  }).join('');
-}
-function renderMiscJobsList(){
-  const body = document.getElementById('miscJobsBody');
-  if(!body) return;
-  const st = tblState('miscjobs');
-  body.innerHTML = `
-    ${roleWelcomeBanner()}
-    <div style="background:var(--amber-bg);border:1px solid #fde68a;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;color:var(--amber);font-size:13px;line-height:1.55">
-      <b>Laporan tambahan:</b> gunakan menu ini hanya untuk melaporkan pekerjaan yang benar-benar Anda lakukan sendiri di luar role utama. Upload foto <b>before</b> dan <b>after</b> agar bisa dihitung ke KPI pelapor. Sales dan Direktur tidak menggunakan menu ini.
-      ${window._miscJobsRemoteOK===false?'<div style="margin-top:6px;color:var(--red)">Catatan: tabel Supabase <b>misc_jobs</b> belum tersedia/akses gagal, sementara data disimpan lokal di browser ini.</div>':''}
-    </div>
-    <div class="toolbar-row"><div class="search-wrap"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><input type="text" data-help="Cari Laporan" placeholder="Cari laporan, kategori, pelapor, status..." value="${st.search||''}" oninput="tblState('miscjobs').search=this.value;renderMiscJobsList()"></div></div>
-    ${miscJobsCardsHTML(false)}`;
-  setTimeout(()=>enhanceUI(document),50);
-}
-async function openMiscJobForm(jobId=null, compact=false){
-  if(!canReportMiscJob()){ toast('Role ini tidak membuat laporan tambahan'); return; }
-  const j = jobId ? allMiscJobs.find(x=>x.id===jobId) : null;
-  if(j && !canEditMiscJob(j)){ toast('Laporan hanya bisa diedit oleh pelapor/admin'); return; }
-  const ev = miscEvidence(j);
-  openModal(`<div class="modal">
-    <div class="modal-header"><h2>${j?'Edit':'Buat'} Laporan Tambahan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
-    <div class="modal-body">
-      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r-sm);padding:10px 12px;color:var(--blue-text);font-size:12px;line-height:1.55">Isi sebagai laporan pekerjaan yang sudah dilakukan sendiri. Nama pelapor otomatis adalah user yang login dan akan masuk KPI user tersebut.</div>
-      <div class="form-section">
-        <div class="form-section-title" data-help="Buat Laporan Tambahan">1. Identitas Pekerjaan</div>
-        <div class="form-grid"><div class="form-row"><label data-help="Tanggal Pekerjaan">Tanggal Pekerjaan</label><input type="date" id="mjDue" value="${j?.due_date||today()}"></div><div class="form-row"><label data-help="Kategori">Kategori</label><select id="mjCategory">${MISC_CATEGORIES.map(x=>`<option value="${x}" ${(j?.category||'Umum')===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
-        <div class="form-row"><label data-help="Judul Laporan">Judul Laporan <span class="req">*</span></label><input type="text" id="mjTitle" value="${escapeHtml(j?.title||'')}" placeholder="Contoh: Bersih-bersih area workshop setelah produksi"></div>
-      </div>
-      <div class="form-section">
-        <div class="form-section-title" data-help="Uraian Pekerjaan">2. Uraian Teknis</div>
-        <div class="form-row"><label data-help="Uraian Pekerjaan">Uraian Pekerjaan <span class="req">*</span></label><textarea id="mjDesc" placeholder="Jelaskan pekerjaan yang dilakukan, area/lokasi, dan hasilnya.">${escapeHtml(j?.description||'')}</textarea></div>
-        <div class="form-row"><label data-help="Catatan Tambahan">Catatan Tambahan</label><textarea id="mjNotes" placeholder="Opsional: kendala, alat yang dipakai, saksi, atau catatan admin.">${escapeHtml(j?.notes||'')}</textarea></div>
-      </div>
-      <div class="form-section">
-        <div class="form-section-title" data-help="Foto Before">3. Bukti Foto Before / After</div>
-        <div class="form-grid"><div class="form-row"><label data-help="Foto Before">Foto Before</label><input type="file" id="mjBefore" accept="image/*" multiple><div class="form-hint">Upload kondisi sebelum pekerjaan. Foto lama: ${ev.before.length} file.</div></div><div class="form-row"><label data-help="Foto After">Foto After</label><input type="file" id="mjAfter" accept="image/*" multiple><div class="form-hint">Upload kondisi setelah pekerjaan. Foto lama: ${ev.after.length} file.</div></div></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" data-help="Simpan Laporan" onclick="saveMiscJob('${jobId||''}',${compact})">Simpan Laporan</button></div>
-  </div>`);
-}
-async function persistMiscJobsLocal(rows){ localStorage.setItem(miscJobsLSKey(), JSON.stringify(rows)); }
-async function saveMiscJob(jobId='', compact=false){
-  const title = gv('mjTitle').trim();
-  const desc = gv('mjDesc').trim();
-  if(!title){ toast('Judul laporan wajib diisi'); return; }
-  if(!desc){ toast('Uraian pekerjaan wajib diisi'); return; }
-  const old = jobId ? allMiscJobs.find(x=>x.id===jobId) : null;
-  const oldEv = miscEvidence(old);
-  const before = [...oldEv.before, ...await uploadMiscEvidenceFiles('mjBefore','before')];
-  const after = [...oldEv.after, ...await uploadMiscEvidenceFiles('mjAfter','after')];
-  const payload = { title, category: gv('mjCategory')||'Lainnya', assigned_to:null, assigned_name:null, due_date: gv('mjDue')||today(), status: old?.status || 'Dilaporkan', description: desc, notes: gv('mjNotes').trim(), evidence_files:{before,after}, updated_at:new Date().toISOString() };
-  try{
-    if(window._miscJobsRemoteOK !== false){
-      if(jobId) await sb.from('misc_jobs').update(payload).eq('id',jobId);
-      else await sb.from('misc_jobs').insert({...payload, created_by: currentUser.id, created_by_name: currentUser.full_name, created_at:new Date().toISOString()});
-    } else { throw new Error('local fallback'); }
-  }catch(e){
-    let rows=[]; try{ rows=JSON.parse(localStorage.getItem(miscJobsLSKey())||'[]'); }catch(_){ rows=[]; }
-    if(jobId){ rows = rows.map(x=>x.id===jobId ? {...x,...payload} : x); }
-    else rows.unshift({...payload, id: genId('MJ'), created_by: currentUser.id, created_by_name: currentUser.full_name, created_at:new Date().toISOString(), creator:{full_name:currentUser.full_name,role:currentUser.role}});
-    await persistMiscJobsLocal(rows); window._miscJobsRemoteOK = false;
-  }
-  toast('Laporan tambahan disimpan'); closeAllModals(); await loadMiscJobs(); renderMiscJobsList();
-}
-async function verifyMiscReport(jobId){
-  if(!isAdmin()) return;
-  try{ await sb.from('misc_jobs').update({status:'Diverifikasi', updated_at:new Date().toISOString()}).eq('id',jobId); }
-  catch(e){ toast('Gagal verifikasi: '+(e.message||e)); return; }
-  toast('Laporan diverifikasi untuk KPI'); await loadMiscJobs(); renderMiscJobsList();
-}
-
 // ═══════════════════════════════════════════════════════════
 // USER MANAGEMENT MODULE
 // ═══════════════════════════════════════════════════════════
-const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', direktur: 'Direktur', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi', other: 'Lainnya / Umum' };
-const ROLE_CLASSES = { owner: 'role-owner', admin: 'role-admin', direktur: 'role-direktur', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi', other: 'role-other' };
-
-const ROLE_HINTS = {
-  owner: ['Akses penuh semua modul, termasuk nilai PO, user, audit, laporan, dan konfigurasi.', 'Bisa membuat/mengedit/menghapus data inti serta membuka semua dokumen yang dibatasi.', 'Gunakan role ini hanya untuk pemilik/penanggung jawab utama sistem.'],
-  admin: ['Mengelola operasional harian: Pre-Project, PO, assign PIC, produksi, service, BOM, laporan, dan user.', 'Buat data baru dari tombol +/Baru, edit dari tombol Edit atau buka detail baris, dan simpan perubahan dari modal.', 'Tidak disarankan dipakai untuk user lapangan biasa karena aksesnya luas.'],
-  direktur: ['Mode monitoring dan approval: melihat statistik, PO, progress produksi, service, dan laporan.', 'Gunakan dashboard untuk mengecek keterlambatan, PIC, status, dan dokumen penting.', 'Tidak difokuskan untuk input teknis harian, kecuali akses tambahan diberikan.'],
-  sales: ['Membuat request Drawing/BOM dari form sales, upload dokumen customer, lalu memantau Request Saya.', 'Isi customer, project/PO, jenis output, catatan, dan lampirkan spec/SLD sebelum kirim.', 'Sales tidak mengisi Laporan Tambahan; fokus pada request customer dan kelengkapan dokumen.'],
-  engineering: ['Mengerjakan Pre-Project/ETS dan upload hasil drawing/BOM.', 'Buka detail request, cek dokumen customer, upload hasil, lalu update status sesuai progress.', 'Bisa diberi akses tambahan melalui Akses Modul Custom.'],
-  produksi: ['Mengerjakan item produksi yang di-assign, update progress produksi dan QC sesuai pekerjaan.', 'Buka item dari menu Produksi, isi laporan/foto, lalu ubah status bertahap sampai selesai.', 'Bila melakukan pekerjaan tambahan di luar produksi, laporkan di menu Laporan Tambahan dengan foto before-after.'],
-  logistik: ['Mengelola kebutuhan logistik/pengiriman terkait PO.', 'Cek PO yang perlu material/delivery, update catatan dan status logistik sesuai kondisi lapangan.', 'Akses tambahan dapat dicentang bila perlu membantu modul lain.'],
-  teknisi: ['Menangani service, instalasi, commissioning, SAT, BAST, dan laporan lapangan.', 'Buka tiket/tugas, isi aktivitas, upload foto/dokumen, lalu update status sampai selesai.', 'Untuk pekerjaan umum di luar tiket, buat Laporan Tambahan dengan foto before-after agar masuk KPI.'],
-  other: ['Role umum untuk helper/pekerjaan tambahan seperti bersih-bersih, bantu packing, rapikan workshop, antar dokumen, atau tugas non-divisi.', 'Akses modul utama bisa dikosongkan; user tetap dapat membuat Laporan Tambahan untuk KPI pribadi.', 'Admin dapat memberi modul tambahan bila user ini sesekali membantu produksi, service, atau logistik.']
-};
-function renderRoleHints(selectedRole='') {
-  const roles = Object.keys(ROLE_HINTS).filter(r => !selectedRole || r === selectedRole);
-  return roles.map(r => `<div class="role-help-card"><b><span class="role-badge ${ROLE_CLASSES[r]||''}">${ROLE_LABELS[r]||r}</span></b><ul>${ROLE_HINTS[r].map(x=>`<li>${x}</li>`).join('')}</ul></div>`).join('');
-}
-function updateRoleHintBox() {
-  const box = document.getElementById('roleHintBox');
-  if (box) box.innerHTML = renderRoleHints(gv('ufRole'));
-}
-
+const ROLE_LABELS = { owner: 'Owner', admin: 'Admin', direktur: 'Direktur', sales: 'Sales', engineering: 'ET Support', produksi: 'Produksi', logistik: 'Logistik', teknisi: 'Teknisi' };
+const ROLE_CLASSES = { owner: 'role-owner', admin: 'role-admin', direktur: 'role-direktur', sales: 'role-sales', engineering: 'role-engineering', produksi: 'role-produksi', logistik: 'role-logistik', teknisi: 'role-teknisi' };
 
 async function renderUsersModule() {
   document.getElementById('mainContent').innerHTML = `
@@ -6778,9 +6476,6 @@ async function renderUsersModule() {
       <div class="topbar-right"><button class="btn btn-primary" onclick="openUserForm()">+ User Baru</button></div>
     </div>
     <div class="page-body">
-      <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:var(--r);padding:12px 14px;margin-bottom:12px;color:var(--blue-text);font-size:13px;line-height:1.55">
-        <b>Panduan role:</b> user selain <b>Sales</b> dan <b>Direktur</b> dapat membuat <b>Laporan Tambahan</b> untuk pekerjaan yang dilakukan sendiri di luar role utama. Laporan harus berisi catatan dan foto before-after agar masuk KPI pelapor.
-      </div>
       <div class="table-card">
         <div class="table-wrap">
           <table class="user-table">
@@ -6902,13 +6597,11 @@ async function openUserForm(userId) {
         <div class="form-row"><label>Nama Lengkap <span class="req">*</span></label><input type="text" id="ufFullName" value="${u?.full_name || ''}" placeholder="Nama lengkap"></div>
       </div>
       <div class="form-row"><label>Role <span class="req">*</span></label>
-        <select id="ufRole" style="width:100%;padding:6px 8px" onchange="onRoleChange();updateRoleHintBox()">
+        <select id="ufRole" style="padding:6px 8px" onchange="onRoleChange()">
           <option value="">-- Pilih Role --</option>
           ${roles.map(r => `<option value="${r}" ${u?.role === r ? 'selected' : ''}>${ROLE_LABELS[r]}</option>`).join('')}
         </select>
-        <div class="form-hint">Pilih role utama. Selain Sales dan Direktur, user bisa membuat Laporan Tambahan untuk pekerjaan di luar role.</div>
       </div>
-      <div id="roleHintBox">${renderRoleHints(u?.role || '')}</div>
       <div class="form-row">
         <label>Password${u ? ' <span style="font-weight:400;color:var(--text3)">(kosongkan jika tidak diubah)</span>' : ' <span class="req">*</span>'}</label>
         <div style="display:flex;gap:6px;align-items:stretch">
@@ -6938,7 +6631,7 @@ async function openUserForm(userId) {
     </div>
   </div>`);
 
-  setTimeout(()=>{ onRoleChange(); updateRoleHintBox(); }, 50);
+  setTimeout(()=>onRoleChange(), 50);
 }
 
 function toggleModBg(key) {
@@ -6994,6 +6687,143 @@ async function saveUser(editId) {
     setTimeout(() => toast('💡 Tip: isi No. WA agar bisa kirim credential otomatis'), 800);
   }
 }
+
+// ── Column Resize (event delegation, berlaku ke semua tabel .table-card) ──
+(function setupColumnResize() {
+  const STORAGE_KEY = 'panel_col_widths_v1';
+  let _resizing = null;
+  let _moved = false;
+
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function saveAll(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch (e) { /* ignore quota errors */ }
+  }
+  // Identifier tabel: id, data-tbl, atau fallback berdasarkan header texts
+  function getTableKey(table) {
+    if (table.id) return 'id:' + table.id;
+    if (table.dataset.tbl) return 'dt:' + table.dataset.tbl;
+    const tbody = table.querySelector('tbody[data-tbl]');
+    if (tbody?.dataset.tbl) return 'tb:' + tbody.dataset.tbl;
+    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim().substring(0,12)).join('|');
+    return 'h:' + headers;
+  }
+  function applyWidths(table) {
+    if (!table.closest('.table-card')) return;
+    const key = getTableKey(table);
+    const all = loadAll();
+    const widths = all[key];
+    if (!widths) return;
+    table.querySelectorAll('thead th').forEach((th, idx) => {
+      const w = widths[idx];
+      if (w && w > 30) {
+        th.style.width = w + 'px';
+        th.style.minWidth = w + 'px';
+      }
+    });
+  }
+  function saveWidth(th) {
+    const table = th.closest('table');
+    if (!table) return;
+    const key = getTableKey(table);
+    const idx = Array.from(th.parentElement.children).indexOf(th);
+    const all = loadAll();
+    if (!all[key]) all[key] = {};
+    all[key][idx] = th.offsetWidth;
+    saveAll(all);
+  }
+
+  function getX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+
+  function onStart(e) {
+    const x = getX(e);
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const elem = e.touches ? document.elementFromPoint(x, y) : e.target;
+    const th = elem?.closest?.('th');
+    if (!th) return;
+    if (!th.closest('.table-card')) return;
+    const rect = th.getBoundingClientRect();
+    if (rect.right - x > 8) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _resizing = { th, startX: x, startW: th.offsetWidth };
+    _moved = false;
+    th.classList.add('col-resizing');
+    document.body.classList.add('col-resizing-active');
+  }
+
+  function onMove(e) {
+    if (!_resizing) return;
+    const x = getX(e);
+    const delta = x - _resizing.startX;
+    if (Math.abs(delta) > 2) _moved = true;
+    const newW = Math.max(50, _resizing.startW + delta);
+    _resizing.th.style.width = newW + 'px';
+    _resizing.th.style.minWidth = newW + 'px';
+    if (e.cancelable) e.preventDefault();
+  }
+
+  function onEnd() {
+    if (!_resizing) return;
+    const th = _resizing.th;
+    th.classList.remove('col-resizing');
+    document.body.classList.remove('col-resizing-active');
+    if (_moved) {
+      saveWidth(th); // ── PERSIST ──
+      // Block next click (cegah trigger sort header)
+      const blocker = (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        document.removeEventListener('click', blocker, true);
+      };
+      document.addEventListener('click', blocker, true);
+      setTimeout(() => document.removeEventListener('click', blocker, true), 50);
+    }
+    _resizing = null;
+  }
+
+  document.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchstart', onStart, { passive: false });
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd);
+
+  // ── Auto-apply saved widths saat tabel baru di-render ──
+  const observer = new MutationObserver(mutations => {
+    const tables = new Set();
+    mutations.forEach(m => {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.tagName === 'TABLE') tables.add(node);
+        node.querySelectorAll?.('table').forEach(t => tables.add(t));
+        // Juga deteksi kalau tbody diubah (innerHTML)
+        if (node.tagName === 'TBODY' || node.tagName === 'TR') {
+          const tbl = node.closest?.('table');
+          if (tbl) tables.add(tbl);
+        }
+      });
+    });
+    tables.forEach(applyWidths);
+  });
+  // Mulai observe setelah DOM ready
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+
+  // Expose untuk debug / reset (panggil dari console: window.resetColWidths())
+  window.resetColWidths = function() {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  };
+})();
 
 // ── Helper untuk WA ──
 function normalizeWA(raw) {
@@ -7170,7 +7000,7 @@ function renderSpecForm(category, values){
     const val = values[f.id]||'';
     if(f.type==='select'){
       const opts = f.options.map(o=>'<option value="'+o+'"'+(val==o?' selected':'')+'>'+o+'</option>').join('');
-      html += '<div class="form-row"><label>'+f.label+'</label><select id="spec_'+f.id+'" style="width:100%;padding:6px 8px">'+opts+'</select></div>';
+      html += '<div class="form-row"><label>'+f.label+'</label><select id="spec_'+f.id+'" style="padding:6px 8px">'+opts+'</select></div>';
     } else if(f.type==='textarea'){
       html += '<div class="form-row" style="grid-column:1/-1"><label>'+f.label+'</label><textarea id="spec_'+f.id+'" placeholder="'+(f.placeholder||'')+'" rows="2">'+val+'</textarea></div>';
     } else {
@@ -7401,12 +7231,12 @@ function renderBOMList() {
     <div class="toolbar" style="margin-bottom:.75rem">
       <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" placeholder="Cari title, kategori, customer..." value="${bomState.search}" oninput="bomState.search=this.value;document.getElementById('bomTabContent').innerHTML=renderBOMList()"></div>
     </div>
-    <div class="table-card"><div class="table-wrap"><table style="width:100%">
+    <div class="table-card"><div class="table-wrap"><table style="">
       <thead><tr>
-        <th style="width:45%;min-width:120px">Title</th>
-        <th style="width:30%">Kategori</th>
-        <th style="width:18%;text-align:center">Items</th>
-        <th style="width:5%;min-width:30px"></th>
+        <th style="min-width:120px">Title</th>
+        <th style="">Kategori</th>
+        <th style="text-align:center">Items</th>
+        <th style="min-width:30px"></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div></div>`;
@@ -7829,7 +7659,7 @@ function renderComponentPicker(inputId, onSelectFn) {
         onfocus="filterCompPicker('${inputId}', this.value)"
         onblur="setTimeout(()=>{const dd=document.getElementById('${inputId}_dropdown');if(dd)dd.style.display='none'},200)"
         autocomplete="off"
-        style="width:100%">
+        style="">
       <input type="hidden" id="${inputId}" value="">
       <div id="${inputId}_dropdown" class="comp-picker-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);max-height:280px;overflow-y:auto;z-index:1100;margin-top:2px"></div>
       <div id="${inputId}_selected" style="margin-top:4px;font-size:11px;color:var(--green);display:none">✓ Terpilih</div>
@@ -7911,6 +7741,12 @@ async function openBOMForm(opts) {
   if (!bomState.components || !bomState.components.length) {
     toast('Memuat data komponen...');
     await loadBOMData();
+  } else {
+    // Always refresh templates so newly-added ones appear without page reload
+    const { data: freshTmpls } = await sb.from('bom_templates')
+      .select('*,bom_template_items(*)').eq('is_active', true)
+      .order('unit_category').order('name');
+    if (freshTmpls) bomState.templates = freshTmpls;
   }
   openModal(`<div class="modal modal-sm">
     <div class="modal-header"><h2>BOM Baru — Step 1: Info</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
@@ -7919,8 +7755,12 @@ async function openBOMForm(opts) {
       <div class="form-row"><label>Kategori Unit <span class="req">*</span></label>
         <select id="bomCategory" onchange="onBOMCategoryChange()">
           <option value="">-- Pilih --</option>
-          ${BOM_UNIT_CATEGORIES.map(c => `<option>${c}</option>`).join('')}
+          ${BOM_UNIT_CATEGORIES.map(c => {
+            const n = (bomState.templates || []).filter(t => t.unit_category === c).length;
+            return `<option value="${c}">${c}${n ? ` (${n} template)` : ''}</option>`;
+          }).join('')}
         </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">Setelah pilih kategori, dropdown template muncul kalau tersedia.</div>
       </div>
       <div class="form-row" id="bomTemplateRow" style="display:none">
         <label>Generate dari Template (opsional)</label>
@@ -7992,77 +7832,468 @@ function goBOMReview(opts) {
   renderBOMReviewModal();
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// BOM SPREADSHEET ENGINE — Excel-like editor for Create & Edit BOM
+// Supports multi-cell paste from Excel/Sheets, add/delete rows/columns,
+// column resize, keyboard navigation, and custom temporary columns.
+// ═══════════════════════════════════════════════════════════════
+const BOM_EXTRA_RE = /\n?\[BOM_EXTRA_JSON\]([\s\S]*?)\[\/BOM_EXTRA_JSON\]/i;
+
+function bomStripExtra(note) {
+  return String(note || '').replace(BOM_EXTRA_RE, '').trim();
+}
+function bomReadExtra(note) {
+  const m = String(note || '').match(BOM_EXTRA_RE);
+  if (!m) return {};
+  try { return JSON.parse(m[1]) || {}; } catch(e) { return {}; }
+}
+function bomWriteExtra(note, extra) {
+  const clean = bomStripExtra(note);
+  const obj = extra || {};
+  const hasValue = Object.keys(obj).some(k => String(obj[k] ?? '').trim() !== '');
+  return clean + (hasValue ? `\n[BOM_EXTRA_JSON]${JSON.stringify(obj)}[/BOM_EXTRA_JSON]` : '');
+}
+function bomSheetHtml(s) { return escapeHtml(s ?? ''); }
+function bomParseNumber(v) {
+  let s = String(v ?? '').replace(/Rp/gi, '').replace(/\s/g, '').trim();
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else {
+    const parts = s.split('.');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) s = s.replace(/\./g, '');
+  }
+  s = s.replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function bomDefaultColumns(showPrice) {
+  const cols = [
+    { key:'part_number', label:'Part No.', width:130 },
+    { key:'name', label:'Nama Komponen', width:360, required:true },
+    { key:'qty', label:'Qty', width:80, type:'number' },
+    { key:'unit', label:'Unit', width:80 },
+  ];
+  if (showPrice) {
+    cols.push({ key:'unit_price', label:'Harga Sat.', width:130, type:'number' });
+    cols.push({ key:'subtotal', label:'Subtotal', width:140, type:'number', readonly:true });
+  }
+  cols.push({ key:'note', label:'Keterangan / Grup', width:260 });
+  return cols;
+}
+function bomNewSheetState(showPrice) {
+  return {
+    selectedRow: 0,
+    selectedCol: 0,
+    selectedRows: {},
+    selectedColKey: null,
+    hidden: {},
+    customCols: [],
+    colWidths: Object.fromEntries(bomDefaultColumns(showPrice).map(c => [c.key, c.width]))
+  };
+}
+function bomReviewState() {
+  if (!_bomReviewData) return null;
+  const showPrice = can('nilai_po');
+  if (!_bomReviewData.sheet) _bomReviewData.sheet = bomNewSheetState(showPrice);
+  (_bomReviewData.items || []).forEach((it, idx) => {
+    if (!it.tmpRowId) it.tmpRowId = 'r_' + idx + '_' + Date.now();
+    if (!it._extra) it._extra = bomReadExtra(it.note);
+    it.note = bomStripExtra(it.note);
+  });
+  return _bomReviewData.sheet;
+}
+function bomDetailState(showPrice) {
+  const d = bomDetail.data;
+  if (!d) return null;
+  if (!bomDetail.sheet || bomDetail.sheetBomId !== d.id) {
+    bomDetail.sheet = bomNewSheetState(showPrice);
+    bomDetail.sheetBomId = d.id;
+    bomDetail.deletedItemIds = [];
+    bomDetail.sheetItems = (d.bom_items || [])
+      .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0))
+      .map((it, idx) => ({
+        ...it,
+        _rowUid: 'bd_' + (it.id || idx) + '_' + idx,
+        note: bomStripExtra(it.note),
+        _extra: bomReadExtra(it.note)
+      }));
+  }
+  return bomDetail.sheet;
+}
+function bomSheetGetState(ctx) {
+  return ctx === 'review' ? bomReviewState() : bomDetailState(can('nilai_po'));
+}
+function bomSheetGetItems(ctx) {
+  return ctx === 'review' ? (_bomReviewData?.items || []) : (bomDetail.sheetItems || []);
+}
+function bomSheetGetVisibleColumns(ctx) {
+  const showPrice = can('nilai_po');
+  const state = bomSheetGetState(ctx);
+  if (!state) return [];
+  const base = bomDefaultColumns(showPrice);
+  const custom = (state.customCols || []).map(c => ({...c, custom:true, width:state.colWidths[c.key] || c.width || 140}));
+  const all = base.concat(custom).map(c => ({...c, width:state.colWidths[c.key] || c.width || 120}));
+  return all.filter(c => !state.hidden[c.key]);
+}
+function bomCellRaw(it, col) {
+  if (!it) return '';
+  if (col.key === 'subtotal') return (bomParseNumber(it.qty) || 0) * (bomParseNumber(it.unit_price) || 0);
+  if (col.custom || col.key.startsWith('x_')) return it._extra?.[col.key] ?? '';
+  return it[col.key] ?? '';
+}
+function bomCellDisplay(it, col) {
+  const raw = bomCellRaw(it, col);
+  if (col.key === 'subtotal') return fmtRp(raw);
+  return raw;
+}
+function bomSetCellValue(ctx, rowIdx, col, value) {
+  const items = bomSheetGetItems(ctx);
+  const it = items[rowIdx];
+  if (!it || !col || col.readonly) return;
+  if (col.custom || col.key.startsWith('x_')) {
+    if (!it._extra) it._extra = {};
+    it._extra[col.key] = value;
+  } else if (col.type === 'number') {
+    it[col.key] = bomParseNumber(value);
+  } else {
+    it[col.key] = String(value ?? '').replace(/\r/g, '').trim();
+  }
+  if (ctx === 'detail') bdMarkDirty();
+}
+function bomSheetRender(ctx) {
+  const state = bomSheetGetState(ctx);
+  const items = bomSheetGetItems(ctx);
+  const cols = bomSheetGetVisibleColumns(ctx);
+  const host = document.getElementById(ctx === 'review' ? 'reviewSheetHost' : 'bdSheetHost');
+  if (!host || !state) return;
+
+  const total = items.reduce((s,it)=>s+((bomParseNumber(it.qty)||0)*(bomParseNumber(it.unit_price)||0)),0);
+  const selectedRows = state.selectedRows || {};
+  const colgroup = `<col style="width:44px">${cols.map(c => `<col data-col-key="${c.key}" style="width:${c.width || 120}px">`).join('')}`;
+  const thead = `<thead><tr>
+    <th class="corner" onclick="bomSheetSelectAllRows('${ctx}')">#</th>
+    ${cols.map((c, ci) => `
+      <th data-col="${ci}" class="${state.selectedColKey===c.key?'selected-col':''}" onclick="bomSheetSelectCol('${ctx}',${ci})" style="position:sticky;top:0">
+        <div class="bom-sheet-col-title" title="${bomSheetHtml(c.label)}">${bomSheetHtml(c.label)}${c.required?' *':''}</div>
+        <span class="bom-sheet-col-resize" onmousedown="bomSheetStartResize(event,'${ctx}','${c.key}')"></span>
+      </th>`).join('')}
+  </tr></thead>`;
+  const tbody = `<tbody>${items.map((it, ri) => {
+    const rowId = ctx === 'review' ? it.tmpRowId : (it._rowUid || it.id || ri);
+    return `<tr data-row="${ri}" class="${selectedRows[ri] ? 'selected-row' : ''}">
+      <td class="row-head ${selectedRows[ri] ? 'selected' : ''}" onclick="bomSheetSelectRow(event,'${ctx}',${ri})">${ri + 1}</td>
+      ${cols.map((c, ci) => {
+        const ro = c.readonly ? 'false' : 'true';
+        const cellVal = bomSheetHtml(bomCellDisplay(it, c));
+        const numeric = c.type === 'number' || c.key === 'subtotal';
+        return `<td data-col-key="${c.key}">
+          <div class="bom-sheet-cell ${numeric?'num':''} ${c.readonly?'readonly':''}" 
+            contenteditable="${ro}" spellcheck="false"
+            data-ctx="${ctx}" data-row="${ri}" data-col="${ci}" data-key="${c.key}"
+            onfocus="bomSheetFocusCell('${ctx}',${ri},${ci})"
+            onclick="bomSheetFocusCell('${ctx}',${ri},${ci})"
+            oninput="bomSheetInput(event,'${ctx}',${ri},${ci})"
+            onkeydown="bomSheetKeydown(event,'${ctx}',${ri},${ci})"
+            onpaste="bomSheetPaste(event,'${ctx}',${ri},${ci})">${cellVal}</div>
+        </td>`;
+      }).join('')}
+    </tr>`;
+  }).join('')}</tbody>`;
+
+  host.innerHTML = `
+    <div class="bom-sheet-card">
+      <div class="bom-sheet-toolbar">
+        <button class="btn btn-sm" onclick="bomSheetAddRow('${ctx}')">+ Baris</button>
+        <button class="btn btn-sm btn-danger" onclick="bomSheetDeleteRows('${ctx}')">Hapus Baris</button>
+        <button class="btn btn-sm" onclick="bomSheetAddColumn('${ctx}')">+ Kolom</button>
+        <button class="btn btn-sm btn-danger" onclick="bomSheetDeleteColumn('${ctx}')">Hapus/Sembunyikan Kolom</button>
+        <button class="btn btn-sm" onclick="bomSheetResetColumns('${ctx}')">Tampilkan Semua Kolom</button>
+        ${ctx === 'detail' ? `<button class="btn btn-sm btn-primary" onclick="saveBOMSheetDetail()">💾 Simpan Perubahan</button>` : ''}
+        <span class="hint">Paste dari Excel/Sheets langsung ke cell. Tab/Enter/arrow untuk pindah cell. Drag batas judul kolom untuk resize.</span>
+      </div>
+      <div class="bom-sheet-wrap">
+        <table class="bom-sheet-table" id="${ctx}SheetTable">
+          <colgroup>${colgroup}</colgroup>
+          ${thead}
+          ${tbody || `<tbody><tr><td class="row-head">1</td><td colspan="${cols.length}"><div style="padding:1rem;color:var(--text3)">Belum ada baris</div></td></tr></tbody>`}
+        </table>
+      </div>
+      <div class="bom-sheet-status">
+        <strong>${items.length}</strong> baris · <strong>${cols.length}</strong> kolom tampil
+        ${can('nilai_po') ? `<span class="bom-sheet-total">Total: ${fmtRp(total)}</span>` : ''}
+      </div>
+    </div>`;
+}
+function bomSheetFocusCell(ctx, row, col) {
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  state.selectedRow = row;
+  state.selectedCol = col;
+  state.selectedColKey = bomSheetGetVisibleColumns(ctx)[col]?.key || null;
+}
+function bomSheetInput(e, ctx, row, colIdx) {
+  const col = bomSheetGetVisibleColumns(ctx)[colIdx];
+  bomSetCellValue(ctx, row, col, e.currentTarget.innerText);
+  bomSheetUpdateCalculated(ctx, row);
+}
+function bomSheetUpdateCalculated(ctx, row) {
+  const cols = bomSheetGetVisibleColumns(ctx);
+  const subIdx = cols.findIndex(c => c.key === 'subtotal');
+  if (subIdx < 0) return;
+  const items = bomSheetGetItems(ctx);
+  const it = items[row];
+  const table = document.getElementById(ctx + 'SheetTable');
+  const cell = table?.querySelector(`.bom-sheet-cell[data-row="${row}"][data-key="subtotal"]`);
+  if (cell) cell.textContent = fmtRp((bomParseNumber(it.qty)||0) * (bomParseNumber(it.unit_price)||0));
+}
+function bomSheetKeydown(e, ctx, row, col) {
+  const cols = bomSheetGetVisibleColumns(ctx);
+  const items = bomSheetGetItems(ctx);
+  let nr = row, nc = col;
+  if (e.key === 'Tab') { e.preventDefault(); nc = col + (e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Enter') { e.preventDefault(); nr = row + (e.shiftKey ? -1 : 1); }
+  else if (e.key === 'ArrowDown' && !e.shiftKey) { e.preventDefault(); nr = row + 1; }
+  else if (e.key === 'ArrowUp' && !e.shiftKey) { e.preventDefault(); nr = row - 1; }
+  else if (e.key === 'ArrowRight' && !e.shiftKey && window.getSelection()?.toString() === '') { e.preventDefault(); nc = col + 1; }
+  else if (e.key === 'ArrowLeft' && !e.shiftKey && window.getSelection()?.toString() === '') { e.preventDefault(); nc = col - 1; }
+  else return;
+
+  if (nc >= cols.length) { nc = 0; nr++; }
+  if (nc < 0) { nc = cols.length - 1; nr--; }
+  if (nr >= items.length) { bomSheetAddRow(ctx, 1, false); nr = items.length; }
+  nr = Math.max(0, nr);
+  setTimeout(() => bomSheetFocusDom(ctx, nr, nc), 0);
+}
+function bomSheetFocusDom(ctx, row, col) {
+  const el = document.querySelector(`.bom-sheet-cell[data-ctx="${ctx}"][data-row="${row}"][data-col="${col}"]`);
+  if (el) { el.focus(); document.execCommand?.('selectAll', false, null); }
+}
+function bomSheetPaste(e, ctx, row, col) {
+  const txt = e.clipboardData?.getData('text/plain') || '';
+  if (!txt.includes('\t') && !txt.includes('\n')) return;
+  e.preventDefault();
+  const rows = txt.replace(/\r/g, '').split('\n');
+  if (rows.length && rows[rows.length - 1] === '') rows.pop();
+  const cols = bomSheetGetVisibleColumns(ctx);
+  rows.forEach((line, rOff) => {
+    const values = line.split('\t');
+    while (row + rOff >= bomSheetGetItems(ctx).length) bomSheetAddRow(ctx, 1, false);
+    values.forEach((val, cOff) => {
+      const colDef = cols[col + cOff];
+      if (!colDef || colDef.readonly) return;
+      bomSetCellValue(ctx, row + rOff, colDef, val);
+    });
+  });
+  bomSheetRender(ctx);
+  setTimeout(() => bomSheetFocusDom(ctx, row, col), 0);
+}
+function bomSheetAddRow(ctx, count=1, render=true) {
+  const items = bomSheetGetItems(ctx);
+  for (let i=0;i<count;i++) {
+    const row = {
+      tmpRowId: ctx === 'review' ? 'r_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
+      _rowUid: ctx === 'detail' ? 'bd_new_' + Date.now() + '_' + Math.random().toString(36).slice(2,5) : undefined,
+      component_id: null, part_number:'', name:'', qty:1, unit:'pcs', unit_price:0, note:'', _extra:{},
+      sort_order: items.length + 1
+    };
+    items.push(row);
+  }
+  if (ctx === 'detail') bdMarkDirty();
+  if (render) bomSheetRender(ctx);
+}
+function bomSheetSelectRow(e, ctx, row) {
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  if (!e.ctrlKey && !e.metaKey && !e.shiftKey) state.selectedRows = {};
+  if (e.shiftKey && state.selectedRow != null) {
+    const a = Math.min(state.selectedRow, row), b = Math.max(state.selectedRow, row);
+    for (let i=a;i<=b;i++) state.selectedRows[i] = true;
+  } else {
+    state.selectedRows[row] = !state.selectedRows[row] || (!e.ctrlKey && !e.metaKey);
+  }
+  state.selectedRow = row;
+  bomSheetRender(ctx);
+}
+function bomSheetSelectAllRows(ctx) {
+  const state = bomSheetGetState(ctx), items = bomSheetGetItems(ctx);
+  if (!state) return;
+  const allSelected = items.length && Object.keys(state.selectedRows || {}).length === items.length;
+  state.selectedRows = {};
+  if (!allSelected) items.forEach((_,i)=>state.selectedRows[i]=true);
+  bomSheetRender(ctx);
+}
+function bomSheetDeleteRows(ctx) {
+  const state = bomSheetGetState(ctx), items = bomSheetGetItems(ctx);
+  if (!state || !items.length) return;
+  let rows = Object.keys(state.selectedRows || {}).map(Number);
+  if (!rows.length && state.selectedRow != null) rows = [state.selectedRow];
+  rows = [...new Set(rows)].filter(i => i >= 0 && i < items.length).sort((a,b)=>b-a);
+  if (!rows.length) return;
+  if (!confirm(`Hapus ${rows.length} baris dari BOM?`)) return;
+  for (const idx of rows) {
+    const removed = items.splice(idx, 1)[0];
+    if (ctx === 'detail' && removed?.id) {
+      bomDetail.deletedItemIds = bomDetail.deletedItemIds || [];
+      bomDetail.deletedItemIds.push(removed.id);
+    }
+  }
+  items.forEach((it,i)=>it.sort_order=i+1);
+  state.selectedRows = {};
+  state.selectedRow = Math.min(rows[rows.length-1] || 0, Math.max(0, items.length-1));
+  if (ctx === 'detail') bdMarkDirty();
+  bomSheetRender(ctx);
+}
+function bomSheetSelectCol(ctx, colIdx) {
+  const state = bomSheetGetState(ctx);
+  const col = bomSheetGetVisibleColumns(ctx)[colIdx];
+  if (!state || !col) return;
+  state.selectedCol = colIdx;
+  state.selectedColKey = col.key;
+  bomSheetRender(ctx);
+}
+function bomSheetAddColumn(ctx) {
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  const label = prompt('Nama kolom baru:');
+  if (!label) return;
+  const key = 'x_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,4);
+  state.customCols.push({ key, label: label.trim(), width:150, custom:true });
+  state.colWidths[key] = 150;
+  state.selectedColKey = key;
+  if (ctx === 'detail') bdMarkDirty();
+  bomSheetRender(ctx);
+}
+function bomSheetDeleteColumn(ctx) {
+  const state = bomSheetGetState(ctx);
+  const cols = bomSheetGetVisibleColumns(ctx);
+  const key = state?.selectedColKey || cols[state?.selectedCol || 0]?.key;
+  if (!state || !key) { toast('Pilih kolom dulu dengan klik judul kolom'); return; }
+  const col = cols.find(c => c.key === key);
+  if (!col) return;
+  if (col.required) { toast('Kolom wajib tidak bisa dihapus, hanya bisa di-resize'); return; }
+  if (!confirm(`Hapus/sembunyikan kolom "${col.label}"?`)) return;
+  if (col.custom || key.startsWith('x_')) {
+    state.customCols = (state.customCols || []).filter(c => c.key !== key);
+    bomSheetGetItems(ctx).forEach(it => { if (it._extra) delete it._extra[key]; });
+  } else {
+    state.hidden[key] = true;
+  }
+  if (ctx === 'detail') bdMarkDirty();
+  bomSheetRender(ctx);
+}
+function bomSheetResetColumns(ctx) {
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  state.hidden = {};
+  bomSheetRender(ctx);
+}
+function bomSheetStartResize(e, ctx, key) {
+  e.preventDefault();
+  e.stopPropagation();
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  const startX = e.clientX;
+  const startW = state.colWidths[key] || 120;
+  document.body.classList.add('col-resizing-active');
+  const move = ev => {
+    state.colWidths[key] = Math.max(55, startW + (ev.clientX - startX));
+    const table = document.getElementById(ctx + 'SheetTable');
+    const col = table?.querySelector(`col[data-col-key="${key}"]`);
+    if (col) col.style.width = state.colWidths[key] + 'px';
+  };
+  const up = () => {
+    document.body.classList.remove('col-resizing-active');
+    document.removeEventListener('mousemove', move);
+    document.removeEventListener('mouseup', up);
+  };
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
+}
+function bomApplyReviewExtraToNotes() {
+  if (!_bomReviewData) return;
+  (_bomReviewData.items || []).forEach(it => {
+    it.note = bomWriteExtra(it.note, it._extra);
+  });
+}
+async function saveBOMSheetDetail() {
+  const d = bomDetail.data;
+  if (!d || !can('bom_manage')) return;
+  const items = bomDetail.sheetItems || [];
+  for (const it of items) {
+    if (!String(it.name || '').trim()) { toast('Ada baris tanpa Nama Komponen. Lengkapi atau hapus barisnya.'); return; }
+    if ((bomParseNumber(it.qty) || 0) <= 0) { toast(`Qty "${it.name}" harus > 0`); return; }
+  }
+  const deleted = [...new Set(bomDetail.deletedItemIds || [])];
+  for (const id of deleted) await sb.from('bom_items').delete().eq('id', id);
+  for (let i=0;i<items.length;i++) {
+    const it = items[i];
+    const payload = {
+      bom_id: d.id,
+      component_id: it.component_id || null,
+      part_number: String(it.part_number || '').trim() || null,
+      name: String(it.name || '').trim(),
+      unit: String(it.unit || 'pcs').trim() || 'pcs',
+      qty: bomParseNumber(it.qty) || 0,
+      unit_price: bomParseNumber(it.unit_price) || 0,
+      note: bomWriteExtra(it.note, it._extra) || null,
+      sort_order: i + 1
+    };
+    if (it.id) await sb.from('bom_items').update(payload).eq('id', it.id);
+    else {
+      const { data: inserted } = await sb.from('bom_items').insert(payload).select().single();
+      if (inserted?.id) it.id = inserted.id;
+    }
+  }
+  await recalcBOMTotal(d.id);
+  await logBOM(d.id, 'Edit Spreadsheet', `${items.length} baris disimpan${deleted.length ? ', ' + deleted.length + ' baris dihapus' : ''}`);
+  toast('BOM spreadsheet tersimpan');
+  bomDetail.sheet = null;
+  bomDetail.sheetItems = null;
+  bomDetail.deletedItemIds = [];
+  await loadBOMData();
+  openBOMDetail(d.id, 'komponen');
+}
+
+
 function renderBOMReviewModal() {
   const { meta, items } = _bomReviewData;
   const showPrice = can('nilai_po');
-  const total = items.reduce((s, it) => s + ((it.qty || 0) * (it.unit_price || 0)), 0);
+  bomReviewState();
+  const total = items.reduce((s, it) => s + ((bomParseNumber(it.qty) || 0) * (bomParseNumber(it.unit_price) || 0)), 0);
 
-  openModal(`<div class="modal" style="max-width:1200px">
+  openModal(`<div class="modal bom-sheet-modal">
     <div class="modal-header">
       <div>
-        <h2>BOM Baru — Step 2: Review Komponen</h2>
+        <h2>BOM Baru — Step 2: Review Spreadsheet</h2>
         <div style="font-size:12px;color:var(--text3);margin-top:2px">
-          ${meta.title} · ${meta.unit_category}${meta.templateName ? ' · Template: ' + meta.templateName : ' · Manual'} · ${items.length} komponen
+          ${meta.title} · ${meta.unit_category}${meta.templateName ? ' · Template: ' + meta.templateName : ' · Manual'} · ${items.length} baris
+          ${showPrice ? ` · Total awal: <strong>${fmtRp(total)}</strong>` : ''}
         </div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="if(confirm('Batalkan? Data review akan hilang.'))closeAllModals()">&#x2715;</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:12px;color:var(--text3);background:#FEF3C7;border-left:3px solid #F59E0B;padding:8px;border-radius:4px;margin-bottom:1rem">
-        ⚠️ Edit nama, qty, harga, atau note jika perlu. Hapus komponen yg tidak dipakai. Tambah komponen baru bila ada. <strong>Komponen dengan nama baru otomatis ditambah ke Master saat simpan.</strong>
+      <div style="font-size:12px;color:var(--text3);background:#FEF3C7;border-left:3px solid #F59E0B;padding:8px;border-radius:4px">
+        Mode spreadsheet: paste data dari Excel/Google Sheets langsung ke grid, edit banyak baris, tambah/hapus baris-kolom, dan resize kolom seperti spreadsheet.
+        Kolom tambahan akan disimpan di catatan item.
       </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="sect-title" style="margin-bottom:0">Komponen (${items.length})</div>
-        <button class="btn btn-sm" onclick="reviewAddItem()">+ Tambah Komponen</button>
-      </div>
-
-      <div class="table-card"><div class="table-wrap" style="max-height:55vh;overflow-x:auto">
-        <table id="reviewTable" style="min-width:850px">
-          <thead><tr>
-            <th style="width:32px">#</th>
-            <th style="min-width:340px">Nama Komponen</th>
-            <th style="width:60px">Qty</th>
-            <th style="width:55px">Unit</th>
-            ${showPrice ? '<th style="width:120px">Harga</th><th style="width:130px">Subtotal</th>' : ''}
-            <th style="width:160px">Note</th>
-            <th style="width:36px"></th>
-          </tr></thead>
-          <tbody id="reviewTableBody">${renderReviewRows(items, showPrice)}</tbody>
-          ${showPrice ? `<tfoot>
-            <tr style="background:var(--surface2);font-weight:600">
-              <td colspan="5" style="text-align:right">TOTAL</td>
-              <td id="reviewTotal" style="text-align:right">${fmtRp(total)}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tfoot>` : ''}
-        </table>
-      </div></div>
-
-      ${!items.length ? '<div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:13px">Tidak ada komponen. Klik <strong>+ Tambah Komponen</strong> untuk mulai.</div>' : ''}
+      <div id="reviewSheetHost"></div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn" onclick="if(confirm('Kembali ke Step 1? Komponen yg sudah diedit akan hilang.'))openBOMForm(_bomReviewData.meta.opts)">← Kembali</button>
-      <button class="btn btn-primary" onclick="saveBOMFromReview()">✓ Simpan & Buat BOM</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="reviewAddItem()">+ Ambil dari Master</button>
+        <button class="btn btn-primary" onclick="saveBOMFromReview()">✓ Simpan & Buat BOM</button>
+      </div>
     </div>
   </div>`);
+  setTimeout(() => bomSheetRender('review'), 0);
 }
 
+// Legacy renderer kept for compatibility; the active create-BOM UI now uses bomSheetRender('review').
 function renderReviewRows(items, showPrice) {
-  if (!items.length) return '';
-  return items.map((it, idx) => `
-    <tr data-row-id="${it.tmpRowId}">
-      <td style="color:var(--text3);text-align:center">${idx + 1}</td>
-      <td><input type="text" class="rv-cell" data-field="name" value="${(it.name || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','name',this.value)" style="width:100%;padding:5px 8px;font-size:13px;font-weight:500" title="${(it.name || '').replace(/"/g, '&quot;')}" placeholder="Nama komponen..."></td>
-      <td><input type="number" step="0.001" class="rv-cell" data-field="qty" value="${it.qty}" oninput="reviewUpdateItem('${it.tmpRowId}','qty',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:13px;text-align:right"></td>
-      <td><input type="text" class="rv-cell" data-field="unit" value="${it.unit || 'pcs'}" oninput="reviewUpdateItem('${it.tmpRowId}','unit',this.value)" style="width:100%;padding:4px 6px;font-size:12px"></td>
-      ${showPrice ? `
-        <td><input type="number" step="0.01" class="rv-cell" data-field="unit_price" value="${it.unit_price || 0}" oninput="reviewUpdateItem('${it.tmpRowId}','unit_price',parseFloat(this.value)||0)" style="width:100%;padding:4px 6px;font-size:11px;text-align:right;font-variant-numeric:tabular-nums"></td>
-        <td class="rv-subtotal" style="font-weight:600;font-size:13px;text-align:right;font-variant-numeric:tabular-nums">${fmtRp((it.qty || 0) * (it.unit_price || 0))}</td>
-      ` : ''}
-      <td><input type="text" class="rv-cell" data-field="note" value="${(it.note || '').replace(/"/g, '&quot;')}" oninput="reviewUpdateItem('${it.tmpRowId}','note',this.value)" style="width:100%;padding:4px 6px;font-size:11px;color:var(--text2)" title="${(it.note || '').replace(/"/g, '&quot;')}"></td>
-      <td style="text-align:center"><button class="btn btn-sm btn-ghost" onclick="reviewRemoveItem('${it.tmpRowId}')" style="color:var(--red);padding:4px 8px" title="Hapus">✕</button></td>
-    </tr>`).join('');
+  return '';
 }
 
 function reviewUpdateItem(rowId, field, value) {
@@ -8221,6 +8452,7 @@ function findMasterByName(name) {
 }
 
 async function saveBOMFromReview() {
+  bomApplyReviewExtraToNotes();
   const { meta, items } = _bomReviewData;
   if (!items.length) {
     if (!confirm('Belum ada komponen. Lanjutkan menyimpan BOM kosong?')) return;
@@ -8462,46 +8694,53 @@ function bdRenderTab() {
 }
 
 // ── TAB BOM ────────────────────────────────────────────────────
+
 function bdRenderBOMTab(el) {
   const d        = bomDetail.data;
   const items    = (d.bom_items||[]).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const showPrice= can('nilai_po');
   const canManage= can('bom_manage');
   const total    = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+  const groups   = groupItemsBySection(items);
 
-  // Group by section (pakai pkGrup — split by '|', ambil bagian pertama)
-  const grups = [], grupMap = {};
-  items.forEach(it => {
-    const g = pkGrup(it.note);
-    if (!grupMap[g]) { grupMap[g] = []; grups.push(g); }
-    grupMap[g].push(it);
-  });
+  if (canManage) {
+    bomDetailState(showPrice);
+    el.innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <div style="flex:1;font-size:12px;color:var(--text3)">
+          <strong style="color:var(--text)">Edit BOM Spreadsheet</strong>
+          &nbsp;·&nbsp; ${items.length} komponen
+          &nbsp;·&nbsp; ${groups.length} grup
+          ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
+        </div>
+        <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
+        <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',false)">📊 Excel</button>
+        <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',true)">🖨 Print +harga</button>
+        <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',false)">🖨 Print</button>
+      </div>
+      <div style="font-size:12px;color:var(--text3);background:var(--blue-bg);border-left:3px solid var(--blue);padding:8px;border-radius:4px;margin-bottom:.75rem">
+        Klik cell untuk edit langsung. Bisa copy-paste dari Excel, tambah/hapus baris, tambah/hapus kolom, dan geser batas kolom untuk memperbesar/mengecilkan. Klik <strong>Simpan Perubahan</strong> setelah selesai.
+      </div>
+      <div id="bdSheetHost"></div>`;
+    setTimeout(() => bomSheetRender('detail'), 0);
+    return;
+  }
 
-  // Build rows HTML dengan group header
+  // Read-only view untuk user tanpa akses kelola BOM
   let seq = 1, rowsHtml = '';
-  const numCols = showPrice ? (canManage ? 8 : 7) : (canManage ? 6 : 5);
-
-  grups.forEach(grup => {
-    const gItems    = grupMap[grup];
-    const grupTotal = gItems.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
-
-    // Group header
+  const numCols = showPrice ? 7 : 5;
+  groups.forEach(g => {
+    const grupTotal = g.items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
     rowsHtml += `<tr>
       <td colspan="${numCols}"
         style="background:var(--surface2);font-weight:700;font-size:11px;color:#1F3864;
-               padding:6px 10px;letter-spacing:.04em;
-               border-top:2px solid var(--border2,#CCCAC3);border-bottom:none">
-        📁 ${grup}
-        ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">
-          ${fmtRp(grupTotal)}</span>` : ''}
+               padding:6px 10px;letter-spacing:.04em;border-top:2px solid var(--border2,#CCCAC3);border-bottom:none">
+        📁 ${g.name}
+        ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">${fmtRp(grupTotal)}</span>` : ''}
       </td>
     </tr>`;
-
-    gItems.forEach(it => {
-      // Sub-note: buang prefix grup dari kolom note
-      const noteRaw  = (it.note||'');
-      const subNote  = noteRaw.includes('|') ? noteRaw.split('|').slice(1).join('|').trim() : '';
-
+    g.items.forEach(it => {
+      const subNote = extractSubNote(it.note);
       rowsHtml += `<tr>
         <td style="color:var(--text3);text-align:center">${seq++}</td>
         <td class="mono" style="white-space:normal;word-break:break-all;font-size:11px">${it.part_number||'—'}</td>
@@ -8512,41 +8751,14 @@ function bdRenderBOMTab(el) {
           <td style="text-align:right">${fmtRp(it.unit_price)}</td>
           <td style="text-align:right;font-weight:600">${fmtRp(it.qty*(it.unit_price||0))}</td>` : ''}
         <td style="font-size:11px;color:var(--text2);white-space:normal;word-break:break-word">${subNote||'—'}</td>
-        ${canManage ? `<td style="white-space:nowrap;text-align:center">
-          <button class="btn btn-sm" onclick="openBOMEditItem(${it.id},'${d.id}')">✎</button>
-          <button class="btn btn-sm btn-ghost" onclick="deleteBOMItem(${it.id},'${d.id}')">✕</button>
-        </td>` : ''}
       </tr>`;
     });
-
-    // Sub-total row per grup
-    if (showPrice) {
-      rowsHtml += `<tr style="background:var(--lyellow,#FFF2CC)">
-        <td colspan="${canManage?6:5}" style="text-align:right;font-size:12px;
-          font-weight:600;color:var(--yellow,#7F4A00);padding:4px 10px">
-          Sub Total ${grup}
-        </td>
-        <td style="text-align:right;font-weight:700;color:var(--yellow,#7F4A00);
-          font-size:12px">${fmtRp(grupTotal)}</td>
-        ${canManage?'<td></td><td></td>':'<td></td>'}
-      </tr>`;
-    }
   });
 
-  // Grand total row
-  const grandRow = showPrice && items.length ? `
-    <tr style="background:var(--text);color:#fff">
-      <td colspan="${canManage?6:5}" style="text-align:right;font-weight:700;
-        font-size:13px;padding:7px 10px;color:#fff">GRAND TOTAL</td>
-      <td style="text-align:right;font-weight:700;font-size:13px;color:#fff">${fmtRp(total)}</td>
-      ${canManage?'<td></td><td></td>':'<td></td>'}
-    </tr>` : '';
-
   el.innerHTML = `
-    <!-- toolbar -->
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
       <div style="flex:1;font-size:12px;color:var(--text3)">
-        ${items.length} komponen &nbsp;·&nbsp; ${grups.length} grup
+        ${items.length} komponen &nbsp;·&nbsp; ${groups.length} grup
         ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
       </div>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
@@ -8554,31 +8766,16 @@ function bdRenderBOMTab(el) {
       <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',true)">🖨 Print +harga</button>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMPrint('${d.id}',false)">🖨 Print</button>
     </div>
-
-    <div class="table-card">
-      <div class="table-wrap">
-        <table style="table-layout:auto">
-          <thead style="position:sticky;top:0;z-index:5">
-            <tr>
-              <th style="width:36px">#</th>
-              <th style="min-width:80px">Part No.</th>
-              <th style="min-width:220px">Nama Komponen</th>
-              <th style="width:50px;text-align:right">Qty</th>
-              <th style="width:48px">Unit</th>
-              ${showPrice ? '<th style="width:128px;text-align:right">Harga Sat.</th><th style="width:128px;text-align:right">Subtotal</th>' : ''}
-              <th style="min-width:100px">Keterangan</th>
-              ${canManage ? '<th style="width:76px"></th>' : ''}
-            </tr>
-          </thead>
-          <tbody>
-            ${items.length ? rowsHtml + grandRow
-              : `<tr><td colspan="${numCols}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
+    <div class="table-card"><div class="table-wrap"><table style="table-layout:auto">
+      <thead style="position:sticky;top:0;z-index:5"><tr>
+        <th style="width:36px">#</th><th style="min-width:80px">Part No.</th><th style="min-width:220px">Nama Komponen</th>
+        <th style="width:50px;text-align:right">Qty</th><th style="width:48px">Unit</th>
+        ${showPrice ? '<th style="width:128px;text-align:right">Harga Sat.</th><th style="width:128px;text-align:right">Subtotal</th>' : ''}
+        <th style="min-width:100px">Keterangan</th>
+      </tr></thead>
+      <tbody>${items.length ? rowsHtml : `<tr><td colspan="${numCols}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen</td></tr>`}</tbody>
+    </table></div></div>`;
 }
-
 
 // ══════════════════════════════════════════════════════════════
 // TAB PK — MULTI PK PER BOM
@@ -8594,6 +8791,8 @@ const pkState = {
 
 // helper: ambil nama grup dari field note
 function pkGrup(note) {
+  if (!note) return 'Lainnya';
+  note = bomStripExtra(note);
   if (!note) return 'Lainnya';
   return (note.split('|')[0] || note).trim();
 }
@@ -9175,7 +9374,7 @@ async function pkPrintDetail(pkId) {
     .hdr-left .sub{font-size:8pt;color:#555;line-height:1.6}
     .hdr-right{text-align:right;font-size:8pt;color:#555;line-height:1.8}
     .hdr-right strong{color:#1F3864}
-    table{width:100%;border-collapse:collapse;margin-top:7px;font-size:8.8pt}
+    table{border-collapse:collapse;margin-top:7px;font-size:8.8pt}
     thead tr{background:#1F3864}
     thead th{color:#fff;padding:5px 7px;font-size:8pt;font-weight:600;text-align:left}
     td{padding:3.5px 7px;border-bottom:1px solid #EDF0F5;vertical-align:middle}
@@ -9383,7 +9582,7 @@ function bdPKPrint() {
     .hdr-left .sub{font-size:8pt;color:#555;line-height:1.5}
     .hdr-right{text-align:right;font-size:8pt;color:#555;line-height:1.7}
     .hdr-right strong{color:#1F3864}
-    table{width:100%;border-collapse:collapse;margin-top:7px;font-size:8.8pt}
+    table{border-collapse:collapse;margin-top:7px;font-size:8.8pt}
     thead tr{background:#1F3864}
     thead th{color:#fff;padding:5px 7px;font-size:8pt;font-weight:600;text-align:left;border:none}
     td{padding:3.5px 7px;border-bottom:1px solid #EDF0F5;vertical-align:middle}
@@ -9680,6 +9879,7 @@ function extractSubNote(note) {
 function cleanSubNote(s) {
   if (!s) return '';
   let out = String(s)
+    .replace(/\[BOM_EXTRA_JSON\][\s\S]*?\[\/BOM_EXTRA_JSON\]/gi, '')
     .replace(/^\s*Generated:\s*/i, '')
     .replace(/\[OVERRIDDEN\]\s*/gi, '')
     .replace(/^\s*Inline edit by [^\n]*$/gim, '')
@@ -9967,7 +10167,7 @@ async function exportBOMPrint(bomId, withPrice) {
       .header{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
       .meta{display:grid;grid-template-columns:110px 1fr 110px 1fr;gap:3px 10px;font-size:10px;margin-bottom:10px}
       .meta .k{color:#666}
-      table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+      table{border-collapse:collapse;margin-top:6px;table-layout:fixed}
       th,td{border:1px solid #999;padding:4px 5px;text-align:left;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word}
       th{background:#2C3E50;color:#fff;font-size:9px;text-transform:uppercase;text-align:center}
       td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
