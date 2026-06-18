@@ -124,13 +124,23 @@ tr:hover td{background:var(--bg);cursor:pointer}
 table td{vertical-align:top;line-height:1.4}
 
 /* ── Tabel: data tampil utuh + scrollable horizontal ── */
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-}
-.table-card table{width:auto;min-}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.table-card table{width:auto;min-width:100%}
 .table-card thead th,
 .table-card tbody td{white-space:nowrap}
 /* Expand/detail row (colspan) — allow wrap karena isi multi-line */
 .table-card tbody tr[class*="-detail-row"] td,
 .table-card tbody td[colspan]:not([colspan="1"]){white-space:normal;word-break:break-word}
+
+/* ── Column resize handle ── */
+.table-card thead th{position:relative}
+.table-card thead th::after{
+  content:'';position:absolute;top:0;right:0;width:8px;height:100%;
+  cursor:col-resize;background:transparent;touch-action:none;z-index:5
+}
+.table-card thead th:hover::after{background:rgba(59,130,246,.2)}
+.table-card thead th.col-resizing::after{background:rgba(59,130,246,.5)}
+body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important;user-select:none !important}
 /* Grouped table rows */
 .group-row td{background:var(--surface2);font-weight:600;cursor:pointer;user-select:none;padding:8px 10px}
 .group-row:hover td{background:var(--bg)}
@@ -6646,6 +6656,143 @@ async function saveUser(editId) {
     setTimeout(() => toast('💡 Tip: isi No. WA agar bisa kirim credential otomatis'), 800);
   }
 }
+
+// ── Column Resize (event delegation, berlaku ke semua tabel .table-card) ──
+(function setupColumnResize() {
+  const STORAGE_KEY = 'panel_col_widths_v1';
+  let _resizing = null;
+  let _moved = false;
+
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function saveAll(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch (e) { /* ignore quota errors */ }
+  }
+  // Identifier tabel: id, data-tbl, atau fallback berdasarkan header texts
+  function getTableKey(table) {
+    if (table.id) return 'id:' + table.id;
+    if (table.dataset.tbl) return 'dt:' + table.dataset.tbl;
+    const tbody = table.querySelector('tbody[data-tbl]');
+    if (tbody?.dataset.tbl) return 'tb:' + tbody.dataset.tbl;
+    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim().substring(0,12)).join('|');
+    return 'h:' + headers;
+  }
+  function applyWidths(table) {
+    if (!table.closest('.table-card')) return;
+    const key = getTableKey(table);
+    const all = loadAll();
+    const widths = all[key];
+    if (!widths) return;
+    table.querySelectorAll('thead th').forEach((th, idx) => {
+      const w = widths[idx];
+      if (w && w > 30) {
+        th.style.width = w + 'px';
+        th.style.minWidth = w + 'px';
+      }
+    });
+  }
+  function saveWidth(th) {
+    const table = th.closest('table');
+    if (!table) return;
+    const key = getTableKey(table);
+    const idx = Array.from(th.parentElement.children).indexOf(th);
+    const all = loadAll();
+    if (!all[key]) all[key] = {};
+    all[key][idx] = th.offsetWidth;
+    saveAll(all);
+  }
+
+  function getX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+
+  function onStart(e) {
+    const x = getX(e);
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const elem = e.touches ? document.elementFromPoint(x, y) : e.target;
+    const th = elem?.closest?.('th');
+    if (!th) return;
+    if (!th.closest('.table-card')) return;
+    const rect = th.getBoundingClientRect();
+    if (rect.right - x > 8) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _resizing = { th, startX: x, startW: th.offsetWidth };
+    _moved = false;
+    th.classList.add('col-resizing');
+    document.body.classList.add('col-resizing-active');
+  }
+
+  function onMove(e) {
+    if (!_resizing) return;
+    const x = getX(e);
+    const delta = x - _resizing.startX;
+    if (Math.abs(delta) > 2) _moved = true;
+    const newW = Math.max(50, _resizing.startW + delta);
+    _resizing.th.style.width = newW + 'px';
+    _resizing.th.style.minWidth = newW + 'px';
+    if (e.cancelable) e.preventDefault();
+  }
+
+  function onEnd() {
+    if (!_resizing) return;
+    const th = _resizing.th;
+    th.classList.remove('col-resizing');
+    document.body.classList.remove('col-resizing-active');
+    if (_moved) {
+      saveWidth(th); // ── PERSIST ──
+      // Block next click (cegah trigger sort header)
+      const blocker = (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        document.removeEventListener('click', blocker, true);
+      };
+      document.addEventListener('click', blocker, true);
+      setTimeout(() => document.removeEventListener('click', blocker, true), 50);
+    }
+    _resizing = null;
+  }
+
+  document.addEventListener('mousedown', onStart);
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchstart', onStart, { passive: false });
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onEnd);
+
+  // ── Auto-apply saved widths saat tabel baru di-render ──
+  const observer = new MutationObserver(mutations => {
+    const tables = new Set();
+    mutations.forEach(m => {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.tagName === 'TABLE') tables.add(node);
+        node.querySelectorAll?.('table').forEach(t => tables.add(t));
+        // Juga deteksi kalau tbody diubah (innerHTML)
+        if (node.tagName === 'TBODY' || node.tagName === 'TR') {
+          const tbl = node.closest?.('table');
+          if (tbl) tables.add(tbl);
+        }
+      });
+    });
+    tables.forEach(applyWidths);
+  });
+  // Mulai observe setelah DOM ready
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+
+  // Expose untuk debug / reset (panggil dari console: window.resetColWidths())
+  window.resetColWidths = function() {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  };
+})();
 
 // ── Helper untuk WA ──
 function normalizeWA(raw) {
