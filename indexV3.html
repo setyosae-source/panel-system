@@ -8735,6 +8735,11 @@ function bomRawItem(section, name, specText, qty, unit, category, tokens, note, 
   return { section, name, specText, qty: qty || 1, unit: unit || 'pcs', category: category || 'Lainnya', tokens: tokens || [], note: note || '', flags };
 }
 // ── Tabel Jembo NYAF + Phoenix WDU/WPE/WFF/WAH per CB rating ──
+// ══════════════════════════════════════════════════════════════
+// TABEL REFERENSI JEMBO NYAF + PHOENIX CONTACT TERMINAL
+// Basis: CB rating → NYAF mm² + Terminal WDU/WFF/WAH
+// Ref: Jembo SPLN 42-3:1992, SNI 04-3236, IEC 60227-3
+// ══════════════════════════════════════════════════════════════
 const BOM_JEMBO_TABLE = [
   { maxA:14,  nyaf:'2.5', terminal:'WDU 4',   pe:'WPE 4'   },
   { maxA:24,  nyaf:'4',   terminal:'WDU 6',   pe:'WPE 4'   },
@@ -8749,50 +8754,82 @@ const BOM_JEMBO_TABLE = [
   { maxA:233, nyaf:'120', terminal:'WFF 120', pe:'WAH 120' },
 ];
 function bomJemboLookup(cbRating) {
-  return BOM_JEMBO_TABLE.find(r => cbRating <= r.maxA) || null; // null = custom
+  return BOM_JEMBO_TABLE.find(r => cbRating <= r.maxA) || null;
 }
-function bomCbBrand(cbRating) {
-  // Schneider: ≤63A → A9F74xxx (tipe C), 64-125A → C120N/C100N, >125A → EZC100H/MCCB
-  if (cbRating <= 63) return `Schneider A9F74 ${cbRating}A`;
-  if (cbRating <= 125) return `Schneider C120N ${cbRating}A`;
-  return `MCCB EZC100H ${cbRating}A`;
+// Lookup kabel dari arus aktual (untuk kabel trafo secondary → modul, direct wiring)
+function bomJemboLookupByAmps(ampere) {
+  const tbl = [
+    {maxA:14,nyaf:'2.5'},{maxA:20,nyaf:'4'},{maxA:27,nyaf:'6'},
+    {maxA:36,nyaf:'10'},{maxA:48,nyaf:'16'},{maxA:62,nyaf:'25'},
+    {maxA:80,nyaf:'35'},{maxA:101,nyaf:'50'},{maxA:133,nyaf:'70'},
+    {maxA:158,nyaf:'95'},{maxA:185,nyaf:'120'},{maxA:999,nyaf:'custom'},
+  ];
+  return tbl.find(r => ampere <= r.maxA) || {nyaf:'custom'};
 }
-function bomAddCableAndTerminal(raw, section, label, phase, cbRating, qty, note) {
+// Induktor mH: praktis 1mH per 20A, std values, min 1mH
+function bomInduktorMH(idcA) {
+  const stdMH = [1,2,4,5,8,10,15,20];
+  const mh = Math.max(1, Math.round(20 / Math.max(1,idcA) * 10) / 10);
+  return stdMH.find(v => v >= mh) || 20;
+}
+function bomCbBrand(cbRating, poles) {
+  const p = poles || '2P';
+  if (cbRating <= 63) return `Schneider iC60N ${p} ${cbRating}A Curve C`;
+  if (cbRating <= 125) return `Schneider C120N ${p} ${cbRating}A`;
+  return `MCCB Schneider EZC100H ${p} ${cbRating}A`;
+}
+// Terminal hanya di incoming AC dan outgoing DC — dengan kabel + terminal + PE
+function bomAddCableWithTerminal(raw, section, label, phase, cbRating, qty, note) {
   const lut = bomJemboLookup(cbRating);
-  const cores = phase === '3P' ? '4×' : '2×';
+  const cores = phase === '3P' ? '4\u00d7' : '2\u00d7';
   const nyaf = lut ? lut.nyaf : 'custom';
   const term = lut ? lut.terminal : 'WFF custom';
-  const pe   = lut ? lut.pe : 'WAH custom';
-  const qtyStr = qty > 1 ? ` × ${qty}` : '';
-  raw.push(bomRawItem(section, `Kabel NYAF ${cores}${nyaf}mm² (${label})`, `CB ${cbRating}A → NYAF ${nyaf}mm²`, qty, 'lot', 'Cable', ['nyaf',`${nyaf}mm`,label.toLowerCase()], `${note} — ref: CB ${cbRating}A → NYAF ${nyaf}mm² (Jembo)`));
-  raw.push(bomRawItem(section, `Terminal Phoenix ${term} (${label})`, `${term}${qtyStr}`, qty, 'set', 'Terminal', ['terminal',term.toLowerCase().replace(' ',''),label.toLowerCase()], `${note} — ref: CB ${cbRating}A → ${term}`));
-  if (pe) raw.push(bomRawItem(section, `Terminal PE ${pe} (${label})`, pe, 1, 'pcs', 'Terminal', ['terminal pe',pe.toLowerCase().replace(' ','')], `Grounding terminal ${label}`));
+  const pe = lut ? lut.pe : 'WAH custom';
+  raw.push(bomRawItem(section, `Kabel NYAF ${cores}${nyaf}mm\u00b2 \u2014 ${label}`,
+    `CB ${cbRating}A \u2192 NYAF ${nyaf}mm\u00b2 (Jembo)`, qty, 'lot', 'Cable',
+    ['nyaf',`${nyaf}mm`,label.toLowerCase()], `${note} \u2014 Jembo ref CB ${cbRating}A`));
+  raw.push(bomRawItem(section, `TB ${term} \u2014 ${label}`,
+    term, qty, 'set', 'Terminal',
+    ['terminal',term.toLowerCase().replace(' ','')], `ref CB ${cbRating}A \u2192 ${term}`));
+  raw.push(bomRawItem(section, `TB PE ${pe} \u2014 ${label}`,
+    pe, 1, 'pcs', 'Terminal', ['terminal pe',pe.toLowerCase().replace(' ','')], `Grounding terminal ${label}`));
 }
-
-// ── Fan kabin sizing dari P_loss ──
+function bomAddDCCableWithTerminal(raw, section, label, cbRating, qty, note) {
+  const lut = bomJemboLookup(cbRating);
+  const nyaf = lut ? lut.nyaf : 'custom';
+  const term = lut ? lut.terminal : 'WFF custom';
+  const pe = lut ? lut.pe : 'WAH custom';
+  raw.push(bomRawItem(section, `Kabel NYAF 2\u00d7${nyaf}mm\u00b2 \u2014 ${label}`,
+    `CB ${cbRating}A \u2192 NYAF ${nyaf}mm\u00b2 (Jembo)`, qty, 'lot', 'Cable',
+    ['nyaf',`${nyaf}mm`,label.toLowerCase(),'dc'], `${note} \u2014 Jembo ref CB ${cbRating}A`));
+  raw.push(bomRawItem(section, `TB ${term} \u2014 ${label}`,
+    term, qty, 'set', 'Terminal',
+    ['terminal',term.toLowerCase().replace(' ',''),'dc'], `ref CB ${cbRating}A \u2192 ${term}`));
+  raw.push(bomRawItem(section, `TB PE ${pe} \u2014 ${label}`,
+    pe, 1, 'pcs', 'Terminal', ['terminal pe',pe.toLowerCase().replace(' ',''),'dc'], `Grounding ${label}`));
+}
+// Kabel trafo secondary ke modul: DIRECT (no terminal), sizing dari I_sec
+function bomAddTrafoSecCable(raw, section, kvaTrafo, voltSec, phaseSec, note) {
+  const iSec = (kvaTrafo * 1000) / (phaseSec === '3P' ? Math.sqrt(3) * voltSec : voltSec);
+  const lut = bomJemboLookupByAmps(iSec);
+  const cores = phaseSec === '3P' ? '4\u00d7' : '2\u00d7';
+  raw.push(bomRawItem(section, `Kabel NYAF ${cores}${lut.nyaf}mm\u00b2 \u2014 Trafo Secondary ke Modul (Direct, No Terminal)`,
+    `I_sec=${iSec.toFixed(1)}A \u2192 NYAF ${lut.nyaf}mm\u00b2`, 1, 'lot', 'Cable',
+    ['nyaf',`${lut.nyaf}mm`,'trafo secondary','direct'],
+    `${note} \u2014 I_sec=${kvaTrafo}kVA/(${phaseSec==='3P'?'\u221a3\u00d7':''}${voltSec}V)=${iSec.toFixed(1)}A, direct wiring no terminal`));
+}
+// Fan kabin: Q(CFM) = P_loss/(1.76 \u00d7 \u0394T), \u0394T=10\u00b0C
 function bomFanCabin(pLossW) {
-  // P_loss = heat yang harus dibuang dari kabin
-  // Fan airflow rule of thumb berbasis P_loss:
-  // Airflow (CFM) ≈ P_loss(W) / (1.76 × ΔT°C), target ΔT = 10°C
-  // Fan kapasitas approx: 4"~30CFM, 6"~80CFM, 8"~170CFM, 10"~300CFM
   const cfmNeeded = pLossW / (1.76 * 10);
   const fans = [];
-  if (cfmNeeded <= 30) {
-    fans.push({ size: '4"', qty: 1 });
-  } else if (cfmNeeded <= 80) {
-    fans.push({ size: '6"', qty: 1 });
-  } else if (cfmNeeded <= 160) {
-    fans.push({ size: '6"', qty: 2 });
-  } else if (cfmNeeded <= 170) {
-    fans.push({ size: '8"', qty: 1 });
-  } else if (cfmNeeded <= 300) {
-    fans.push({ size: '8"', qty: 2 });
-  } else if (cfmNeeded <= 340) {
-    fans.push({ size: '10"', qty: 1 });
-  } else {
-    fans.push({ size: '10"', qty: Math.ceil(cfmNeeded / 300) });
-  }
-  return { fans, cfmNeeded: Math.round(cfmNeeded) };
+  if      (cfmNeeded <= 30)  fans.push({size:'4"',qty:1});
+  else if (cfmNeeded <= 80)  fans.push({size:'6"',qty:1});
+  else if (cfmNeeded <= 160) fans.push({size:'6"',qty:2});
+  else if (cfmNeeded <= 170) fans.push({size:'8"',qty:1});
+  else if (cfmNeeded <= 300) fans.push({size:'8"',qty:2});
+  else if (cfmNeeded <= 340) fans.push({size:'10"',qty:1});
+  else fans.push({size:'10"',qty:Math.ceil(cfmNeeded/300)});
+  return {fans, cfmNeeded:Math.round(cfmNeeded)};
 }
 
 function bomBaseGeneratedRawItems(spec) {
@@ -8800,180 +8837,245 @@ function bomBaseGeneratedRawItems(spec) {
   const raw = [];
   const t = spec.unitType;
   const vdc = spec.dcBus || 110;
-  const idc = spec.capacity; // A (untuk rectifier unit A)
-  const pLossW = Math.round(vdc * (spec.capacityUnit === 'A' ? spec.capacity : e.dcA) * (1 - (spec.eff||0.9)) / (spec.eff||0.9));
+  const idcA = spec.capacityUnit === 'A' ? spec.capacity : Math.round(e.dcA);
+  const pLossW = Math.round(vdc * idcA * (1-(spec.eff||0.9)) / (spec.eff||0.9));
 
-  // ════════════════════════════════════════════
-  // SECTION 1: AC INPUT
-  // MCB Input: dinaikkan untuk inrush trafo → next std dari inputA × 1.5
-  // ════════════════════════════════════════════
-  const inputBrInrush = bomNextStd(BOM_STD_BREAKERS, e.inputA * 1.5);
-  raw.push(bomRawItem('AC Input', `${bomCbBrand(inputBrInrush)} ${spec.inputPhase} (MCB Input)`,
-    `${spec.inputPhase} ${spec.inputVoltage}VAC — I=${e.inputA.toFixed(1)}A → MCB ${inputBrInrush}A (inrush×1.5)`,
-    1, 'pcs', 'Breaker', ['mcb','schneider','a9f74','input',`${inputBrInrush}a`],
-    `I_input=${e.inputA.toFixed(1)}A × 1.5 inrush = ${(e.inputA*1.5).toFixed(1)}A → next std ${inputBrInrush}A`));
-  raw.push(bomRawItem('AC Input', `Auxiliary Contact MCB Input (OF/SD)`,
-    `Untuk MCB ${inputBrInrush}A`, 1, 'pcs', 'Auxiliary', ['auxiliary','aux','of','sd','input'],
-    'Wajib — status & remote trip MCB input'));
-  raw.push(bomRawItem('AC Input', `Varistor / MOV ${spec.inputVoltage}VAC ${spec.inputPhase}`,
-    `${spec.inputPhase} ${spec.inputVoltage}VAC`, spec.inputPhase === '3P' ? 3 : 1, 'pcs', 'Varistor',
-    ['varistor','mov',`${spec.inputVoltage}v`], 'Proteksi surge parallel trafo input'));
-  bomAddCableAndTerminal(raw, 'AC Input', 'AC Input ke Trafo', spec.inputPhase, inputBrInrush, 1,
-    'Kabel sebelum trafo');
-
-  // ════════════════════════════════════════════
-  // SECTION 2: TRAFO RECTIFIER
-  // ════════════════════════════════════════════
-  const trafoKva = bomNextStd(BOM_STD_TRAFO_KVA, e.kva * 1.1);
-  raw.push(bomRawItem('Trafo Rectifier', `Trafo Rectifier ${spec.inputPhase} ${spec.inputVoltage}VAC / secondary ${vdc}V ${trafoKva}kVA`,
-    `${spec.inputVoltage}VAC → ${vdc}VDC side, ${trafoKva}kVA`,
-    1, 'unit', 'Transformer', ['trafo','rectifier','transformer',`${trafoKva}kva`],
-    `Sizing: kVA = ${vdc}V × ${e.dcA.toFixed(1)}A / (η${spec.eff}) × 1.1 = ${trafoKva}kVA`));
-  // Kabel output trafo ke modul rectifier (sama rating dengan input)
-  bomAddCableAndTerminal(raw, 'Trafo Rectifier', 'Output Trafo ke Modul', spec.inputPhase, inputBrInrush, 1,
-    'Kabel AC output trafo menuju modul rectifier');
-
-  // ════════════════════════════════════════════
-  // SECTION 3: MODUL RECTIFIER + DC FILTER
-  // ════════════════════════════════════════════
-  raw.push(bomRawItem('Rectifier Module', `Rectifier Module ${vdc}VDC ${spec.capacityUnit === 'A' ? spec.capacity : e.dcA.toFixed(0)}A`,
-    `${vdc}VDC ${e.dcA.toFixed(1)}A`, 1, 'unit', 'Rectifier',
-    ['rectifier','module',`${vdc}v`,`${e.dcA.toFixed(0)}a`], 'Main rectifier module'));
-  raw.push(bomRawItem('Rectifier Module', `Induktor DC Filter / Smoothing Choke ${vdc}VDC ${e.dcA.toFixed(0)}A`,
-    `${vdc}VDC ${e.dcA.toFixed(0)}A`, 1, 'pcs', 'Inductor',
-    ['induktor','inductor','choke','filter','dc',`${e.dcA.toFixed(0)}a`],
-    'Series output modul rectifier — smoothing ripple DC'));
-  raw.push(bomRawItem('Rectifier Module', `Elco / Capacitor DC Filter ${vdc}VDC`,
-    `${vdc}VDC, nilai µF sesuai ripple spec`, 1, 'set', 'Capacitor',
-    ['elco','capacitor','dc filter',`${vdc}v`],
-    'Parallel output modul rectifier — DC filtering'));
-
-  // ════════════════════════════════════════════
-  // SECTION 4: DC OUTPUT — MCB Load & Battery
-  // MCB Load & Battery: TEPAT di rating kapasitas, tidak dinaikkan
-  // Battery MCB = kapasitas rectifier (backup 100% load)
-  // ════════════════════════════════════════════
-  const dcCapA = spec.capacityUnit === 'A' ? spec.capacity : Math.round(e.dcA);
-  // Tidak pakai bomNextStd — pakai exact rating
-  const mcbDcExact = BOM_STD_BREAKERS.find(b => b >= dcCapA) || dcCapA;
-
-  // Kabel DC output modul → ke induktor, elco, MCB battery, MCB load
-  bomAddCableAndTerminal(raw, 'DC Output', 'DC Output Modul', 'DC', mcbDcExact, 1,
-    'Kabel DC dari modul ke induktor, elco, dan breaker distribusi');
-
-  raw.push(bomRawItem('DC Output', `${bomCbBrand(mcbDcExact)} DC 2P ${vdc}VDC (MCB Load)`,
-    `${vdc}VDC — rating tepat ${mcbDcExact}A (proteksi load)`,
-    1, 'pcs', 'Breaker', ['mcb','dc','load',`${mcbDcExact}a`,`${vdc}v`],
-    `Rating TEPAT ${mcbDcExact}A — tidak dinaikkan (proteksi sesuai kapasitas)`));
-  raw.push(bomRawItem('DC Output', `Auxiliary Contact MCB Load DC (OF/SD)`,
-    `Untuk MCB Load ${mcbDcExact}A`, 1, 'pcs', 'Auxiliary',
-    ['auxiliary','aux','of','sd','load'], 'Wajib — status MCB load DC'));
-  bomAddCableAndTerminal(raw, 'DC Output', 'DC ke Load', 'DC', mcbDcExact, 1,
-    'Kabel DC output ke load/beban');
-
-  raw.push(bomRawItem('DC Output', `${bomCbBrand(mcbDcExact)} DC 2P ${vdc}VDC (MCB Battery)`,
-    `${vdc}VDC — rating tepat ${mcbDcExact}A (backup 100% load)`,
-    1, 'pcs', 'Breaker', ['mcb','dc','battery',`${mcbDcExact}a`,`${vdc}v`],
-    `Rating TEPAT ${mcbDcExact}A — battery harus mampu supply 100% load capacity`));
-  raw.push(bomRawItem('DC Output', `Auxiliary Contact MCB Battery DC (OF/SD)`,
-    `Untuk MCB Battery ${mcbDcExact}A`, 1, 'pcs', 'Auxiliary',
-    ['auxiliary','aux','of','sd','battery'], 'Wajib — status MCB battery DC'));
-  bomAddCableAndTerminal(raw, 'DC Output', 'DC ke Battery', 'DC', mcbDcExact, 1,
-    'Kabel DC ke battery bank');
-
-  // ════════════════════════════════════════════
-  // SECTION 5: BATTERY (opsional)
-  // ════════════════════════════════════════════
-  if (spec.withBattery && spec.batteryAh) {
-    const cellCount = spec.batteryCell || 0;
-    const strings = spec.batteryString || 1;
-    raw.push(bomRawItem('Battery', `Battery VRLA ${vdc}VDC ${spec.batteryAh}Ah`,
-      `${cellCount ? cellCount + ' cell' : 'cell TBD'} × ${strings} string`,
-      cellCount * strings || 1, 'pcs', 'Battery',
-      ['battery','vrla',`${spec.batteryAh}ah`,`${vdc}v`],
-      `${cellCount} cell × ${strings} string — cek konfigurasi cell voltage vs ${vdc}VDC`));
-    raw.push(bomRawItem('Battery', `Battery Rack / Stand`,
-      `Untuk ${cellCount * strings || 1} unit battery`, 1, 'unit', 'Battery Rack',
-      ['battery rack','stand','rak baterai'], 'Support struktur battery'));
-    raw.push(bomRawItem('Battery', `Inter-cell Cable Set (kabel antar battery)`,
-      `${vdc}VDC, sesuai CB battery ${mcbDcExact}A`, 1, 'lot', 'Cable',
-      ['inter cell','cable','antar battery'], 'Kabel penghubung antar cell/string'));
+  // ── HELPER: enclosure items yang sama untuk semua tipe ──
+  function pushCubicle(typeLabel, fanSizing2) {
+    raw.push(bomRawItem('Cubicle',`Panel Box ${spec.panelType||'Indoor'} \u2014 ${typeLabel}`,spec.panelType||'Indoor',1,'unit','Enclosure',['panel box','enclosure',spec.panelType||'indoor'],'Enclosure utama panel'));
+    raw.push(bomRawItem('Cubicle','Cabin Lamp Philips LED T5 240VAC + Kabel','T5 LED 30CM 240VAC',1,'set','Enclosure Acc',['cabin lamp','philips','led','t5','phillips'],'Penerangan dalam panel'));
+    raw.push(bomRawItem('Cubicle','Omron Microswitch Z-15GQ-B + Rubber Cover','Z-15GQ-B',1,'pcs','Enclosure Acc',['omron','z-15gq','microswitch','door switch'],'Switch lampu per pintu'));
+    for (const f of fanSizing2.fans) {
+      raw.push(bomRawItem('Cubicle',`Axial Fan Salzer ${f.size} 240VAC Ball Bearing + Grill`,`${f.size} 240VAC \u2014 P_loss=${pLossW}W CFM=${fanSizing2.cfmNeeded}`,f.qty,'pcs','Fan',['fan','axial','salzer',f.size,'ball bearing'],`Cabin fan sizing: P_loss ${pLossW}W \u2192 ${fanSizing2.cfmNeeded}CFM \u2192 ${f.qty}\u00d7${f.size}`));
+      raw.push(bomRawItem('Cubicle',`Louvre / Fan Filter ${f.size}`,f.size,f.qty,'pcs','Fan Filter',['louvre','fan filter',f.size],`Filter exhaust fan ${f.size}`));
+    }
+    raw.push(bomRawItem('Cubicle','Louvre Filter Inlet Bawah Depan (Passive)','Passive inlet',1,'pcs','Fan Filter',['louvre','inlet','bawah','passive'],'Inlet udara dari bawah'));
+    const nFan = fanSizing2.fans.reduce((a,f)=>a+f.qty,0);
+    raw.push(bomRawItem('Cubicle','Fuse Holder 10\u00d738 32A + Fuse 2A (Fan)','GAE 10\u00d738 32A + Terno 2A',nFan,'set','Fuse',['fuse holder','fuse','10x38','fan fuse'],`1 set per fan cabin (${nFan} fan)`));
+    raw.push(bomRawItem('Cubicle','Busbar Grounding Panel','Copper grounding bar',1,'pcs','Grounding',['busbar grounding','grounding bar','earth'],'Grounding panel'));
+    raw.push(bomRawItem('Cubicle','Name Plate Package','Label, nameplate, warning sign',1,'lot','Nameplate',['name plate','nameplate','label panel'],'Identifikasi & warning panel'));
+    raw.push(bomRawItem('Cubicle','DIN Rail TS35 + Cable Duct','Internal wiring infra',1,'lot','Mechanical Acc',['din rail','ts35','cable duct','duct'],'Rel & duct wiring internal'));
+  }
+  function pushSupporting() {
+    raw.push(bomRawItem('Supporting','Wiring Accessories Pack (Control, Ferrule, Skun, Baut, RJ45, dll)','1 Paket lengkap',1,'pax','Wiring Acc',['wiring accessories','ferrule','skun','baut','rj45','pax'],'Control wiring, ferrule, skun, baut trafo, baut panel, RJ45, kabel kontrol \u2014 1 Pax'));
+  }
+  function pushOptional() {
+    if (spec.withRelayTerminal) raw.push(bomRawItem('Aksesori','Terminal Phoenix WDU 2.5 (Relay/Control)','WDU 2.5',32,'pcs','Terminal',['terminal','wdu','wdu2.5','relay','control'],'32 pcs terminal kontrol & relay'));
   }
 
-  // ════════════════════════════════════════════
-  // SECTION 6: METERING & INDICATION (opsional)
-  // ════════════════════════════════════════════
-  if (spec.withMetering) {
-    raw.push(bomRawItem('Metering', `Voltmeter DC Panel 0–${Math.round(vdc*1.2)}VDC`,
-      `0–${Math.round(vdc*1.2)}VDC`, 1, 'pcs', 'Meter',
-      ['voltmeter','dc','panel'], 'Monitoring tegangan DC bus'));
-    raw.push(bomRawItem('Metering', `Amperemeter DC Panel 0–${Math.round(dcCapA*1.2)}A`,
-      `0–${Math.round(dcCapA*1.2)}A`, 1, 'pcs', 'Meter',
-      ['amperemeter','dc','panel'], 'Monitoring arus output DC'));
-    raw.push(bomRawItem('Metering', `Pilot Lamp Indikator Power ON`,
-      `220VAC/DC`, 2, 'pcs', 'Indicator',
-      ['pilot lamp','indikator','power'], 'Indikator status panel'));
+  // ════════════════════════════════════════
+  // RECTIFIER / BATTERY CHARGER
+  // Alur: AC Input \u2192 Varistor \u2192 Trafo \u2192 Modul \u2192 Induktor \u2192 Elco
+  //       \u2192 MCB Battery | MCB Load
+  // Terminal: hanya incoming AC dan outgoing DC (Battery & Load)
+  // Ref: Drawing SAE S-PRO1 109-0526
+  // ════════════════════════════════════════
+  if (t === 'Rectifier') {
+    const inputBr = bomNextStd(BOM_STD_BREAKERS, e.inputA * 1.5);
+    const inPoles = spec.inputPhase === '3P' ? '3P' : '2P';
+    const trafoKva = bomNextStd(BOM_STD_TRAFO_KVA, (vdc * idcA / 1000 / (spec.eff||0.9)) * 1.1);
+    const mcbDcA = BOM_STD_BREAKERS.find(b => b >= idcA) || idcA;
+    const inductorMH = bomInduktorMH(idcA);
+    const elcoV = vdc <= 110 ? 200 : (vdc <= 220 ? 400 : 500);
+    const fanSizing = bomFanCabin(pLossW);
+    const dcBusLut = bomJemboLookupByAmps(idcA * 1.25);
+
+    // ── SISTEM ──
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(inputBr,inPoles)} (MCB Input)`,
+      `${spec.inputPhase} ${spec.inputVoltage}VAC \u2014 I=${e.inputA.toFixed(1)}A \u00d71.5 inrush \u2192 ${inputBr}A`,
+      1,'pcs','Breaker',['mcb','schneider','ic60n','input',`${inputBr}a`,'curve c'],
+      `I_input ${e.inputA.toFixed(1)}A \u00d7 1.5 = ${(e.inputA*1.5).toFixed(1)}A \u2192 next std ${inputBr}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','aux','of','sd','a9a26904','input'],'Status & remote trip MCB input'));
+    raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.inputVoltage}VAC`,`EPCOS S20K${spec.inputVoltage<=220?'275':spec.inputVoltage}`,spec.inputPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov','epcos',`${spec.inputVoltage}v`],'Surge protection parallel trafo input'));
+    raw.push(bomRawItem('Sistem',`Trafo Rectifier ${spec.inputPhase} ${spec.inputVoltage}VAC / CT secondary ${vdc}VDC side ${trafoKva}kVA`,
+      `${spec.inputVoltage}VAC \u2192 CT ${vdc}VDC, ${trafoKva}kVA`,
+      1,'unit','Transformer',['trafo','rectifier','transformer',`${trafoKva}kva`],
+      `kVA = ${vdc}V \u00d7 ${idcA}A / \u03b7${spec.eff||0.9} \u00d7 1.1 = ${trafoKva}kVA`));
+    // Output trafo ke modul: DIRECT, sizing dari I_sec trafo
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vdc*0.95,spec.inputPhase,'Trafo secondary \u2192 Modul Rectifier (direct, no terminal)');
+    raw.push(bomRawItem('Sistem',`Rectifier Module ${vdc}VDC ${idcA}A`,`${vdc}VDC ${idcA}A`,1,'unit','Rectifier',['rectifier','module',`${vdc}v`,`${idcA}a`],'Main rectifier/charger module'));
+    raw.push(bomRawItem('Sistem',`Induktor DC Filter ${inductorMH}mH ${idcA}A`,`${inductorMH}mH ${idcA}A`,1,'pcs','Inductor',['induktor','inductor','choke',`${inductorMH}mh`,`${idcA}a`],`Series output modul \u2014 L=${inductorMH}mH, I_rated=${idcA}A`));
+    raw.push(bomRawItem('Sistem',`Elco DC Filter Capacitor 10000\u00b5F ${elcoV}VDC`,`10000\u00b5F ${elcoV}VDC`,2,'pcs','Capacitor',['elco','capacitor','dc filter',`${elcoV}vdc`],`${elcoV}VDC untuk bus ${vdc}VDC \u2014 parallel output modul`));
+    // DC Bus internal (modul ke MCB): direct wiring, sizing dari I_DC
+    raw.push(bomRawItem('Sistem',`Kabel NYAF 2\u00d7${dcBusLut.nyaf}mm\u00b2 \u2014 DC Bus Internal (Modul ke MCB)`,
+      `I_DC=${idcA}A \u2192 NYAF ${dcBusLut.nyaf}mm\u00b2`,1,'lot','Cable',
+      ['nyaf',`${dcBusLut.nyaf}mm`,'dc bus','internal'],
+      'Internal wiring DC dari modul \u2192 induktor, elco, MCB Battery, MCB Load (no terminal)'));
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Load)`,
+      `${vdc}VDC \u2014 rating TEPAT ${mcbDcA}A`,1,'pcs','Breaker',
+      ['mcb','schneider','load','dc',`${mcbDcA}a`,`${vdc}v`],
+      `TEPAT ${mcbDcA}A \u2014 tidak dinaikkan, proteksi sesuai kapasitas load`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Load','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','load','dc'],'Status MCB load'));
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Battery)`,
+      `${vdc}VDC \u2014 TEPAT ${mcbDcA}A (backup 100% load)`,1,'pcs','Breaker',
+      ['mcb','schneider','battery','dc',`${mcbDcA}a`,`${vdc}v`],
+      `TEPAT ${mcbDcA}A \u2014 battery harus mampu supply 100% load capacity`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Battery','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','battery','dc'],'Status MCB battery'));
+    raw.push(bomRawItem('Sistem','SMPS / AC Supply Transformer 220VAC/24VDC','220VAC \u2192 24VDC supply kontrol',1,'pcs','Power Supply',['smps','ac supply','transformer','24vdc'],'Supply PCB control, HMI, relay'));
+    raw.push(bomRawItem('Sistem','Control PCB / HMI Module Rectifier','PCB control + HMI panel',1,'set','Control PCB',['control pcb','hmi','rectifier','board'],'PCB rectifier, relay automation, LCD/HMI panel'));
+    raw.push(bomRawItem('Sistem','RS485 to USB Converter','RS485/USB',1,'pcs','Communication',['rs485','usb','converter','hmi'],'Akses monitoring/setting HMI via software laptop atau PC'));
+    raw.push(bomRawItem('Sistem','Alarm Relay Dry Contact Output','Free contact N.O./N.C.',1,'set','Relay',['alarm','relay','dry contact','free contact'],'Free contact alarm external'));
+
+    // ── AKSESORI: Terminal hanya incoming AC + outgoing DC Battery & Load ──
+    bomAddCableWithTerminal(raw,'Aksesori','AC Incoming (Grid ke Panel)',spec.inputPhase,inputBr,1,'AC incoming dari grid');
+    bomAddDCCableWithTerminal(raw,'Aksesori','DC ke Load',mcbDcA,1,'DC output ke load/beban');
+    bomAddDCCableWithTerminal(raw,'Aksesori','DC ke Battery',mcbDcA,1,'DC ke battery bank');
+    if (spec.withBattery && spec.batteryAh) {
+      const cells=spec.batteryCell||0, strs=spec.batteryString||1;
+      raw.push(bomRawItem('Aksesori',`Battery VRLA ${vdc}VDC ${spec.batteryAh}Ah`,
+        `${cells?cells+' cell':'TBD'} \u00d7 ${strs} string`,cells*strs||1,'pcs','Battery',
+        ['battery','vrla',`${spec.batteryAh}ah`,`${vdc}v`],
+        `${cells} cell \u00d7 ${strs} string \u2014 validasi: ${cells}\u00d7${(vdc/Math.max(1,cells)).toFixed(2)}V/cell vs ${vdc}VDC`));
+      raw.push(bomRawItem('Aksesori','Battery Rack / Stand',`${cells*strs||1} unit`,1,'unit','Battery Rack',['battery rack','stand'],'Support struktur battery'));
+      raw.push(bomRawItem('Aksesori','Inter-cell Cable Set',`${vdc}VDC, MCB ${mcbDcA}A`,1,'lot','Cable',['inter cell','cable','battery'],'Kabel antar cell/string'));
+    }
+    if (spec.withMetering) {
+      raw.push(bomRawItem('Aksesori',`Voltmeter DC Panel 0\u2013${Math.round(vdc*1.2)}VDC`,'',1,'pcs','Meter',['voltmeter','dc','panel'],'Monitoring tegangan DC bus'));
+      raw.push(bomRawItem('Aksesori',`Amperemeter DC Panel 0\u2013${Math.round(idcA*1.2)}A`,'',1,'pcs','Meter',['amperemeter','dc','panel'],'Monitoring arus output'));
+      raw.push(bomRawItem('Aksesori','Pilot Lamp (Power ON, Fault, Battery)','220VAC/DC',3,'pcs','Indicator',['pilot lamp','indikator'],'Indikator status panel'));
+    }
+    pushOptional();
+    pushCubicle(`Rectifier ${vdc}VDC ${idcA}A`, fanSizing);
+    pushSupporting();
+    return raw;
   }
 
-  // ════════════════════════════════════════════
-  // SECTION 7: ENCLOSURE (selalu ada)
-  // ════════════════════════════════════════════
-  raw.push(bomRawItem('Enclosure', `Panel Box ${spec.panelType || 'Indoor'} — Rectifier ${vdc}VDC ${dcCapA}A`,
-    `${spec.panelType}`, 1, 'unit', 'Enclosure',
-    ['panel box','enclosure',spec.panelType||'indoor'], 'Enclosure utama panel'));
-  raw.push(bomRawItem('Enclosure', `Cabin Lamp Philips LED T5 220VAC + Kabel`,
-    `220VAC`, 1, 'set', 'Enclosure Acc',
-    ['cabin lamp','philips','led','t5'], 'Penerangan dalam panel'));
-  raw.push(bomRawItem('Enclosure', `Omron Door Switch Z-15GQ-B + Rubber Cover`,
-    `Per pintu cubicle`, 1, 'set', 'Enclosure Acc',
-    ['omron','switch','z-15gq','door','lamp switch'], 'Switch lampu per pintu'));
+  // ════════════════════════════════════════
+  // UPS — 3 trafo terpisah: Input, Bypass, Output
+  // ════════════════════════════════════════
+  if (t === 'UPS') {
+    const kva=e.kva;
+    const inputBr=bomNextStd(BOM_STD_BREAKERS,e.inputA*1.5);
+    const bypassBr=bomNextStd(BOM_STD_BREAKERS,e.bypassA*1.25);
+    const mcbDcA=BOM_STD_BREAKERS.find(b=>b>=idcA)||idcA;
+    const outCapA=Math.round(e.outputA);
+    const mcbOutA=BOM_STD_BREAKERS.find(b=>b>=outCapA)||outCapA;
+    const feederA=Math.round(e.outputA/(spec.outputFeeders||1));
+    const mcbFeedA=BOM_STD_BREAKERS.find(b=>b>=feederA)||feederA;
+    const trafoKva=bomNextStd(BOM_STD_TRAFO_KVA,kva*1.1);
+    const inductorMH=bomInduktorMH(idcA);
+    const elcoV=vdc<=110?200:(vdc<=220?400:500);
+    const fanSizing=bomFanCabin(pLossW);
+    const inPoles=spec.inputPhase==='3P'?'3P':'2P';
+    const outPoles=(spec.outputPhase||'1P')==='3P'?'3P':'2P';
+    const dcBusLut=bomJemboLookupByAmps(idcA*1.25);
 
-  // Fan kabin sizing
-  const fanSizing = bomFanCabin(pLossW);
-  for (const f of fanSizing.fans) {
-    raw.push(bomRawItem('Enclosure', `Axial Fan ${f.size} 220V Ball Bearing + Grill`,
-      `${f.size} — P_loss=${pLossW}W → CFM_needed=${fanSizing.cfmNeeded}`,
-      f.qty, 'pcs', 'Fan',
-      ['fan','axial',f.size,'ball bearing'], `Auto sizing: P_loss ${pLossW}W → ${fanSizing.cfmNeeded} CFM needed → ${f.qty}× ${f.size}`));
-    raw.push(bomRawItem('Enclosure', `Louvre / Fan Filter ${f.size}`,
-      `Sesuai fan ${f.size}`, f.qty, 'pcs', 'Fan Filter',
-      ['louvre','fan filter',f.size], 'Filter fan inlet & exhaust'));
+    // Charger/Rectifier section
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(inputBr,inPoles)} (MCB Input)`,`${spec.inputPhase} ${spec.inputVoltage}VAC \u2014 I=${e.inputA.toFixed(1)}A \u00d71.5 \u2192 ${inputBr}A`,1,'pcs','Breaker',['mcb','schneider','input',`${inputBr}a`],`I_input\u00d71.5 inrush \u2192 ${inputBr}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','input'],'Status MCB input'));
+    raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.inputVoltage}VAC`,'EPCOS',spec.inputPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov',`${spec.inputVoltage}v`],'Surge protection input'));
+    raw.push(bomRawItem('Sistem',`Trafo Input UPS ${spec.inputPhase} ${spec.inputVoltage}VAC / CT secondary ${vdc}VDC side ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','input','ups',`${trafoKva}kva`],`Trafo rectifier section, ${trafoKva}kVA`));
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vdc*0.95,spec.inputPhase,'Trafo Input secondary \u2192 Charger Module (direct)');
+    raw.push(bomRawItem('Sistem',`Charger/Rectifier Module ${vdc}VDC ${idcA}A`,`${vdc}VDC ${idcA}A`,1,'unit','Rectifier',['charger','rectifier','module',`${vdc}v`,`${idcA}a`],'Charger/rectifier section UPS'));
+    raw.push(bomRawItem('Sistem',`Induktor DC Filter ${inductorMH}mH ${idcA}A`,`${inductorMH}mH ${idcA}A`,1,'pcs','Inductor',['induktor','inductor',`${inductorMH}mh`,`${idcA}a`],`DC smoothing L=${inductorMH}mH`));
+    raw.push(bomRawItem('Sistem',`Elco DC Filter ${elcoV}VDC 10000\u00b5F`,`10000\u00b5F ${elcoV}VDC`,2,'pcs','Capacitor',['elco','capacitor',`${elcoV}vdc`],'DC bus filter'));
+    raw.push(bomRawItem('Sistem',`Kabel NYAF 2\u00d7${dcBusLut.nyaf}mm\u00b2 \u2014 DC Bus Internal`,`NYAF ${dcBusLut.nyaf}mm\u00b2`,1,'lot','Cable',['nyaf','dc bus','internal'],'DC bus wiring modul \u2192 MCB Battery, MCB Inverter'));
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB ke Inverter)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A`,1,'pcs','Breaker',['mcb','dc','inverter',`${mcbDcA}a`],`TEPAT ${mcbDcA}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC ke Inverter','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','inverter'],'Status'));
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Battery)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A (100% load backup)`,1,'pcs','Breaker',['mcb','dc','battery',`${mcbDcA}a`],`TEPAT ${mcbDcA}A \u2014 battery supply 100% load`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Battery','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','battery'],'Status MCB battery'));
+    // Bypass
+    if (spec.bypassEnabled) {
+      const bpPoles=spec.bypassPriPhase==='3P'?'3P':'2P';
+      raw.push(bomRawItem('Sistem',`${bomCbBrand(bypassBr,bpPoles)} (MCB Bypass)`,`${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC \u2014 I=${e.bypassA.toFixed(1)}A \u00d71.25 \u2192 ${bypassBr}A`,1,'pcs','Breaker',['mcb','bypass',`${bypassBr}a`],`I_bypass\u00d71.25 \u2192 ${bypassBr}A`));
+      raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Bypass','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','bypass'],'Status MCB bypass'));
+      raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.bypassPriVoltage}VAC Bypass`,'EPCOS',spec.bypassPriPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov','bypass'],'Surge protection bypass'));
+      raw.push(bomRawItem('Sistem',`Trafo Bypass ${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC / ${spec.bypassSecPhase} ${spec.bypassSecVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','bypass',`${trafoKva}kva`],'Trafo bypass terpisah'));
+      bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.bypassSecVoltage,spec.bypassSecPhase,'Trafo Bypass secondary \u2192 Static Switch (direct)');
+      raw.push(bomRawItem('Sistem',`Static Switch / Contactor Bypass ${spec.bypassSecPhase} ${e.bypassBr}A`,`${spec.bypassSecPhase} ${spec.bypassSecVoltage}VAC`,1,'set','Contactor',['static switch','contactor','bypass'],'Perpindahan otomatis/manual ke bypass'));
+    }
+    // Inverter + Trafo Output
+    raw.push(bomRawItem('Sistem',`IGBT / Inverter Module ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${vdc}VDC \u2192 ${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'set','IGBT',['igbt','inverter','module',`${vdc}v`],'Power switching DC ke AC'));
+    raw.push(bomRawItem('Sistem','Driver IGBT / Control Board Inverter','Gate driver + control',1,'set','Control',['driver','igbt','control board'],'Gate driver inverter'));
+    raw.push(bomRawItem('Sistem',`Induktor / Filter Output Inverter ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'pcs','Inductor',['induktor','filter','output','ac'],'Filter LC output inverter'));
+    raw.push(bomRawItem('Sistem',`Elco / Capacitor Filter Output ${spec.outputVoltage}VAC`,`${spec.outputVoltage}VAC`,1,'set','Capacitor',['elco','capacitor','filter','output'],'Capacitor filter output AC'));
+    raw.push(bomRawItem('Sistem',`Trafo Output UPS ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','output','ups',`${trafoKva}kva`],`Trafo output inverter ${trafoKva}kVA`));
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.outputVoltage,spec.outputPhase,'Trafo Output secondary \u2192 MCB Output (direct)');
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbOutA,outPoles)} (MCB Output Utama)`,`${spec.outputPhase} ${spec.outputVoltage}VAC \u2014 TEPAT ${mcbOutA}A`,1,'pcs','Breaker',['mcb','output','ac',`${mcbOutA}a`],`TEPAT ${mcbOutA}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output'],'Status MCB output'));
+    if ((spec.outputFeeders||1)>1) {
+      raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbFeedA,outPoles)} (MCB Feeder)`,`${spec.outputFeeders} feeder @ TEPAT ${mcbFeedA}A`,spec.outputFeeders,'pcs','Breaker',['mcb','feeder',`${mcbFeedA}a`],`TEPAT ${mcbFeedA}A each`));
+      raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Feeder','A9A26904',spec.outputFeeders,'pcs','Auxiliary',['auxiliary','feeder'],''));
+    }
+    raw.push(bomRawItem('Sistem',`Varistor / MOV Output ${spec.outputVoltage}VAC`,'EPCOS',spec.outputPhase==='3P'?3:1,'pcs','Varistor',['varistor','output'],'Surge protection output'));
+    raw.push(bomRawItem('Sistem','SMPS / Control Supply 220VAC/24VDC','220VAC \u2192 24VDC',1,'pcs','Power Supply',['smps','control supply','24vdc'],'Supply kontrol & PCB'));
+    raw.push(bomRawItem('Sistem','Control PCB / HMI Module UPS','PCB control + HMI',1,'set','Control PCB',['control pcb','hmi','ups'],'PCB control, monitoring, alarm'));
+    raw.push(bomRawItem('Sistem','RS485 to USB Converter','RS485/USB',1,'pcs','Communication',['rs485','usb','converter'],'Akses HMI via laptop/PC'));
+    raw.push(bomRawItem('Sistem','Alarm Relay Dry Contact Output','Free contact N.O./N.C.',1,'set','Relay',['alarm','relay','dry contact'],'Free contact alarm external'));
+
+    // Aksesori terminal
+    bomAddCableWithTerminal(raw,'Aksesori','AC Incoming Input',spec.inputPhase,inputBr,1,'AC input dari grid');
+    if (spec.bypassEnabled) bomAddCableWithTerminal(raw,'Aksesori','AC Incoming Bypass',spec.bypassPriPhase,bypassBr,1,'AC bypass incoming');
+    bomAddDCCableWithTerminal(raw,'Aksesori','DC ke Battery',mcbDcA,1,'DC ke battery bank');
+    bomAddCableWithTerminal(raw,'Aksesori','AC Output ke Beban',spec.outputPhase,(spec.outputFeeders||1)>1?mcbFeedA:mcbOutA,spec.outputFeeders||1,'AC output ke load');
+    if (spec.withBattery && spec.batteryAh) {
+      const cells=spec.batteryCell||0,strs=spec.batteryString||1;
+      raw.push(bomRawItem('Aksesori',`Battery VRLA ${vdc}VDC ${spec.batteryAh}Ah`,`${cells?cells+' cell':'TBD'}\u00d7${strs} string`,cells*strs||1,'pcs','Battery',['battery','vrla',`${spec.batteryAh}ah`],'Battery backup UPS'));
+      raw.push(bomRawItem('Aksesori','Battery Rack / Stand',`${cells*strs||1} unit`,1,'unit','Battery Rack',['battery rack'],''));
+      raw.push(bomRawItem('Aksesori','Inter-cell Cable Set',`${vdc}VDC`,1,'lot','Cable',['inter cell','battery'],''));
+    }
+    if (spec.withMetering) {
+      raw.push(bomRawItem('Aksesori',`Voltmeter DC 0\u2013${Math.round(vdc*1.2)}VDC`,'',1,'pcs','Meter',['voltmeter','dc'],''));
+      raw.push(bomRawItem('Aksesori',`Amperemeter DC 0\u2013${Math.round(idcA*1.2)}A`,'',1,'pcs','Meter',['amperemeter','dc'],''));
+      raw.push(bomRawItem('Aksesori',`Voltmeter AC 0\u2013${Math.round((spec.outputVoltage||230)*1.2)}VAC`,'',1,'pcs','Meter',['voltmeter','ac'],''));
+      raw.push(bomRawItem('Aksesori',`Amperemeter AC 0\u2013${Math.round(outCapA*1.2)}A`,'',1,'pcs','Meter',['amperemeter','ac'],''));
+      raw.push(bomRawItem('Aksesori','Pilot Lamp (Power, Fault, Bypass)','220VAC/DC',3,'pcs','Indicator',['pilot lamp'],''));
+    }
+    pushOptional();
+    pushCubicle(`UPS ${kva.toFixed(1)}kVA`, fanSizing);
+    pushSupporting();
+    return raw;
   }
-  // Louvre inlet bawah (passive, tanpa fan)
-  raw.push(bomRawItem('Enclosure', `Louvre Filter Inlet Bawah Depan (Passive)`,
-    `Inlet udara`, 1, 'pcs', 'Fan Filter',
-    ['louvre','inlet','bawah','filter'], 'Inlet udara natural dari bawah'));
-  raw.push(bomRawItem('Enclosure', `Fan Fuse 1P 1A (untuk fan kabin)`,
-    `1P 1A`, fanSizing.fans.reduce((a,f)=>a+f.qty,0), 'pcs', 'Fuse',
-    ['fuse','fan fuse','1a'], 'Proteksi fan kabin'));
-  raw.push(bomRawItem('Enclosure', `Busbar Grounding Panel`,
-    `Copper grounding bar`, 1, 'pcs', 'Grounding',
-    ['busbar grounding','grounding bar','earth'], 'Grounding panel'));
-  raw.push(bomRawItem('Enclosure', `Name Plate Package`,
-    `Label, nameplate, warning sign`, 1, 'lot', 'Nameplate',
-    ['name plate','nameplate','label panel'], 'Identifikasi panel & warning'));
-  raw.push(bomRawItem('Enclosure', `DIN Rail + Cable Duct Wiring`,
-    `Internal wiring infrastructure`, 1, 'lot', 'Mechanical Acc',
-    ['din rail','cable duct','duct'], 'Rel & duct internal panel'));
 
-  // ════════════════════════════════════════════
-  // SECTION 8: TERMINAL RELAY (opsional)
-  // ════════════════════════════════════════════
-  if (spec.withRelayTerminal) {
-    raw.push(bomRawItem('Terminal & Control', `Terminal Phoenix WDU 2.5 (Terminal Relay/Control)`,
-      `WDU 2.5`, 32, 'pcs', 'Terminal',
-      ['terminal','wdu','wdu2.5','relay','control'], 'Terminal kontrol & relay 32 pcs'));
+  // ════════════════════════════════════════
+  // INVERTER \u2014 Input DC dari battery, output AC lewat trafo
+  // ════════════════════════════════════════
+  if (t === 'Inverter') {
+    const kva=e.kva;
+    const mcbDcA=BOM_STD_BREAKERS.find(b=>b>=idcA)||idcA;
+    const outCapA=Math.round(e.outputA);
+    const mcbOutA=BOM_STD_BREAKERS.find(b=>b>=outCapA)||outCapA;
+    const feederA=Math.round(e.outputA/(spec.outputFeeders||1));
+    const mcbFeedA=BOM_STD_BREAKERS.find(b=>b>=feederA)||feederA;
+    const trafoKva=bomNextStd(BOM_STD_TRAFO_KVA,kva*1.1);
+    const fanSizing=bomFanCabin(pLossW);
+    const outPoles=(spec.outputPhase||'1P')==='3P'?'3P':'2P';
+
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Input Inverter)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A`,1,'pcs','Breaker',['mcb','dc','input','inverter',`${mcbDcA}a`],`TEPAT ${mcbDcA}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','input'],''));
+    raw.push(bomRawItem('Sistem',`IGBT / Inverter Module ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${vdc}VDC \u2192 ${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'set','IGBT',['igbt','inverter',`${vdc}v`],'Power switching DC ke AC'));
+    raw.push(bomRawItem('Sistem','Driver IGBT / Control Board','Gate driver + control',1,'set','Control',['driver','igbt'],''));
+    raw.push(bomRawItem('Sistem',`Induktor / Filter Output ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'pcs','Inductor',['induktor','filter','output','ac'],'Filter LC output'));
+    raw.push(bomRawItem('Sistem',`Elco / Capacitor Filter Output ${spec.outputVoltage}VAC`,`${spec.outputVoltage}VAC`,1,'set','Capacitor',['elco','capacitor','output'],''));
+    raw.push(bomRawItem('Sistem',`Trafo Output Inverter ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','output','inverter',`${trafoKva}kva`],`Trafo output ${trafoKva}kVA`));
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.outputVoltage,spec.outputPhase,'Trafo Output secondary \u2192 MCB Output (direct)');
+    raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbOutA,outPoles)} (MCB Output Utama)`,`${spec.outputPhase} ${spec.outputVoltage}VAC \u2014 TEPAT ${mcbOutA}A`,1,'pcs','Breaker',['mcb','output','ac',`${mcbOutA}a`],`TEPAT ${mcbOutA}A`));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output'],''));
+    if ((spec.outputFeeders||1)>1) {
+      raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbFeedA,outPoles)} (MCB Feeder)`,`${spec.outputFeeders}\u00d7TEPAT ${mcbFeedA}A`,spec.outputFeeders,'pcs','Breaker',['mcb','feeder',`${mcbFeedA}a`],''));
+      raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Feeder','A9A26904',spec.outputFeeders,'pcs','Auxiliary',['auxiliary','feeder'],''));
+    }
+    raw.push(bomRawItem('Sistem',`Varistor / MOV Output ${spec.outputVoltage}VAC`,'EPCOS',spec.outputPhase==='3P'?3:1,'pcs','Varistor',['varistor','output'],''));
+    raw.push(bomRawItem('Sistem','SMPS / Control Supply 220VAC/24VDC','',1,'pcs','Power Supply',['smps','control supply'],''));
+    raw.push(bomRawItem('Sistem','Control PCB / HMI Module Inverter','',1,'set','Control PCB',['control pcb','hmi','inverter'],''));
+    raw.push(bomRawItem('Sistem','RS485 to USB Converter','RS485/USB',1,'pcs','Communication',['rs485','usb','converter'],'Akses HMI via laptop/PC'));
+    raw.push(bomRawItem('Sistem','Alarm Relay Dry Contact Output','Free contact',1,'set','Relay',['alarm','relay','dry contact'],''));
+
+    bomAddDCCableWithTerminal(raw,'Aksesori','DC Input dari Battery',mcbDcA,1,'DC input dari battery');
+    bomAddCableWithTerminal(raw,'Aksesori','AC Output ke Beban',spec.outputPhase,(spec.outputFeeders||1)>1?mcbFeedA:mcbOutA,spec.outputFeeders||1,'AC output');
+    if (spec.withMetering) {
+      raw.push(bomRawItem('Aksesori',`Voltmeter AC 0\u2013${Math.round((spec.outputVoltage||230)*1.2)}VAC`,'',1,'pcs','Meter',['voltmeter','ac'],''));
+      raw.push(bomRawItem('Aksesori',`Amperemeter AC 0\u2013${Math.round(outCapA*1.2)}A`,'',1,'pcs','Meter',['amperemeter','ac'],''));
+      raw.push(bomRawItem('Aksesori','Pilot Lamp Status Panel','220VAC/DC',3,'pcs','Indicator',['pilot lamp'],''));
+    }
+    pushOptional();
+    pushCubicle(`Inverter ${kva.toFixed(1)}kVA`, fanSizing);
+    pushSupporting();
+    return raw;
   }
-
-  // ════════════════════════════════════════════
-  // SECTION 9: WIRING ACCESSORIES PACK (selalu ada)
-  // ════════════════════════════════════════════
-  raw.push(bomRawItem('Wiring Accessories', `Wiring Accessories Pack (Control, Ferrule, Skun, Baut, RJ45, dll)`,
-    `1 Paket lengkap`, 1, 'pax', 'Wiring Acc',
-    ['wiring accessories','ferrule','skun','baut','rj45','pax'],
-    'Control wiring, ferrule, skun, baut trafo, baut panel, RJ45, kabel kontrol — 1 Pax'));
 
   return raw;
+}
 }
 function bomScoreGeneratedComponent(c, raw) {
   const text = `${c.part_number || ''} ${c.name || ''} ${c.category || ''}`.toLowerCase();
