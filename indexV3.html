@@ -8386,11 +8386,18 @@ function bomWizardStep3Body() {
         <div class="wz-calc-card"><div class="label">Trafo Estimasi</div><div class="value">${e.trafoKva} kVA</div><div class="sub">Input/Bypass/Output</div></div>
       </div>`;
   } else if (t === 'Rectifier') {
+    const vSecS4 = bomVsec(s.dcBus||110, s.inputPhase||'1P');
+    const idcAS4 = s.capacityUnit === 'A' ? s.capacity : Math.round(e.dcA);
+    const trafoKvaS4 = bomNextStd(BOM_STD_TRAFO_KVA, ((s.dcBus||110)*idcAS4/1000/(s.eff||0.9))*1.1);
+    const iSecS4 = (trafoKvaS4*1000)/(s.inputPhase==='3P'?Math.sqrt(3)*vSecS4:vSecS4);
+    const mcbDcS4 = BOM_STD_BREAKERS.find(b=>b>=idcAS4)||idcAS4;
     calcCards = `
       <div class="wz-calc-grid">
-        <div class="wz-calc-card"><div class="label">Input Current</div><div class="value">${e.inputA.toFixed(1)} A</div><div class="sub">→ MCB Input ${e.inputBr} A</div></div>
-        <div class="wz-calc-card"><div class="label">DC Output</div><div class="value">${e.dcA.toFixed(1)} A</div><div class="sub">→ Breaker DC ${e.dcBr} A</div></div>
-        <div class="wz-calc-card"><div class="label">Batt Breaker</div><div class="value">${e.battBr} A</div><div class="sub">@${s.dcBus} VDC</div></div>
+        <div class="wz-calc-card"><div class="label">I input AC</div><div class="value">${e.inputA.toFixed(1)} A</div><div class="sub">MCB Input ${e.inputBr}A (×1.5 inrush)</div></div>
+        <div class="wz-calc-card"><div class="label">V_sec Trafo</div><div class="value">${vSecS4.toFixed(0)} VAC</div><div class="sub">Vdc_max=${((s.dcBus||110)*1.25).toFixed(0)}V → ${s.inputPhase==='3P'?'6P':'2P'} formula</div></div>
+        <div class="wz-calc-card"><div class="label">Trafo</div><div class="value">${trafoKvaS4} kVA</div><div class="sub">${s.inputVoltage||220}VAC / ${vSecS4.toFixed(0)}VAC</div></div>
+        <div class="wz-calc-card"><div class="label">I_sec Trafo</div><div class="value">${iSecS4.toFixed(1)} A</div><div class="sub">→ kabel secondary sizing</div></div>
+        <div class="wz-calc-card"><div class="label">DC Output</div><div class="value">${idcAS4} A</div><div class="sub">MCB DC TEPAT ${mcbDcS4}A (Load & Battery)</div></div>
       </div>`;
   } else if (t === 'Inverter') {
     calcCards = `
@@ -8943,7 +8950,7 @@ function bomBaseGeneratedRawItems(spec) {
     }
     raw.push(bomRawItem('Cubicle','Louvre Filter Inlet Bawah Depan (Passive)','Passive inlet',1,'pcs','Fan Filter',['louvre','inlet','bawah','passive'],'Inlet udara dari bawah'));
     const nFan = fanSizing2.fans.reduce((a,f)=>a+f.qty,0);
-    raw.push(bomRawItem('Cubicle','Fuse Holder 10\u00d738 32A + Fuse 2A (Fan)','GAE 10\u00d738 32A + Terno 2A',nFan,'set','Fuse',['fuse holder','fuse','10x38','fan fuse'],`1 set per fan cabin (${nFan} fan)`));
+    raw.push(bomRawItem('Cubicle','Fuse Holder 10x38 32A + Fuse 2A (Fan)','GAE 10x38 32A + Terno 2A',nFan,'set','Fuse',['fuse holder','fuse holder 10x38','10x38 32a','terno 2a','fan fuse'],`1 set per fan cabin (${nFan} fan)`));
     raw.push(bomRawItem('Cubicle','Busbar Grounding Panel','Copper grounding bar',1,'pcs','Grounding',['busbar grounding','grounding bar','earth'],'Grounding panel'));
     raw.push(bomRawItem('Cubicle','Name Plate Package','Label, nameplate, warning sign',1,'lot','Nameplate',['name plate','nameplate','label panel'],'Identifikasi & warning panel'));
     raw.push(bomRawItem('Cubicle','DIN Rail TS35 + Cable Duct','Internal wiring infra',1,'lot','Mechanical Acc',['din rail','ts35','cable duct','duct'],'Rel & duct wiring internal'));
@@ -9023,14 +9030,14 @@ function bomBaseGeneratedRawItems(spec) {
       `Varistor EPCOS ${varistorType} ${spec.inputVoltage}VAC`,
       `EPCOS ${varistorType}`,
       varistorQty, 'pcs', 'Varistor',
-      ['varistor','mov','epcos', varistorType.toLowerCase(), `${spec.inputVoltage}v`],
+      ['varistor','mov','epcos',varistorType.toLowerCase(),varistorType.toLowerCase().replace('s20k','s20k'),`${spec.inputVoltage}v`,`varistor${spec.inputVoltage}v`],
       `Surge protection parallel primer trafo - ${spec.inputPhase==='3P'?'3 pcs antar phase':'1 pcs parallel input'}`));
     // 7. Trafo Rectifier
     raw.push(bomRawItem('Sistem',
       `Trafo Rectifier ${spec.inputPhase} ${spec.inputVoltage}VAC / ${vSecRect.toFixed(0)}VAC CT-secondary ${trafoKva}kVA`,
       `${spec.inputVoltage}VAC => ${vSecRect.toFixed(0)}VAC CT => ${vdc}VDC, ${trafoKva}kVA`,
       1, 'unit', 'Transformer',
-      ['trafo','rectifier','transformer',`${trafoKva}kva`,`${vSecRect.toFixed(0)}vac`],
+      ['trafo','rectifier','transformer',`${trafoKva}kva`,`trafo${trafoKva}kva`,`${vSecRect.toFixed(0)}vac`,`traforectifier${trafoKva}kva`],
       `Vsec=${vSecRect.toFixed(0)}VAC: Vdc_max=${vdc}x1.25=${(vdc*1.25).toFixed(0)}VDC, ${spec.inputPhase==='3P'?'6P: 1.15x0.75xVdcmax':'2P: 1.15x1.1xVdcmax'}`));
     // 8. Kabel secondary trafo ke modul (direct, no terminal)
     bomAddTrafoSecCable(raw,'Sistem',trafoKva,vSecRect,spec.inputPhase,'Trafo Secondary ke Modul Rectifier');
@@ -9046,7 +9053,7 @@ function bomBaseGeneratedRawItems(spec) {
       `Induktor DC Filter ${inductorMH}mH ${idcA}A`,
       `${inductorMH}mH ${idcA}A`,
       1, 'pcs', 'Inductor',
-      ['induktor','inductor','choke',`${inductorMH}mh`,`${idcA}a`],
+      ['induktor','inductor','choke',`inductor${inductorMH}mh`,`${inductorMH}mh`,`${idcA}a`,`inductor ${inductorMH}mh ${idcA}a`],
       `Series output modul - L=${inductorMH}mH, I_rated=${idcA}A`));
     // 11. Elco DC filter
     raw.push(bomRawItem('Sistem',
@@ -9062,7 +9069,7 @@ function bomBaseGeneratedRawItems(spec) {
       `${bomCbBrand(mcbDcA,'2P')} DC (MCB Load)`,
       `${vdc}VDC - TEPAT ${mcbDcA}A`,
       1, 'pcs', 'Breaker',
-      ['mcb','schneider',`${mcbDcA}a`,'load','dc',`${vdc}v`],
+      ['mcb','schneider','2p',`${mcbDcA}a`,'load','dc',`${vdc}v`,`mcb2p${mcbDcA}a`],
       `TEPAT ${mcbDcA}A - tidak dinaikkan, proteksi sesuai kapasitas load`));
     raw.push(bomRawItem('Sistem',
       'Auxiliary Contact OF/SD - MCB Load', 'A9A26904',
@@ -9073,7 +9080,7 @@ function bomBaseGeneratedRawItems(spec) {
       `${bomCbBrand(mcbDcA,'2P')} DC (MCB Battery)`,
       `${vdc}VDC - TEPAT ${mcbDcA}A`,
       1, 'pcs', 'Breaker',
-      ['mcb','schneider',`${mcbDcA}a`,'battery','dc',`${vdc}v`],
+      ['mcb','schneider','2p',`${mcbDcA}a`,'battery','dc',`${vdc}v`,`mcb2p${mcbDcA}a`],
       `TEPAT ${mcbDcA}A - battery harus mampu supply 100% load capacity`));
     raw.push(bomRawItem('Sistem',
       'Auxiliary Contact OF/SD - MCB Battery', 'A9A26904',
@@ -9246,17 +9253,42 @@ function bomBaseGeneratedRawItems(spec) {
   return raw;
 }
 function bomScoreGeneratedComponent(c, raw) {
-  const text = `${c.part_number || ''} ${c.name || ''} ${c.category || ''}`.toLowerCase();
+  const text = `${c.part_number || ''} ${c.name || ''} ${c.category || ''} ${c.spec || ''}`.toLowerCase().replace(/\s+/g,' ');
+  const compact = text.replace(/\s+/g,'');
   let score = 0;
+
+  // Category match
   if ((c.category || '').toLowerCase() === (raw.category || '').toLowerCase()) score += 40;
-  for (const tk of (raw.tokens || [])) {
+
+  // Token matching — setiap token dari generator harus ada di komponen master
+  const tokens = (raw.tokens || []);
+  let tokenHits = 0;
+  for (const tk of tokens) {
     const t = String(tk || '').toLowerCase().replace(/\s+/g,'');
     if (!t) continue;
-    const compact = text.replace(/\s+/g,'');
-    if (compact.includes(t)) score += 12;
+    if (compact.includes(t)) { score += 12; tokenHits++; }
   }
+
+  // Name word matching
   const nameWords = String(raw.name || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2).slice(0, 8);
   for (const w of nameWords) if (text.includes(w)) score += 3;
+
+  // ── CRITICAL: Rating filter untuk komponen yang punya rating numerik ──
+  // Cek apakah token rating (Ampere/kVA/mH/VDC) ADA di komponen master
+  // Kalau ada token rating tapi tidak match → PENALTI BESAR (komponen salah rating)
+  const ratingTokens = tokens.filter(tk => /^\d+a$|^\d+kva$|^\d+mh$|^\d+vdc$|^\d+vac$/.test(String(tk).toLowerCase()));
+  if (ratingTokens.length > 0) {
+    let ratingMatch = 0;
+    for (const rt of ratingTokens) {
+      const r = String(rt).toLowerCase();
+      if (compact.includes(r)) ratingMatch++;
+    }
+    // Kalau tidak ada satupun rating yang match → penalti besar, tidak akan lolos threshold
+    if (ratingMatch === 0) score -= 80;
+    // Kalau semua rating match → bonus
+    else if (ratingMatch === ratingTokens.length) score += 20;
+  }
+
   return score;
 }
 function bomFindGeneratedMaster(raw) {
@@ -9266,6 +9298,7 @@ function bomFindGeneratedMaster(raw) {
     const score = bomScoreGeneratedComponent(c, raw);
     if (score > bestScore) { best = c; bestScore = score; }
   }
+  // Threshold 45: cukup tinggi untuk hindari false match
   return bestScore >= 45 ? best : null;
 }
 async function bomBuildPriceCache() {
@@ -9313,8 +9346,10 @@ async function generateBOMItemsFromEngineeringInput(spec) {
       tmpRowId: 'gen_' + i + '_' + Date.now(),
       component_id: comp?.id || null,
       part_number: comp?.part_number || 'AUTO/TBD',
-      name: comp?.name || r.name,
-      unit: comp?.unit || r.unit || 'pcs',
+      // Nama SELALU dari generator (engineering spec), bukan dari master
+      // Master hanya dipakai untuk part_number dan harga
+      name: r.name,
+      unit: r.unit || comp?.unit || 'pcs',
       qty: r.qty || 1,
       unit_price: price || 0,
       note: r.note || '',
@@ -9323,7 +9358,7 @@ async function generateBOMItemsFromEngineeringInput(spec) {
         x_section: r.section,
         x_spec_auto: r.specText,
         x_sizing_basis: r.note,
-        x_master_status: notFound ? 'Belum ada master' : 'Master matched',
+        x_master_status: notFound ? 'AUTO/TBD - belum ada master' : `Ref: ${comp.part_number || comp.name}`,
         x_no_auto_master: notFound ? '1' : '',
         x_source: 'Engineering Generator'
       }
