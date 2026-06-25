@@ -8743,11 +8743,11 @@ function bomCalcElectrical(spec) {
 
   return {
     kva, kw, outputVA, inputA, bypassA, outputA, dcA, chargeA: rawChargeA,
-    inputBr:  bomNextStd(BOM_STD_BREAKERS, inputA * 1.25),
-    bypassBr: bomNextStd(BOM_STD_BREAKERS, bypassA * 1.25),
+    inputBr:  bomNextStd(BOM_STD_BREAKERS, inputA * 1.25),   // AC input: naik 1.25 (inrush)
+    bypassBr: bomNextStd(BOM_STD_BREAKERS, bypassA * 1.25),  // Bypass: naik 1.25 (inrush trafo)
     outputBr: bomNextStd(BOM_STD_BREAKERS, (outputA / Math.max(1, spec.outputFeeders || 1)) * 1.25),
-    dcBr:     bomNextStd(BOM_STD_BREAKERS, dcA * 1.25),
-    battBr:   bomNextStd(BOM_STD_BREAKERS, Math.max(dcA, rawChargeA) * 1.25),
+    dcBr:     bomNextStd(BOM_STD_BREAKERS, dcA),              // DC Load: TEPAT rating, tidak dinaikkan
+    battBr:   bomNextStd(BOM_STD_BREAKERS, dcA),              // DC Battery: TEPAT rating (backup 100% load)
     trafoKva: bomNextStd(BOM_STD_TRAFO_KVA, kva * 1.1)
   };
 }
