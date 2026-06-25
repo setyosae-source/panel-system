@@ -8697,28 +8697,59 @@ function bomPickCable(current, up=1) {
 }
 function bomCableCoreText(phase) { return phase === '3P' ? '4 x' : (phase === 'DC' ? '2 x' : '2 x'); }
 function bomCalcElectrical(spec) {
-  const cap = spec.capacity || 0;
-  const unit = spec.capacityUnit;
-  let kva = cap, kw = cap * (spec.pf || 0.8), outputVA = cap * 1000;
-  if (unit === 'kW') { kw = cap; kva = cap / (spec.pf || 0.8); outputVA = kva * 1000; }
-  if (unit === 'A') { kw = (spec.dcBus || spec.outputVoltage || 110) * cap / 1000; kva = kw / (spec.pf || 0.8); outputVA = kva * 1000; }
-  const outputA = spec.outputPhase === 'DC' ? (unit === 'A' ? cap : (kw * 1000 / (spec.outputVoltage || spec.dcBus || 110))) : bomCurrentFromVA(outputVA, spec.outputVoltage, spec.outputPhase);
-  const inputA = bomCurrentFromVA((kw * 1000) / (spec.eff || 0.9) / (spec.pf || 0.8), spec.inputVoltage, spec.inputPhase);
-  const bypassA = spec.bypassEnabled ? bomCurrentFromVA(outputVA, spec.bypassPriVoltage, spec.bypassPriPhase) : 0;
+  const cap   = spec.capacity || 0;
+  const unit  = spec.capacityUnit;
+  const eff   = spec.eff  || 0.9;
+  const pf    = spec.pf   || 0.8;
+  const vdc   = spec.dcBus || spec.outputVoltage || 110;
   const uType = spec.unitType || spec.type || 'UPS';
-  const dcA = (unit === 'A' && uType === 'Rectifier') ? cap : ((kw * 1000) / Math.max(1, (spec.dcBus || 110) * (spec.eff || 0.9)));
-  // chargeA: jika batteryAh=0, fallback ke dcA supaya breaker battery tidak kerdil
+
+  // Power
+  let kva, kw, outputVA;
+  if (unit === 'kW') {
+    kw = cap; kva = cap / pf; outputVA = kva * 1000;
+  } else if (unit === 'A') {
+    // Rectifier: P_dc = Vdc x Idc, P_ac = P_dc / eff
+    kw = vdc * cap / 1000;
+    kva = kw / eff;
+    outputVA = kva * 1000;
+  } else { // kVA default
+    kva = cap; kw = cap * pf; outputVA = cap * 1000;
+  }
+
+  // Output current
+  const outputA = spec.outputPhase === 'DC'
+    ? (unit === 'A' ? cap : (kw * 1000 / vdc))
+    : bomCurrentFromVA(outputVA, spec.outputVoltage, spec.outputPhase);
+
+  // Input current
+  // Rectifier (unit A): I_in = (Vdc x Idc / eff) / V_in (no extra pf divide)
+  // UPS/Inverter (kVA/kW): I_in dari kW/eff dibagi V_in (pf sudah masuk kw)
+  const pAC = (unit === 'A')
+    ? (vdc * cap) / eff          // VA AC rectifier
+    : (kw * 1000) / eff;         // VA AC UPS/Inverter
+  const inputA = bomCurrentFromVA(pAC, spec.inputVoltage, spec.inputPhase);
+
+  const bypassA = spec.bypassEnabled
+    ? bomCurrentFromVA(outputVA, spec.bypassPriVoltage, spec.bypassPriPhase) : 0;
+
+  const dcA = (unit === 'A' && uType === 'Rectifier')
+    ? cap : ((kw * 1000) / Math.max(1, vdc * eff));
+
   const rawChargeA = spec.batteryAh > 0
-    ? Math.max(spec.batteryAh * 0.1, uType === 'Rectifier' ? dcA : Math.min(dcA, spec.batteryAh * 0.2 || dcA))
+    ? Math.max(spec.batteryAh * 0.1,
+        uType === 'Rectifier' ? dcA : Math.min(dcA, spec.batteryAh * 0.2 || dcA))
     : dcA;
-  const chargeA = rawChargeA;
-  return { kva, kw, outputVA, inputA, bypassA, outputA, dcA, chargeA,
-    inputBr: bomNextStd(BOM_STD_BREAKERS, inputA * 1.25),
+
+  return {
+    kva, kw, outputVA, inputA, bypassA, outputA, dcA, chargeA: rawChargeA,
+    inputBr:  bomNextStd(BOM_STD_BREAKERS, inputA * 1.25),
     bypassBr: bomNextStd(BOM_STD_BREAKERS, bypassA * 1.25),
     outputBr: bomNextStd(BOM_STD_BREAKERS, (outputA / Math.max(1, spec.outputFeeders || 1)) * 1.25),
-    dcBr: bomNextStd(BOM_STD_BREAKERS, dcA * 1.25),
-    battBr: bomNextStd(BOM_STD_BREAKERS, Math.max(dcA, chargeA) * 1.25),
-    trafoKva: bomNextStd(BOM_STD_TRAFO_KVA, kva * 1.1) };
+    dcBr:     bomNextStd(BOM_STD_BREAKERS, dcA * 1.25),
+    battBr:   bomNextStd(BOM_STD_BREAKERS, Math.max(dcA, rawChargeA) * 1.25),
+    trafoKva: bomNextStd(BOM_STD_TRAFO_KVA, kva * 1.1)
+  };
 }
 function updateBOMGeneratorPreview() {
   const box = document.getElementById('bomGenPreview');
@@ -8767,11 +8798,20 @@ function bomJemboLookupByAmps(ampere) {
 }
 // Induktor mH — ref drawing SAE: LP1 rectifier 6mH/25A, LP2 inverter 300µH/50A
 // Rule praktis: ≤25A→6mH, ≤50A→4mH, ≤100A→2mH, >100A→1mH
-function bomInduktorMH(idcA) {
-  if (idcA <= 25)  return 6;
-  if (idcA <= 50)  return 4;
-  if (idcA <= 100) return 2;
-  return 1;
+function bomInduktorMH(idcA, phase) {
+  // Ref PESS WP empiris: 1P→9mH@30A, 3P→2mH@100A
+  // Scale rule: L = L_ref × (I_ref / I_dc), snap ke std values
+  const STD_MH = [0.5,1,2,4,5,6,8,9,10,15,20];
+  const snap = v => STD_MH.find(s => s >= v) || 20;
+  if (phase === '1P' || phase === '1' || !phase || phase === 'single') {
+    // 1P: ref 9mH@30A → L = 9 × (30/I) mH, min 1mH
+    const raw = Math.max(1, 9 * (30 / Math.max(1, idcA)));
+    return snap(raw);
+  } else {
+    // 3P: ref 2mH@100A → L = 2 × (100/I) mH, min 0.5mH
+    const raw = Math.max(0.5, 2 * (100 / Math.max(1, idcA)));
+    return snap(raw);
+  }
 }
 function bomCbBrand(cbRating, poles) {
   const p = poles || '2P';
@@ -8834,16 +8874,26 @@ function bomAddDCCableWithTerminal(raw, section, label, cbRating, note) {
 }
 // Kabel trafo secondary ke modul: DIRECT wiring, NO terminal
 // Sizing dari I_sec = kVA*1000 / (sqrt3*Vsec) untuk 3P, kVA*1000/Vsec untuk 1P
+function bomVsec(vdc, phase) {
+  // Ref PESS WP: V_dc_max = V_dc_nominal × 1.25 (NiCd boost coverage)
+  // 1P (2-pulse bridge): V_sec_nom = 1.15 × 1.1 × V_dc_max
+  // 3P (6-pulse bridge): V_sec_nom = 1.15 × 0.75 × V_dc_max
+  const vdcMax = vdc * 1.25;
+  if (phase === '3P') return 1.15 * 0.75 * vdcMax;
+  return 1.15 * 1.1 * vdcMax;
+}
 function bomAddTrafoSecCable(raw, section, kvaTrafo, voltSec, phaseSec, label) {
+  // voltSec: sudah dihitung dari bomVsec() atau override manual
+  // I_sec: untuk 1P = kVA/Vsec, untuk 3P = kVA/(√3 × Vsec)
   const iSec = (kvaTrafo * 1000) / (phaseSec === '3P' ? Math.sqrt(3) * voltSec : voltSec);
   const lut  = bomJemboLookupByAmps(iSec);
   const cores = phaseSec === '3P' ? '4x' : '2x';
   const formula = phaseSec === '3P'
-    ? `${kvaTrafo}kVA/(1.732x${voltSec.toFixed(0)}V)=${iSec.toFixed(1)}A`
-    : `${kvaTrafo}kVA/${voltSec.toFixed(0)}V=${iSec.toFixed(1)}A`;
+    ? `${kvaTrafo}kVA/(1.732x${voltSec.toFixed(1)}V)=${iSec.toFixed(1)}A`
+    : `${kvaTrafo}kVA/${voltSec.toFixed(1)}V=${iSec.toFixed(1)}A`;
   raw.push(bomRawItem(section,
     `Kabel NYAF ${cores}${lut.nyaf}mm2 - ${label}`,
-    `Isec=${iSec.toFixed(1)}A => NYAF ${lut.nyaf}mm2 Direct`,
+    `Isec=${iSec.toFixed(1)}A => NYAF ${lut.nyaf}mm2 (Direct, No Terminal)`,
     1, 'lot', 'Kabel NYAF',
     ['kabel nyaf',`nyaf ${lut.nyaf}mm`,`nyaf${lut.nyaf}mm2`,`${lut.nyaf}mm`,label.toLowerCase(),'trafo secondary','direct wiring'],
     `Direct wiring NO terminal - ${formula}`));
@@ -8915,7 +8965,7 @@ function bomBaseGeneratedRawItems(spec) {
     const inPoles = spec.inputPhase === '3P' ? '3P' : '2P';
     const trafoKva = bomNextStd(BOM_STD_TRAFO_KVA, (vdc * idcA / 1000 / (spec.eff||0.9)) * 1.1);
     const mcbDcA = BOM_STD_BREAKERS.find(b => b >= idcA) || idcA;
-    const inductorMH = bomInduktorMH(idcA);
+    const inductorMH = bomInduktorMH(idcA, spec.inputPhase);
     const elcoV = vdc <= 110 ? 200 : (vdc <= 220 ? 400 : 500);
     const fanSizing = bomFanCabin(pLossW);
     // ── SISTEM ──
@@ -8925,12 +8975,13 @@ function bomBaseGeneratedRawItems(spec) {
       `I_input ${e.inputA.toFixed(1)}A \u00d7 1.5 = ${(e.inputA*1.5).toFixed(1)}A \u2192 next std ${inputBr}A`));
     raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','aux','of','sd','a9a26904','input'],'Status & remote trip MCB input'));
     raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.inputVoltage}VAC`,`EPCOS S20K${spec.inputVoltage<=220?'275':spec.inputVoltage}`,spec.inputPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov','epcos',`${spec.inputVoltage}v`],'Surge protection parallel trafo input'));
-    raw.push(bomRawItem('Sistem',`Trafo Rectifier ${spec.inputPhase} ${spec.inputVoltage}VAC / CT secondary ${vdc}VDC side ${trafoKva}kVA`,
-      `${spec.inputVoltage}VAC \u2192 CT ${vdc}VDC, ${trafoKva}kVA`,
-      1,'unit','Transformer',['trafo','rectifier','transformer',`${trafoKva}kva`],
-      `kVA = ${vdc}V \u00d7 ${idcA}A / \u03b7${spec.eff||0.9} \u00d7 1.1 = ${trafoKva}kVA`));
+    const vSecRect=bomVsec(vdc,spec.inputPhase);
+    raw.push(bomRawItem('Sistem',`Trafo Rectifier ${spec.inputPhase} ${spec.inputVoltage}VAC / ${vSecRect.toFixed(0)}VAC CT-secondary ${trafoKva}kVA`,
+      `${spec.inputVoltage}VAC => ${vSecRect.toFixed(0)}VAC (Vsec=Vdc_max/factor) => ${vdc}VDC setelah rectify, ${trafoKva}kVA`,
+      1,'unit','Transformer',['trafo','rectifier','transformer',`${trafoKva}kva`,`${vSecRect.toFixed(0)}vac`],
+      `Vsec=${vSecRect.toFixed(0)}VAC: Vdc_max=${vdc}x1.25=${(vdc*1.25).toFixed(0)}VDC, ${spec.inputPhase==='3P'?'6P: 1.15x0.75':'2P: 1.15x1.1'}xVdc_max`));
     // Output trafo ke modul: DIRECT, sizing dari I_sec trafo
-    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vdc*0.95,spec.inputPhase,'Trafo Secondary ke Modul Rectifier');
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vSecRect,spec.inputPhase,'Trafo Secondary ke Modul Rectifier');
     raw.push(bomRawItem('Sistem',`Rectifier Module ${vdc}VDC ${idcA}A`,`${vdc}VDC ${idcA}A`,1,'unit','Rectifier',['rectifier','module',`${vdc}v`,`${idcA}a`],'Main rectifier/charger module'));
     raw.push(bomRawItem('Sistem',`Induktor DC Filter ${inductorMH}mH ${idcA}A`,`${inductorMH}mH ${idcA}A`,1,'pcs','Inductor',['induktor','inductor','choke',`${inductorMH}mh`,`${idcA}a`],`Series output modul \u2014 L=${inductorMH}mH, I_rated=${idcA}A`));
     raw.push(bomRawItem('Sistem',`Elco DC Filter Capacitor 10000\u00b5F ${elcoV}VDC`,`10000\u00b5F ${elcoV}VDC`,2,'pcs','Capacitor',['elco','capacitor','dc filter',`${elcoV}vdc`],`${elcoV}VDC untuk bus ${vdc}VDC \u2014 parallel output modul`));
@@ -8988,7 +9039,7 @@ function bomBaseGeneratedRawItems(spec) {
     const feederA=Math.round(e.outputA/(spec.outputFeeders||1));
     const mcbFeedA=BOM_STD_BREAKERS.find(b=>b>=feederA)||feederA;
     const trafoKva=bomNextStd(BOM_STD_TRAFO_KVA,kva*1.1);
-    const inductorMH=bomInduktorMH(idcA);
+    const inductorMH=bomInduktorMH(idcA,spec.inputPhase);
     const elcoV=vdc<=110?200:(vdc<=220?400:500);
     const fanSizing=bomFanCabin(pLossW);
     const inPoles=spec.inputPhase==='3P'?'3P':'2P';
@@ -8998,8 +9049,9 @@ function bomBaseGeneratedRawItems(spec) {
     raw.push(bomRawItem('Sistem',`${bomCbBrand(inputBr,inPoles)} (MCB Input)`,`${spec.inputPhase} ${spec.inputVoltage}VAC \u2014 I=${e.inputA.toFixed(1)}A \u00d71.5 \u2192 ${inputBr}A`,1,'pcs','Breaker',['mcb','schneider','input',`${inputBr}a`],`I_input\u00d71.5 inrush \u2192 ${inputBr}A`));
     raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','input'],'Status MCB input'));
     raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.inputVoltage}VAC`,'EPCOS',spec.inputPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov',`${spec.inputVoltage}v`],'Surge protection input'));
-    raw.push(bomRawItem('Sistem',`Trafo Input UPS ${spec.inputPhase} ${spec.inputVoltage}VAC / CT secondary ${vdc}VDC side ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','input','ups',`${trafoKva}kva`],`Trafo rectifier section, ${trafoKva}kVA`));
-    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vdc*0.95,spec.inputPhase,'Trafo Input ke Charger Module');
+    const vSecUpsIn=bomVsec(vdc,spec.inputPhase);
+    raw.push(bomRawItem('Sistem',`Trafo Input UPS ${spec.inputPhase} ${spec.inputVoltage}VAC / ${vSecUpsIn.toFixed(0)}VAC CT-secondary ${trafoKva}kVA`,`${spec.inputVoltage}VAC => ${vSecUpsIn.toFixed(0)}VAC CT, ${trafoKva}kVA`,1,'unit','Transformer',['trafo','input','ups',`${trafoKva}kva`,`${vSecUpsIn.toFixed(0)}vac`],`Vsec=${vSecUpsIn.toFixed(0)}VAC: Vdc_max=${vdc}x1.25, ${spec.inputPhase==='3P'?'6P: 1.15x0.75xVdcmax':'2P: 1.15x1.1xVdcmax'}`));
+    bomAddTrafoSecCable(raw,'Sistem',trafoKva,vSecUpsIn,spec.inputPhase,'Trafo Input ke Charger Module');
     raw.push(bomRawItem('Sistem',`Charger/Rectifier Module ${vdc}VDC ${idcA}A`,`${vdc}VDC ${idcA}A`,1,'unit','Rectifier',['charger','rectifier','module',`${vdc}v`,`${idcA}a`],'Charger/rectifier section UPS'));
     raw.push(bomRawItem('Sistem',`Induktor DC Filter ${inductorMH}mH ${idcA}A`,`${inductorMH}mH ${idcA}A`,1,'pcs','Inductor',['induktor','inductor',`${inductorMH}mh`,`${idcA}a`],`DC smoothing L=${inductorMH}mH`));
     raw.push(bomRawItem('Sistem',`Elco DC Filter ${elcoV}VDC 10000\u00b5F`,`10000\u00b5F ${elcoV}VDC`,2,'pcs','Capacitor',['elco','capacitor',`${elcoV}vdc`],'DC bus filter'));
