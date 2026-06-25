@@ -8784,7 +8784,9 @@ const BOM_JEMBO_TABLE = [
   { maxA:233, nyaf:'120', terminal:'WFF 120', pe:'WAH 120' },
 ];
 function bomJemboLookup(cbRating) {
-  return BOM_JEMBO_TABLE.find(r => cbRating <= r.maxA) || null;
+  const r = BOM_JEMBO_TABLE.find(r => cbRating <= r.maxA);
+  if (!r) return {nyaf:'custom', term:'WFF custom', pe:'WAH custom'};
+  return {nyaf: r.nyaf, term: r.terminal, pe: r.pe};
 }
 // Lookup kabel dari arus aktual — untuk direct wiring (no terminal)
 function bomJemboLookupByAmps(ampere) {
@@ -8825,7 +8827,7 @@ function bomAddCableWithTerminal(raw, section, label, phase, cbRating, qty, note
   const lut = bomJemboLookup(cbRating);
   const cores = phase === '3P' ? '4x' : '2x';
   const nyaf = lut ? lut.nyaf : 'custom';
-  const term = lut ? lut.terminal : 'WFF custom';
+  const term = lut ? lut.term : 'WFF custom';
   const pe   = lut ? lut.pe : 'WAH custom';
   raw.push(bomRawItem(section,
     `Kabel NYAF ${cores}${nyaf}mm2 - ${label}`,
@@ -8851,7 +8853,7 @@ function bomAddCableWithTerminal(raw, section, label, phase, cbRating, qty, note
 function bomAddDCCableWithTerminal(raw, section, label, cbRating, note) {
   const lut = bomJemboLookup(cbRating);
   const nyaf = lut ? lut.nyaf : 'custom';
-  const term = lut ? lut.terminal : 'WFF custom';
+  const term = lut ? lut.term : 'WFF custom';
   // DC outgoing: kabel + terminal saja, TANPA PE (DC tidak pakai PE terminal)
   raw.push(bomRawItem(section,
     `Kabel NYAF 2x${nyaf}mm2 - ${label}`,
@@ -8974,7 +8976,7 @@ function bomBaseGeneratedRawItems(spec) {
     const varistorQty  = spec.inputPhase === '3P' ? 3 : 1;
     // Terminal AC incoming: 3P=3 WDU + 1 PE, 1P=2 WDU + 1 PE (tanpa netral untuk 3P)
     const wduQty = spec.inputPhase === '3P' ? 3 : 2;
-    const jIn = bomJemboLookup(inputBr);
+    const jIn = bomJemboLookup(inputBr) || {nyaf:'custom', term:'WFF custom', pe:'WAH custom'};
 
     // ── SISTEM: urutan sesuai alur fisik wiring ──
     // 1. Terminal incoming (titik masuk kabel dari grid)
