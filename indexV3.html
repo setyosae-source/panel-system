@@ -8883,30 +8883,37 @@ function bomVsec(vdc, phase) {
   return 1.15 * 1.1 * vdcMax;
 }
 function bomAddTrafoSecCable(raw, section, kvaTrafo, voltSec, phaseSec, label) {
-  // voltSec: sudah dihitung dari bomVsec() atau override manual
-  // I_sec: untuk 1P = kVA/Vsec, untuk 3P = kVA/(√3 × Vsec)
+  // I_sec dari kVA dan Vsec
   const iSec = (kvaTrafo * 1000) / (phaseSec === '3P' ? Math.sqrt(3) * voltSec : voltSec);
-  const lut  = bomJemboLookupByAmps(iSec);
+  // Konversi I_sec ke CB equivalent → cari CB std yang cover I_sec
+  // lalu lookup tabel Jembo berdasarkan CB rating (bukan arus langsung)
+  const cbEquiv = bomNextStd(BOM_STD_BREAKERS, iSec);
+  const lut = bomJemboLookup(cbEquiv);
+  const nyaf = lut ? lut.nyaf : 'custom';
   const cores = phaseSec === '3P' ? '4x' : '2x';
   const formula = phaseSec === '3P'
-    ? `${kvaTrafo}kVA/(1.732x${voltSec.toFixed(1)}V)=${iSec.toFixed(1)}A`
-    : `${kvaTrafo}kVA/${voltSec.toFixed(1)}V=${iSec.toFixed(1)}A`;
+    ? `${kvaTrafo}kVA/(1.732x${voltSec.toFixed(1)}V)=${iSec.toFixed(1)}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`
+    : `${kvaTrafo}kVA/${voltSec.toFixed(1)}V=${iSec.toFixed(1)}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`;
   raw.push(bomRawItem(section,
-    `Kabel NYAF ${cores}${lut.nyaf}mm2 - ${label}`,
-    `Isec=${iSec.toFixed(1)}A => NYAF ${lut.nyaf}mm2 (Direct, No Terminal)`,
+    `Kabel NYAF ${cores}${nyaf}mm2 - ${label}`,
+    `Isec=${iSec.toFixed(1)}A (CB equiv ${cbEquiv}A) => NYAF ${nyaf}mm2 (Direct, No Terminal)`,
     1, 'lot', 'Kabel NYAF',
-    ['kabel nyaf',`nyaf ${lut.nyaf}mm`,`nyaf${lut.nyaf}mm2`,`${lut.nyaf}mm`,label.toLowerCase(),'trafo secondary','direct wiring'],
+    ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,label.toLowerCase(),'trafo secondary','direct wiring'],
     `Direct wiring NO terminal - ${formula}`));
 }
 // DC Bus internal: modul ke MCB, direct wiring no terminal
+// Sizing: I_DC → CB equivalent → tabel Jembo (konsisten dengan tabel SAE)
 function bomAddDCBusInternal(raw, section, idcA) {
-  const lut = bomJemboLookupByAmps(idcA * 1.25);
+  const cbEquiv = bomNextStd(BOM_STD_BREAKERS, idcA);
+  const lut = bomJemboLookup(cbEquiv);
+  const nyaf = lut ? lut.nyaf : 'custom';
   raw.push(bomRawItem(section,
-    `Kabel NYAF 2x${lut.nyaf}mm2 - DC Bus Internal`,
-    `IDC=${idcA}Ax1.25 => NYAF ${lut.nyaf}mm2`,
+    `Kabel NYAF 2x${nyaf}mm2 - DC Bus Internal`,
+    `IDC=${idcA}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`,
     1, 'lot', 'Kabel NYAF',
-    ['kabel nyaf',`nyaf ${lut.nyaf}mm`,`nyaf${lut.nyaf}mm2`,`${lut.nyaf}mm`,'dc bus','internal','wiring internal'],
+    ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,'dc bus','internal','wiring internal'],
     `Internal DC wiring: modul => induktor, elco, MCB Load, MCB Battery - NO terminal`));
+}
 }
 // Fan kabin: Q(CFM) = P_loss/(1.76 x DeltaT), DeltaT=10C
 function bomFanCabin(pLossW) {
