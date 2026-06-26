@@ -8681,6 +8681,15 @@ async function bomWizardGenerate() {
     hasMeter: s.hasMeter,
     hasSPD: s.hasSPD,
     hasContactor: s.hasContactor,
+    // Opsi tambahan
+    withBattery: !!s.withBattery,
+    withMetering: !!s.withMetering,
+    withRelayTerminal: !!s.withRelayTerminal,
+    // Enclosure
+    enclosureSize: s.enclosureSize || 'Medium',
+    encW: s.encW || 650,
+    encD: s.encD || 800,
+    encH: s.encH || 1550,
   };
 
   toast('Generating BOM...');
