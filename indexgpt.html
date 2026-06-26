@@ -9118,29 +9118,50 @@ function bomCableLength(segment, enc, phase, unitType) {
   // Jarak routing per segment (meter, sebelum faktor konduktor & slack)
   // Layout: bawah=terminal+MCB, tengah=trafo, tengah-atas=modul, atas=MCB DC
   const segs = {
-    // Terminal incoming → MCB Input (vertikal pendek, area depan tengah)
-    'terminal_to_mcb_in':  isSmall ? 0.25 : (h <= 1.6 ? 0.35 : 0.45),
-    // MCB Input → primer trafo (turun ke tengah-bawah)
-    'mcb_in_to_trafo':     isSmall ? 0.40 : (h <= 1.6 ? 0.60 : 0.85),
-    // Secondary trafo → modul rectifier (naik ke tengah-atas)
-    // Small: modul dekat trafo. Medium/Large: modul di atas, induktor di antara
-    'trafo_sec_to_modul':  isSmall ? 0.50 : (h <= 1.6 ? 0.80 : 1.10),
-    // DC bus internal (modul → induktor → elco → MCB DC)
-    // Small: horizontal belakang modul. Medium/Large: vertikal pendek atas trafo
-    'dc_bus_internal':     isSmall ? 0.35 : (h <= 1.6 ? 0.55 : 0.75),
-    // MCB DC → terminal outgoing (turun dari atas ke tengah depan)
-    'mcb_dc_to_terminal':  isSmall ? 0.60 : (h <= 1.6 ? 0.90 : 1.20),
+    // ── Rectifier segments ──
+    'terminal_to_mcb_in':    isSmall ? 0.25 : (h <= 1.6 ? 0.35 : 0.45),
+    'mcb_in_to_trafo':       isSmall ? 0.40 : (h <= 1.6 ? 0.60 : 0.85),
+    'trafo_sec_to_modul':    isSmall ? 0.50 : (h <= 1.6 ? 0.80 : 1.10),
+    'dc_bus_internal':       isSmall ? 0.35 : (h <= 1.6 ? 0.55 : 0.75),
+    'mcb_dc_to_terminal':    isSmall ? 0.60 : (h <= 1.6 ? 0.90 : 1.20),
+    // ── Inverter segments ──
+    'inv_tb_dc_to_mcb_dc':   isSmall ? 0.25 : (h <= 1.6 ? 0.35 : 0.45),
+    'inv_mcb_dc_to_modul':   isSmall ? 0.40 : (h <= 1.6 ? 0.55 : 0.75),
+    'inv_modul_to_trafo':    isSmall ? 0.30 : (h <= 1.6 ? 0.45 : 0.60),
+    'inv_trafo_to_lc':       isSmall ? 0.25 : (h <= 1.6 ? 0.35 : 0.50),
+    'inv_lc_to_sts':         isSmall ? 0.20 : (h <= 1.6 ? 0.30 : 0.40),
+    'inv_sts_to_mcb_out':    isSmall ? 0.40 : (h <= 1.6 ? 0.60 : 0.80),
+    'inv_mcb_out_to_tb':     isSmall ? 0.50 : (h <= 1.6 ? 0.75 : 1.00),
+    'inv_tb_byp_to_mcb_byp': isSmall ? 0.25 : (h <= 1.6 ? 0.35 : 0.45),
+    'inv_mcb_byp_to_ts':     isSmall ? 0.30 : (h <= 1.6 ? 0.40 : 0.55),
+    'inv_ts_to_mcb_out':     isSmall ? 0.60 : (h <= 1.6 ? 0.85 : 1.10),
+    'inv_ts_to_sts':         isSmall ? 0.35 : (h <= 1.6 ? 0.50 : 0.65),
   };
 
   const dist = (segs[segment] || 0.5) * scale;
 
   // Jumlah konduktor per circuit
   const conductors = {
-    'terminal_to_mcb_in':  phase === '3P' ? 4 : 3,  // 3P: 3F+PE, 1P: F+N+PE
-    'mcb_in_to_trafo':     phase === '3P' ? 4 : 3,  // sama
-    'trafo_sec_to_modul':  phase === '3P' ? 3 : 2,  // secondary: no PE, 3P=3wire, 1P=2wire
-    'dc_bus_internal':     2,                         // DC: + dan -
-    'mcb_dc_to_terminal':  2,                         // DC: + dan -
+    // Rectifier
+    'terminal_to_mcb_in':    phase === '3P' ? 4 : 3,  // 3P: 3F+PE, 1P: F+N+PE
+    'mcb_in_to_trafo':       phase === '3P' ? 4 : 3,
+    'trafo_sec_to_modul':    phase === '3P' ? 3 : 2,  // secondary no PE
+    'dc_bus_internal':       2,                         // DC + dan -
+    'mcb_dc_to_terminal':    2,
+    // Inverter DC
+    'inv_tb_dc_to_mcb_dc':   2,  // DC: + dan -
+    'inv_mcb_dc_to_modul':   2,  // DC: + dan -
+    'inv_modul_to_trafo':    2,  // DC/HF ke trafo primer: + dan -
+    // Inverter AC (trafo secondary dan seterusnya) — no PE (internal panel)
+    'inv_trafo_to_lc':       2,  // AC 1P secondary no PE
+    'inv_lc_to_sts':         2,  // AC 1P no PE
+    'inv_sts_to_mcb_out':    2,  // AC 1P no PE
+    'inv_mcb_out_to_tb':     3,  // AC 1P + PE ke terminal output
+    // Bypass
+    'inv_tb_byp_to_mcb_byp': 3, // AC 1P + PE incoming bypass
+    'inv_mcb_byp_to_ts':     2,  // AC 1P no PE (dalam panel)
+    'inv_ts_to_mcb_out':     2,  // AC 1P no PE (maintenance path)
+    'inv_ts_to_sts':         2,  // AC 1P no PE (bypass ke STS)
   };
 
   const nConductor = conductors[segment] || 2;
@@ -9512,8 +9533,32 @@ function bomBaseGeneratedRawItems(spec) {
     const jByp      = bomJemboLookup(mcbBypA);
     const auxByp    = mcbBypA <= 63 ? 'A9A26904' : 'A9N26899';
 
+    // Lookup kabel per rating MCB
+    const jDC   = bomJemboLookup(mcbDcA);
+    const jOut  = bomJemboLookup(mcbOutA);
+    const jFeed = bomJemboLookup(mcbFeedA);
+    const nyafDC   = jDC   ? jDC.nyaf   : 'custom';
+    const nyafOut  = jOut  ? jOut.nyaf  : 'custom';
+    const nyafByp  = jByp  ? jByp.nyaf  : 'custom';
+    const nyafFeed = jFeed ? jFeed.nyaf : 'custom';
+
+    // Lookup kabel trafo secondary (dari kVA dan Vout)
+    const iSecInv = (trafoKva * 1000) / (spec.outputVoltage || 230);
+    const cbSecInv = bomNextStd(BOM_STD_BREAKERS, iSecInv);
+    const jSecInv = bomJemboLookup(cbSecInv);
+    const nyafSec = jSecInv ? jSecInv.nyaf : 'custom';
+
     // ── SISTEM: urutan alur fisik wiring ──
-    // 1. Push Button Pre-charge + Resistor DC
+
+    // 1. Kabel Terminal DC → MCB DC Input
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafDC}mm2 - Terminal DC ke MCB Input`,
+      `CB ${mcbDcA}A => NYAF ${nyafDC}mm2 DC — ${cLen('inv_tb_dc_to_mcb_dc')}m`,
+      cLen('inv_tb_dc_to_mcb_dc'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafDC}mm`,`nyaf${nyafDC}mm2`,'dc','terminal ke mcb'],
+      `DC: + dan − — Jembo ref CB ${mcbDcA}A`));
+
+    // 2. Push Button Pre-charge + Resistor DC
     raw.push(bomRawItem('Sistem',
       'Push Button Pre-charge + Resistor DC (Soft-start kapasitor)',
       'N.O. Push Button + Resistor 10Ω 50W',
@@ -9521,7 +9566,7 @@ function bomBaseGeneratedRawItems(spec) {
       ['push button','precharge','resistor','soft start','kapasitor dc'],
       'Mencegah lonjakan arus saat DC pertama kali dihubungkan ke kapasitor'));
 
-    // 2. MCB DC Input + Aux
+    // 3. MCB DC Input + Aux
     raw.push(bomRawItem('Sistem',
       `${bomCbBrand(mcbDcA,'2P')} DC (MCB Input Inverter)`,
       `${vdc}VDC — TEPAT ${mcbDcA}A`,
@@ -9535,7 +9580,15 @@ function bomBaseGeneratedRawItems(spec) {
       ['auxiliary','of','sd',mcbDcA<=63?'a9a26904':'a9n26899','schneider','dc','input'],
       'Status MCB DC input'));
 
-    // 3. Inverter Module PESS (1 paket: IGBT, Driver PCB, Control Board, SMPS, HMI, Alarm Relay, Static Transfer Switch)
+    // 4. Kabel MCB DC → Modul Inverter PESS
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafDC}mm2 - MCB DC ke Modul Inverter`,
+      `CB ${mcbDcA}A => NYAF ${nyafDC}mm2 DC — ${cLen('inv_mcb_dc_to_modul')}m`,
+      cLen('inv_mcb_dc_to_modul'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafDC}mm`,`nyaf${nyafDC}mm2`,'dc','mcb ke modul'],
+      `DC ke modul PESS: + dan −`));
+
+    // 5. Inverter Module PESS
     raw.push(bomRawItem('Sistem',
       `Inverter Module PESS ${vdc}VDC / ${spec.outputPhase||'1P'} ${spec.outputVoltage||230}VAC ${kva.toFixed(1)}kVA`,
       `${vdc}VDC => ${spec.outputVoltage||230}VAC ${kva.toFixed(1)}kVA`,
@@ -9543,7 +9596,15 @@ function bomBaseGeneratedRawItems(spec) {
       ['inverter','module','pess',`${vdc}v`,`${spec.outputVoltage||230}vac`,`${kva.toFixed(1)}kva`],
       'Satu paket: IGBT, Driver PCB, Control Board, SMPS, HMI, Alarm Relay, Static Transfer Switch'));
 
-    // 4. Trafo Output (DC → AC conversion)
+    // 6. Kabel Modul → Trafo primer (DC/HF)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafDC}mm2 - Modul Inverter ke Trafo Primer`,
+      `NYAF ${nyafDC}mm2 DC/HF — ${cLen('inv_modul_to_trafo')}m`,
+      cLen('inv_modul_to_trafo'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafDC}mm`,`nyaf${nyafDC}mm2`,'modul ke trafo','trafo primer'],
+      `DC/HF dari modul ke primer trafo inverter: + dan −`));
+
+    // 7. Trafo Output
     raw.push(bomRawItem('Sistem',
       `Trafo Output Inverter ${vdc}VDC / ${spec.outputPhase||'1P'} ${spec.outputVoltage||230}VAC ${trafoKva}kVA`,
       `${trafoKva}kVA`,
@@ -9551,18 +9612,39 @@ function bomBaseGeneratedRawItems(spec) {
       ['trafo','output','inverter',`${trafoKva}kva`,`${spec.outputVoltage||230}vac`],
       `Trafo output ${trafoKva}kVA`));
 
-    // 5. Kabel Trafo → LC Filter (direct, no terminal)
-    bomAddTrafoSecCable(raw, 'Sistem', trafoKva, spec.outputVoltage||230, spec.outputPhase||'1P', 'Trafo Output ke LC Filter');
-
-    // 6. Kapasitor Filter AC (induktor sudah sepaket PESS)
+    // 8. Kabel Trafo secondary → LC Filter (no PE, no terminal)
     raw.push(bomRawItem('Sistem',
-      `Kapasitor Filter AC 20uF 440VAC`,
+      `Kabel NYAF ${nyafSec}mm2 - Trafo Secondary ke LC Filter`,
+      `Isec=${iSecInv.toFixed(1)}A => CB equiv ${cbSecInv}A => NYAF ${nyafSec}mm2 — ${cLen('inv_trafo_to_lc')}m`,
+      cLen('inv_trafo_to_lc'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafSec}mm`,`nyaf${nyafSec}mm2`,'trafo secondary','lc filter','direct wiring'],
+      `AC 1P: 2 wire no PE (direct wiring)`));
+
+    // 9. Kapasitor Filter AC
+    raw.push(bomRawItem('Sistem',
+      'Kapasitor Filter AC 20uF 440VAC',
       '20uF 440VAC',
       1, 'pcs', 'Capacitor',
       ['kapasitor','capacitor','20uf','440vac','filter ac','ac filter'],
       'Filter LC output AC — induktor sudah sepaket dalam modul PESS'));
 
-    // 7. MCB Output Utama + Aux (setelah static transfer switch di dalam modul)
+    // 10. Kabel LC Filter → STS (no PE)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafSec}mm2 - LC Filter ke STS`,
+      `NYAF ${nyafSec}mm2 AC — ${cLen('inv_lc_to_sts')}m`,
+      cLen('inv_lc_to_sts'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafSec}mm`,`nyaf${nyafSec}mm2`,'lc filter ke sts','static transfer switch'],
+      `AC 1P: 2 wire no PE`));
+
+    // 11. Kabel STS → MCB Output (no PE, internal panel)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafOut}mm2 - STS ke MCB Output`,
+      `NYAF ${nyafOut}mm2 AC — ${cLen('inv_sts_to_mcb_out')}m`,
+      cLen('inv_sts_to_mcb_out'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafOut}mm`,`nyaf${nyafOut}mm2`,'sts ke mcb output'],
+      `AC 1P output dari STS ke MCB Output: 2 wire no PE`));
+
+    // 12. MCB Output Utama + Aux
     raw.push(bomRawItem('Sistem',
       `${bomCbBrand(mcbOutA,outPoles)} (MCB Output Utama)`,
       `${spec.outputPhase||'1P'} ${spec.outputVoltage||230}VAC — TEPAT ${mcbOutA}A`,
@@ -9576,15 +9658,17 @@ function bomBaseGeneratedRawItems(spec) {
       ['auxiliary','of','sd',mcbOutA<=63?'a9a26904':'a9n26899','schneider','output'],
       'Status MCB output'));
 
-    // 8. Transfer Switch Maintenance Bypass C26 TR5295
-    raw.push(bomRawItem('Sistem',
-      'Transfer Switch Maintenance Bypass C26 TR5295',
-      'C26 TR5295 Kraus Naimer',
-      1, 'pcs', 'Transfer Switch',
-      ['transfer switch','c26','tr5295','kraus naimer','bypass switch','maintenance bypass'],
-      'Mechanical maintenance bypass — make before break'));
+    // ── JALUR BYPASS ──
 
-    // 9. MCB Bypass + Aux (bypass langsung dari grid, AC-AC)
+    // 13. Kabel Terminal Bypass → MCB Bypass (+ PE)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafByp}mm2 - Terminal Bypass ke MCB Bypass`,
+      `CB ${mcbBypA}A => NYAF ${nyafByp}mm2 — ${cLen('inv_tb_byp_to_mcb_byp')}m`,
+      cLen('inv_tb_byp_to_mcb_byp'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafByp}mm`,`nyaf${nyafByp}mm2`,'bypass','terminal ke mcb bypass'],
+      `AC 1P bypass: 3 wire (F+N+PE)`));
+
+    // 14. MCB Bypass + Aux
     raw.push(bomRawItem('Sistem',
       `${bomCbBrand(mcbBypA,outPoles)} (MCB Bypass)`,
       `${spec.outputPhase||'1P'} Bypass — I_bypass=${bypassA}A x1.25=${Math.round(bypassA*1.25)}A => ${mcbBypA}A`,
@@ -9598,7 +9682,39 @@ function bomBaseGeneratedRawItems(spec) {
       ['auxiliary','of','sd',auxByp.toLowerCase(),'schneider','bypass'],
       'Status MCB bypass'));
 
-    // 10. Varistor output
+    // 15. Kabel MCB Bypass → Transfer Switch C26
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafByp}mm2 - MCB Bypass ke Transfer Switch`,
+      `NYAF ${nyafByp}mm2 — ${cLen('inv_mcb_byp_to_ts')}m`,
+      cLen('inv_mcb_byp_to_ts'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafByp}mm`,`nyaf${nyafByp}mm2`,'mcb bypass ke transfer switch'],
+      `AC 1P: 2 wire no PE (dalam panel)`));
+
+    // 16. Transfer Switch Maintenance Bypass C26 TR5295
+    raw.push(bomRawItem('Sistem',
+      'Transfer Switch Maintenance Bypass C26 TR5295',
+      'C26 TR5295 Kraus Naimer',
+      1, 'pcs', 'Transfer Switch',
+      ['transfer switch','c26','tr5295','kraus naimer','bypass switch','maintenance bypass'],
+      'Mechanical maintenance bypass — make before break'));
+
+    // 17. Kabel Transfer Switch renc → MCB Output (maintenance path)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafOut}mm2 - Transfer Switch ke MCB Output (maintenance)`,
+      `NYAF ${nyafOut}mm2 — ${cLen('inv_ts_to_mcb_out')}m`,
+      cLen('inv_ts_to_mcb_out'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafOut}mm`,`nyaf${nyafOut}mm2`,'transfer switch','mcb output','maintenance'],
+      `Maintenance bypass path: direct ke MCB Output`));
+
+    // 18. Kabel Transfer Switch → STS (normal bypass ke dalam modul)
+    raw.push(bomRawItem('Sistem',
+      `Kabel NYAF ${nyafByp}mm2 - Transfer Switch ke STS`,
+      `NYAF ${nyafByp}mm2 — ${cLen('inv_ts_to_sts')}m`,
+      cLen('inv_ts_to_sts'), 'm', 'Kabel NYAF',
+      ['kabel nyaf',`nyaf ${nyafByp}mm`,`nyaf${nyafByp}mm2`,'transfer switch','sts','bypass ke sts'],
+      `Normal bypass path: ke STS dalam modul PESS`));
+
+    // 19. Varistor output
     raw.push(bomRawItem('Sistem',
       `Varistor EPCOS S20K275 ${spec.outputVoltage||230}VAC Output`,
       'EPCOS S20K275',
@@ -9606,54 +9722,91 @@ function bomBaseGeneratedRawItems(spec) {
       ['varistor','mov','epcos','s20k275','output',`${spec.outputVoltage||230}v`],
       'Surge protection output AC'));
 
-    // 11. MCB Feeder (jika lebih dari 1)
+    // 20. MCB Feeder (jika lebih dari 1)
     if ((spec.outputFeeders || 1) > 1) {
       raw.push(bomRawItem('Sistem',
         `${bomCbBrand(mcbFeedA,outPoles)} (MCB Feeder)`,
         `${spec.outputFeeders}x TEPAT ${mcbFeedA}A`,
         spec.outputFeeders, 'pcs', 'Breaker',
-        ['mcb','feeder',`${mcbFeedA}a`,mcbFeedA<=63?'ic60n':'c120n','schneider'],
-        ''));
+        ['mcb','feeder',`${mcbFeedA}a`,mcbFeedA<=63?'ic60n':'c120n','schneider'], ''));
       raw.push(bomRawItem('Sistem',
         `Auxiliary Contact OF/SD Schneider ${mcbFeedA<=63?'A9A26904':'A9N26899'} - MCB Feeder`,
         `${mcbFeedA<=63?'A9A26904':'A9N26899'}`,
         spec.outputFeeders, 'pcs', 'Breaker Accessory',
-        ['auxiliary','of','sd',mcbFeedA<=63?'a9a26904':'a9n26899','feeder'],
-        ''));
+        ['auxiliary','of','sd',mcbFeedA<=63?'a9a26904':'a9n26899','feeder'], ''));
     }
 
-    // 12. RS485
+    // 21. RS485
     raw.push(bomRawItem('Sistem',
       'RS485 to USB Converter', 'RS485/USB',
       1, 'pcs', 'Communication',
       ['rs485','usb','converter'],
       'Akses monitoring/setting HMI via laptop/PC'));
 
-    // ── AKSESORI: DC incoming + AC outgoing ──
-    bomAddDCCableWithTerminal(raw, 'Aksesori', 'DC Input dari Battery', mcbDcA, 'DC input dari battery');
-    // Bypass AC incoming
-    raw.push(bomRawItem('Aksesori',
-      `Kabel NYAF ${jByp?jByp.nyaf:'custom'}mm2 - AC Bypass Incoming`,
-      `CB ${mcbBypA}A => NYAF ${jByp?jByp.nyaf:'custom'}mm2 (Jembo)`,
-      1, 'lot', 'Kabel NYAF',
-      ['kabel nyaf',`nyaf ${jByp?jByp.nyaf:'custom'}mm`,'kabel bypass','ac bypass'],
-      `AC bypass dari grid — Jembo ref CB ${mcbBypA}A`));
-    if (jByp) {
+    // ── AKSESORI: Terminal DC incoming + AC Bypass incoming + AC Output ──
+    // DC incoming terminal + kabel (ke luar panel)
+    {
+      const lenDcTb = cLen('inv_tb_dc_to_mcb_dc');
       raw.push(bomRawItem('Aksesori',
-        `TB ${jByp.term} - AC Bypass Incoming`,
-        jByp.term, 1, 'set', 'Terminal Block',
-        [`terminal ${jByp.term.toLowerCase()}`,jByp.term.toLowerCase().replace(/\s+/g,''),'terminal block','phoenix'],
-        `ref CB ${mcbBypA}A => ${jByp.term}`));
+        `Kabel NYAF ${nyafDC}mm2 - DC Input dari Battery`,
+        `CB ${mcbDcA}A => NYAF ${nyafDC}mm2 DC — ${lenDcTb}m`,
+        lenDcTb, 'm', 'Kabel NYAF',
+        ['kabel nyaf',`nyaf ${nyafDC}mm`,`nyaf${nyafDC}mm2`,'kabel dc','battery','incoming'],
+        `DC incoming dari battery: + dan −`));
       raw.push(bomRawItem('Aksesori',
-        `TB PE ${jByp.pe} - AC Bypass Incoming`,
-        jByp.pe, 1, 'pcs', 'Terminal PE',
-        [`terminal pe ${jByp.pe.toLowerCase()}`,jByp.pe.toLowerCase().replace(/\s+/g,'')],
-        'Grounding terminal bypass incoming'));
+        `TB ${jDC?jDC.term:'WFF custom'} - DC Input dari Battery (+/-)`,
+        `${jDC?jDC.term:'WFF custom'} x2 (+/-)`,
+        2, 'pcs', 'Terminal Block',
+        [jDC?jDC.term.toLowerCase().replace(/\s+/g,''):'terminal','terminal block','phoenix','dc'],
+        `ref CB ${mcbDcA}A — 2 pcs untuk kutub + dan −`));
     }
-    bomAddCableWithTerminal(raw, 'Aksesori', 'AC Output ke Beban',
-      spec.outputPhase||'1P',
-      (spec.outputFeeders||1) > 1 ? mcbFeedA : mcbOutA,
-      spec.outputFeeders || 1, 'AC output');
+    // AC Bypass incoming terminal + kabel (ke luar panel)
+    {
+      const lenBypTb = cLen('inv_tb_byp_to_mcb_byp');
+      raw.push(bomRawItem('Aksesori',
+        `Kabel NYAF ${nyafByp}mm2 - AC Bypass Incoming`,
+        `CB ${mcbBypA}A => NYAF ${nyafByp}mm2 — ${lenBypTb}m`,
+        lenBypTb, 'm', 'Kabel NYAF',
+        ['kabel nyaf',`nyaf ${nyafByp}mm`,`nyaf${nyafByp}mm2`,'kabel bypass','ac bypass','incoming'],
+        `AC bypass dari grid — ref CB ${mcbBypA}A`));
+      if (jByp) {
+        raw.push(bomRawItem('Aksesori',
+          `TB ${jByp.term} - AC Bypass Incoming`,
+          jByp.term, 1, 'set', 'Terminal Block',
+          [`terminal ${jByp.term.toLowerCase()}`,jByp.term.toLowerCase().replace(/\s+/g,''),'terminal block','phoenix'],
+          `ref CB ${mcbBypA}A => ${jByp.term}`));
+        raw.push(bomRawItem('Aksesori',
+          `TB PE ${jByp.pe} - AC Bypass Incoming`,
+          jByp.pe, 1, 'pcs', 'Terminal PE',
+          [`terminal pe ${jByp.pe.toLowerCase()}`,jByp.pe.toLowerCase().replace(/\s+/g,'')],
+          'Grounding terminal bypass incoming'));
+      }
+    }
+    // AC Output ke beban
+    {
+      const fA = (spec.outputFeeders||1) > 1 ? mcbFeedA : mcbOutA;
+      const jO = bomJemboLookup(fA);
+      const nyO = jO ? jO.nyaf : 'custom';
+      const lenOut = cLen('inv_mcb_out_to_tb');
+      raw.push(bomRawItem('Aksesori',
+        `Kabel NYAF ${nyO}mm2 - AC Output ke Beban`,
+        `CB ${fA}A => NYAF ${nyO}mm2 — ${lenOut}m`,
+        lenOut * (spec.outputFeeders||1), 'm', 'Kabel NYAF',
+        ['kabel nyaf',`nyaf ${nyO}mm`,`nyaf${nyO}mm2`,'kabel ac','output','beban'],
+        `AC output ke beban — ref CB ${fA}A`));
+      if (jO) {
+        raw.push(bomRawItem('Aksesori',
+          `TB ${jO.term} - AC Output ke Beban`,
+          jO.term, spec.outputFeeders||1, 'set', 'Terminal Block',
+          [`terminal ${jO.term.toLowerCase()}`,jO.term.toLowerCase().replace(/\s+/g,''),'terminal block','phoenix'],
+          `ref CB ${fA}A => ${jO.term}`));
+        raw.push(bomRawItem('Aksesori',
+          `TB PE ${jO.pe} - AC Output ke Beban`,
+          jO.pe, spec.outputFeeders||1, 'pcs', 'Terminal PE',
+          [`terminal pe ${jO.pe.toLowerCase()}`,jO.pe.toLowerCase().replace(/\s+/g,'')],
+          'Grounding terminal AC output'));
+      }
+    }
 
     if (spec.withMetering) {
       raw.push(bomRawItem('Aksesori', `Voltmeter AC 0–${Math.round((spec.outputVoltage||230)*1.2)}VAC`, '', 1, 'pcs', 'Meter', ['voltmeter','ac'], ''));
