@@ -8935,12 +8935,11 @@ function bomCbBrand(cbRating, poles) {
 // Token spesifik supaya price lookup tidak salah match
 function bomAddCableWithTerminal(raw, section, label, phase, cbRating, qty, note) {
   const lut = bomJemboLookup(cbRating);
-  const cores = phase === '3P' ? '4x' : '2x';
   const nyaf = lut ? lut.nyaf : 'custom';
   const term = lut ? lut.term : 'WFF custom';
   const pe   = lut ? lut.pe : 'WAH custom';
   raw.push(bomRawItem(section,
-    `Kabel NYAF ${cores}${nyaf}mm2 - ${label}`,
+    `Kabel NYAF ${nyaf}mm2 - ${label}`,
     `CB ${cbRating}A => NYAF ${nyaf}mm2 (Jembo)`,
     qty, 'lot', 'Kabel NYAF',
     ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,label.toLowerCase(),'kabel power'],
@@ -8966,7 +8965,7 @@ function bomAddDCCableWithTerminal(raw, section, label, cbRating, note) {
   const term = lut ? lut.term : 'WFF custom';
   // DC outgoing: kabel + terminal saja, TANPA PE (DC tidak pakai PE terminal)
   raw.push(bomRawItem(section,
-    `Kabel NYAF 2x${nyaf}mm2 - ${label}`,
+    `Kabel NYAF ${nyaf}mm2 - ${label}`,
     `CB ${cbRating}A => NYAF ${nyaf}mm2 DC (Jembo)`,
     1, 'lot', 'Kabel NYAF',
     ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,label.toLowerCase(),'kabel dc'],
@@ -8996,12 +8995,11 @@ function bomAddTrafoSecCable(raw, section, kvaTrafo, voltSec, phaseSec, label) {
   const cbEquiv = bomNextStd(BOM_STD_BREAKERS, iSec);
   const lut = bomJemboLookup(cbEquiv);
   const nyaf = lut ? lut.nyaf : 'custom';
-  const cores = phaseSec === '3P' ? '4x' : '2x';
   const formula = phaseSec === '3P'
     ? `${kvaTrafo}kVA/(1.732x${voltSec.toFixed(1)}V)=${iSec.toFixed(1)}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`
     : `${kvaTrafo}kVA/${voltSec.toFixed(1)}V=${iSec.toFixed(1)}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`;
   raw.push(bomRawItem(section,
-    `Kabel NYAF ${cores}${nyaf}mm2 - ${label}`,
+    `Kabel NYAF ${nyaf}mm2 - ${label}`,
     `Isec=${iSec.toFixed(1)}A (CB equiv ${cbEquiv}A) => NYAF ${nyaf}mm2 (Direct, No Terminal)`,
     1, 'lot', 'Kabel NYAF',
     ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,label.toLowerCase(),'trafo secondary','direct wiring'],
@@ -9014,7 +9012,7 @@ function bomAddDCBusInternal(raw, section, idcA) {
   const lut = bomJemboLookup(cbEquiv);
   const nyaf = lut ? lut.nyaf : 'custom';
   raw.push(bomRawItem(section,
-    `Kabel NYAF 2x${nyaf}mm2 - DC Bus Internal`,
+    `Kabel NYAF ${nyaf}mm2 - DC Bus Internal`,
     `IDC=${idcA}A => CB equiv ${cbEquiv}A => NYAF ${nyaf}mm2`,
     1, 'lot', 'Kabel NYAF',
     ['kabel nyaf',`nyaf ${nyaf}mm`,`nyaf${nyaf}mm2`,`${nyaf}mm`,'dc bus','internal','wiring internal'],
@@ -9103,7 +9101,7 @@ function bomBaseGeneratedRawItems(spec) {
       'Grounding terminal incoming'));
     // 2. Kabel dari terminal incoming ke MCB
     raw.push(bomRawItem('Sistem',
-      `Kabel NYAF ${spec.inputPhase==='3P'?'4x':'2x'}${jIn.nyaf}mm2 - Terminal ke MCB Input`,
+      `Kabel NYAF ${jIn.nyaf}mm2 - Terminal ke MCB Input`,
       `CB ${inputBr}A => NYAF ${jIn.nyaf}mm2 (Jembo)`,
       1, 'lot', 'Kabel NYAF',
       ['kabel nyaf', `nyaf ${jIn.nyaf}mm`, `nyaf${jIn.nyaf}mm2`, `${jIn.nyaf}mm`, 'kabel input', 'terminal ke mcb'],
@@ -9117,13 +9115,14 @@ function bomBaseGeneratedRawItems(spec) {
       `I_input ${e.inputA.toFixed(1)}A x 1.5 = ${(e.inputA*1.5).toFixed(1)}A -> next std ${inputBr}A`));
     // 4. Auxiliary MCB Input
     raw.push(bomRawItem('Sistem',
-      'Auxiliary Contact OF/SD - MCB Input', 'A9A26904',
-      1, 'pcs', 'Auxiliary',
-      ['auxiliary','aux','of','sd','a9a26904','input'],
+      `Auxiliary Contact OF/SD Schneider ${inputBr<=63?'A9A26904':'A9N26899'} - MCB Input`,
+      `${inputBr<=63?'A9A26904':'A9N26899'}`,
+      1, 'pcs', 'Breaker Accessory',
+      ['auxiliary','of','sd',inputBr<=63?'a9a26904':'a9n26899','schneider','input'],
       'Status & remote trip MCB input'));
     // 5. Kabel dari MCB ke trafo (primer)
     raw.push(bomRawItem('Sistem',
-      `Kabel NYAF ${spec.inputPhase==='3P'?'4x':'2x'}${jIn.nyaf}mm2 - MCB Input ke Trafo`,
+      `Kabel NYAF ${jIn.nyaf}mm2 - MCB Input ke Trafo`,
       `CB ${inputBr}A => NYAF ${jIn.nyaf}mm2 (Jembo)`,
       1, 'lot', 'Kabel NYAF',
       ['kabel nyaf', `nyaf ${jIn.nyaf}mm`, `nyaf${jIn.nyaf}mm2`, `${jIn.nyaf}mm`, 'mcb ke trafo', 'kabel primer'],
@@ -9189,9 +9188,10 @@ function bomBaseGeneratedRawItems(spec) {
       ['mcb','schneider','2p',`${mcbDcA}a`,'load','dc',`${vdc}v`,`mcb2p${mcbDcA}a`],
       `TEPAT ${mcbDcA}A - tidak dinaikkan, proteksi sesuai kapasitas load`));
     raw.push(bomRawItem('Sistem',
-      'Auxiliary Contact OF/SD - MCB Load', 'A9A26904',
-      1, 'pcs', 'Auxiliary',
-      ['auxiliary','of','sd','load','dc'], 'Status MCB load'));
+      `Auxiliary Contact OF/SD Schneider ${mcbDcA<=63?'A9A26904':'A9N26899'} - MCB Load`,
+      `${mcbDcA<=63?'A9A26904':'A9N26899'}`,
+      1, 'pcs', 'Breaker Accessory',
+      ['auxiliary','of','sd',mcbDcA<=63?'a9a26904':'a9n26899','schneider','load','dc'], 'Status MCB load'));
     // 14. MCB Battery DC + Auxiliary
     raw.push(bomRawItem('Sistem',
       `${bomCbBrand(mcbDcA,'2P')} DC (MCB Battery)`,
@@ -9200,9 +9200,10 @@ function bomBaseGeneratedRawItems(spec) {
       ['mcb','schneider','2p',`${mcbDcA}a`,'battery','dc',`${vdc}v`,`mcb2p${mcbDcA}a`],
       `TEPAT ${mcbDcA}A - battery harus mampu supply 100% load capacity`));
     raw.push(bomRawItem('Sistem',
-      'Auxiliary Contact OF/SD - MCB Battery', 'A9A26904',
-      1, 'pcs', 'Auxiliary',
-      ['auxiliary','of','sd','battery','dc'], 'Status MCB battery'));
+      `Auxiliary Contact OF/SD Schneider ${mcbDcA<=63?'A9A26904':'A9N26899'} - MCB Battery`,
+      `${mcbDcA<=63?'A9A26904':'A9N26899'}`,
+      1, 'pcs', 'Breaker Accessory',
+      ['auxiliary','of','sd',mcbDcA<=63?'a9a26904':'a9n26899','schneider','battery','dc'], 'Status MCB battery'));
     // 15. RS485
     raw.push(bomRawItem('Sistem',
       'RS485 to USB Converter', 'RS485/USB',
@@ -9254,7 +9255,7 @@ function bomBaseGeneratedRawItems(spec) {
 
     // Charger/Rectifier section
     raw.push(bomRawItem('Sistem',`${bomCbBrand(inputBr,inPoles)} (MCB Input)`,`${spec.inputPhase} ${spec.inputVoltage}VAC \u2014 I=${e.inputA.toFixed(1)}A \u00d71.5 \u2192 ${inputBr}A`,1,'pcs','Breaker',['mcb','schneider','input',`${inputBr}a`],`I_input\u00d71.5 inrush \u2192 ${inputBr}A`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','input'],'Status MCB input'));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','input','a9a26904','schneider'],'Status MCB input'));
     raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.inputVoltage}VAC`,'EPCOS',spec.inputPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov',`${spec.inputVoltage}v`],'Surge protection input'));
     const vSecUpsIn=bomVsec(vdc,spec.inputPhase);
     raw.push(bomRawItem('Sistem',`Trafo Input UPS ${spec.inputPhase} ${spec.inputVoltage}VAC / ${vSecUpsIn.toFixed(0)}VAC CT-secondary ${trafoKva}kVA`,`${spec.inputVoltage}VAC => ${vSecUpsIn.toFixed(0)}VAC CT, ${trafoKva}kVA`,1,'unit','Transformer',['trafo','input','ups',`${trafoKva}kva`,`${vSecUpsIn.toFixed(0)}vac`],`Vsec=${vSecUpsIn.toFixed(0)}VAC: Vdc_max=${vdc}x1.25, ${spec.inputPhase==='3P'?'6P: 1.15x0.75xVdcmax':'2P: 1.15x1.1xVdcmax'}`));
@@ -9264,14 +9265,14 @@ function bomBaseGeneratedRawItems(spec) {
     raw.push(bomRawItem('Sistem',`Elco DC Filter ${elcoV}VDC 10000\u00b5F`,`10000\u00b5F ${elcoV}VDC`,2,'pcs','Capacitor',['elco','capacitor',`${elcoV}vdc`],'DC bus filter'));
     bomAddDCBusInternal(raw,'Sistem',idcA);
     raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB ke Inverter)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A`,1,'pcs','Breaker',['mcb','dc','inverter',`${mcbDcA}a`],`TEPAT ${mcbDcA}A`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC ke Inverter','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','inverter'],'Status'));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC ke Inverter','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','inverter','a9a26904','schneider'],'Status'));
     raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Battery)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A (100% load backup)`,1,'pcs','Breaker',['mcb','dc','battery',`${mcbDcA}a`],`TEPAT ${mcbDcA}A \u2014 battery supply 100% load`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Battery','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','battery'],'Status MCB battery'));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Battery','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','battery','a9a26904','schneider'],'Status MCB battery'));
     // Bypass
     if (spec.bypassEnabled) {
       const bpPoles=spec.bypassPriPhase==='3P'?'3P':'2P';
       raw.push(bomRawItem('Sistem',`${bomCbBrand(bypassBr,bpPoles)} (MCB Bypass)`,`${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC \u2014 I=${e.bypassA.toFixed(1)}A \u00d71.25 \u2192 ${bypassBr}A`,1,'pcs','Breaker',['mcb','bypass',`${bypassBr}a`],`I_bypass\u00d71.25 \u2192 ${bypassBr}A`));
-      raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Bypass','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','bypass'],'Status MCB bypass'));
+      raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Bypass','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','bypass','a9a26904','schneider'],'Status MCB bypass'));
       raw.push(bomRawItem('Sistem',`Varistor / MOV ${spec.bypassPriVoltage}VAC Bypass`,'EPCOS',spec.bypassPriPhase==='3P'?3:1,'pcs','Varistor',['varistor','mov','bypass'],'Surge protection bypass'));
       raw.push(bomRawItem('Sistem',`Trafo Bypass ${spec.bypassPriPhase} ${spec.bypassPriVoltage}VAC / ${spec.bypassSecPhase} ${spec.bypassSecVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','bypass',`${trafoKva}kva`],'Trafo bypass terpisah'));
       bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.bypassSecVoltage,spec.bypassSecPhase,'Trafo Bypass ke Static Switch');
@@ -9285,7 +9286,7 @@ function bomBaseGeneratedRawItems(spec) {
     raw.push(bomRawItem('Sistem',`Trafo Output UPS ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','output','ups',`${trafoKva}kva`],`Trafo output inverter ${trafoKva}kVA`));
     bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.outputVoltage,spec.outputPhase,'Trafo Output ke MCB Output');
     raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbOutA,outPoles)} (MCB Output Utama)`,`${spec.outputPhase} ${spec.outputVoltage}VAC \u2014 TEPAT ${mcbOutA}A`,1,'pcs','Breaker',['mcb','output','ac',`${mcbOutA}a`],`TEPAT ${mcbOutA}A`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output'],'Status MCB output'));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output','a9a26904','schneider'],'Status MCB output'));
     if ((spec.outputFeeders||1)>1) {
       raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbFeedA,outPoles)} (MCB Feeder)`,`${spec.outputFeeders} feeder @ TEPAT ${mcbFeedA}A`,spec.outputFeeders,'pcs','Breaker',['mcb','feeder',`${mcbFeedA}a`],`TEPAT ${mcbFeedA}A each`));
       raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Feeder','A9A26904',spec.outputFeeders,'pcs','Auxiliary',['auxiliary','feeder'],''));
@@ -9335,7 +9336,7 @@ function bomBaseGeneratedRawItems(spec) {
     const outPoles=(spec.outputPhase||'1P')==='3P'?'3P':'2P';
 
     raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbDcA,'2P')} DC (MCB Input Inverter)`,`${vdc}VDC \u2014 TEPAT ${mcbDcA}A`,1,'pcs','Breaker',['mcb','dc','input','inverter',`${mcbDcA}a`],`TEPAT ${mcbDcA}A`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','input'],''));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB DC Input','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','dc','input','a9a26904','schneider'],''));
     raw.push(bomRawItem('Sistem',`IGBT / Inverter Module ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${vdc}VDC \u2192 ${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'set','IGBT',['igbt','inverter',`${vdc}v`],'Power switching DC ke AC'));
     raw.push(bomRawItem('Sistem','Driver IGBT / Control Board','Gate driver + control',1,'set','Control',['driver','igbt'],''));
     raw.push(bomRawItem('Sistem',`Induktor / Filter Output ${spec.outputPhase} ${spec.outputVoltage}VAC`,`${spec.outputPhase} ${spec.outputVoltage}VAC`,1,'pcs','Inductor',['induktor','filter','output','ac'],'Filter LC output'));
@@ -9343,7 +9344,7 @@ function bomBaseGeneratedRawItems(spec) {
     raw.push(bomRawItem('Sistem',`Trafo Output Inverter ${vdc}VDC / ${spec.outputPhase} ${spec.outputVoltage}VAC ${trafoKva}kVA`,`${trafoKva}kVA`,1,'unit','Transformer',['trafo','output','inverter',`${trafoKva}kva`],`Trafo output ${trafoKva}kVA`));
     bomAddTrafoSecCable(raw,'Sistem',trafoKva,spec.outputVoltage,spec.outputPhase,'Trafo Output ke MCB Output');
     raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbOutA,outPoles)} (MCB Output Utama)`,`${spec.outputPhase} ${spec.outputVoltage}VAC \u2014 TEPAT ${mcbOutA}A`,1,'pcs','Breaker',['mcb','output','ac',`${mcbOutA}a`],`TEPAT ${mcbOutA}A`));
-    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output'],''));
+    raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Output','A9A26904',1,'pcs','Auxiliary',['auxiliary','of','sd','output','a9a26904','schneider'],''));
     if ((spec.outputFeeders||1)>1) {
       raw.push(bomRawItem('Sistem',`${bomCbBrand(mcbFeedA,outPoles)} (MCB Feeder)`,`${spec.outputFeeders}\u00d7TEPAT ${mcbFeedA}A`,spec.outputFeeders,'pcs','Breaker',['mcb','feeder',`${mcbFeedA}a`],''));
       raw.push(bomRawItem('Sistem','Auxiliary Contact OF/SD \u2014 MCB Feeder','A9A26904',spec.outputFeeders,'pcs','Auxiliary',['auxiliary','feeder'],''));
