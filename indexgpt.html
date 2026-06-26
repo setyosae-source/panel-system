@@ -9723,7 +9723,9 @@ function bomNewSheetState(showPrice) {
     selectedColKey: null,
     hidden: {},
     customCols: [],
-    colWidths: Object.fromEntries(bomDefaultColumns(showPrice).map(c => [c.key, c.width]))
+    colWidths: Object.fromEntries(bomDefaultColumns(showPrice).map(c => [c.key, c.width])),
+    sortKey: null,
+    sortDir: 'asc'
   };
 }
 const BOM_EXTRA_LABELS = {
@@ -9889,11 +9891,20 @@ function bomSheetRender(ctx) {
   const colgroup = `<col style="width:44px">${cols.map(c => `<col data-col-key="${c.key}" style="width:${c.width || 120}px">`).join('')}`;
   const thead = `<thead><tr>
     <th class="corner" onclick="bomSheetSelectAllRows('${ctx}')">#</th>
-    ${cols.map((c, ci) => `
-      <th data-col="${ci}" class="${state.selectedColKey===c.key?'selected-col':''}" onclick="bomSheetSelectCol('${ctx}',${ci})" style="position:sticky;top:0">
-        <div class="bom-sheet-col-title" title="${bomSheetHtml(c.label)}">${bomSheetHtml(c.label)}${c.required?' *':''}</div>
-        <span class="bom-sheet-col-resize" onmousedown="bomSheetStartResize(event,'${ctx}','${c.key}')"></span>
-      </th>`).join('')}
+    ${cols.map((c, ci) => {
+      const isSorted = state.sortKey === c.key;
+      const sortIcon = isSorted ? (state.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+      return `
+      <th data-col="${ci}" class="${state.selectedColKey===c.key?'selected-col':''}" style="position:sticky;top:0;cursor:pointer"
+        onclick="bomSheetSortCol('${ctx}','${c.key}')"
+        title="Klik untuk sort · Klik lagi untuk balik urutan">
+        <div class="bom-sheet-col-title" style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+          <span title="${bomSheetHtml(c.label)}">${bomSheetHtml(c.label)}${c.required?' *':''}</span>
+          <span style="font-size:9px;color:${isSorted?'#1E40AF':'#aaa'};flex-shrink:0">${sortIcon||'⇅'}</span>
+        </div>
+        <span class="bom-sheet-col-resize" onmousedown="event.stopPropagation();bomSheetStartResize(event,'${ctx}','${c.key}')"></span>
+      </th>`;
+    }).join('')}
   </tr></thead>`;
   const tbody = `<tbody>${items.map((it, ri) => {
     const rowId = ctx === 'review' ? it.tmpRowId : (it._rowUid || it.id || ri);
@@ -9953,6 +9964,36 @@ function bomSheetFocusCell(ctx, row, col) {
   state.selectedCol = col;
   state.selectedColKey = bomSheetGetVisibleColumns(ctx)[col]?.key || null;
 }
+function bomSheetSortCol(ctx, colKey) {
+  const state = bomSheetGetState(ctx);
+  if (!state) return;
+  if (state.sortKey === colKey) {
+    state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.sortKey = colKey;
+    state.sortDir = 'asc';
+  }
+  // Sort items
+  const items = bomSheetGetItems(ctx);
+  items.sort((a, b) => {
+    const col = bomSheetGetVisibleColumns(ctx).find(c => c.key === colKey);
+    let va = bomCellRaw(a, col || {key: colKey});
+    let vb = bomCellRaw(b, col || {key: colKey});
+    // Numeric sort
+    const na = parseFloat(String(va).replace(/[^0-9.-]/g,''));
+    const nb = parseFloat(String(vb).replace(/[^0-9.-]/g,''));
+    if (!isNaN(na) && !isNaN(nb)) {
+      return state.sortDir === 'asc' ? na - nb : nb - na;
+    }
+    va = String(va || '').toLowerCase();
+    vb = String(vb || '').toLowerCase();
+    const cmp = va.localeCompare(vb, 'id');
+    return state.sortDir === 'asc' ? cmp : -cmp;
+  });
+  // Re-render
+  bomSheetRender(ctx);
+}
+
 function bomSheetInput(e, ctx, row, colIdx) {
   const col = bomSheetGetVisibleColumns(ctx)[colIdx];
   bomSetCellValue(ctx, row, col, e.currentTarget.innerText);
@@ -11945,12 +11986,21 @@ function cleanSubNote(s) {
 function groupItemsBySection(items) {
   const groups = [], map = {};
   for (const it of items) {
-    // Baca dari kolom section langsung, fallback ke x_section di _extra, fallback ke pkGrup(note)
     const ex = bomReadExtra(it.note);
     const sec = it.section || ex?.x_section || pkGrup(it.note) || 'Lainnya';
     if (!map[sec]) { map[sec] = { name: sec, items: [] }; groups.push(map[sec]); }
     map[sec].items.push(it);
   }
+  // Sort: urutan logis panel dulu, sisanya abjad
+  const ORDER = ['Aksesori','Cubicle','Sistem','Supporting','Lainnya'];
+  groups.sort((a, b) => {
+    const ia = ORDER.indexOf(a.name);
+    const ib = ORDER.indexOf(b.name);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    return a.name.localeCompare(b.name, 'id');
+  });
   return groups;
 }
 
