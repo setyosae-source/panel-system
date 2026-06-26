@@ -7255,7 +7255,8 @@ function renderBOMList() {
             ${b.description ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Deskripsi</div><div style="margin-top:2px">${escapeHtml(b.description)}</div></div>` : ''}
           </div>
           <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-sm btn-primary" data-bid="${b.id}" onclick="event.stopPropagation();openBOMDetail(this.dataset.bid)">Buka Detail</button>
+            <button class="btn btn-sm btn-primary" data-bid="${b.id}" onclick="event.stopPropagation();openBOMDetail(this.dataset.bid)">✏️ Buka / Edit</button>
+            <button class="btn btn-sm btn-secondary" data-bid="${b.id}" onclick="event.stopPropagation();cloneBOM(this.dataset.bid)">📋 Buat Salinan</button>
           </div>
         </td>
       </tr>`;
@@ -7288,6 +7289,82 @@ function renderBOMList() {
 function toggleBOMRow(id) {
   _bomExpandedId = (_bomExpandedId === id) ? null : id;
   document.getElementById('bomTabContent').innerHTML = renderBOMList();
+}
+
+async function cloneBOM(srcId) {
+  const src = bomState.lists.find(b => b.id === srcId);
+  if (!src) return showToast('BOM tidak ditemukan', 'error');
+
+  // Prompt judul baru
+  const newTitle = prompt(`Judul untuk salinan BOM:\n(kosongkan = otomatis)`,
+    (src.title || 'BOM') + ' - Salinan');
+  if (newTitle === null) return; // user cancel
+
+  const finalTitle = (newTitle.trim() || (src.title + ' - Salinan'));
+
+  try {
+    showToast('Membuat salinan...', 'info');
+
+    // 1. Insert bom_lists baru
+    const newBomPayload = {
+      title: finalTitle,
+      unit_category: src.unit_category || null,
+      description: src.description ? src.description + ' [Salinan dari ' + srcId + ']' : '[Salinan dari ' + srcId + ']',
+      status: 'draft',
+      pp_request_id: null,
+      po_id: null,
+      total_price: src.total_price || 0,
+      created_by: bomState.currentUser?.id || null,
+    };
+
+    const { data: newBom, error: e1 } = await sb
+      .from('bom_lists')
+      .insert(newBomPayload)
+      .select()
+      .single();
+
+    if (e1 || !newBom) throw e1 || new Error('Gagal membuat BOM baru');
+
+    // 2. Load items dari source (kalau belum lengkap)
+    let srcItems = src.bom_items || [];
+    if (!srcItems.length) {
+      const { data: itemData } = await sb
+        .from('bom_items')
+        .select('*')
+        .eq('bom_id', srcId)
+        .order('sort_order', { ascending: true });
+      srcItems = itemData || [];
+    }
+
+    // 3. Insert semua items ke BOM baru
+    if (srcItems.length) {
+      const newItems = srcItems.map((item, idx) => {
+        const clone = { ...item };
+        delete clone.id;
+        delete clone.created_at;
+        delete clone.updated_at;
+        clone.bom_id = newBom.id;
+        clone.sort_order = item.sort_order ?? (idx + 1);
+        return clone;
+      });
+
+      const { error: e2 } = await sb.from('bom_items').insert(newItems);
+      if (e2) throw e2;
+    }
+
+    // 4. Log
+    await logBOM(newBom.id, 'CLONE', `Disalin dari BOM ${srcId} (${src.title}). ${srcItems.length} item disalin.`);
+
+    showToast(`✅ Salinan berhasil dibuat: "${finalTitle}"`, 'success');
+
+    // 5. Reload dan buka BOM baru
+    await loadBOMData();
+    openBOMDetail(newBom.id);
+
+  } catch (err) {
+    console.error('cloneBOM error:', err);
+    showToast('Gagal membuat salinan: ' + (err.message || err), 'error');
+  }
 }
 
 // ─── TAB 2: TEMPLATE ───────────────────────────────────────
@@ -9366,9 +9443,8 @@ async function generateBOMItemsFromEngineeringInput(spec) {
       tmpRowId: 'gen_' + i + '_' + Date.now(),
       component_id: comp?.id || null,
       part_number: comp?.part_number || 'AUTO/TBD',
-      // Nama SELALU dari generator (engineering spec), bukan dari master
-      // Master hanya dipakai untuk part_number dan harga
       name: r.name,
+      section: r.section || 'Sistem',   // ← field section langsung
       unit: r.unit || comp?.unit || 'pcs',
       qty: r.qty || 1,
       unit_price: price || 0,
@@ -9436,6 +9512,7 @@ function bomParseNumber(v) {
 }
 function bomDefaultColumns(showPrice) {
   const cols = [
+    { key:'section', label:'Section', width:120 },
     { key:'part_number', label:'Part No.', width:130 },
     { key:'name', label:'Nama Komponen', width:360, required:true },
     { key:'qty', label:'Qty', width:80, type:'number' },
@@ -11637,20 +11714,20 @@ function extractSection(note) {
 // Extract sub-note (after the section/dash). Strips legacy noise (Generated:, [OVERRIDDEN], etc).
 function extractSubNote(note) {
   if (!note) return '';
-  const s = String(note).trim();
-  // Format baru: "A. Grup | keterangan" — ambil bagian setelah pipe
-  if (s.includes('|')) {
-    return s.split('|').slice(1).join('|').trim();
-  }
-  // Format lama (dash separator)
+  // Prioritas 1: x_sizing_basis dari _extra JSON
+  const ex = bomReadExtra(note);
+  if (ex?.x_sizing_basis) return cleanSubNote(ex.x_sizing_basis);
+  // Prioritas 2: teks setelah pipe (format lama)
+  const s = String(note).replace(/\[BOM_EXTRA_JSON\][\s\S]*?\[\/BOM_EXTRA_JSON\]/gi, '').trim();
+  if (s.includes('|')) return s.split('|').slice(1).join('|').trim();
+  // Prioritas 3: teks setelah dash (format lama)
   for (const sep of [' — ', ' – ', ' - ']) {
     const idx = s.indexOf(sep);
     if (idx > 0) return cleanSubNote(s.substring(idx + sep.length).trim());
   }
-  // Format lama (newline)
   const nl = s.indexOf('\n');
   if (nl > 0) return cleanSubNote(s.substring(nl + 1));
-  return '';
+  return s;
 }
 
 
@@ -11674,8 +11751,9 @@ function cleanSubNote(s) {
 function groupItemsBySection(items) {
   const groups = [], map = {};
   for (const it of items) {
-    // Gunakan pkGrup (pipe split) — konsisten dengan tab PK dan BOM view
-    const sec = pkGrup(it.note);
+    // Baca dari kolom section langsung, fallback ke x_section di _extra, fallback ke pkGrup(note)
+    const ex = bomReadExtra(it.note);
+    const sec = it.section || ex?.x_section || pkGrup(it.note) || 'Lainnya';
     if (!map[sec]) { map[sec] = { name: sec, items: [] }; groups.push(map[sec]); }
     map[sec].items.push(it);
   }
