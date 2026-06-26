@@ -724,6 +724,17 @@ function switchModule(mod) {
 
 function laporanIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-4M3 21h18M3 3h18"/></svg>'; }
 
+function bomWizardStep2Changed() {
+  // Re-read step 2 dan re-render jika diperlukan
+  if (typeof bomWizardReadCurrentStep === 'function') bomWizardReadCurrentStep();
+  if (typeof bomWizardReadStep2 === 'function') bomWizardReadStep2();
+  // Re-render custom fields jika ada
+  const encSel = document.getElementById('wzEnclosureSize');
+  if (encSel) {
+    const customFields = document.getElementById('wzEncCustomFields');
+    if (customFields) customFields.style.display = encSel.value === 'Custom' ? '' : 'none';
+  }
+}
 function openSidebar() { document.getElementById('mainSidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
 function closeSidebar() { document.getElementById('mainSidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
 function toggleSidebarDesktop() {
@@ -8036,6 +8047,7 @@ function bomWizardSelectType(t) {
     s.outputPhase = s.outputPhase || '1P'; s.outputVoltage = s.outputVoltage || 230;
     s.outputFeeders = s.outputFeeders || 4;
     s.panelType = s.panelType || 'Indoor';
+    s.enclosureSize = s.enclosureSize || 'Medium';
     if (!_bomWizard.title) _bomWizard.title = 'BOM UPS';
   } else if (t === 'Rectifier') {
     s.capacity = s.capacity || 20; s.capacityUnit = s.capacityUnit || 'A';
@@ -8044,6 +8056,7 @@ function bomWizardSelectType(t) {
     s.dcBus = s.dcBus || 110; s.batteryAh = s.batteryAh || 100; s.batteryCell = s.batteryCell || 55;
     s.outputFeeders = s.outputFeeders || 1;
     s.panelType = s.panelType || 'Indoor';
+    s.enclosureSize = s.enclosureSize || 'Medium';
     if (!_bomWizard.title) _bomWizard.title = 'BOM Rectifier';
   } else if (t === 'Inverter') {
     s.capacity = s.capacity || 5; s.capacityUnit = s.capacityUnit || 'kVA';
@@ -8052,6 +8065,7 @@ function bomWizardSelectType(t) {
     s.outputPhase = s.outputPhase || '1P'; s.outputVoltage = s.outputVoltage || 230;
     s.outputFeeders = s.outputFeeders || 2;
     s.panelType = s.panelType || 'Indoor';
+    s.enclosureSize = s.enclosureSize || 'Medium';
     if (!_bomWizard.title) _bomWizard.title = 'BOM Inverter';
   } else if (t === 'Distribusi') {
     s.distType = s.distType || 'ACDB';
@@ -8061,6 +8075,7 @@ function bomWizardSelectType(t) {
     s.feederRating = s.feederRating || 32;
     s.busbarRating = s.busbarRating || 250;
     s.panelType = s.panelType || 'Indoor';
+    s.enclosureSize = s.enclosureSize || 'Medium';
     if (!_bomWizard.title) _bomWizard.title = 'BOM Panel Distribusi';
   }
   // Update type card UI
@@ -8161,7 +8176,7 @@ function bomWizardCollectStep2() {
   s.withMetering = chk('wzWithMetering');
   s.withRelayTerminal = chk('wzWithRelayTerminal');
   s.panelType    = sel('wzPanelType', s.panelType);
-  s.enclosureSize = sel('wzEnclosureSize', s.enclosureSize);
+  s.enclosureSize = sel('wzEnclosureSize', s.enclosureSize) || s.enclosureSize || 'Medium';
   // Custom size
   if (s.enclosureSize === 'Custom') {
     s.encW = num('wzEncW', s.encW) || 650;
@@ -8481,7 +8496,7 @@ function bomWizardStep2Body() {
           </select>
         </div>
         <div class="form-row"><label>Ukuran Enclosure</label>
-          <select id="wzEnclosureSize" onchange="bomWizardReadStep2Inline();renderWzStep2Enc()">
+          <select id="wzEnclosureSize" onchange="bomWizardStep2Changed()">
             <option ${(s.enclosureSize||'Medium')==='Small'?'selected':''} value="Small">Small — 650×650×1150mm</option>
             <option ${(s.enclosureSize||'Medium')==='Medium'?'selected':''} value="Medium">Medium — 650×800×1550mm</option>
             <option ${(s.enclosureSize||'Medium')==='Large'?'selected':''} value="Large">Large — 650×800×1950mm</option>
@@ -8490,9 +8505,9 @@ function bomWizardStep2Body() {
           </select>
         </div>
         ${(s.enclosureSize==='Custom')?`
-        <div class="form-row"><label>Lebar (mm)</label><input type="number" id="wzEncW" value="${s.encW||650}" min="400" max="2000" oninput="bomWizardReadStep2Inline()"></div>
-        <div class="form-row"><label>Dalam (mm)</label><input type="number" id="wzEncD" value="${s.encD||800}" min="400" max="1200" oninput="bomWizardReadStep2Inline()"></div>
-        <div class="form-row"><label>Tinggi (mm)</label><input type="number" id="wzEncH" value="${s.encH||1550}" min="600" max="2200" oninput="bomWizardReadStep2Inline()"></div>`:''}
+        <div class="form-row"><label>Lebar (mm)</label><input type="number" id="wzEncW" value="${s.encW||650}" min="400" max="2000" oninput="bomWizardStep2Changed()"></div>
+        <div class="form-row"><label>Dalam (mm)</label><input type="number" id="wzEncD" value="${s.encD||800}" min="400" max="1200" oninput="bomWizardStep2Changed()"></div>
+        <div class="form-row"><label>Tinggi (mm)</label><input type="number" id="wzEncH" value="${s.encH||1550}" min="600" max="2200" oninput="bomWizardStep2Changed()"></div>`:''}
       </div>
     </div>`;
 
@@ -9063,12 +9078,16 @@ function bomFanCabin(pLossW) {
 
 // ── Enclosure spec dari size ──
 function bomEnclosureSpec(spec) {
+  if (!spec) return {w:650,d:800,h:1550,label:'Medium 650x800x1550',pn:'ENC-MEDIUM'};
+  const encW = spec.encW || 650;
+  const encD = spec.encD || 800;
+  const encH = spec.encH || 1550;
   const ENC = {
-    'Small':       {w:650,  d:650,  h:1150, label:'Small 650x650x1150',   pn:'ENC-SMALL'},
-    'Medium':      {w:650,  d:800,  h:1550, label:'Medium 650x800x1550',  pn:'ENC-MEDIUM'},
-    'Large':       {w:650,  d:800,  h:1950, label:'Large 650x800x1950',   pn:'ENC-LARGE'},
+    'Small':       {w:650,  d:650,  h:1150, label:'Small 650x650x1150',       pn:'ENC-SMALL'},
+    'Medium':      {w:650,  d:800,  h:1550, label:'Medium 650x800x1550',       pn:'ENC-MEDIUM'},
+    'Large':       {w:650,  d:800,  h:1950, label:'Large 650x800x1950',        pn:'ENC-LARGE'},
     'Double Door': {w:1200, d:800,  h:2000, label:'Double Door 1200x800x2000', pn:'ENC-DD'},
-    'Custom':      {w:spec.encW||650, d:spec.encD||800, h:spec.encH||1550, label:`Custom ${spec.encW||650}x${spec.encD||800}x${spec.encH||1550}`, pn:'ENC-CUSTOM'}
+    'Custom':      {w:encW, d:encD, h:encH, label:`Custom ${encW}x${encD}x${encH}`, pn:'ENC-CUSTOM'}
   };
   return ENC[spec.enclosureSize || 'Medium'] || ENC['Medium'];
 }
