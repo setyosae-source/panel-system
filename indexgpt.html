@@ -9146,6 +9146,8 @@ function bomBaseGeneratedRawItems(spec) {
   const vdc = spec.dcBus || 110;
   const idcA = spec.capacityUnit === 'A' ? spec.capacity : Math.round(e.dcA);
   const pLossW = Math.round(vdc * idcA * (1-(spec.eff||0.9)) / (spec.eff||0.9));
+  const enc = bomEnclosureSpec(spec);  // ← deklarasi di sini, accessible oleh semua
+  const cLen = seg => bomCableLength(seg, enc, spec.inputPhase);
 
   // ── HELPER: enclosure items yang sama untuk semua tipe ──
   function pushCubicle(typeLabel, fanSizing2) {
@@ -9186,8 +9188,6 @@ function bomBaseGeneratedRawItems(spec) {
     const elcoV = vdc <= 110 ? 200 : (vdc <= 220 ? 400 : 500);
     const fanSizing = bomFanCabin(pLossW);
     const vSecRect = bomVsec(vdc, spec.inputPhase);
-    const enc = bomEnclosureSpec(spec);
-    const cLen = seg => bomCableLength(seg, enc, spec.inputPhase);
     // Varistor: 1P -> S20K275, 3P -> S20K625
     const varistorType = spec.inputPhase === '3P' ? 'S20K625' : 'S20K275';
     const varistorQty  = spec.inputPhase === '3P' ? 3 : 1;
