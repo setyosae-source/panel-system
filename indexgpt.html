@@ -30,8 +30,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 
 /* ── LAYOUT ── */
 .app-shell{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;z-index:50;transition:transform .25s}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;z-index:50;transition:width .22s ease,transform .25s}
+.sidebar.collapsed{width:0;overflow:hidden;border-right:none}
 .main{flex:1;overflow-y:auto;min-width:0}
+.sidebar-toggle-btn{position:fixed;top:12px;left:12px;z-index:60;width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:left .22s ease;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.sidebar-toggle-btn:hover{background:var(--surface2)}
+.sidebar-toggle-btn svg{width:16px;height:16px;stroke:var(--text2);fill:none}
+.app-shell:not(.sb-collapsed) .sidebar-toggle-btn{left:228px}
 
 /* ── SIDEBAR ── */
 .sb-logo{padding:1.25rem 1rem 1rem;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
@@ -263,6 +268,7 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
   .sidebar.open{transform:translateX(0)}
   .sidebar-overlay.show{display:block}
   .hamburger{display:flex}
+  .sidebar-toggle-btn{display:none}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   .form-grid{grid-template-columns:1fr}
   .modal{border-radius:var(--r-lg) var(--r-lg) 0 0;max-margin:auto 0 0;max-height:90vh}
@@ -503,6 +509,9 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 <!-- MAIN APP SHELL -->
 <div id="appShell" style="display:none">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebarDesktop()" title="Sembunyikan/tampilkan sidebar">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
   <div class="app-shell">
     <aside class="sidebar" id="mainSidebar">
       <div class="sb-logo">
@@ -717,6 +726,23 @@ function laporanIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="
 
 function openSidebar() { document.getElementById('mainSidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('show'); }
 function closeSidebar() { document.getElementById('mainSidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('show'); }
+function toggleSidebarDesktop() {
+  const sidebar = document.getElementById('mainSidebar');
+  const shell = document.querySelector('.app-shell');
+  const collapsed = sidebar.classList.toggle('collapsed');
+  shell.classList.toggle('sb-collapsed', collapsed);
+  localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+}
+// Restore sidebar state on load
+(function() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('mainSidebar');
+      const shell = document.querySelector('.app-shell');
+      if (sidebar) { sidebar.classList.add('collapsed'); shell?.classList.add('sb-collapsed'); }
+    });
+  }
+})();
 
 // ═══════════════════════════════════════════════════════════
 // UTILS
@@ -9512,7 +9538,6 @@ function bomParseNumber(v) {
 }
 function bomDefaultColumns(showPrice) {
   const cols = [
-    { key:'section', label:'Section', width:120 },
     { key:'part_number', label:'Part No.', width:130 },
     { key:'name', label:'Nama Komponen', width:360, required:true },
     { key:'qty', label:'Qty', width:80, type:'number' },
@@ -9600,7 +9625,11 @@ function bomSheetGetVisibleColumns(ctx) {
   if (!state) return [];
   const base = bomDefaultColumns(showPrice);
   const custom = (state.customCols || []).map(c => ({...c, custom:true, width:state.colWidths[c.key] || c.width || 140}));
-  const all = base.concat(custom).map(c => ({...c, width:state.colWidths[c.key] || c.width || 120}));
+  // Kolom section selalu di posisi pertama
+  const sectionCol = custom.find(c => c.key === 'x_section' || c.key === 'section');
+  const otherCustom = custom.filter(c => c.key !== 'x_section' && c.key !== 'section');
+  const all = [...(sectionCol ? [sectionCol] : []), ...base, ...otherCustom]
+    .map(c => ({...c, width:state.colWidths[c.key] || c.width || 120}));
   return all.filter(c => !state.hidden[c.key]);
 }
 function bomCellRaw(it, col) {
