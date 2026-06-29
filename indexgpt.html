@@ -4558,61 +4558,68 @@ async function openPOForm(editId) {
   // Load PP requests for linking
   const { data: ppList } = await sb.from('pp_requests').select('id,customer_name,project_name').eq('status', 'Done').order('created_at', { ascending: false }).limit(50);
 
-  openModal(`<div class="modal" style="max-width:700px">
-    <div class="modal-header">
-      <div>
-        <h2>${p ? 'Edit PO' : 'PO Baru'}</h2>
-        <div style="display:flex;gap:6px;margin-top:6px" id="poWizardSteps">
-          <span class="wizard-step active" id="ws1">1 Info PO</span>
-          <span class="wizard-step" id="ws2">2 Item Produk</span>
+  const main = document.getElementById('mainContent');
+  main.innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-sm icon-only" onclick="renderPOModule()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div>
+          <div class="page-title">${p ? 'Edit PO' : 'PO Baru'}</div>
+          <div class="page-sub">${p ? (p.no_po + (p.customer_name ? ' — ' + p.customer_name : '')) : 'Buat purchase order baru'}</div>
         </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
-    </div>
-    <div id="poFormStep1">
-      <div class="modal-body">
-        <div class="form-grid">
-          <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" value="${p?.no_po || ''}" placeholder="No. Purchase Order"></div>
-          <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO" value="${p?.tgl_po || today()}"></div>
-          <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" value="${p?.customer_name || ''}" placeholder="Nama customer"></div>
-          <div class="form-row"><label>Project / Lokasi</label><input type="text" id="pfProject" value="${p?.project_name || ''}" placeholder="Nama project"></div>
-          <div class="form-row"><label>Target Kirim</label><input type="date" id="pfTglKirim" value="${p?.tgl_target_kirim || ''}"></div>
-          <div class="form-row"><label>No. Project</label><input type="text" id="pfNoProject" value="${p?.no_project || nextNoProject}" placeholder="Auto" ${!p ? 'readonly style="background:var(--surface2)"' : ''}></div>
-          <div class="form-row"><label>Nilai PO (Rp)</label><input type="text" id="pfNilai" value="${p?.nilai_po || ''}" placeholder="Opsional — hanya owner/admin"></div>
-        </div>
-        <div class="form-row" style="margin-top:.25rem">
-          <label>Link Pre-Project (opsional)</label>
-          <select id="pfLinkedPP">
-            <option value="">— Tidak ada —</option>
-            ${(ppList || []).map(r => `<option value="${r.id}" ${p?.pp_request_id === r.id ? 'selected' : ''}>${r.id} — ${r.customer_name}${r.project_name ? ' / ' + r.project_name : ''}</option>`).join('')}
-          </select>
-        </div>
-        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:13px;margin-top:.75rem">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT" ${p?.has_fat ? 'checked' : ''}> FAT</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi" ${p?.has_instalasi ? 'checked' : ''}> Instalasi / SAT</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning" ${p?.has_commissioning ? 'checked' : ''}> Commissioning / BAST</label>
-        </div>
-        <div class="form-row" style="margin-top:.75rem"><label>Catatan</label><textarea id="pfCatatan">${p?.catatan || ''}</textarea></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeAllModals()">Batal</button>
-        <button class="btn btn-primary" onclick="goToPOStep2()">Selanjutnya →</button>
+      <div class="topbar-right" id="poFormTopbarRight">
+        <span class="wizard-step active" id="ws1" style="cursor:default">1 Info PO</span>
+        <span class="wizard-step" id="ws2" style="cursor:default">2 Item Produk</span>
       </div>
     </div>
-    <div id="poFormStep2" style="display:none">
-      <div class="modal-body">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div style="font-size:13px;color:var(--text2)">Item / unit yang akan diproduksi</div>
-          <button class="btn btn-sm btn-primary" onclick="addPOItem()">+ Tambah Item</button>
+    <div class="page-body" style="max-width:720px;margin:0 auto">
+      <div id="poFormStep1">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem">
+          <div class="form-grid">
+            <div class="form-row"><label>No. PO <span class="req">*</span></label><input type="text" id="pfNoPO" value="${p?.no_po || ''}" placeholder="No. Purchase Order"></div>
+            <div class="form-row"><label>Tgl. PO <span class="req">*</span></label><input type="date" id="pfTglPO" value="${p?.tgl_po || today()}"></div>
+            <div class="form-row"><label>Customer <span class="req">*</span></label><input type="text" id="pfCustomer" value="${p?.customer_name || ''}" placeholder="Nama customer"></div>
+            <div class="form-row"><label>Project / Lokasi</label><input type="text" id="pfProject" value="${p?.project_name || ''}" placeholder="Nama project"></div>
+            <div class="form-row"><label>Target Kirim</label><input type="date" id="pfTglKirim" value="${p?.tgl_target_kirim || ''}"></div>
+            <div class="form-row"><label>No. Project</label><input type="text" id="pfNoProject" value="${p?.no_project || nextNoProject}" placeholder="Auto" ${!p ? 'readonly style="background:var(--surface2)"' : ''}></div>
+            <div class="form-row"><label>Nilai PO (Rp)</label><input type="text" id="pfNilai" value="${p?.nilai_po || ''}" placeholder="Opsional — hanya owner/admin"></div>
+          </div>
+          <div class="form-row">
+            <label>Link Pre-Project (opsional)</label>
+            <select id="pfLinkedPP">
+              <option value="">— Tidak ada —</option>
+              ${(ppList || []).map(r => `<option value="${r.id}" ${p?.pp_request_id === r.id ? 'selected' : ''}>${r.id} — ${r.customer_name}${r.project_name ? ' / ' + r.project_name : ''}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:13px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfFAT" ${p?.has_fat ? 'checked' : ''}> FAT</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfInstalasi" ${p?.has_instalasi ? 'checked' : ''}> Instalasi / SAT</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="pfCommissioning" ${p?.has_commissioning ? 'checked' : ''}> Commissioning / BAST</label>
+          </div>
+          <div class="form-row"><label>Catatan</label><textarea id="pfCatatan">${p?.catatan || ''}</textarea></div>
         </div>
-        <div id="poItemContainer"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1rem">
+          <button class="btn" onclick="renderPOModule()">Batal</button>
+          <button class="btn btn-primary" onclick="goToPOStep2()">Selanjutnya →</button>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="backToPOStep1()">← Kembali</button>
-        <button class="btn btn-primary" id="btnSavePO" onclick="savePO('${editId || ''}')">Simpan PO</button>
+      <div id="poFormStep2" style="display:none">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.25rem 1.375rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:600;color:var(--text2)">Item / unit yang akan diproduksi</div>
+            <button class="btn btn-sm btn-primary" onclick="addPOItem()">+ Tambah Item</button>
+          </div>
+          <div id="poItemContainer"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-top:1rem">
+          <button class="btn" onclick="backToPOStep1()">← Kembali</button>
+          <button class="btn btn-primary" id="btnSavePO" onclick="savePO('${editId || ''}')">Simpan PO</button>
+        </div>
       </div>
-    </div>
-  </div>`);
+    </div>`;
 
   if (p && p.po_items?.length) {
     poFormItems = p.po_items.map(it => ({ id: it.id, category: it.category, model_name: it.model_name || '', spec_summary: it.spec_summary || '', qty: it.qty, is_produksi: it.is_produksi, needs_ets: it.needs_ets !== false }));
@@ -4637,6 +4644,7 @@ function goToPOStep2() {
   document.getElementById('ws2').className = 'wizard-step active';
   if (!poFormItems.length) addPOItem();
   renderPOItems();
+  document.getElementById('mainContent').scrollTo({top:0,behavior:'smooth'});
 }
 
 function backToPOStep1() {
@@ -4644,6 +4652,7 @@ function backToPOStep1() {
   document.getElementById('poFormStep1').style.display = 'block';
   document.getElementById('ws1').className = 'wizard-step active';
   document.getElementById('ws2').className = 'wizard-step';
+  document.getElementById('mainContent').scrollTo({top:0,behavior:'smooth'});
 }
 
 function addPOItem() { poFormItems.push({ category: '', model_name: '', spec_summary: '', qty: 1, is_produksi: true, needs_ets: true }); renderPOItems(); }
@@ -4747,9 +4756,8 @@ async function savePO(editId) {
       poFormSpecs = {};
     }
     toast(editId ? 'PO diperbarui' : 'PO dibuat');
-    closeAllModals();
     await loadPOs();
-    if (poId) openPODetail(poId);
+    if (poId) { renderPOModule(); setTimeout(()=>openPODetail(poId),50); } else renderPOModule();
   } catch (e) { toast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Simpan PO';
 }
