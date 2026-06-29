@@ -3843,20 +3843,22 @@ function _buildEtsTable(allItems, dsItemIds) {
       hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✓</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>'
     ].join(' ');
 
+    const snDisplay = item.serial_number
+      ? `<span class="mono" style="font-weight:600;color:var(--text)">${item.serial_number}</span>`
+      : `<span style="color:var(--text3);font-style:italic">Belum ada</span>`;
     const detailRow = !isExpanded ? '' : `
       <tr class="ets-detail-row">
-        <td colspan="4" style="background:#f8fafc;padding:14px 16px;border-top:none">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;font-size:12px">
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">No. PO</div><div class="mono" style="margin-top:2px;font-weight:500">${po.no_po}</div></div>
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Project</div><div style="margin-top:2px;font-weight:500">${po.project_name || '—'}</div></div>
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Serial Number</div><div class="mono" style="margin-top:2px;font-weight:500">${item.serial_number || '—'}</div></div>
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status ETS</div><div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap">${statusBadges}</div></div>
-            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Qty</div><div style="margin-top:2px">${item.qty || 1}</div></div>
-            ${item.spec_summary ? `<div style="grid-column:1/-1"><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Spec Summary</div><div style="margin-top:2px">${escapeHtml(item.spec_summary)}</div></div>` : ''}
+        <td colspan="4" style="background:var(--surface2);padding:10px 16px 12px;border-top:none">
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;margin-bottom:10px">
+            <div style="display:flex;gap:4px">${statusBadges}</div>
+            <div style="color:var(--text3)">Qty: <strong style="color:var(--text)">${item.qty || 1}</strong></div>
+            <div style="color:var(--text3)">SN: ${snDisplay}</div>
           </div>
-          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+          ${item.spec_summary ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:5px 9px;margin-bottom:10px">${escapeHtml(item.spec_summary)}</div>` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
-            ${!item.serial_number ? `<button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">Input Spec</button>` : ''}
+            <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">${item.serial_number ? '✎ Edit Spec' : '⚙ Input Spec'}</button>
+            ${!item.serial_number ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
             <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
           </div>
         </td>
@@ -4662,17 +4664,17 @@ function renderPOItems() {
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>
           <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi ? 'var(--amber-bg)' : 'var(--surface2)'}">
-          <input type="checkbox" ${it.is_produksi ? 'checked' : ''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
-          <span style="color:${it.is_produksi ? 'var(--amber)' : 'var(--text3)'}">🏭 ${it.is_produksi ? 'Diproduksi internal' : 'Tidak diproduksi'}</span>
+      <div style="display:flex;gap:6px;margin-bottom:${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category)?'6px':'0'}">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);background:${it.is_produksi?'var(--amber-bg)':'var(--surface2)'}">
+          <input type="checkbox" ${it.is_produksi?'checked':''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
+          <span style="color:${it.is_produksi?'var(--amber)':'var(--text3)'}">🏭 ${it.is_produksi?'Produksi internal':'Non-produksi'}</span>
         </label>
-        <label style="flex:1;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:6px 8px;border-radius:var(--r-sm);background:${it.needs_ets ? 'var(--blue-bg, #dbeafe)' : 'var(--surface2)'}" title="Item butuh flow ETS: input Spec, generate SN, dan Detail Spec teknis untuk webpage produk">
-          <input type="checkbox" ${it.needs_ets ? 'checked' : ''} onchange="poFormItems[${i}].needs_ets=this.checked;renderPOItems()">
-          <span style="color:${it.needs_ets ? '#1d4ed8' : 'var(--text3)'}">⚙️ ${it.needs_ets ? 'Butuh ETS (SN + Detail Spec)' : 'Tanpa ETS'}</span>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);background:${it.needs_ets?'#dbeafe':'var(--surface2)'}" title="Butuh flow ETS: Input Spec, Generate SN, Detail Spec">
+          <input type="checkbox" ${it.needs_ets?'checked':''} onchange="poFormItems[${i}].needs_ets=this.checked;renderPOItems()">
+          <span style="color:${it.needs_ets?'#1d4ed8':'var(--text3)'}">⚙️ ${it.needs_ets?'Butuh ETS':'Tanpa ETS'}</span>
         </label>
-        ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? `<button type="button" onclick="openItemSpecFromForm(${i})" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:${poFormSpecs[i]?'var(--green-bg)':'var(--surface)'};color:${poFormSpecs[i]?'var(--green)':'var(--text2)'};cursor:pointer;font-size:12px;font-family:inherit;font-weight:600">⚙ Spec${poFormSpecs[i]?' ✓':''}</button>` : ''}
       </div>
+      ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? `<button type="button" onclick="openItemSpecFromForm(${i})" style="width:100%;padding:6px 10px;border:1px solid ${poFormSpecs[i]?'#86efac':'var(--border)'};border-radius:var(--r-sm);background:${poFormSpecs[i]?'var(--green-bg)':'var(--surface)'};color:${poFormSpecs[i]?'var(--green)':'var(--text2)'};cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;text-align:left">⚙ Spec Teknis${poFormSpecs[i]?' — ✓ Sudah diisi':' — klik untuk isi spec terstruktur'}</button>` : ''}
     </div>`).join('');
 }
 
@@ -7088,10 +7090,19 @@ async function openItemSpec(itemId, poId){
   const cat = item.category||'';
   _specCtx.category = cat;
   let spec = null; try { const _r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = _r.data; } catch(e) {}
+  const canGenSN = ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(cat) && !item.serial_number;
+  const snRow = canGenSN
+    ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 0 2px;border-top:1px solid var(--border);margin-top:4px">'
+      + '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Tgl. Produksi (untuk SN)</label>'
+      + '<input type="date" id="specProdDate" value="'+new Date().toISOString().slice(0,10)+'" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit">'
+      + '</div>'
+    : '';
   openModal('<div class="modal modal-sm">'
-    +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
-    +'<div class="modal-body">'+renderSpecForm(cat, spec||{})+'</div>'
-    +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveItemSpec()">Simpan Spec</button></div>'
+    +'<div class="modal-header"><div><h2>'+(item.serial_number?'Edit Spec':'Input Spec & Generate SN')+'</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+    +'<div class="modal-body">'+renderSpecForm(cat, spec||{})+snRow+'</div>'
+    +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary btn-ghost" onclick="saveItemSpec()">Simpan Spec</button>'
+    +(canGenSN?'<button class="btn btn-primary" onclick="saveItemSpecAndGenerateSN()">🔢 Simpan & Generate SN</button>':'')
+    +'</div>'
     +'</div>');
   // Setup auto-calc fields
   setTimeout(() => {
@@ -7154,6 +7165,87 @@ async function saveItemSpec(){
     toast('Gagal simpan spec: ' + (e.message || e));
     console.error('saveItemSpec error:', e);
   }
+}
+
+// Helper: generate SN after spec saved — shared by ETS flow
+async function _doGenerateSN(itemId, poId, prodDate) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) { toast('Item tidak ditemukan'); return false; }
+  let spec = null;
+  try { const _r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = _r.data; } catch(e){}
+  if(!spec || !spec.kategori) { toast('Spec belum tersimpan'); return false; }
+  const qty = item.qty || 1;
+  const serials = [];
+  for(let i=0;i<qty;i++){
+    const {data: counter} = await sb.from('serial_counter').select('*').eq('id',1).single();
+    let {huruf, angka} = counter;
+    const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, prodDate);
+    if(!sn){ toast('Gagal build SN — cek field spec'); return false; }
+    angka++;
+    if(angka>999){angka=1;huruf=String.fromCharCode(huruf.charCodeAt(0)+1);}
+    await sb.from('serial_counter').update({huruf,angka}).eq('id',1);
+    serials.push(sn);
+  }
+  const snJoined = serials.join(', ');
+  await sb.from('po_items').update({serial_number:snJoined,serial_generated_at:new Date().toISOString()}).eq('id',itemId);
+  await logPO(poId,'Generate Serial',item.category+': '+snJoined);
+  toast('✓ '+serials.length+' SN: '+snJoined);
+  return true;
+}
+
+// Generate SN langsung dari ETS (spec sudah ada, tinggal pilih tanggal)
+async function generateSNFromETS(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(x=>x.id===itemId);
+  if(!item) return;
+  const dateDefault = new Date().toISOString().slice(0,10);
+  openModal('<div class="modal modal-sm">'
+    +'<div class="modal-header"><div><h2>Generate Serial Number</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+item.category+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-row"><label>Tanggal Mulai Produksi</label><input type="date" id="etsProdDate" value="'+dateDefault+'" style="padding:6px 8px"></div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-top:8px">Qty: <strong>'+( item.qty||1)+'</strong> unit akan di-generate</div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button>'
+    +'<button class="btn btn-primary" data-iid="'+itemId+'" data-pid="'+poId+'" onclick="confirmGenerateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>'
+    +'</div>'
+    +'</div>',null,true);
+}
+async function confirmGenerateSNFromETS(itemId, poId) {
+  const dateStr = gv('etsProdDate');
+  if(!dateStr){ toast('Pilih tanggal produksi'); return; }
+  const ok = await _doGenerateSN(itemId, poId, new Date(dateStr));
+  if(ok){ closeAllModals(); await loadPOs(); await renderETSList(); }
+}
+
+// Simpan spec + langsung generate SN (dari tombol di openItemSpec modal)
+async function saveItemSpecAndGenerateSN() {
+  const {itemId, poId} = _specCtx;
+  const dateStr = gv('specProdDate');
+  if(!dateStr){ toast('Pilih tanggal produksi'); return; }
+  // Simpan spec dulu (reuse saveItemSpec logic)
+  const {itemId:iid, poId:pid, category} = _specCtx;
+  const fields = SPEC_FIELDS[category]||[];
+  const KNOWN_COLS = ['input_fase','input_voltage','output_voltage','output_current','output_kva','output_fase'];
+  const data = {item_id:iid, kategori:category, updated_at:new Date().toISOString()};
+  const extras = {};
+  fields.forEach(f=>{
+    const el = document.getElementById('spec_'+f.id);
+    if(!el) return;
+    const val = el.value.trim()||null;
+    if(KNOWN_COLS.includes(f.id)) data[f.id]=val;
+    else if(val!==null) extras[f.id]=val;
+  });
+  if(Object.keys(extras).length) data.extra_specs=extras;
+  try {
+    let existing=null;
+    try{const _r=await sb.from('item_specs').select('id').eq('item_id',iid).single();existing=_r.data;}catch(e){}
+    if(existing){await sb.from('item_specs').update(data).eq('item_id',iid);}
+    else{await sb.from('item_specs').insert(data);}
+    await loadPOs();
+    const ok = await _doGenerateSN(iid, pid, new Date(dateStr));
+    if(ok){ closeAllModals(); await loadPOs(); if(currentModule==='ets') await renderETSList(); else if(pid) openPODetail(pid); }
+  } catch(e){ toast('Error: '+(e.message||e)); }
 }
 
 // ═══════════════════════════════════════════════════════════
