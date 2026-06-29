@@ -197,11 +197,11 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .file-act-btn.del:hover{background:var(--red-bg);color:var(--red)}
 
 /* ── DETAIL SECTIONS ── */
-.detail-section{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
-.detail-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-.sect-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.detail-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.125rem 1.375rem;margin-bottom:12px}
+.detail-section:last-child{margin-bottom:0}
+.sect-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:10px}
 .kv{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;font-size:13px}
-.kv .k{color:var(--text3)}.kv .v{font-weight:500}
+.kv .k{color:var(--text2)}.kv .v{font-weight:500;color:var(--text)}
 .desc-box{margin-top:8px;font-size:13px;color:var(--text2);line-height:1.65;background:var(--surface2);padding:10px 12px;border-radius:var(--r-sm)}
 
 /* ── STATUS STEPPER ── */
@@ -4398,7 +4398,7 @@ async function openPODetail(id) {
         ${canManage ? `<button class="btn btn-sm" onclick="openPOForm('${p.id}')">Edit PO</button>` : ''}
       </div>
     </div>
-    <div class="page-body" style="max-width:860px;margin:0 auto">
+    <div class="page-body">
       <div class="detail-section">
         <div class="sect-title">Info PO</div>
         <div class="kv">
