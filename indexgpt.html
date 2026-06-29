@@ -95,7 +95,7 @@ input[type=text],input[type=date],input[type=number],input[type=password],select
   outline:none;transition:border-color .15s;box-sizing:border-box;
 }
 input:focus,select:focus,textarea:focus{border-color:var(--border2)}
-select{padding:8px 10px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9893' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;appearance:none}
+select{padding:8px 10px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9893' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;appearance:none;width:100%;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 input[type=text],input[type=date],input[type=number],input[type=password]{padding:8px 10px}
 textarea{resize:vertical;min-height:76px;padding:8px 10px;line-height:1.6}
 
@@ -4591,7 +4591,7 @@ async function openPOForm(editId) {
             <label>Link Pre-Project (opsional)</label>
             <select id="pfLinkedPP">
               <option value="">— Tidak ada —</option>
-              ${(ppList || []).map(r => `<option value="${r.id}" ${p?.pp_request_id === r.id ? 'selected' : ''}>${r.id} — ${r.customer_name}${r.project_name ? ' / ' + r.project_name : ''}</option>`).join('')}
+              ${(ppList || []).map(r => `<option value="${r.id}" ${p?.pp_request_id === r.id ? 'selected' : ''}>${r.customer_name}${r.project_name ? ' / ' + r.project_name : ''}</option>`).join('')}
             </select>
           </div>
           <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:13px">
