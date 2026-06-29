@@ -4827,7 +4827,7 @@ const COLOUR_OPTIONS = ['Powder Coating RAL7035', 'Powder Coating RAL7032'];
 const IP_OPTIONS = ['IP 21', 'IP 23', 'IP 41', 'IP 54', 'IP 55'];
 const PHASE_OPTIONS = ['1 Phase', '1 Phase + N', '3 Phase', '3 Phase + N'];
 const CABLE_OPTIONS = ['Front Bottom', 'Front Top', 'Bottom', 'Top'];
-const PULSE_OPTIONS = ['2', '6', '12', '24'];
+const PULSE_OPTIONS = ['2', '6', '12'];
 
 function dsDocsSection(itemId) {
   const fields = [
@@ -6972,10 +6972,10 @@ const SPEC_FIELDS = {
     {id:'input_voltage', label:'Tegangan Input (VAC)', placeholder:'220, 380'},
     {id:'input_voltage_tolerance', label:'Toleransi Input', placeholder:'+/-15%'},
     {id:'input_frequency', label:'Frekuensi Input (Hz)', placeholder:'50'},
-    {id:'pulse', label:'Pulse', type:'select', options:['6','12','24']},
+    {id:'pulse', label:'Pulse', type:'select', options:['2','6','12']},
     {id:'output_voltage', label:'Tegangan Output (VDC)', placeholder:'24, 48, 110, 220'},
     {id:'output_current', label:'Rating Output (A)', placeholder:'10, 20, 50'},
-    {id:'battery_voltage', label:'Tegangan Baterai (V)', placeholder:'Opsional'},
+    {id:'battery_voltage', label:'Tegangan Baterai Floating (V)', type:'auto', source:'output_voltage', factor:1.15},
     {id:'notes', label:'Catatan', type:'textarea'},
   ],
   UPS: [
@@ -7057,6 +7057,8 @@ function renderSpecForm(category, values){
       html += '<div class="form-row"><label>'+f.label+'</label><select id="spec_'+f.id+'" style="padding:6px 8px">'+opts+'</select></div>';
     } else if(f.type==='textarea'){
       html += '<div class="form-row" style="grid-column:1/-1"><label>'+f.label+'</label><textarea id="spec_'+f.id+'" placeholder="'+(f.placeholder||'')+'" rows="2">'+val+'</textarea></div>';
+    } else if(f.type==='auto'){
+      html += '<div class="form-row"><label>'+f.label+'</label><input type="text" id="spec_'+f.id+'" value="'+val+'" readonly data-auto-source="spec_'+f.source+'" data-auto-factor="'+(f.factor||1)+'" style="background:var(--surface2);color:var(--text2);cursor:default" title="Dihitung otomatis: Tegangan Output × '+(f.factor||1)+'"></div>';
     } else {
       html += '<div class="form-row"><label>'+f.label+'</label><input type="text" id="spec_'+f.id+'" value="'+val+'" placeholder="'+(f.placeholder||'')+'"></div>';
     }
@@ -7091,6 +7093,21 @@ async function openItemSpec(itemId, poId){
     +'<div class="modal-body">'+renderSpecForm(cat, spec||{})+'</div>'
     +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary" onclick="saveItemSpec()">Simpan Spec</button></div>'
     +'</div>');
+  // Setup auto-calc fields
+  setTimeout(() => {
+    document.querySelectorAll('[data-auto-source]').forEach(autoEl => {
+      const srcId = autoEl.getAttribute('data-auto-source');
+      const factor = parseFloat(autoEl.getAttribute('data-auto-factor')||'1');
+      const srcEl = document.getElementById(srcId);
+      if(!srcEl) return;
+      const recalc = () => {
+        const v = parseFloat(srcEl.value);
+        autoEl.value = isNaN(v) ? '' : (v * factor).toFixed(1);
+      };
+      srcEl.addEventListener('input', recalc);
+      recalc(); // initial calc from loaded value
+    });
+  }, 50);
 }
 
 async function saveItemSpec(){
