@@ -4663,35 +4663,32 @@ function renderPOItems() {
   if (!container) return;
   if (!poFormItems.length) { container.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--text3);font-size:13px">Belum ada item</div>`; return; }
   container.innerHTML = poFormItems.map((it, i) => `
-    <div style="border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;background:var(--surface)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <div style="border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:8px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span style="font-size:12px;font-weight:600;color:var(--text3)">Item ${i + 1}</span>
         <button onclick="removePOItem(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:12px">✕ Hapus</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div style="display:flex;flex-direction:column;gap:8px">
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Kategori <span class="req">*</span></label>
           <select id="piCat_${i}" onchange="poFormItems[${i}].category=this.value;poFormItems[${i}].needs_ets=defaultNeedsETS(this.value);renderPOItems()" style="padding:6px 8px">
             <option value="">-- Pilih --</option>${ITEM_CATEGORIES.map(c => `<option value="${c}" ${it.category === c ? 'selected' : ''}>${c}</option>`).join('')}
           </select></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Model / Tipe</label>
-          <input type="text" id="piModel_${i}" value="${it.model_name}" placeholder="Auto atau isi manual" style="padding:6px 8px" oninput="poFormItems[${i}].model_name=this.value"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:8px">
-        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi</label>
+          <input type="text" id="piModel_${i}" value="${it.model_name}" placeholder="Auto dari spec, atau isi manual" style="padding:6px 8px" oninput="poFormItems[${i}].model_name=this.value"></div>
+        <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Spesifikasi Singkat</label>
           <input type="text" id="piSpec_${i}" value="${it.spec_summary}" placeholder="Misal: 110VDC - 60A, 3ph, 10kVA..." style="padding:6px 8px" oninput="poFormItems[${i}].spec_summary=this.value"></div>
         <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:3px">Qty</label>
-          <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="padding:6px 8px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category)?'6px':'0'}">
-        <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);background:${it.is_produksi?'var(--amber-bg)':'var(--surface2)'}">
-          <input type="checkbox" ${it.is_produksi?'checked':''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
-          <span style="color:${it.is_produksi?'var(--amber)':'var(--text3)'}">🏭 ${it.is_produksi?'Produksi internal':'Non-produksi'}</span>
-        </label>
-        <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:5px 8px;border-radius:var(--r-sm);background:${it.needs_ets?'#dbeafe':'var(--surface2)'}" title="Butuh flow ETS: Input Spec, Generate SN, Detail Spec">
-          <input type="checkbox" ${it.needs_ets?'checked':''} onchange="poFormItems[${i}].needs_ets=this.checked;renderPOItems()">
-          <span style="color:${it.needs_ets?'#1d4ed8':'var(--text3)'}">⚙️ ${it.needs_ets?'Butuh ETS':'Tanpa ETS'}</span>
-        </label>
-      </div>
+          <input type="number" id="piQty_${i}" value="${it.qty}" min="1" style="padding:6px 8px;width:100px" oninput="poFormItems[${i}].qty=parseInt(this.value)||1"></div>
+        <div style="display:flex;gap:6px">
+          <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:6px 8px;border-radius:var(--r-sm);background:${it.is_produksi?'var(--amber-bg)':'var(--surface2)'}">
+            <input type="checkbox" ${it.is_produksi?'checked':''} onchange="poFormItems[${i}].is_produksi=this.checked;renderPOItems()">
+            <span style="color:${it.is_produksi?'var(--amber)':'var(--text3)'}">🏭 ${it.is_produksi?'Produksi internal':'Non-produksi'}</span>
+          </label>
+          <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:6px 8px;border-radius:var(--r-sm);background:${it.needs_ets?'#dbeafe':'var(--surface2)'}" title="Butuh flow ETS: Input Spec, Generate SN, Detail Spec">
+            <input type="checkbox" ${it.needs_ets?'checked':''} onchange="poFormItems[${i}].needs_ets=this.checked;renderPOItems()">
+            <span style="color:${it.needs_ets?'#1d4ed8':'var(--text3)'}">⚙️ ${it.needs_ets?'Butuh ETS':'Tanpa ETS'}</span>
+          </label>
+        </div>
 
     </div>`).join('');
 }
