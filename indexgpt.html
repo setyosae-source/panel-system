@@ -4382,15 +4382,23 @@ async function openPODetail(id) {
   const logs = (p.po_logs || []).slice().reverse();
   const logsHtml = logs.length ? logs.map(l => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text3);flex-shrink:0;min-width:110px">${fmtDateTime(l.created_at)}</span><span style="font-weight:500">${l.action}</span>${l.detail ? '<span style="color:var(--text2)"> — ' + l.detail + '</span>' : ''}</div>`).join('') : '<div style="font-size:12px;color:var(--text3)">Belum ada riwayat</div>';
 
-  openModal(`<div class="modal" style="max-width:780px">
-    <div class="modal-header">
-      <div>
-        <h2>${p.no_po}${p.project_name ? ' — ' + p.project_name : ''}</h2>
-        <div style="font-size:12px;color:var(--text3);margin-top:2px">${p.customer_name || '—'} &middot; ${fmtDate(p.tgl_po)}${p.no_project ? ' &middot; ' + p.no_project : ''}</div>
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-sm icon-only" onclick="renderPOModule()">
+          <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div>
+          <div class="page-title">${p.no_po}${p.project_name ? ' — ' + p.project_name : ''}</div>
+          <div class="page-sub">${p.customer_name || '—'} &middot; ${fmtDate(p.tgl_po)}${p.no_project ? ' &middot; ' + p.no_project : ''}</div>
+        </div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+      <div class="topbar-right" style="gap:8px">
+        ${stepperHtml}
+        ${canManage ? `<button class="btn btn-sm" onclick="openPOForm('${p.id}')">Edit PO</button>` : ''}
+      </div>
     </div>
-    <div class="modal-body">
+    <div class="page-body" style="max-width:860px;margin:0 auto">
       <div class="detail-section">
         <div class="sect-title">Info PO</div>
         <div class="kv">
@@ -4400,7 +4408,6 @@ async function openPODetail(id) {
           <span class="k">FAT / Instalasi / Comm</span><span class="v">${[p.has_fat && 'FAT', p.has_instalasi && 'Instalasi', p.has_commissioning && 'Commissioning'].filter(Boolean).join(' &middot; ') || '—'}</span>
         </div>
         ${p.catatan ? `<div class="desc-box">${p.catatan}</div>` : ''}
-
       </div>
       <div class="detail-section">
         <div class="sect-title">Dokumen</div>
@@ -4409,16 +4416,14 @@ async function openPODetail(id) {
       <div class="detail-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">Item / Unit (${items.length})</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${canManage ? `<button class="btn btn-sm" onclick="openSimpleItemForm(null,'${p.id}')">+ Tambah Item</button>` : ''}
-          </div>
+          ${canManage ? `<button class="btn btn-sm" onclick="openSimpleItemForm(null,'${p.id}')">+ Tambah Item</button>` : ''}
         </div>
         ${itemsHtml}
       </div>
       ${(can('bom_view') || can('bom_export')) ? `<div class="detail-section" id="poBomSection_${p.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <div class="sect-title" style="margin-bottom:0">BOM Terkait</div>
-          ${can('bom_manage') ? `<button class="btn btn-sm" onclick="closeAllModals();openBOMForm({poId:'${p.id}'})">+ Generate BOM</button>` : ''}
+          ${can('bom_manage') ? `<button class="btn btn-sm" onclick="openBOMForm({poId:'${p.id}'})">+ Generate BOM</button>` : ''}
         </div>
         <div id="poBomList_${p.id}"><span class="spinner"></span> Memuat...</div>
       </div>` : ''}
@@ -4433,12 +4438,10 @@ async function openPODetail(id) {
         <div class="sect-title">Riwayat</div>
         ${logsHtml}
       </div>
-    </div>
-    <div class="modal-footer" style="justify-content:space-between">
-      ${canManage ? `<button class="btn btn-sm btn-danger" onclick="deletePO('${p.id}')">Hapus PO</button>` : '<div></div>'}
-      ${canManage ? `<button class="btn btn-sm" onclick="closeAllModals();openPOForm('${p.id}')">Edit PO</button>` : ''}
-    </div>
-  </div>`);
+      ${canManage ? `<div class="detail-section" style="border-top:1px solid var(--red-border);padding-top:1rem">
+        <button class="btn btn-danger btn-sm" onclick="deletePO('${p.id}')">Hapus PO</button>
+      </div>` : ''}
+    </div>`;
   if (can('bom_view') || can('bom_export')) loadPOBOMs(p.id);
 }
 
@@ -4754,7 +4757,7 @@ async function savePO(editId) {
     }
     toast(editId ? 'PO diperbarui' : 'PO dibuat');
     await loadPOs();
-    if (poId) { renderPOModule(); setTimeout(()=>openPODetail(poId),50); } else renderPOModule();
+    if (poId) { await openPODetail(poId); } else { renderPOModule(); }
   } catch (e) { toast('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = 'Simpan PO';
 }
@@ -5245,7 +5248,7 @@ async function saveEditItem(itemId, poId, openSpec=false) {
   toast('Item diperbarui');
   await loadPOs();
   if(openSpec) { openItemSpec(itemId, poId); }
-  else { closeAllModals(); openPODetail(poId); }
+  else { openPODetail(poId); }
 }
 
 async function deleteItem(itemId, poId) {
