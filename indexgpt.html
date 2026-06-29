@@ -168,7 +168,6 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 /* ── MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:1.5rem 1rem;overflow-y:auto;backdrop-filter:blur(4px)}
 .modal{background:var(--surface);border-radius:var(--r-lg);max-width:680px;box-shadow:var(--shadow-lg);margin:auto;display:flex;flex-direction:column;max-height:calc(100vh - 3rem)}
-.modal-sm{max-width:460px}
 .modal-header{padding:1.125rem 1.375rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0}
 .modal-header h2{font-size:15px;font-weight:600}
 .modal-body{padding:1.25rem 1.375rem;display:flex;flex-direction:column;gap:.875rem;overflow-y:auto;flex:1;min-height:0}
@@ -979,7 +978,7 @@ function openPPExportModal() {
   const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const monthOpts = monthNames.map((m,i) => `<option value="${i+1}" ${(i+1)===curM?'selected':''}>${m}</option>`).join('');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Export Laporan Bulanan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="display:flex;gap:8px">
@@ -1277,7 +1276,7 @@ function canEditPP(req) {
 
 function openPPForm(id) {
   const r = id ? allPPs.find(x => x.id === id) : null;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${r ? 'Edit Request' : 'Request Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -1398,7 +1397,7 @@ function showWAConfirm(id, customer, project, output) {
   
   const waUrl = `https://wa.me/${ownerWA}?text=${message}`;
   
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Request Terkirim ✓</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body" style="text-align:center;padding:1.5rem">
       <div style="font-size:48px;margin-bottom:1rem">✅</div>
@@ -1441,7 +1440,7 @@ async function loadMyRequests() {
 function openMyRequestDetail(id) {
   const r = (window._myRequests || []).find(x => x.id === id);
   if (!r) return;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header">
       <div><h2>Edit Request</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">${r.id} &middot; ${badge(r.status)}</div></div>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
@@ -2943,7 +2942,7 @@ async function openAssignProduksiModal(itemId, poId) {
     }
   }
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Assign PIC Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${item.category} — ${item.model_name||'—'}<br><span style="color:var(--text3)">${po.no_po}</span></div>
@@ -3035,7 +3034,7 @@ async function openAssignServiceModal(ticketId) {
 
   const opts = list.map(u=>`<option value="${u.id}" ${t.pic_id===u.id?'selected':''}>${u.full_name} (${u.role==='engineering'?'ET Support':u.role})</option>`).join('');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Assign PIC Service</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${t.customer_name||'—'}<br><span style="color:var(--text3)">${t.complaint||''}</span></div>
@@ -3156,7 +3155,7 @@ async function openAssignInstalasiModal(itemId, poId) {
     </label>`
   ).join('');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Assign PIC Instalasi & Commissioning</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--text2);margin-bottom:12px">${item.category} — ${item.model_name||'—'}<br><span style="color:var(--text3)">${po.no_po}</span></div>
@@ -3363,7 +3362,7 @@ async function renderProdLaporan() {
 }
 
 function openLaporanForm() {
-  openModal(`<div class="modal modal-sm" style="z-index:200">
+  openModal(`<div class="modal" style="z-index:200">
     <div class="modal-header"><h2>Laporan Produksi</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Judul / Topik <span class="req">*</span></label><input type="text" id="lpJudul" placeholder="Misal: Pemasangan komponen utama"></div>
@@ -3472,7 +3471,7 @@ async function openMaterialForm() {
   const masterList = masters||[];
   const datalistOpts = masterList.map(m=>`<option value="${m.name}" data-satuan="${m.satuan||''}">${m.satuan?m.satuan:''}`).join('');
 
-  openModal(`<div class="modal modal-sm" style="z-index:200">
+  openModal(`<div class="modal" style="z-index:200">
     <div class="modal-header"><h2>Permintaan Material</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Nama Material <span class="req">*</span></label>
@@ -3526,7 +3525,7 @@ async function saveMaterialRequest() {
 }
 
 function openReceiveMaterial(reqId, qty, satuan) {
-  openModal(`<div class="modal modal-sm" style="z-index:200">
+  openModal(`<div class="modal" style="z-index:200">
     <div class="modal-header"><h2>Konfirmasi Terima Material</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Qty Diterima <span class="req">*</span></label>
@@ -3590,7 +3589,7 @@ async function renderProdQC() {
 }
 
 function openQCForm() {
-  openModal(`<div class="modal modal-sm" style="z-index:200">
+  openModal(`<div class="modal" style="z-index:200">
     <div class="modal-header"><h2>Laporan QC / Test Internal</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Status <span class="req">*</span></label>
@@ -3843,17 +3842,27 @@ function _buildEtsTable(allItems, dsItemIds) {
       hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✓</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>'
     ].join(' ');
 
-    const snDisplay = item.serial_number
-      ? `<span class="mono" style="font-weight:600;color:var(--text)">${item.serial_number}</span>`
-      : `<span style="color:var(--text3);font-style:italic">Belum ada</span>`;
+    const snBlock = item.serial_number
+      ? `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+           <div>
+             <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Serial Number</div>
+             <div class="mono" style="font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--text)">${item.serial_number}</div>
+             <div style="font-size:11px;color:var(--text3);margin-top:3px">${po.customer_name || ''}${itemLabel ? ' · ' + itemLabel : ''}</div>
+           </div>
+           <button onclick="event.stopPropagation();copySNLabel('${escapeHtml(item.serial_number)}','${escapeHtml(po.customer_name||'')}','${escapeHtml(itemLabel)}')"
+             style="flex-shrink:0;padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2);color:var(--text2);font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;white-space:nowrap">
+             📋 Copy
+           </button>
+         </div>`
+      : `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+           <div style="display:flex;gap:4px">${statusBadges}</div>
+           <span style="font-size:12px;color:var(--text3)">Qty: <strong style="color:var(--text)">${item.qty || 1}</strong></span>
+         </div>`;
     const detailRow = !isExpanded ? '' : `
       <tr class="ets-detail-row">
         <td colspan="4" style="background:var(--surface2);padding:10px 16px 12px;border-top:none">
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;margin-bottom:10px">
-            <div style="display:flex;gap:4px">${statusBadges}</div>
-            <div style="color:var(--text3)">Qty: <strong style="color:var(--text)">${item.qty || 1}</strong></div>
-            <div style="color:var(--text3)">SN: ${snDisplay}</div>
-          </div>
+          ${snBlock}
+          ${item.serial_number ? `<div style="display:flex;gap:4px;margin-bottom:10px">${statusBadges}<span style="font-size:12px;color:var(--text3);margin-left:6px">Qty: <strong>${item.qty||1}</strong></span></div>` : ''}
           ${item.spec_summary ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:5px 9px;margin-bottom:10px">${escapeHtml(item.spec_summary)}</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
@@ -4747,7 +4756,7 @@ async function savePO(editId) {
 
 // ITEM FORM
 async function openItemForm(poId) {
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Tambah Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -4786,7 +4795,7 @@ function openItemSpecFromForm(idx){
   const cat = it.category;
   _specFormCtx = {idx, category: cat};
   const existing = poFormSpecs[idx]||{};
-  const specHtml = '<div class="modal modal-sm">'
+  const specHtml = '<div class="modal">'
     +'<div class="modal-header"><div><h2>Spesifikasi Item</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'specModal\').remove()">&#x2715;</button></div>'
     +'<div class="modal-body">'+renderSpecForm(cat, existing)+'</div>'
     +'<div class="modal-footer"><button class="btn" onclick="document.getElementById(\'specModal\').remove()">Batal</button><button class="btn btn-primary" onclick="saveItemSpecFromForm()">Simpan Spec</button></div>'
@@ -5119,7 +5128,7 @@ async function openSimpleItemForm(itemId, poId) {
   const it = itemId ? po?.po_items?.find(x=>x.id===itemId) : null;
   const isEdit = !!it;
   
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${isEdit?'Edit':'Tambah'} Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -5172,7 +5181,7 @@ async function openEditItemForm(itemId, poId) {
   if(!it) return;
   const canManage = can('po_manage');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Edit Item</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -5248,7 +5257,7 @@ async function deleteItem(itemId, poId) {
 async function openPOPKForm(poId, pkId) {
   const p = allPOs.find(x => x.id === poId);
   const k = pkId ? (p?.po_pk || []).find(x => x.id === pkId) : null;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${k ? 'Edit PK' : 'Pengajuan PK Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -5282,7 +5291,7 @@ async function openPKStatusModal(pkId, poId) {
   const p = allPOs.find(x => x.id === poId);
   const k = (p?.po_pk || []).find(x => x.id === pkId);
   const statuses = ['Diajukan', 'Disetujui', 'Ditolak', 'Pengadaan', 'Realisasi', 'Selesai'];
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Update Status PK</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div style="font-size:13px;color:var(--text2);margin-bottom:.875rem">${k?.keperluan} — ${fmtRp(k?.nilai_pengajuan)}</div>
@@ -5330,7 +5339,7 @@ async function openGenSerialModal(poId) {
   const p = allPOs.find(x => x.id === poId);
   const items = (p?.po_items || []).filter(it => it.needs_ets && SPEC_CATEGORIES.includes(it.category) && !it.serial_number);
   if (!items.length) { toast('Tidak ada item yang perlu generate SN'); return; }
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Tanggal Produksi <span class="req">*</span></label><input type="date" id="snProdDate" value="${today()}"></div>
@@ -5775,7 +5784,7 @@ async function openPKDinasForm() {
   const pics = (po.po_pic||[]).filter(x=>x.item_id===item.id && x.stage==='Instalasi');
   const personelOpts = pics.map(p=>`<label style="display:flex;align-items:center;gap:6px;font-size:13px;padding:4px 8px;background:var(--surface2);border-radius:var(--r-sm);cursor:pointer"><input type="checkbox" class="pkPersCb" value="${p.user_id}"><span>${p.app_users?.full_name||'?'}</span></label>`).join('');
 
-  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+  openModal(`<div class="modal" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header"><h2>Pengajuan PK Perjalanan Dinas</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-row"><label>Tujuan / Lokasi <span class="req">*</span></label><input type="text" id="pkTujuan" placeholder="Misal: Surabaya, lokasi PT XYZ"></div>
@@ -5848,7 +5857,7 @@ async function openRealisasiPKForm(pkId) {
   const {data: pk} = await sb.from('pk_dinas').select('*').eq('id',pkId).single();
   if(!pk) return;
   
-  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+  openModal(`<div class="modal" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header"><h2>Realisasi PK Dinas</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       <div style="font-size:12px;color:var(--text3);margin-bottom:8px">${pk.tujuan} · Pengajuan: ${fmtRp(pk.total_pengajuan||0)}</div>
@@ -5935,7 +5944,7 @@ async function renderInstSAT() {
 }
 
 function openSATForm() {
-  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+  openModal(`<div class="modal" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header"><h2>Laporan SAT</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-row"><label>Judul</label><input type="text" id="satJudul" placeholder="Misal: SAT untuk UPS 5kVA"></div>
@@ -6057,7 +6066,7 @@ async function renderInstBAST() {
 
 function openBASTForm() {
   const {po} = window._instCurrent;
-  openModal(`<div class="modal modal-sm" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
+  openModal(`<div class="modal" style="z-index:200;max-height:90vh;display:flex;flex-direction:column">
     <div class="modal-header"><h2>Buat BAST</h2><button class="btn btn-ghost btn-sm" onclick="closeTopModal()">&#x2715;</button></div>
     <div class="modal-body" style="overflow-y:auto;flex:1">
       <div class="form-grid">
@@ -6316,7 +6325,7 @@ async function openSvcForm(editId) {
   // Load PO items for unit linking
   const { data: poItems } = await sb.from('po_items').select('id,category,model_name,serial_number,po_id,purchase_orders(no_po,customer_name)').limit(100);
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${s ? 'Edit Tiket' : 'Tiket Service Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -6364,7 +6373,7 @@ async function saveSvcTicket(editId) {
 
 function openSvcLogForm(ticketId) {
   const TAHAPAN = ['Remote', 'Visit', 'Eskalasi Turki', 'Spare Part', 'Retrofit', 'Ganti Unit'];
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Tambah Log Penanganan</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();openSvcDetail('${ticketId}')">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Tahapan <span class="req">*</span></label>
@@ -6476,7 +6485,7 @@ async function openKBDetail(id) {
   const k = allKBs.find(x => x.id === id);
   if (!k) return;
   const isCreator = k.created_by === currentUser.id;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Detail Knowledge Base</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="detail-section">
@@ -6578,7 +6587,7 @@ async function openResetPwModal(userId) {
   if (!u) { toast('User tidak ditemukan'); return; }
   if (!u.phone_wa) { toast('User belum punya nomor WA. Edit dulu untuk tambah WA.'); return; }
 
-  const html = `<div class="modal modal-sm">
+  const html = `<div class="modal">
     <div class="modal-header">
       <h2>🔑 Reset Password — ${escapeHtml(u.full_name)}</h2>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
@@ -6645,7 +6654,7 @@ async function openUserForm(userId) {
     </label>
   `).join('');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${u ? 'Edit User' : 'User Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -6918,7 +6927,7 @@ function showSendCredentialModal(fullName, username, password, phoneWA) {
   const msg = `Halo ${fullName},\n\nAkun *Panel System SAE Energy* Anda sudah siap:\n\n👤 Username: *${username}*\n🔑 Password: *${password}*\n🌐 Login: ${loginUrl}\n\nMohon segera login dan ganti password jika diperlukan.\nJaga kerahasiaan akun Anda.\n\n— SAE Energy`;
   const waUrl = `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
 
-  const html = `<div class="modal modal-sm">
+  const html = `<div class="modal">
     <div class="modal-header">
       <h2 style="color:var(--green)">✓ User berhasil dibuat</h2>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
@@ -7097,7 +7106,7 @@ async function openItemSpec(itemId, poId){
       + '<input type="date" id="specProdDate" value="'+new Date().toISOString().slice(0,10)+'" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit">'
       + '</div>'
     : '';
-  openModal('<div class="modal modal-sm">'
+  openModal('<div class="modal">'
     +'<div class="modal-header"><div><h2>'+(item.serial_number?'Edit Spec':'Input Spec & Generate SN')+'</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+cat+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
     +'<div class="modal-body">'+renderSpecForm(cat, spec||{})+snRow+'</div>'
     +'<div class="modal-footer"><button class="btn" onclick="closeAllModals()">Batal</button><button class="btn btn-primary btn-ghost" onclick="saveItemSpec()">Simpan Spec</button>'
@@ -7167,6 +7176,23 @@ async function saveItemSpec(){
   }
 }
 
+// Copy SN label ke clipboard: Customer · Item · SN
+function copySNLabel(sn, customer, itemLabel) {
+  const text = [customer, itemLabel, sn].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(text).then(
+    () => toast('✓ Disalin: ' + sn),
+    () => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); toast('✓ Disalin: ' + sn); }
+      catch(e) { toast('Gagal copy'); }
+      document.body.removeChild(ta);
+    }
+  );
+}
+
 // Helper: generate SN after spec saved — shared by ETS flow
 async function _doGenerateSN(itemId, poId, prodDate) {
   const po = allPOs.find(x=>x.id===poId);
@@ -7200,7 +7226,7 @@ async function generateSNFromETS(itemId, poId) {
   const item = po?.po_items?.find(x=>x.id===itemId);
   if(!item) return;
   const dateDefault = new Date().toISOString().slice(0,10);
-  openModal('<div class="modal modal-sm">'
+  openModal('<div class="modal">'
     +'<div class="modal-header"><div><h2>Generate Serial Number</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">'+item.category+(item.model_name?' — '+item.model_name:'')+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
     +'<div class="modal-body">'
     +'<div class="form-row"><label>Tanggal Mulai Produksi</label><input type="date" id="etsProdDate" value="'+dateDefault+'" style="padding:6px 8px"></div>'
@@ -7541,7 +7567,7 @@ function renderBOMTemplates() {
 function openBOMTemplateForm(id) {
   if (!can('bom_manage')) return;
   const t = id ? bomState.templates.find(x => x.id === id) : null;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${t ? 'Edit Template' : 'Template Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Nama Template <span class="req">*</span></label><input type="text" id="tmplName" placeholder="UPS 10kVA Standard" value="${(t?.name || '').replace(/"/g, '&quot;')}"></div>
@@ -7614,7 +7640,7 @@ async function openTemplateAddItem(templateId) {
   if (!bomState.components || !bomState.components.length) {
     await loadBOMData();
   }
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Tambah Komponen ke Template</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row">
@@ -7728,7 +7754,7 @@ function renderBOMComponents() {
 function openComponentForm(id) {
   if (!can('bom_manage')) return;
   const c = id ? bomState.components.find(x => x.id === id) : null;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>${c ? 'Edit Komponen' : 'Komponen Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
@@ -10791,7 +10817,7 @@ async function reviewAddItem() {
     await loadBOMData();
   }
   // Sub-modal to pick or create
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Tambah Komponen ke Review</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals();renderBOMReviewModal()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row">
@@ -11421,7 +11447,7 @@ function openBOMPKForm(editPkId) {
   const nextNo = 'PK-' + String(pkState.pks.length+1).padStart(3,'0') + '/SAE/' +
     new Date().toLocaleDateString('id-ID',{month:'2-digit',year:'numeric'}).replace('/','.');
 
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header">
       <h2>${pk?'Edit PK':'Buat PK Baru'}</h2>
       <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
@@ -12154,7 +12180,7 @@ async function openBOMAddItem(bomId) {
   if (!bomState.components || !bomState.components.length) {
     await loadBOMData();
   }
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Tambah Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row">
@@ -12215,7 +12241,7 @@ function onBOMItemCompSelect(compId) {
 async function openBOMEditItem(itemId, bomId) {
   const { data: it } = await sb.from('bom_items').select('*').eq('id', itemId).single();
   if (!it) return;
-  openModal(`<div class="modal modal-sm">
+  openModal(`<div class="modal">
     <div class="modal-header"><h2>Edit Komponen</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-grid">
