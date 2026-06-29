@@ -4683,7 +4683,7 @@ function renderPOItems() {
           <span style="color:${it.needs_ets?'#1d4ed8':'var(--text3)'}">⚙️ ${it.needs_ets?'Butuh ETS':'Tanpa ETS'}</span>
         </label>
       </div>
-      ${['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(it.category) ? `<button type="button" onclick="openItemSpecFromForm(${i})" style="width:100%;padding:6px 10px;border:1px solid ${poFormSpecs[i]?'#86efac':'var(--border)'};border-radius:var(--r-sm);background:${poFormSpecs[i]?'var(--green-bg)':'var(--surface)'};color:${poFormSpecs[i]?'var(--green)':'var(--text2)'};cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;text-align:left">⚙ Spec Teknis${poFormSpecs[i]?' — ✓ Sudah diisi':' — klik untuk isi spec terstruktur'}</button>` : ''}
+
     </div>`).join('');
 }
 
@@ -7099,6 +7099,8 @@ async function openItemSpec(itemId, poId){
   const cat = item.category||'';
   _specCtx.category = cat;
   let spec = null; try { const _r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = _r.data; } catch(e) {}
+  // Flatten extra_specs ke level atas supaya renderSpecForm bisa baca field seperti toleransi, frekuensi, pulse, dll
+  if (spec?.extra_specs && typeof spec.extra_specs === 'object') Object.assign(spec, spec.extra_specs);
   const canGenSN = ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(cat) && !item.serial_number;
   const snRow = canGenSN
     ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 0 2px;border-top:1px solid var(--border);margin-top:4px">'
