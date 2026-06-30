@@ -651,9 +651,20 @@ function startApp() {
   switchModule('home');
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   const saved = sessionStorage.getItem('panelUser');
-  if (saved) { try { currentUser = JSON.parse(saved); startApp(); return; } catch (e) {} }
+  if (saved) {
+    try {
+      const cached = JSON.parse(saved);
+      // Re-fetch dari DB supaya permissions selalu up-to-date
+      const { data: users } = await sb.from('app_users').select('*').eq('id', cached.id).eq('is_active', true);
+      if (users && users.length) {
+        currentUser = users[0];
+        sessionStorage.setItem('panelUser', JSON.stringify(currentUser));
+        startApp(); return;
+      }
+    } catch (e) {}
+  }
   document.getElementById('loginShell').style.display = 'block';
 });
 
