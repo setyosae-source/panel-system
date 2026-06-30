@@ -3866,9 +3866,8 @@ function _buildEtsTable(allItems, dsItemIds) {
           ${item.spec_summary ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:5px 9px;margin-bottom:10px">${escapeHtml(item.spec_summary)}</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
-            <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">${item.serial_number ? '✎ Edit Spec' : '⚙ Input Spec'}</button>
+            <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openSpecModal(this.dataset.iid,this.dataset.pid,'teknis')">⚙ Spec</button>
             ${!item.serial_number ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
-            <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">📋 Detail Spec</button>
             <button class="btn btn-sm" style="background:var(--teal-bg);color:var(--teal);border:1px solid #99f6e4" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDocModal(this.dataset.iid,this.dataset.pid)">📄 Doc</button>
           </div>
         </td>
@@ -4872,7 +4871,106 @@ function dsDocsSection(itemId) {
     + '</div>';
 }
 
+async function openSpecModal(itemId, poId, activeTab) {
+  activeTab = activeTab || 'teknis';
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(i=>i.id===itemId);
+  if(!item) return;
+  const cat = item.category||'';
+  _specCtx = {itemId, poId, category: cat};
+
+  let spec = null; try { const r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = r.data; } catch(e) {}
+  if(spec?.extra_specs && typeof spec.extra_specs==='object') Object.assign(spec, spec.extra_specs);
+
+  let ds = {}; try { const r = await sb.from('item_detail_specs').select('*').eq('item_id',itemId).single(); ds = r.data||{}; } catch(e) {}
+
+  const canGenSN = ['Rectifier','UPS','Inverter','Panel ACDB','Panel DCDB'].includes(cat) && !item.serial_number;
+  const snRow = canGenSN
+    ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 0 2px;border-top:1px solid var(--border);margin-top:4px">'
+      + '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Tgl. Produksi (untuk SN)</label>'
+      + '<input type="date" id="specProdDate" value="'+new Date().toISOString().slice(0,10)+'" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;font-family:inherit">'
+      + '</div>' : '';
+
+  const tabTeknis = '<div id="specTabTeknis" class="spec-tab-content">'
+    + renderSpecForm(cat, spec||{}) + snRow
+    + '<div class="modal-footer" style="padding:12px 0 0;border-top:1px solid var(--border);margin-top:12px">'
+    + '<button class="btn" onclick="closeAllModals()">Batal</button>'
+    + '<button class="btn btn-primary btn-ghost" onclick="saveItemSpec()">Simpan Spec</button>'
+    + (canGenSN ? '<button class="btn btn-primary" onclick="saveItemSpecAndGenerateSN()">🔢 Simpan & Generate SN</button>' : '')
+    + '</div></div>';
+
+  function dSel(id, opts, val, placeholder) {
+    return '<select id="ds_'+id+'" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);width:100%">'
+      + (placeholder ? '<option value="">'+placeholder+'</option>' : '')
+      + opts.map(function(o){ return '<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>'; }).join('')
+      + '</select>';
+  }
+  function dRow(label, inputHtml) {
+    return '<div class="form-row" style="margin-bottom:8px"><label style="font-size:12px;color:var(--text2);margin-bottom:4px;display:block">'+label+'</label>'+inputHtml+'</div>';
+  }
+
+  const tabDetail = '<div id="specTabDetail" class="spec-tab-content">'
+    + '<div class="form-grid">'
+    + dRow('Brand', dSel('brand', BRAND_OPTIONS, ds.brand||'SAEPOWER'))
+    + dRow('IP Protection', dSel('ip_protection', IP_OPTIONS, ds.ip_protection||'IP 23'))
+    + dRow('Colour', dSel('colour', COLOUR_OPTIONS, ds.colour||'Powder Coating RAL7035'))
+    + dRow('Cable Entry', dSel('cable_entry', CABLE_OPTIONS, ds.cable_entry||''))
+    + '</div>'
+    + '<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">'
+    + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:10px">KUSTOMISASI</div>'
+    + dRow('Catatan Custom / Tambahan', '<textarea id="ds_custom_notes" rows="3" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r-sm);width:100%;box-sizing:border-box">'+(ds.custom_notes||'')+'</textarea>')
+    + '</div>'
+    + '<div class="modal-footer" style="padding:12px 0 0;border-top:1px solid var(--border);margin-top:12px">'
+    + '<button class="btn" onclick="closeAllModals()">Batal</button>'
+    + '<button class="btn btn-primary" data-iid="'+itemId+'" data-pid="'+poId+'" onclick="saveDetailSpec(this.dataset.iid,this.dataset.pid)">Simpan Detail</button>'
+    + '</div></div>';
+
+  function tabBtn(id, label, active) {
+    return '<button onclick="switchSpecTab(\'' + id + '\')" id="stab_' + id + '" style="padding:7px 18px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid ' + (active ? 'var(--primary)' : 'transparent') + ';color:' + (active ? 'var(--primary)' : 'var(--text2)') + '">' + label + '</button>';
+  }
+
+  openModal('<div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">'
+    + '<div class="modal-header"><div><h2>⚙ Spec &#8212; '+(item.model_name||item.category)+'</h2><div style="font-size:12px;color:var(--text3)">'+cat+'</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>'
+    + '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin:0 -24px;padding:0 24px">'
+    + tabBtn('teknis', 'Spec Teknis', activeTab === 'teknis')
+    + tabBtn('detail', 'Detail', activeTab === 'detail')
+    + '</div>'
+    + '<div class="modal-body" style="padding-top:16px">'
+    + tabTeknis + tabDetail
+    + '</div></div>');
+
+  switchSpecTab(activeTab);
+
+  setTimeout(function() {
+    document.querySelectorAll('[data-auto-source]').forEach(function(autoEl) {
+      const srcId = autoEl.getAttribute('data-auto-source');
+      const factor = parseFloat(autoEl.getAttribute('data-auto-factor')||'1');
+      const srcEl = document.getElementById(srcId);
+      if(!srcEl) return;
+      const recalc = function() { const v=parseFloat(srcEl.value); autoEl.value=isNaN(v)?'':(v*factor).toFixed(1); };
+      srcEl.addEventListener('input', recalc); recalc();
+    });
+  }, 50);
+}
+
+function switchSpecTab(tab) {
+  ['teknis','detail'].forEach(function(t) {
+    const tabEl = document.getElementById(t==='teknis' ? 'specTabTeknis' : 'specTabDetail');
+    const btn = document.getElementById('stab_'+t);
+    if(tabEl) tabEl.style.display = t===tab ? 'block' : 'none';
+    if(btn) {
+      btn.style.borderBottom = t===tab ? '2px solid var(--primary)' : '2px solid transparent';
+      btn.style.color = t===tab ? 'var(--primary)' : 'var(--text2)';
+    }
+  });
+}
+
 async function openDetailSpecModal(itemId, poId) {
+  return openSpecModal(itemId, poId, 'detail');
+}
+
+// LEGACY — kept for backward compat but now routes to openSpecModal
+async function _openDetailSpecModalLegacy(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
   const item = po?.po_items?.find(i=>i.id===itemId);
   if(!item) return;
@@ -5500,7 +5598,7 @@ async function saveEditItem(itemId, poId, openSpec=false) {
   await logPO(poId, 'Edit Item', gv('itCat'));
   toast('Item diperbarui');
   await loadPOs();
-  if(openSpec) { openItemSpec(itemId, poId); }
+  if(openSpec) { openSpecModal(itemId, poId, 'teknis'); }
   else { openPODetail(poId); }
 }
 
