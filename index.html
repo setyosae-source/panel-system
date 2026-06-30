@@ -3880,15 +3880,29 @@ function _buildEtsTable(allItems, dsItemIds) {
   });
 
   if (filtered.length === 0) {
-    return { rows: `<tr class="empty-row"><td colspan="4" style="text-align:center;padding:2rem;color:var(--text3)">Tidak ada item</td></tr>` };
+    return { rows: `<tr class="empty-row"><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">Tidak ada item</td></tr>` };
   }
 
-  const rows = filtered.map(({po, item, hasSpec, hasDetailSpec}) => {
+  const rows = filtered.map(({po, item, hasSN, hasSpec, hasDetailSpec}) => {
     const isExpanded = _etsExpandedId === item.id;
     const arrow = isExpanded ? '▲' : '▼';
     const itemLabel = `${item.category}${item.model_name ? ' · ' + item.model_name : ''}`;
+
+    // Kolom Serial Number / Aksi dinamis:
+    // 1. Belum ada SN & belum ada spec → tombol Spec
+    // 2. Spec sudah diisi, belum SN → tombol Generate SN
+    // 3. Sudah ada SN → tampil serial number
+    let snCell;
+    if (hasSN) {
+      snCell = `<span class="mono" style="font-weight:600;color:var(--text)">${item.serial_number}</span>`;
+    } else if (hasSpec) {
+      snCell = `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0;white-space:nowrap" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>`;
+    } else {
+      snCell = `<button class="btn btn-sm btn-blue" style="white-space:nowrap" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openSpecModal(this.dataset.iid,this.dataset.pid,'teknis')">⚙ Isi Spec</button>`;
+    }
+
     const statusBadges = [
-      hasSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">SN ✓</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600">Belum SN</span>',
+      hasSN ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">SN ✓</span>' : '<span style="font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;font-weight:600">Belum SN</span>',
       hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✓</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>'
     ].join(' ');
 
@@ -3910,14 +3924,13 @@ function _buildEtsTable(allItems, dsItemIds) {
          </div>`;
     const detailRow = !isExpanded ? '' : `
       <tr class="ets-detail-row">
-        <td colspan="4" style="background:var(--surface2);padding:10px 16px 12px;border-top:none">
+        <td colspan="5" style="background:var(--surface2);padding:10px 16px 12px;border-top:none">
           ${snBlock}
-          ${item.serial_number ? `<div style="display:flex;gap:4px;margin-bottom:10px">${statusBadges}<span style="font-size:12px;color:var(--text3);margin-left:6px">Qty: <strong>${item.qty||1}</strong></span></div>` : ''}
           ${item.spec_summary ? `<div style="font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:5px 9px;margin-bottom:10px">${escapeHtml(item.spec_summary)}</div>` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
             <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openSpecModal(this.dataset.iid,this.dataset.pid,'teknis')">⚙ Spec</button>
-            ${!item.serial_number ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
+            ${!item.serial_number && hasSpec ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
             <button class="btn btn-sm" style="background:var(--teal-bg);color:var(--teal);border:1px solid #99f6e4" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDocModal(this.dataset.iid,this.dataset.pid)">📄 Doc</button>
           </div>
         </td>
@@ -3928,6 +3941,7 @@ function _buildEtsTable(allItems, dsItemIds) {
         <td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>
         <td>${po.customer_name || '—'}</td>
         <td>${itemLabel}</td>
+        <td>${snCell}</td>
         <td style="text-align:center;color:var(--text3);width:30px">${arrow}</td>
       </tr>
       ${detailRow}`;
@@ -3948,16 +3962,21 @@ async function renderETSList() {
   const {data: dsAll} = await sb.from('item_detail_specs').select('item_id');
   const dsItemIds = new Set((dsAll||[]).map(x=>x.item_id));
 
+  // Cek spec teknis sudah diisi (item_specs punya kategori)
+  const {data: specAll} = await sb.from('item_specs').select('item_id,kategori');
+  const specItemIds = new Set((specAll||[]).filter(x=>x.kategori).map(x=>x.item_id));
+
   const allItems = [];
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
-      const hasSpec = !!it.serial_number;
+      const hasSN = !!it.serial_number;
+      const hasSpec = specItemIds.has(it.id);  // spec teknis sudah diisi
       const hasDetailSpec = dsItemIds.has(it.id);
-      const isPending = !hasSpec || !hasDetailSpec;
-      allItems.push({po:p, item:it, hasSpec, hasDetailSpec, isPending});
+      const isPending = !hasSN || !hasDetailSpec;
+      allItems.push({po:p, item:it, hasSN, hasSpec, hasDetailSpec, isPending});
     }
   }
-  _etsCache = { allItems, dsItemIds };
+  _etsCache = { allItems, dsItemIds, specItemIds };
 
   const pendingCount = allItems.filter(x=>x.isPending).length;
   const doneCount = allItems.length - pendingCount;
@@ -3991,6 +4010,7 @@ async function renderETSList() {
               <th style="min-width:90px">No. Project</th>
               <th style="">Customer</th>
               <th style="">Item</th>
+              <th style="min-width:140px">Serial Number</th>
               <th style="min-width:30px"></th>
             </tr>
           </thead>
