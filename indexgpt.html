@@ -3868,7 +3868,8 @@ function _buildEtsTable(allItems, dsItemIds) {
             <button class="btn btn-sm" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openEditItemForm(this.dataset.iid,this.dataset.pid)">Edit</button>
             <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openItemSpec(this.dataset.iid,this.dataset.pid)">${item.serial_number ? '✎ Edit Spec' : '⚙ Input Spec'}</button>
             ${!item.serial_number ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
-            <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">Detail Spec</button>
+            <button class="btn btn-sm btn-primary" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDetailSpecModal(this.dataset.iid,this.dataset.pid)">📋 Detail Spec</button>
+            <button class="btn btn-sm" style="background:var(--teal-bg);color:var(--teal);border:1px solid #99f6e4" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDocModal(this.dataset.iid,this.dataset.pid)">📄 Doc</button>
           </div>
         </td>
       </tr>`;
@@ -3919,6 +3920,9 @@ async function renderETSList() {
   const tbl = _buildEtsTable(allItems, dsItemIds);
 
   document.getElementById('etsBody').innerHTML = `
+    <div style="margin-bottom:10px">
+      <button class="btn btn-sm" style="background:var(--teal-bg);color:var(--teal);border:1px solid #99f6e4;font-weight:600" onclick="openGeneralDownloadsModal()">⚙ Set Download URL</button>
+    </div>
     <div class="toolbar-row">
       <div class="search-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 10px;display:flex;align-items:center;gap:8px">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -5059,6 +5063,255 @@ function gvds(id) {
   const el = document.getElementById('ds_'+id);
   return el ? el.value.trim() : null;
 }
+
+// ── DOC MODAL: Kelola dokumen customer per unit ──────────────────────────────
+async function openDocModal(itemId, poId) {
+  const po = allPOs.find(x=>x.id===poId);
+  const item = po?.po_items?.find(i=>i.id===itemId);
+  if(!item) return;
+
+  let ds = {};
+  try { const r = await sb.from('item_detail_specs').select('doc_drawing_approval,doc_asbuilt,doc_fat,doc_others').eq('item_id',itemId).single(); ds = r.data||{}; } catch(e) {}
+
+  const DOC_FIELDS = [
+    {key:'doc_drawing_approval', label:'Drawing Approval'},
+    {key:'doc_asbuilt',          label:'As-Built Drawing'},
+    {key:'doc_fat',              label:'Dokumen FAT'},
+    {key:'doc_others',           label:'Dokumen Lainnya'},
+  ];
+
+  function renderDocField(key, label, files) {
+    const rows = (files||[]).map((f,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)" id="docrow_${key}_${i}">
+        <div style="flex:1;min-width:0">
+          <input type="text" value="${escapeHtml(f.name||'')}" placeholder="Nama file"
+            onchange="docUpdateField('${key}',${i},'name',this.value)"
+            style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:4px">
+          <input type="text" value="${escapeHtml(f.url||'')}" placeholder="URL (Google Drive, dll)"
+            onchange="docUpdateField('${key}',${i},'url',this.value)"
+            style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'DM Mono',monospace">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">
+            <input type="checkbox" ${f.visible!==false?'checked':''} onchange="docUpdateField('${key}',${i},'visible',this.checked)">
+            Tampil
+          </label>
+          <button onclick="docOpenUrl('${key}',${i})" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer" title="Test URL">🔗</button>
+          <button onclick="docRemoveFile('${key}',${i})" style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;font-size:11px;background:var(--red-bg);color:var(--red);cursor:pointer">✕</button>
+        </div>
+      </div>`).join('');
+
+    const hasFiles = (files||[]).length;
+    const badge = hasFiles
+      ? `<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">✓ ${hasFiles} file</span>`
+      : `<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Belum ada</span>`;
+
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)">${label}</div>
+        ${badge}
+      </div>
+      <div id="docfiles_${key}">${rows}</div>
+      <button onclick="docAddFile('${key}')" style="margin-top:6px;padding:4px 12px;border:1px dashed var(--border2);border-radius:6px;background:none;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit">+ Tambah File</button>
+    </div>`;
+  }
+
+  // Store in window for live editing
+  window._docState = {};
+  DOC_FIELDS.forEach(f => { window._docState[f.key] = JSON.parse(JSON.stringify(ds[f.key]||[])); });
+  window._docItemId = itemId;
+
+  const body = DOC_FIELDS.map(f=>renderDocField(f.key, f.label, window._docState[f.key])).join('<hr style="border:none;border-top:1px solid var(--border);margin:8px 0">');
+
+  openModal(`<div class="modal" style="max-width:600px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div><h2>📄 Dokumen Customer</h2><div style="font-size:12px;color:var(--text3)">${item.model_name||item.category} — ${po.customer_name||''}</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body">${body}</div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Batal</button>
+      <button class="btn btn-primary" onclick="saveDocModal()">💾 Simpan</button>
+    </div>
+  </div>`);
+}
+
+function docUpdateField(key, idx, field, val) {
+  if(window._docState && window._docState[key] && window._docState[key][idx] !== undefined)
+    window._docState[key][idx][field] = val;
+}
+
+function docAddFile(key) {
+  if(!window._docState) return;
+  window._docState[key].push({name:'', url:'', visible:true});
+  const container = document.getElementById('docfiles_'+key);
+  if(!container) return;
+  const i = window._docState[key].length - 1;
+  const f = window._docState[key][i];
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)';
+  div.id = `docrow_${key}_${i}`;
+  div.innerHTML = `
+    <div style="flex:1;min-width:0">
+      <input type="text" value="" placeholder="Nama file"
+        onchange="docUpdateField('${key}',${i},'name',this.value)"
+        style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:4px">
+      <input type="text" value="" placeholder="URL (Google Drive, dll)"
+        onchange="docUpdateField('${key}',${i},'url',this.value)"
+        style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'DM Mono',monospace">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">
+        <input type="checkbox" checked onchange="docUpdateField('${key}',${i},'visible',this.checked)"> Tampil
+      </label>
+      <button onclick="docOpenUrl('${key}',${i})" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer">🔗</button>
+      <button onclick="docRemoveFile('${key}',${i})" style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;font-size:11px;background:var(--red-bg);color:var(--red);cursor:pointer">✕</button>
+    </div>`;
+  container.appendChild(div);
+}
+
+function docRemoveFile(key, idx) {
+  if(!window._docState || !window._docState[key]) return;
+  window._docState[key].splice(idx, 1);
+  const el = document.getElementById(`docrow_${key}_${idx}`);
+  if(el) el.remove();
+  // Re-index remaining rows
+  const container = document.getElementById('docfiles_'+key);
+  if(container) {
+    [...container.children].forEach((row,i)=>{ row.id=`docrow_${key}_${i}`; });
+  }
+}
+
+function docOpenUrl(key, idx) {
+  const url = window._docState?.[key]?.[idx]?.url;
+  if(url) window.open(url,'_blank'); else toast('URL belum diisi');
+}
+
+async function saveDocModal() {
+  const itemId = window._docItemId;
+  if(!itemId) return;
+  const update = { item_id: itemId, updated_at: new Date().toISOString() };
+  ['doc_drawing_approval','doc_asbuilt','doc_fat','doc_others'].forEach(k=>{
+    // Filter out empty entries
+    update[k] = (window._docState[k]||[]).filter(f=>f.name||f.url);
+  });
+  const {error} = await sb.from('item_detail_specs').upsert(update, {onConflict:'item_id'});
+  if(error) { toast('Error: '+error.message); return; }
+  toast('Dokumen disimpan');
+  closeAllModals();
+  if(typeof renderETSList === 'function') await renderETSList();
+}
+
+// ── GENERAL DOWNLOADS MODAL ───────────────────────────────────────────────────
+async function openGeneralDownloadsModal() {
+  openModal(`<div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header">
+      <div><h2>⚙ Set Download URL</h2><div style="font-size:12px;color:var(--text3)">Software & file global (tampil di semua produk)</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="gdlBody"><div style="text-align:center;padding:2rem;color:var(--text3)">Memuat...</div></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeAllModals()">Tutup</button>
+      <button class="btn btn-primary" onclick="gdlAddNew()">+ Tambah</button>
+    </div>
+  </div>`);
+  await gdlLoad();
+}
+
+async function gdlLoad() {
+  const {data, error} = await sb.from('general_downloads').select('*').order('sort_order',{ascending:true}).order('created_at',{ascending:true});
+  const el = document.getElementById('gdlBody');
+  if(!el) return;
+  if(error || !data || !data.length) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px">Belum ada item. Klik "+ Tambah" untuk menambah.</div>`;
+    return;
+  }
+  el.innerHTML = data.map(d=>`
+    <div style="border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--surface)">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <input type="text" value="${escapeHtml(d.doc_name||'')}" placeholder="Nama file / aplikasi"
+              onchange="gdlUpdate('${d.id}','doc_name',this.value)"
+              style="flex:2;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px">
+            <input type="text" value="${escapeHtml(d.version||'')}" placeholder="Versi"
+              onchange="gdlUpdate('${d.id}','version',this.value)"
+              style="width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px">
+            <input type="text" value="${escapeHtml(d.doc_type||'Software')}" placeholder="Tipe"
+              onchange="gdlUpdate('${d.id}','doc_type',this.value)"
+              style="width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px">
+          </div>
+          <input type="text" value="${escapeHtml(d.file_url||'')}" placeholder="URL download (Google Drive: uc?export=download&id=...)"
+            onchange="gdlUpdate('${d.id}','file_url',this.value)"
+            style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'DM Mono',monospace;margin-bottom:6px">
+          <input type="text" value="${escapeHtml(d.description||'')}" placeholder="Deskripsi (opsional)"
+            onchange="gdlUpdate('${d.id}','description',this.value)"
+            style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:12px">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button onclick="gdlTest('${d.id}')" title="Test URL" style="padding:5px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface2);cursor:pointer">🔗 Test</button>
+          <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;padding:4px 0">
+            <input type="checkbox" ${d.is_active?'checked':''} onchange="gdlUpdate('${d.id}','is_active',this.checked)"> Aktif
+          </label>
+          <button onclick="gdlDelete('${d.id}')" style="padding:5px 10px;border:1px solid var(--red-border);border-radius:5px;font-size:12px;background:var(--red-bg);color:var(--red);cursor:pointer">Hapus</button>
+        </div>
+      </div>
+    </div>`).join('');
+  // Store for updates
+  window._gdlData = {};
+  data.forEach(d=>{ window._gdlData[d.id] = {...d}; });
+}
+
+function gdlUpdate(id, field, val) {
+  if(!window._gdlData) window._gdlData = {};
+  if(!window._gdlData[id]) window._gdlData[id] = {id};
+  window._gdlData[id][field] = val;
+}
+
+async function gdlSaveRow(id) {
+  const row = window._gdlData?.[id];
+  if(!row) return;
+  const {error} = await sb.from('general_downloads').update({
+    doc_name: row.doc_name, file_url: row.file_url,
+    doc_type: row.doc_type, description: row.description,
+    version: row.version, is_active: row.is_active
+  }).eq('id', id);
+  if(error) toast('Error: '+error.message); else toast('Disimpan');
+}
+
+function gdlTest(id) {
+  const url = window._gdlData?.[id]?.file_url;
+  if(url) window.open(url,'_blank'); else toast('URL belum diisi');
+}
+
+async function gdlDelete(id) {
+  if(!confirm('Hapus item ini?')) return;
+  await sb.from('general_downloads').delete().eq('id', id);
+  await gdlLoad();
+}
+
+async function gdlAddNew() {
+  const {error} = await sb.from('general_downloads').insert({doc_name:'', file_url:'', doc_type:'Software', is_active:true, sort_order:99});
+  if(error) { toast('Error: '+error.message); return; }
+  await gdlLoad();
+}
+
+// Auto-save general downloads on field blur
+document.addEventListener('blur', async function(e) {
+  const el = e.target;
+  const gdlBody = document.getElementById('gdlBody');
+  if(!gdlBody || !gdlBody.contains(el)) return;
+  if(!window._gdlData) return;
+  // Find which row id this belongs to — iterate all rows and save all
+  for(const id of Object.keys(window._gdlData)) {
+    const row = window._gdlData[id];
+    await sb.from('general_downloads').update({
+      doc_name: row.doc_name||'', file_url: row.file_url||'',
+      doc_type: row.doc_type||'Software', description: row.description||'',
+      version: row.version||'', is_active: !!row.is_active
+    }).eq('id', id);
+  }
+}, true);
 
 async function saveDetailSpec(itemId, poId) {
   const po = allPOs.find(x=>x.id===poId);
