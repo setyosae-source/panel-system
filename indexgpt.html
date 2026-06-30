@@ -574,12 +574,17 @@ const ROLE_PERMS = {
 
 function getPerms() {
   if (!currentUser) return {};
-  const base = ROLE_PERMS[currentUser.role] || {};
+  const role = currentUser.role;
+  const base = ROLE_PERMS[role] || {};
   const custom = currentUser.permissions || {};
-  const merged = { ...base };
-  const PERM_MAP = {
-    po:       ['po_view','po_manage','po_engineering','po_produksi','po_qc','po_logistik','po_instalasi','po_commissioning','po_pk'],
-    pp:       ['pp_view','pp_manage','pp_input','pp_upload_doc','pp_upload_result'],
+
+  // Role yang dapat SEMUA modul otomatis (akses penuh)
+  const FULL_MODULE_ROLES = ['owner','admin','direktur','sales'];
+
+  // Modul → permission keys yang dikontrol oleh Modul Akses user
+  const MODULE_PERM = {
+    pp:       ['pp_view','pp_upload_result'],
+    po:       ['po_view'],
     ets:      ['po_engineering'],
     produksi: ['po_produksi','po_qc','po_instalasi','po_commissioning'],
     logistik: ['po_logistik'],
@@ -587,14 +592,29 @@ function getPerms() {
     kb:       ['kb_view'],
     bom:      ['bom_view','bom_manage','bom_export'],
   };
-  Object.entries(custom).forEach(([key, val]) => {
-    const mapped = PERM_MAP[key];
-    if (mapped) {
-      mapped.forEach(p => { if (val) merged[p] = 1; else delete merged[p]; });
-    } else {
-      if (val) merged[key] = 1; else delete merged[key];
-    }
-  });
+  // Semua permission yang dikontrol modul (untuk dihapus dari base)
+  const ALL_MODULE_PERMS = [];
+  Object.values(MODULE_PERM).forEach(arr => arr.forEach(p => ALL_MODULE_PERMS.push(p)));
+
+  // Mulai dari base role, TAPI buang semua permission yang dikontrol modul
+  // (akses modul akan ditentukan murni oleh Modul Akses user, bukan role)
+  const merged = { ...base };
+  if (!FULL_MODULE_ROLES.includes(role)) {
+    ALL_MODULE_PERMS.forEach(p => delete merged[p]);
+    // Terapkan Modul Akses user
+    Object.entries(custom).forEach(([key, val]) => {
+      const mapped = MODULE_PERM[key];
+      if (mapped) {
+        mapped.forEach(p => { if (val) merged[p] = 1; else delete merged[p]; });
+      } else {
+        // permission lain di custom (non-modul) tetap dihormati
+        if (val) merged[key] = 1; else delete merged[key];
+      }
+    });
+  } else {
+    // Role full: pastikan semua modul ON
+    ALL_MODULE_PERMS.forEach(p => { merged[p] = 1; });
+  }
   return merged;
 }
 function can(perm) { return !!(getPerms()[perm] || getPerms()['all']); }
@@ -7071,10 +7091,10 @@ async function openUserForm(userId) {
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-bottom:10px"><input type="checkbox" id="ufActive" ${u?.is_active !== false ? 'checked' : ''}><span>Aktif</span></label>
       
       <div id="permsSection" style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Akses Modul Custom</label>
+        <label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:8px">Modul Akses sesuai User</label>
         <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.5">
-          Owner, Admin, Sales, dan Direktur sudah otomatis akses sesuai role.<br>
-          Untuk role lain, centang modul yang bisa diakses.
+          Owner, Admin, Sales, dan Direktur otomatis akses penuh.<br>
+          Untuk role lain, centang modul yang boleh diakses user ini.
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${moduleCheckboxes}</div>
       </div>
