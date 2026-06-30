@@ -474,12 +474,12 @@ async function renderDownload(){
 
   // Helper render section
   const dlItem = (name, url, meta) => `
-    <div class="dl-item">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</div>
-        ${meta?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${meta}</div>`:''}
+    <div class="dl-item" style="align-items:flex-start">
+      <div style="flex:1;min-width:0;padding-right:12px">
+        <div style="font-size:13px;font-weight:500;word-break:break-word">${name}</div>
+        ${meta?`<div style="font-size:11px;color:var(--muted);margin-top:2px;word-break:break-word">${meta}</div>`:''}
       </div>
-      <a href="${url}" target="_blank" class="dl-btn">Download</a>
+      <a href="${url}" target="_blank" class="dl-btn" style="flex-shrink:0">Download</a>
     </div>`;
 
   const renderSection = (title, items) => {
