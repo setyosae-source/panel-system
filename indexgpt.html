@@ -7424,6 +7424,26 @@ async function saveItemSpec(){
       const { error } = await sb.from('item_specs').insert(data);
       if (error) throw error;
     }
+    // ── Sync ke item_detail_specs ─────────────────────────────────────────────
+    // Mapping: field item_specs → field item_detail_specs per kategori
+    const SYNC_MAP = {
+      Rectifier:    { input_voltage:'r_input_voltage', output_voltage:'r_output_voltage', output_current:'r_output_current', input_fase:'r_input_fase' },
+      UPS:          { input_voltage:'u_rect_input_voltage', output_voltage:'u_inv_output_voltage', output_kva:'u_capacity_kva', input_fase:'u_rect_input_phase', output_fase:'u_inv_output_phase' },
+      Inverter:     { output_voltage:'i_output_voltage', output_kva:'i_capacity_kva', input_fase:'i_input_fase' },
+      'Panel ACDB': { input_voltage:'p_input_voltage', output_current:'p_current_rating', input_fase:'p_input_fase' },
+      'Panel DCDB': { input_voltage:'p_input_voltage', output_current:'p_current_rating' },
+    };
+    const syncMap = SYNC_MAP[category] || {};
+    if (Object.keys(syncMap).length) {
+      const dsSync = { item_id: itemId, updated_at: new Date().toISOString() };
+      // Map dari data (item_specs fields) ke item_detail_specs fields
+      Object.entries(syncMap).forEach(([srcKey, dstKey]) => {
+        const val = data[srcKey] ?? (data.extra_specs?.[srcKey] ?? null);
+        if (val !== null && val !== undefined) dsSync[dstKey] = val;
+      });
+      await sb.from('item_detail_specs').upsert(dsSync, { onConflict: 'item_id' });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     toast('Spec disimpan');
     closeAllModals();
     await loadPOs();
@@ -7531,6 +7551,20 @@ async function saveItemSpecAndGenerateSN() {
     try{const _r=await sb.from('item_specs').select('id').eq('item_id',iid).single();existing=_r.data;}catch(e){}
     if(existing){await sb.from('item_specs').update(data).eq('item_id',iid);}
     else{await sb.from('item_specs').insert(data);}
+    // Sync ke item_detail_specs
+    const SYNC_MAP2 = {
+      Rectifier:    { input_voltage:'r_input_voltage', output_voltage:'r_output_voltage', output_current:'r_output_current', input_fase:'r_input_fase' },
+      UPS:          { input_voltage:'u_rect_input_voltage', output_voltage:'u_inv_output_voltage', output_kva:'u_capacity_kva', input_fase:'u_rect_input_phase' },
+      Inverter:     { output_voltage:'i_output_voltage', output_kva:'i_capacity_kva' },
+      'Panel ACDB': { input_voltage:'p_input_voltage', output_current:'p_current_rating', input_fase:'p_input_fase' },
+      'Panel DCDB': { input_voltage:'p_input_voltage', output_current:'p_current_rating' },
+    };
+    const sm2 = SYNC_MAP2[category]||{};
+    if(Object.keys(sm2).length){
+      const dsSync2 = {item_id:iid, updated_at:new Date().toISOString()};
+      Object.entries(sm2).forEach(([s,d])=>{ const v=data[s]??(data.extra_specs?.[s]??null); if(v!==null) dsSync2[d]=v; });
+      await sb.from('item_detail_specs').upsert(dsSync2,{onConflict:'item_id'});
+    }
     await loadPOs();
     const ok = await _doGenerateSN(iid, pid, new Date(dateStr));
     if(ok){ closeAllModals(); await loadPOs(); if(currentModule==='ets') await renderETSList(); else if(pid) openPODetail(pid); }
