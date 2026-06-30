@@ -576,7 +576,23 @@ function getPerms() {
   if (!currentUser) return {};
   const base = ROLE_PERMS[currentUser.role] || {};
   const custom = currentUser.permissions || {};
-  return { ...base, ...custom };
+  const merged = { ...base };
+  const PERM_MAP = {
+    po:  ['po_view','po_manage','po_engineering','po_produksi','po_qc','po_logistik','po_instalasi','po_commissioning','po_pk'],
+    pp:  ['pp_view','pp_manage','pp_input','pp_upload_doc','pp_upload_result'],
+    ets: ['po_engineering'],
+    kb:  ['kb_view'],
+    bom: ['bom_view','bom_manage','bom_export'],
+  };
+  Object.entries(custom).forEach(([key, val]) => {
+    const mapped = PERM_MAP[key];
+    if (mapped) {
+      mapped.forEach(p => { if (val) merged[p] = 1; else delete merged[p]; });
+    } else {
+      if (val) merged[key] = 1; else delete merged[key];
+    }
+  });
+  return merged;
 }
 function can(perm) { return !!(getPerms()[perm] || getPerms()['all']); }
 function isOwner() { return currentUser?.role === 'owner'; }
