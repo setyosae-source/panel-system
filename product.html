@@ -520,7 +520,7 @@ async function renderDownload(){
   ];
   itemSections.forEach(s=>{
     if(!s.files || !s.files.length) return;
-    const items = s.files.map(f=>dlItem(f.name, f.url, ''));
+    const items = s.files.filter(f=>f.visible !== false).map(f=>dlItem(f.name, f.url, ''));
     html += renderSection(s.title, items);
   });
 
