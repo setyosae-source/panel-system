@@ -578,11 +578,14 @@ function getPerms() {
   const custom = currentUser.permissions || {};
   const merged = { ...base };
   const PERM_MAP = {
-    po:  ['po_view','po_manage','po_engineering','po_produksi','po_qc','po_logistik','po_instalasi','po_commissioning','po_pk'],
-    pp:  ['pp_view','pp_manage','pp_input','pp_upload_doc','pp_upload_result'],
-    ets: ['po_engineering'],
-    kb:  ['kb_view'],
-    bom: ['bom_view','bom_manage','bom_export'],
+    po:       ['po_view','po_manage','po_engineering','po_produksi','po_qc','po_logistik','po_instalasi','po_commissioning','po_pk'],
+    pp:       ['pp_view','pp_manage','pp_input','pp_upload_doc','pp_upload_result'],
+    ets:      ['po_engineering'],
+    produksi: ['po_produksi','po_qc','po_instalasi','po_commissioning'],
+    logistik: ['po_logistik'],
+    service:  ['service_view','service_manage'],
+    kb:       ['kb_view'],
+    bom:      ['bom_view','bom_manage','bom_export'],
   };
   Object.entries(custom).forEach(([key, val]) => {
     const mapped = PERM_MAP[key];
@@ -7106,11 +7109,13 @@ async function saveUser(editId) {
   if (!editId && !pw) { toast('Password wajib untuk user baru'); return; }
 
   // Collect custom permissions (only for non-fixed roles)
+  // Tulis SEMUA module dengan nilai eksplisit true/false supaya bisa mencabut akses dari base role
   const isFixed = ['owner','admin','sales','direktur'].includes(role);
   let permissions = {};
   if(!isFixed) {
-    document.querySelectorAll('.modCb:checked').forEach(cb => {
-      permissions[cb.dataset.key] = true;
+    MODULE_LIST.forEach(m => {
+      const cb = document.querySelector(`.modCb[data-key="${m.key}"]`);
+      permissions[m.key] = !!(cb && cb.checked);
     });
   }
 
