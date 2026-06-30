@@ -458,80 +458,86 @@ async function renderDownload(){
   document.getElementById('tabContent').innerHTML='<div class="loading">Memuat dokumen...</div>';
 
   const it=currentItem;
+  const po=currentPO;
   const ds = Array.isArray(it.item_detail_specs) ? (it.item_detail_specs[0]||{}) : (it.item_detail_specs||{});
-  const poFiles=currentPO?.download_files||[];
+  const poFiles=po?.download_files||[];
+  const customerName = po?.customer_name || '';
 
-  // Fetch general downloads dari Supabase
+  // Fetch general downloads
   let generalDocs = [];
   try {
     const {data, error} = await sb.from('general_downloads')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', {ascending:true})
-      .order('doc_type', {ascending:true});
+      .select('*').eq('is_active', true)
+      .order('sort_order',{ascending:true}).order('doc_type',{ascending:true});
     if(!error && data) generalDocs = data;
-  } catch(e){ /* silent fail */ }
+  } catch(e){}
 
-  // Helper render section
-  const dlItem = (name, url, meta) => `
-    <div class="dl-item" style="align-items:flex-start">
-      <div style="flex:1;min-width:0;padding-right:12px">
-        <div style="font-size:13px;font-weight:500;word-break:break-word">${name}</div>
-        ${meta?`<div style="font-size:11px;color:var(--muted);margin-top:2px;word-break:break-word">${meta}</div>`:''}
-      </div>
-      <a href="${url}" target="_blank" class="dl-btn" style="flex-shrink:0">Download</a>
-    </div>`;
+  // Build flat list of all docs: {category, name, url}
+  const allDocs = [];
 
-  const renderSection = (title, items) => {
-    if(!items || !items.length) return '';
-    return `<div class="section">
-      <div class="sect-title" style="display:block;margin-bottom:10px">${title}</div>
-      ${items.join('')}
-    </div>`;
-  };
-
-  let html = '';
-
-  // ── GENERAL DOWNLOADS (software, tools, dll) ──
-  if(generalDocs.length){
-    // Group by doc_type
-    const grouped = {};
-    generalDocs.forEach(d=>{
-      if(!grouped[d.doc_type]) grouped[d.doc_type]=[];
-      grouped[d.doc_type].push(d);
-    });
-    Object.entries(grouped).forEach(([type, docs])=>{
-      const items = docs.map(d=>dlItem(
-        d.doc_name,
-        d.file_url,
-        [d.description, d.version?'v'+d.version:''].filter(Boolean).join(' · ')
-      ));
-      html += renderSection(type, items);
-    });
-  }
-
-  // ── ITEM-SPECIFIC DOCUMENTS ──
-  const itemSections = [
-    {title:'Drawing Approval', files: ds.doc_drawing_approval||[]},
-    {title:'As-Built Drawing',  files: ds.doc_asbuilt||[]},
-    {title:'Dokumen FAT',       files: ds.doc_fat||[]},
-    {title:'Dokumen Lainnya',   files: ds.doc_others||[]},
-    {title:'File dari PO',      files: poFiles},
-  ];
-  itemSections.forEach(s=>{
-    if(!s.files || !s.files.length) return;
-    const items = s.files.filter(f=>f.visible !== false).map(f=>dlItem(f.name, f.url, ''));
-    html += renderSection(s.title, items);
+  // General downloads
+  generalDocs.forEach(d => {
+    allDocs.push({category: d.doc_type||'Software', name: d.doc_name, url: d.file_url, meta: [d.description, d.version?'v'+d.version:''].filter(Boolean).join(' · ')});
   });
 
-  if(!html){
-    html = `<div class="section">
-      <div class="sect-title">Dokumen</div>
-      <p style="font-size:13px;color:var(--muted);padding:.5rem 0">Belum ada dokumen tersedia untuk unit ini.</p>
-    </div>`;
+  // Item-specific
+  const itemSections = [
+    {cat:'Drawing Approval', files: ds.doc_drawing_approval||[]},
+    {cat:'As-Built Drawing',  files: ds.doc_asbuilt||[]},
+    {cat:'Dokumen FAT',       files: ds.doc_fat||[]},
+    {cat:'Dokumen Lainnya',   files: ds.doc_others||[]},
+    {cat:'File dari PO',      files: poFiles},
+  ];
+  itemSections.forEach(s => {
+    (s.files||[]).filter(f=>f.visible!==false && (f.name||f.url)).forEach(f => {
+      allDocs.push({category: s.cat, name: f.name||s.cat, url: f.url, meta:''});
+    });
+  });
+
+  const total = allDocs.length;
+
+  if(!total){
+    document.getElementById('tabContent').innerHTML = `
+      <div style="background:var(--surface2);border-radius:var(--r);padding:2rem;text-align:center;color:var(--muted);font-size:13px">
+        Belum ada dokumen tersedia untuk unit ini.
+      </div>`;
+    return;
   }
 
-  document.getElementById('tabContent').innerHTML = html;
+  const rows = allDocs.map((d,i) => `
+    <tr style="border-bottom:1px solid var(--border)${i%2===0?';background:var(--surface2)':''}">
+      <td style="padding:10px 14px;font-size:12px;color:var(--muted);white-space:nowrap">${d.category}</td>
+      <td style="padding:10px 14px">
+        <div style="font-size:13px;font-weight:500;color:var(--text);word-break:break-word">${d.name}</div>
+        ${d.meta?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${d.meta}</div>`:''}
+      </td>
+      <td style="padding:10px 14px;text-align:right;white-space:nowrap">
+        <a href="${d.url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#e8621a;color:#fff;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none">
+          ⬇ Download
+        </a>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('tabContent').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text)">Document Download Portal</div>
+          ${customerName?`<div style="font-size:11px;color:var(--muted);margin-top:2px">Customer: <strong>${customerName}</strong></div>`:''}
+        </div>
+        <span style="font-size:11px;background:var(--primary-bg,#e8f4ff);color:var(--primary);padding:3px 9px;border-radius:12px;font-weight:600">${total} dokumen</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#1a2332;color:#fff">
+            <th style="padding:9px 14px;font-size:11px;font-weight:700;letter-spacing:.07em;text-align:left;white-space:nowrap">KATEGORI</th>
+            <th style="padding:9px 14px;font-size:11px;font-weight:700;letter-spacing:.07em;text-align:left">JUDUL</th>
+            <th style="padding:9px 14px;font-size:11px;font-weight:700;letter-spacing:.07em;text-align:right">DOWNLOAD</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderContact(){
