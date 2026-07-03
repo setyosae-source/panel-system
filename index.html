@@ -7932,7 +7932,7 @@ function toggleBOMRow(id) {
 
 async function cloneBOM(srcId) {
   const src = bomState.lists.find(b => b.id === srcId);
-  if (!src) return showToast('BOM tidak ditemukan', 'error');
+  if (!src) return toast('BOM tidak ditemukan');
 
   // Prompt judul baru
   const newTitle = prompt(`Judul untuk salinan BOM:\n(kosongkan = otomatis)`,
@@ -7942,7 +7942,7 @@ async function cloneBOM(srcId) {
   const finalTitle = (newTitle.trim() || (src.title + ' - Salinan'));
 
   try {
-    showToast('Membuat salinan...', 'info');
+    toast('Membuat salinan...');
 
     // 1. Insert bom_lists baru
     const newBomPayload = {
@@ -7995,7 +7995,7 @@ async function cloneBOM(srcId) {
     // 4. Log
     await logBOM(newBom.id, 'CLONE', `Disalin dari BOM ${srcId} (${src.title}). ${srcItems.length} item disalin.`);
 
-    showToast(`✅ Salinan berhasil dibuat: "${finalTitle}"`, 'success');
+    toast(`✅ Salinan berhasil dibuat: "${finalTitle}"`);
 
     // 5. Reload dan buka BOM baru
     await loadBOMData();
@@ -8003,7 +8003,7 @@ async function cloneBOM(srcId) {
 
   } catch (err) {
     console.error('cloneBOM error:', err);
-    showToast('Gagal membuat salinan: ' + (err.message || err), 'error');
+    toast('Gagal membuat salinan: ' + (err.message || err));
   }
 }
 
