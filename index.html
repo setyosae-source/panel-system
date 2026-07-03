@@ -13023,8 +13023,9 @@ async function exportBOMExcel(bomId, withPrice) {
 
     if (withPrice) {
       const subRow = new Array(numCols).fill('');
-      subRow[subtotLabelCol - 1] = `Subtotal ${g.name}`;
-      subRow[subtotLabelCol] = multi ? sectionTotal * unitQty : sectionTotal;
+      subRow[idxSub - 1] = `Subtotal ${g.name}`;
+      subRow[idxSub] = sectionTotal;
+      if (multi) subRow[idxSubTot] = sectionTotal * unitQty;
       aoa.push(subRow);
       subtotalRows.push(aoa.length - 1);
     }
@@ -13035,8 +13036,9 @@ async function exportBOMExcel(bomId, withPrice) {
   if (withPrice) {
     aoa.push([]);
     const gtRow = new Array(numCols).fill('');
-    gtRow[subtotLabelCol - 1] = multi ? `GRAND TOTAL (${unitQty} unit)` : 'GRAND TOTAL';
-    gtRow[subtotLabelCol] = multi ? grandTotal * unitQty : grandTotal;
+    gtRow[idxSub - 1] = multi ? `GRAND TOTAL (${unitQty} unit)` : 'GRAND TOTAL';
+    gtRow[idxSub] = grandTotal;
+    if (multi) gtRow[idxSubTot] = grandTotal * unitQty;
     aoa.push(gtRow);
     grandTotalRowIdx = aoa.length - 1;
   }
@@ -13133,15 +13135,17 @@ async function exportBOMExcel(bomId, withPrice) {
   }
 
   // Subtotal rows (per section)
+  const isNumCol = c => (c === idxSub || c === idxSubTot);
+  const isRightAlign = c => (c === idxSub - 1 || c === idxSub || c === idxSubTot);
   for (const sr of subtotalRows) {
     for (let c = 0; c < numCols; c++) {
       setStyle(sr, c, {
         font: { bold: true, sz: 10, italic: true, color: { rgb: '333333' } },
-        fill: { fgColor: { rgb: 'F0F0F0' } },
-        alignment: { horizontal: (c === subtotLabelCol || c === subtotLabelCol - 1) ? 'right' : 'left' },
+        fill: { fgColor: { rgb: (multi && c === idxSubTot) ? 'FFF2CC' : 'F0F0F0' } },
+        alignment: { horizontal: isRightAlign(c) ? 'right' : 'left' },
         border: fullBorder
       });
-      if (c === subtotLabelCol) {
+      if (isNumCol(c)) {
         const ref = XLSX.utils.encode_cell({ r: sr, c });
         if (ws[ref]) ws[ref].z = '#,##0';
       }
@@ -13153,11 +13157,11 @@ async function exportBOMExcel(bomId, withPrice) {
     for (let c = 0; c < numCols; c++) {
       setStyle(grandTotalRowIdx, c, {
         font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: '2C3E50' } },
-        alignment: { horizontal: (c === subtotLabelCol || c === subtotLabelCol - 1) ? 'right' : 'left' },
+        fill: { fgColor: { rgb: (multi && c === idxSubTot) ? 'B8860B' : '2C3E50' } },
+        alignment: { horizontal: isRightAlign(c) ? 'right' : 'left' },
         border: fullBorder
       });
-      if (c === subtotLabelCol) {
+      if (isNumCol(c)) {
         const ref = XLSX.utils.encode_cell({ r: grandTotalRowIdx, c });
         if (ws[ref]) ws[ref].z = '#,##0';
       }
