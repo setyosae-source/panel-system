@@ -7946,14 +7946,15 @@ async function cloneBOM(srcId) {
 
     // 1. Insert bom_lists baru
     const newBomPayload = {
+      id: genId('BOM'),
       title: finalTitle,
       unit_category: src.unit_category || null,
       description: src.description ? src.description + ' [Salinan dari ' + srcId + ']' : '[Salinan dari ' + srcId + ']',
-      status: 'draft',
+      status: 'Draft',
       pp_request_id: null,
       po_id: null,
       total_price: src.total_price || 0,
-      created_by: bomState.currentUser?.id || null,
+      created_by: (typeof currentUser !== 'undefined' && currentUser?.id) || bomState.currentUser?.id || null,
     };
 
     const { data: newBom, error: e1 } = await sb
