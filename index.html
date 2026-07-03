@@ -7887,7 +7887,8 @@ function renderBOMList() {
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">ID BOM</div><div class="mono" style="margin-top:2px;font-weight:500">${b.id}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Kategori</div><div style="margin-top:2px">${b.unit_category || '—'}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Items</div><div style="margin-top:2px;font-weight:500">${itemCount}</div></div>
-            ${can('nilai_po') ? `<div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Total</div><div style="margin-top:2px;font-weight:500">${fmtRp(b.total_price)}</div></div>` : ''}
+            <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Jumlah Unit</div><div style="margin-top:2px;font-weight:${(b.unit_qty||1)>1?'700':'500'};color:${(b.unit_qty||1)>1?'var(--blue-text)':'inherit'}">${b.unit_qty||1}${(b.unit_qty||1)>1?' unit':''}</div></div>
+            ${can('nilai_po') ? `<div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Total${(b.unit_qty||1)>1?' (× '+(b.unit_qty)+')':''}</div><div style="margin-top:2px;font-weight:500">${fmtRp((b.total_price||0)*(b.unit_qty||1))}</div></div>` : ''}
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Status</div><div style="margin-top:2px">${badge(b.status)}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Tanggal</div><div style="margin-top:2px">${fmtDate(b.created_at)}</div></div>
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Link</div><div style="margin-top:2px">${linkInfo}</div></div>
@@ -11627,6 +11628,13 @@ function renderBOMDetailPage() {
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span id="bdSaveInd" style="font-size:12px;font-weight:600;color:var(--green)"></span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);font-weight:600" title="Jumlah unit identik pada PO — semua komponen dikali otomatis">
+          🔢 Unit
+          <input type="number" min="1" step="1" value="${d.unit_qty||1}"
+            ${canManage?'':'disabled'}
+            onchange="bdUpdateUnitQty('${d.id}', this.value)"
+            style="width:56px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-weight:700;text-align:center;font-size:12px;color:var(--text);background:var(--surface)">
+        </label>
         ${canManage ? `
           <button class="btn btn-sm" onclick="openBOMAddItem('${d.id}')">+ Komponen</button>
           <div style="display:flex;gap:4px">
@@ -11685,6 +11693,7 @@ function bdRenderBOMTab(el) {
   const total    = items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
   const groups   = groupItemsBySection(items);
 
+  const unitQtyEdit = Math.max(1, parseInt(d.unit_qty,10) || 1);
   if (canManage) {
     bomDetailState(showPrice);
     el.innerHTML = `
@@ -11693,7 +11702,8 @@ function bdRenderBOMTab(el) {
           <strong style="color:var(--text)">Edit BOM Spreadsheet</strong>
           &nbsp;·&nbsp; ${items.length} komponen
           &nbsp;·&nbsp; ${groups.length} grup
-          ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
+          ${unitQtyEdit>1?`&nbsp;·&nbsp; <span style="color:var(--blue-text);font-weight:700">${unitQtyEdit} unit</span>`:''}
+          ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${unitQtyEdit>1?`${fmtRp(total)} × ${unitQtyEdit} = ${fmtRp(total*unitQtyEdit)}`:fmtRp(total)}</strong>` : ''}
         </div>
         <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
         <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',false)">📊 Excel</button>
@@ -11709,29 +11719,37 @@ function bdRenderBOMTab(el) {
   }
 
   // Read-only view untuk user tanpa akses kelola BOM
+  const unitQty = Math.max(1, parseInt(d.unit_qty,10) || 1);
+  const multi = unitQty > 1;
   let seq = 1, rowsHtml = '';
-  const numCols = showPrice ? 7 : 5;
+  // kolom: #, Part, Nama, Qty, [QtyTot], Unit, [Harga, Subtot, SubtotTot], Note
+  const numCols = 5 + (multi?1:0) + (showPrice?(multi?3:2):0) + 1;
   groups.forEach(g => {
-    const grupTotal = g.items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+    const grupTotalUnit = g.items.reduce((s,it)=>s+(it.qty*(it.unit_price||0)),0);
+    const grupTotal = grupTotalUnit * unitQty;
     rowsHtml += `<tr>
       <td colspan="${numCols}"
         style="background:var(--surface2);font-weight:700;font-size:11px;color:#1F3864;
                padding:6px 10px;letter-spacing:.04em;border-top:2px solid var(--border2,#CCCAC3);border-bottom:none">
         📁 ${g.name}
-        ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">${fmtRp(grupTotal)}</span>` : ''}
+        ${showPrice ? `<span style="float:right;font-weight:600;color:var(--text3);font-size:11px">${multi?`${fmtRp(grupTotalUnit)} × ${unitQty} = `:''}${fmtRp(grupTotal)}</span>` : ''}
       </td>
     </tr>`;
     g.items.forEach(it => {
       const subNote = extractSubNote(it.note);
+      const sub = it.qty*(it.unit_price||0);
       rowsHtml += `<tr>
         <td style="color:var(--text3);text-align:center">${seq++}</td>
         <td class="mono" style="white-space:normal;word-break:break-all;font-size:11px">${it.part_number||'—'}</td>
         <td style="font-weight:500;white-space:normal;word-break:break-word;line-height:1.4">${it.name}</td>
         <td style="text-align:right">${it.qty}</td>
+        ${multi?`<td style="text-align:right;font-weight:700;background:#FFF9E6">${it.qty*unitQty}</td>`:''}
         <td>${it.unit}</td>
         ${showPrice ? `
           <td style="text-align:right">${fmtRp(it.unit_price)}</td>
-          <td style="text-align:right;font-weight:600">${fmtRp(it.qty*(it.unit_price||0))}</td>` : ''}
+          <td style="text-align:right;font-weight:600">${fmtRp(sub)}</td>
+          ${multi?`<td style="text-align:right;font-weight:700;background:#FFF9E6">${fmtRp(sub*unitQty)}</td>`:''}
+        ` : ''}
         <td style="font-size:11px;color:var(--text2);white-space:normal;word-break:break-word">${subNote||'—'}</td>
       </tr>`;
     });
@@ -11741,7 +11759,8 @@ function bdRenderBOMTab(el) {
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
       <div style="flex:1;font-size:12px;color:var(--text3)">
         ${items.length} komponen &nbsp;·&nbsp; ${groups.length} grup
-        ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${fmtRp(total)}</strong>` : ''}
+        ${multi?`&nbsp;·&nbsp; <span style="color:var(--blue-text);font-weight:700">${unitQty} unit</span>`:''}
+        ${showPrice ? `&nbsp;·&nbsp; Total: <strong style="color:var(--text)">${multi?`${fmtRp(total)} × ${unitQty} = ${fmtRp(total*unitQty)}`:fmtRp(total)}</strong>` : ''}
       </div>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',true)">📊 Excel +harga</button>
       <button class="btn btn-sm btn-ghost" onclick="exportBOMExcel('${d.id}',false)">📊 Excel</button>
@@ -11751,8 +11770,10 @@ function bdRenderBOMTab(el) {
     <div class="table-card"><div class="table-wrap"><table style="table-layout:auto">
       <thead style="position:sticky;top:0;z-index:5"><tr>
         <th style="width:36px">#</th><th style="min-width:80px">Part No.</th><th style="min-width:220px">Nama Komponen</th>
-        <th style="width:50px;text-align:right">Qty</th><th style="width:48px">Unit</th>
-        ${showPrice ? '<th style="width:128px;text-align:right">Harga Sat.</th><th style="width:128px;text-align:right">Subtotal</th>' : ''}
+        <th style="width:50px;text-align:right">Qty/unit</th>
+        ${multi?`<th style="width:60px;text-align:right;background:#FFF9E6">Qty Total (×${unitQty})</th>`:''}
+        <th style="width:48px">Unit</th>
+        ${showPrice ? `<th style="width:120px;text-align:right">Harga Sat.</th><th style="width:128px;text-align:right">Subtot/unit</th>${multi?`<th style="width:140px;text-align:right;background:#FFF9E6">Subtot Total (×${unitQty})</th>`:''}` : ''}
         <th style="min-width:100px">Keterangan</th>
       </tr></thead>
       <tbody>${items.length ? rowsHtml : `<tr><td colspan="${numCols}" style="text-align:center;padding:2.5rem;color:var(--text3)">Belum ada komponen</td></tr>`}</tbody>
@@ -12432,6 +12453,16 @@ async function bdUpdateStatus(bomId, status) {
   toast('Status diperbarui: ' + status);
 }
 
+async function bdUpdateUnitQty(bomId, val) {
+  let n = parseInt(val, 10);
+  if (!Number.isFinite(n) || n < 1) n = 1;
+  const { error } = await sb.from('bom_lists').update({ unit_qty: n, updated_at: new Date().toISOString() }).eq('id', bomId);
+  if (error) { toast('Gagal update jumlah unit: '+error.message); return; }
+  bomDetail.data.unit_qty = n;
+  renderBOMDetailPage();
+  toast(n>1 ? `✓ Jumlah unit: ${n} — semua qty & subtotal dikali ${n}` : '✓ Jumlah unit: 1');
+}
+
 function bdGoBack() {
   if (bomDetail.dirty) {
     if (!confirm('Ada perubahan yang sedang diproses. Yakin ingin kembali?')) return;
@@ -12901,12 +12932,16 @@ async function exportBOMExcel(bomId, withPrice) {
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
   const groups = groupItemsBySection(items);
+  const unitQty = Math.max(1, parseInt(bom.unit_qty,10) || 1);
+  const multi = unitQty > 1;
 
   // Build sheet using AOA + cell-level formatting
   const aoa = [];
   const merges = [];
   const styles = {}; // map "A1" -> style obj
-  const colCount = withPrice ? 6 : 4; // No, Nama, Qty, Unit, [Harga, Subtotal,] Note
+  // kolom: No, Nama, Qty, [QtyTot], Unit, [Harga, Sub, [SubTot]], Note
+  const numCols = 4 + (multi?1:0) + (withPrice ? (multi?3:2) : 0) + 1;
+  const colCount = numCols;
 
   // ── Title ──
   aoa.push(['BILL OF MATERIALS']);
@@ -12922,6 +12957,7 @@ async function exportBOMExcel(bomId, withPrice) {
   aoa.push(['BOM ID', bom.id]);
   aoa.push(['Kategori Unit', bom.unit_category || '']);
   aoa.push(['Status', bom.status]);
+  aoa.push(['Jumlah Unit', unitQty]);
   aoa.push(['Tanggal', fmtDate(bom.created_at)]);
   aoa.push(['Dibuat oleh', bom.app_users?.full_name || '—']);
   if (bom.pp_request_id) aoa.push(['PP Request', bom.pp_request_id]);
@@ -12931,22 +12967,34 @@ async function exportBOMExcel(bomId, withPrice) {
 
   // ── Header row ──
   const headerRowIdx = aoa.length;
+  const hdr = ['No', 'Nama Komponen', 'Qty/unit'];
+  if (multi) hdr.push(`Qty Total (×${unitQty})`);
+  hdr.push('Unit');
   if (withPrice) {
-    aoa.push(['No', 'Nama Komponen', 'Qty', 'Unit', 'Harga Satuan', 'Subtotal', 'Note']);
-  } else {
-    aoa.push(['No', 'Nama Komponen', 'Qty', 'Unit', 'Note']);
+    hdr.push('Harga Satuan', 'Subtotal/unit');
+    if (multi) hdr.push(`Subtot Total (×${unitQty})`);
   }
-  const numCols = withPrice ? 7 : 5;
+  hdr.push('Note');
+  aoa.push(hdr);
+
+  // index helper untuk row data
+  const idxQty       = 2;
+  const idxQtyTot    = multi ? 3 : -1;
+  const idxUnit      = 3 + (multi?1:0);
+  const idxPrice     = withPrice ? idxUnit + 1 : -1;
+  const idxSub       = withPrice ? idxUnit + 2 : -1;
+  const idxSubTot    = (withPrice && multi) ? idxUnit + 3 : -1;
+  const idxNote      = numCols - 1;
+  const subtotLabelCol = withPrice ? (multi ? idxSub : idxPrice) : -1;
 
   // ── Sections + Items ──
   let runningNo = 0;
-  let grandTotal = 0;
-  const sectionRows = []; // track section header row indices for styling
-  const subtotalRows = []; // track subtotal row indices
+  let grandTotal = 0;      // per unit
+  const sectionRows = [];
+  const subtotalRows = [];
   const dataRowStart = aoa.length;
 
   for (const g of groups) {
-    // Section header row
     aoa.push([g.name.toUpperCase()]);
     sectionRows.push(aoa.length - 1);
     merges.push({ s: { r: aoa.length - 1, c: 0 }, e: { r: aoa.length - 1, c: numCols - 1 } });
@@ -12958,16 +13006,26 @@ async function exportBOMExcel(bomId, withPrice) {
       sectionTotal += sub;
       grandTotal += sub;
       const subNote = extractSubNote(it.note);
+      const row = new Array(numCols).fill('');
+      row[0] = runningNo;
+      row[1] = it.name;
+      row[idxQty] = it.qty;
+      if (multi) row[idxQtyTot] = (it.qty||0) * unitQty;
+      row[idxUnit] = it.unit || 'pcs';
       if (withPrice) {
-        aoa.push([runningNo, it.name, it.qty, it.unit || 'pcs', it.unit_price || 0, sub, subNote]);
-      } else {
-        aoa.push([runningNo, it.name, it.qty, it.unit || 'pcs', subNote]);
+        row[idxPrice] = it.unit_price || 0;
+        row[idxSub]   = sub;
+        if (multi) row[idxSubTot] = sub * unitQty;
       }
+      row[idxNote] = subNote;
+      aoa.push(row);
     }
 
-    // Subtotal per section (only if withPrice)
     if (withPrice) {
-      aoa.push(['', '', '', '', `Subtotal ${g.name}`, sectionTotal, '']);
+      const subRow = new Array(numCols).fill('');
+      subRow[subtotLabelCol - 1] = `Subtotal ${g.name}`;
+      subRow[subtotLabelCol] = multi ? sectionTotal * unitQty : sectionTotal;
+      aoa.push(subRow);
       subtotalRows.push(aoa.length - 1);
     }
   }
@@ -12976,7 +13034,10 @@ async function exportBOMExcel(bomId, withPrice) {
   let grandTotalRowIdx = -1;
   if (withPrice) {
     aoa.push([]);
-    aoa.push(['', '', '', '', 'GRAND TOTAL', grandTotal, '']);
+    const gtRow = new Array(numCols).fill('');
+    gtRow[subtotLabelCol - 1] = multi ? `GRAND TOTAL (${unitQty} unit)` : 'GRAND TOTAL';
+    gtRow[subtotLabelCol] = multi ? grandTotal * unitQty : grandTotal;
+    aoa.push(gtRow);
     grandTotalRowIdx = aoa.length - 1;
   }
 
@@ -12987,9 +13048,12 @@ async function exportBOMExcel(bomId, withPrice) {
   // Build sheet
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws['!merges'] = merges;
-  ws['!cols'] = withPrice
-    ? [{ wch: 5 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 16 }, { wch: 18 }, { wch: 40 }]
-    : [{ wch: 5 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 40 }];
+  const cols = [{ wch: 5 }, { wch: 50 }, { wch: 9 }];
+  if (multi) cols.push({ wch: 12 });
+  cols.push({ wch: 8 });
+  if (withPrice) { cols.push({ wch: 16 }, { wch: 18 }); if (multi) cols.push({ wch: 20 }); }
+  cols.push({ wch: 40 });
+  ws['!cols'] = cols;
 
   // ── Apply cell styles ──
   // Helper to set style on cell
@@ -13015,9 +13079,10 @@ async function exportBOMExcel(bomId, withPrice) {
 
   // Header row
   for (let c = 0; c < numCols; c++) {
+    const isTot = (c === idxQtyTot || c === idxSubTot);
     setStyle(headerRowIdx, c, {
       font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '2C3E50' } },
+      fill: { fgColor: { rgb: isTot ? 'B8860B' : '2C3E50' } },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border: fullBorder
     });
@@ -13039,23 +13104,27 @@ async function exportBOMExcel(bomId, withPrice) {
   const dataEnd = grandTotalRowIdx > 0 ? grandTotalRowIdx - 1 : aoa.length - 2;
   const sectionSet = new Set(sectionRows);
   const subtotalSet = new Set(subtotalRows);
+  const isQtyCol   = c => c === idxQty || c === idxQtyTot;
+  const isPriceCol = c => c === idxPrice || c === idxSub || c === idxSubTot;
+  const isTotalCol = c => c === idxQtyTot || c === idxSubTot; // highlight
   for (let r = dataRowStart; r < dataEnd; r++) {
     if (sectionSet.has(r) || subtotalSet.has(r)) continue;
     for (let c = 0; c < numCols; c++) {
-      const isQty = c === 2;
-      const isUnit = c === 3;
-      const isPrice = withPrice && (c === 4 || c === 5);
       const isNo = c === 0;
-      setStyle(r, c, {
-        font: { sz: 10 },
+      const isUnit = c === idxUnit;
+      const isPrice = isPriceCol(c);
+      const isQty = isQtyCol(c);
+      const style = {
+        font: { sz: 10, bold: isTotalCol(c) },
         alignment: {
-          horizontal: isNo ? 'center' : (isQty ? 'right' : (isUnit ? 'center' : (isPrice ? 'right' : 'left'))),
+          horizontal: isNo ? 'center' : (isQty || isPrice ? 'right' : (isUnit ? 'center' : 'left')),
           vertical: 'top',
-          wrapText: c === 1 || (withPrice ? c === 6 : c === 4)
+          wrapText: c === 1 || c === idxNote
         },
         border: fullBorder
-      });
-      // Number format for price/subtotal columns
+      };
+      if (isTotalCol(c)) style.fill = { fgColor: { rgb: 'FFF9E6' } };
+      setStyle(r, c, style);
       if (isPrice) {
         const ref = XLSX.utils.encode_cell({ r, c });
         if (ws[ref]) ws[ref].z = '#,##0';
@@ -13069,10 +13138,10 @@ async function exportBOMExcel(bomId, withPrice) {
       setStyle(sr, c, {
         font: { bold: true, sz: 10, italic: true, color: { rgb: '333333' } },
         fill: { fgColor: { rgb: 'F0F0F0' } },
-        alignment: { horizontal: c === 4 ? 'right' : (c === 5 ? 'right' : 'left') },
+        alignment: { horizontal: (c === subtotLabelCol || c === subtotLabelCol - 1) ? 'right' : 'left' },
         border: fullBorder
       });
-      if (c === 5) {
+      if (c === subtotLabelCol) {
         const ref = XLSX.utils.encode_cell({ r: sr, c });
         if (ws[ref]) ws[ref].z = '#,##0';
       }
@@ -13085,10 +13154,10 @@ async function exportBOMExcel(bomId, withPrice) {
       setStyle(grandTotalRowIdx, c, {
         font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
         fill: { fgColor: { rgb: '2C3E50' } },
-        alignment: { horizontal: c === 4 ? 'right' : (c === 5 ? 'right' : 'left') },
+        alignment: { horizontal: (c === subtotLabelCol || c === subtotLabelCol - 1) ? 'right' : 'left' },
         border: fullBorder
       });
-      if (c === 5) {
+      if (c === subtotLabelCol) {
         const ref = XLSX.utils.encode_cell({ r: grandTotalRowIdx, c });
         if (ws[ref]) ws[ref].z = '#,##0';
       }
