@@ -4225,8 +4225,14 @@ async function renderPOModule() {
 }
 
 async function loadPOs() {
-  const { data } = await sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false });
-  allPOs = data || [];
+  const [{ data: pos }, { data: boms }] = await Promise.all([
+    sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
+    sb.from('bom_lists').select('id,po_id,po_item_id,status,title,unit_qty,total_price').not('po_id','is',null)
+  ]);
+  const bomByPo = {};
+  (boms || []).forEach(b => { (bomByPo[b.po_id] = bomByPo[b.po_id] || []).push(b); });
+  (pos || []).forEach(p => { p._boms = bomByPo[p.id] || []; });
+  allPOs = pos || [];
   renderPOStats();
   renderPOTable();
   const nbPO = document.getElementById('nbPO');
@@ -4347,8 +4353,11 @@ function renderPOTable() {
             <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Jumlah Item</div><div style="margin-top:2px;font-weight:500">${itemCount}</div></div>
             ${can('nilai_po') ? `<div><div style="color:var(--text3);font-size:10px;text-transform:uppercase;font-weight:600">Nilai PO</div><div style="margin-top:2px;font-weight:500">${nilai}</div></div>` : ''}
           </div>
-          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-sm btn-primary" data-pid="${p.id}" onclick="event.stopPropagation();openPODetail(this.dataset.pid)">Buka Detail</button>
+          <div style="margin-top:12px">
+            ${renderPOProgressStrip(p)}
+            <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-ghost" data-pid="${p.id}" onclick="event.stopPropagation();openPODetail(this.dataset.pid)">🔍 Detail Lengkap</button>
+            </div>
           </div>
         </td>
       </tr>`;
@@ -4369,6 +4378,410 @@ function togglePORow(id) {
   _poExpandedId = (_poExpandedId === id) ? null : id;
   renderPOTable();
 }
+
+// ══════════════════════════════════════════════════════════════
+// PO PROGRESS STRIP — 7 stage workflow
+// ══════════════════════════════════════════════════════════════
+
+function poComputeStages(p) {
+  const docs = p.po_docs || [];
+  const items = p.po_items || [];
+  const pks = p.po_pk || [];
+  const boms = p._boms || [];
+
+  const has = t => docs.some(d => d.doc_type === t);
+
+  // s1 Drawing Approval
+  const s1 = has('drawing_approval');
+  // s2 BOM (min 1 BOM Final)
+  const s2 = boms.some(b => (b.status||'').toLowerCase() === 'final');
+  // s3a PK (min 1 Approved/Selesai)
+  const s3a = pks.some(k => ['Approved','Disetujui','Selesai'].includes(k.status));
+  // s3b PO Vendor
+  const s3b = has('po_vendor');
+  // s4 Serial Number (semua item punya SN)
+  const s4 = items.length>0 && items.every(it => !!it.serial_number);
+  // s5 Produksi selesai (semua item prod_finished_at set)
+  const s5 = items.length>0 && items.every(it => !!it.prod_finished_at);
+  // s6 Delivery
+  const s6 = !!p.tgl_kirim_aktual;
+  // s7 FAT & Commissioning
+  const needFat = !!p.has_fat, needComm = !!p.has_commissioning;
+  const fatDone = !needFat || !!p.fat_completed_at;
+  const commDone = !needComm || !!p.commissioning_completed_at;
+  const s7 = fatDone && commDone;
+
+  return [
+    { key:'drawing',   label:'Approval Drawing',    icon:'📐', done:s1,  unlocked:true,        stage:1 },
+    { key:'bom',       label:'BOM',                 icon:'📋', done:s2,  unlocked:s1,          stage:2 },
+    { key:'pk',        label:'PK',                  icon:'💰', done:s3a, unlocked:s2,          stage:3, group:'a' },
+    { key:'po_vendor', label:'PO ke Vendor',        icon:'📤', done:s3b, unlocked:s2,          stage:3, group:'b' },
+    { key:'sn',        label:'Serial Number',       icon:'🔢', done:s4,  unlocked:s3a && s3b,  stage:4 },
+    { key:'produksi',  label:'Produksi',            icon:'🏭', done:s5,  unlocked:s4,          stage:5 },
+    { key:'delivery',  label:'Delivery',            icon:'🚚', done:s6,  unlocked:s5,          stage:6 },
+    (needFat || needComm)
+      ? { key:'fat',   label:'FAT & Commissioning', icon:'✅', done:s7,  unlocked:s6,          stage:7, needFat, needComm, fatDone, commDone }
+      : null
+  ].filter(Boolean);
+}
+
+function renderPOProgressStrip(p) {
+  const stages = poComputeStages(p);
+  const chip = st => {
+    let bg, color, border, label = st.label;
+    if (st.done)          { bg='#DCFCE7'; color='#166534'; border='#86EFAC'; }
+    else if (st.unlocked) { bg='var(--blue-bg)'; color='var(--blue-text)'; border='#93C5FD'; }
+    else                  { bg='#F3F4F6'; color='#9CA3AF'; border='#E5E7EB'; }
+    const mark = st.done ? '✓' : (st.unlocked ? '' : '🔒');
+    const disabled = !st.done && !st.unlocked;
+    return `<button
+      onclick="event.stopPropagation();poProgress('${p.id}','${st.key}')"
+      ${disabled?'disabled':''}
+      title="${label}${disabled?' — selesaikan tahap sebelumnya dulu':''}"
+      style="display:inline-flex;align-items:center;gap:5px;padding:6px 10px;font-size:11px;font-weight:600;
+        background:${bg};color:${color};border:1px solid ${border};border-radius:14px;cursor:${disabled?'not-allowed':'pointer'};
+        white-space:nowrap;font-family:inherit;opacity:${disabled?0.6:1};transition:all .15s">
+      <span style="font-size:13px">${st.icon}</span>
+      <span>${st.stage}. ${label}</span>
+      ${mark?`<span style="font-size:11px;margin-left:2px">${mark}</span>`:''}
+    </button>`;
+  };
+
+  // Group stage 3a & 3b visually
+  let html = '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">';
+  for (let i=0; i<stages.length; i++) {
+    const st = stages[i];
+    html += chip(st);
+    const next = stages[i+1];
+    if (next) {
+      // beri arrow kecuali antar group a/b di stage yg sama
+      const sameStage = next.stage === st.stage;
+      html += `<span style="color:var(--text3);font-size:14px">${sameStage?'&amp;':'›'}</span>`;
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+// ═════════ HANDLERS PER STAGE ═════════
+
+async function poProgress(poId, key) {
+  const p = allPOs.find(x => x.id === poId);
+  if (!p) return;
+  if (key === 'drawing')        poStageUpload(poId, 'drawing_approval', 'Drawing Approval', 'application/pdf,image/*', false);
+  else if (key === 'po_vendor') poStageUpload(poId, 'po_vendor', 'PO ke Vendor', 'application/pdf,image/*', true);
+  else if (key === 'bom')       poStageBOM(poId, p);
+  else if (key === 'pk')        openPOPKGenerator(poId);
+  else if (key === 'sn')        poStageSN(poId, p);
+  else if (key === 'produksi')  poStageProduksi(poId);
+  else if (key === 'delivery')  poStageDelivery(poId, p);
+  else if (key === 'fat')       poStageFAT(poId, p);
+}
+
+// Reusable trigger upload (single click → open file dialog)
+function poStageUpload(poId, docType, label, accept, multi) {
+  let inp = document.getElementById('_poStageUp');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.style.display = 'none';
+    inp.id = '_poStageUp';
+    document.body.appendChild(inp);
+  }
+  inp.accept = accept || '*';
+  inp.multiple = !!multi;
+  inp.onchange = () => uploadPODoc(poId, docType, false, inp);
+  inp.click();
+}
+
+async function poStageBOM(poId, p) {
+  const boms = p._boms || [];
+  const finalBom = boms.find(b => (b.status||'').toLowerCase() === 'final');
+  if (finalBom) {
+    // Sudah ada BOM Final — buka langsung
+    switchModule('bom');
+    setTimeout(() => openBOMDetail(finalBom.id), 100);
+    return;
+  }
+  if (boms.length) {
+    // Ada draft BOM, buka salah satunya
+    switchModule('bom');
+    setTimeout(() => openBOMDetail(boms[0].id), 100);
+    toast('BOM masih draft. Ubah status ke Final saat sudah fix.');
+    return;
+  }
+  // Belum ada BOM — arahkan ke Tools BOM
+  if (confirm('Belum ada BOM untuk PO ini.\n\nBuka Tools BOM untuk membuat BOM baru?\n(Set field PO ID = '+ p.no_po +' saat menyimpan)')) {
+    switchModule('bom');
+    // set search filter agar mudah cari nanti
+    if (typeof bomState !== 'undefined') bomState.search = p.no_po || '';
+  }
+}
+
+async function poStageSN(poId, p) {
+  const items = p.po_items || [];
+  const belum = items.filter(it => !it.serial_number);
+  if (!belum.length) { toast('Semua item sudah punya SN'); return; }
+  // Route ke ETS module (yang punya tombol Generate SN)
+  switchModule('ets');
+  toast(`${belum.length} item belum punya SN — generate di ETS`);
+}
+
+async function poStageProduksi(poId) {
+  switchModule('produksi');
+  toast('Buka Produksi untuk update progress');
+}
+
+async function poStageDelivery(poId, p) {
+  const cur = p.tgl_kirim_aktual || today();
+  const val = prompt('Tanggal kirim aktual (YYYY-MM-DD):', cur);
+  if (val === null) return;
+  const d = (val || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast('Format tanggal salah'); return; }
+  const { error } = await sb.from('purchase_orders').update({ tgl_kirim_aktual: d, updated_at: new Date().toISOString() }).eq('id', poId);
+  if (error) { toast('Gagal: '+error.message); return; }
+  await logPO(poId, 'Delivery', 'Tgl kirim aktual: ' + d);
+  toast('✓ Delivery dicatat: ' + d);
+  await loadPOs();
+}
+
+async function poStageFAT(poId, p) {
+  // Tampilkan menu kecil pilih upload FAT atau Commissioning
+  const opts = [];
+  if (p.has_fat) opts.push(['fat','FAT Report','fat_report','fat_completed_at']);
+  if (p.has_commissioning) opts.push(['comm','Commissioning Report','commissioning_report','commissioning_completed_at']);
+  if (!opts.length) { toast('PO ini tidak memerlukan FAT/Commissioning'); return; }
+
+  const html = `
+    <div style="padding:1.25rem;min-width:320px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:1rem">✅ FAT & Commissioning</div>
+      ${opts.map(([k,lbl,docType,fld]) => {
+        const done = !!p[fld];
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:${done?'#DCFCE7':'var(--surface2)'};border-radius:6px;margin-bottom:8px">
+          <div>
+            <div style="font-weight:600">${lbl}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">${done?'✓ Selesai '+fmtDate(p[fld]):'Belum selesai'}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm" onclick="poStageFATUpload('${poId}','${docType}','${fld}')">📎 Upload</button>
+            ${!done ? `<button class="btn btn-sm btn-primary" onclick="poStageFATComplete('${poId}','${fld}','${lbl}')">Tandai Selesai</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="text-align:right;margin-top:1rem">
+        <button class="btn btn-sm btn-ghost" onclick="closeAllModals()">Tutup</button>
+      </div>
+    </div>`;
+  openModal('<div class="modal" style="max-width:960px">'+html+'</div>');
+}
+
+function poStageFATUpload(poId, docType, fld) {
+  poStageUpload(poId, docType, docType, 'application/pdf,image/*', true);
+}
+
+async function poStageFATComplete(poId, fld, label) {
+  if (!confirm(`Tandai ${label} sebagai SELESAI?`)) return;
+  const upd = { updated_at: new Date().toISOString() };
+  upd[fld] = new Date().toISOString();
+  const { error } = await sb.from('purchase_orders').update(upd).eq('id', poId);
+  if (error) { toast('Gagal: '+error.message); return; }
+  await logPO(poId, label, 'Ditandai selesai');
+  toast(`✓ ${label} selesai`);
+  closeAllModals();
+  await loadPOs();
+}
+
+// ═════════ PK GENERATOR (level PO) ═════════
+// Ambil komponen dari semua BOM linked ke PO, tampilkan checklist
+// dengan qty editable. Simpan → po_pk (header) + po_pk_items.
+
+let _pkGenState = { poId:null, comps:[], header:{} };
+
+async function openPOPKGenerator(poId) {
+  if (!can('po_pk')) { toast('Tidak punya akses PK'); return; }
+  const p = allPOs.find(x => x.id === poId);
+  if (!p) return;
+  const boms = p._boms || [];
+  if (!boms.length) { toast('Belum ada BOM untuk PO ini. Buat BOM dulu.'); return; }
+
+  // Fetch semua items dari BOM-BOM yang linked
+  const bomIds = boms.map(b => b.id);
+  const { data: bomItems } = await sb.from('bom_items').select('*,bom_lists!inner(id,title,unit_qty)').in('bom_id', bomIds).order('sort_order', { ascending: true });
+
+  // Aggregate per part_number + name + unit
+  const map = {};
+  (bomItems || []).forEach(it => {
+    const key = (it.part_number||'') + '||' + it.name + '||' + (it.unit||'pcs');
+    const uqty = parseInt(it.bom_lists?.unit_qty,10) || 1;
+    const qtyTot = (parseFloat(it.qty)||0) * uqty;
+    if (!map[key]) {
+      map[key] = {
+        part_number: it.part_number || '',
+        name: it.name,
+        unit: it.unit || 'pcs',
+        section: it.section || '',
+        unit_price: parseFloat(it.unit_price)||0,
+        qty_bom: 0,
+        qty_pk: 0,
+        selected: true,
+        note: '',
+      };
+    }
+    map[key].qty_bom += qtyTot;
+  });
+  Object.values(map).forEach(c => { c.qty_pk = c.qty_bom; });
+
+  _pkGenState = {
+    poId,
+    comps: Object.values(map).sort((a,b) => (a.section||'').localeCompare(b.section||'') || a.name.localeCompare(b.name)),
+    header: {
+      keperluan: 'Pembelian material untuk ' + (p.project_name || p.no_po),
+      tgl_pengajuan: today(),
+    }
+  };
+
+  renderPOPKGeneratorModal(p);
+}
+
+function renderPOPKGeneratorModal(p) {
+  const showPrice = can('nilai_po');
+  const state = _pkGenState;
+
+  // total
+  const total = state.comps.filter(c=>c.selected).reduce((s,c)=>s + (c.qty_pk||0) * (c.unit_price||0), 0);
+
+  // group by section
+  const groups = {};
+  state.comps.forEach((c,idx) => {
+    const s = c.section || 'Lainnya';
+    (groups[s] = groups[s] || []).push({ ...c, _idx: idx });
+  });
+
+  let rows = '';
+  Object.keys(groups).forEach(g => {
+    rows += `<tr style="background:#F0F4F8"><td colspan="${showPrice?7:5}" style="font-weight:700;color:#1F3864;font-size:11px;padding:6px 10px">📁 ${g}</td></tr>`;
+    groups[g].forEach(c => {
+      const i = c._idx;
+      rows += `<tr>
+        <td style="text-align:center"><input type="checkbox" ${c.selected?'checked':''} onchange="pkGenToggle(${i},this.checked)"></td>
+        <td class="mono" style="font-size:11px">${c.part_number||'—'}</td>
+        <td style="font-weight:500">${escapeHtml(c.name)}</td>
+        <td style="text-align:right;color:var(--text3);font-size:11px">${c.qty_bom}</td>
+        <td>
+          <input type="number" min="0" step="0.01" value="${c.qty_pk}"
+            style="width:70px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:12px"
+            onchange="pkGenSetQty(${i},this.value)">
+          <span style="font-size:10px;color:var(--text3);margin-left:3px">${c.unit}</span>
+        </td>
+        ${showPrice?`<td style="text-align:right;font-size:11px">${fmtRp(c.unit_price)}</td>
+        <td style="text-align:right;font-weight:600;font-size:11px" id="pkSub_${i}">${fmtRp((c.qty_pk||0)*(c.unit_price||0))}</td>`:''}
+      </tr>`;
+    });
+  });
+
+  const html = `
+    <div style="padding:1rem 1.25rem;max-width:900px;max-height:88vh;display:flex;flex-direction:column">
+      <div style="font-size:15px;font-weight:700;margin-bottom:.5rem">💰 Buat PK untuk PO ${p.no_po}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:.75rem">
+        Komponen di-aggregate dari semua BOM linked ke PO. Uncheck yang stoknya ada. Qty PK bisa diedit.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:.75rem">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3)">Tgl Pengajuan</label>
+          <input type="date" value="${state.header.tgl_pengajuan}" onchange="_pkGenState.header.tgl_pengajuan=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3)">Keperluan</label>
+          <input type="text" value="${escapeHtml(state.header.keperluan)}" onchange="_pkGenState.header.keperluan=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:4px">
+        </div>
+      </div>
+      <div style="flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px">
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead style="position:sticky;top:0;background:#2C3E50;color:#fff">
+            <tr>
+              <th style="padding:8px;width:36px">✓</th>
+              <th style="padding:8px;text-align:left;width:100px">Part No.</th>
+              <th style="padding:8px;text-align:left">Nama Komponen</th>
+              <th style="padding:8px;text-align:right;width:70px">Qty BOM</th>
+              <th style="padding:8px;text-align:left;width:130px">Qty PK</th>
+              ${showPrice?'<th style="padding:8px;text-align:right;width:100px">Harga</th><th style="padding:8px;text-align:right;width:120px">Subtotal</th>':''}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)">
+        <div style="font-size:13px">
+          ${showPrice ? `Total PK: <strong id="pkTotal" style="color:var(--text);font-size:15px">${fmtRp(total)}</strong>`:''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-ghost" onclick="closeAllModals()">Batal</button>
+          <button class="btn btn-sm btn-primary" onclick="pkGenSave('${p.id}')">💾 Simpan PK</button>
+        </div>
+      </div>
+    </div>`;
+  openModal('<div class="modal" style="max-width:960px">'+html+'</div>');
+}
+
+function pkGenToggle(idx, checked) {
+  _pkGenState.comps[idx].selected = checked;
+  pkGenRecalc();
+}
+function pkGenSetQty(idx, val) {
+  _pkGenState.comps[idx].qty_pk = parseFloat(val)||0;
+  const c = _pkGenState.comps[idx];
+  const el = document.getElementById('pkSub_'+idx);
+  if (el) el.textContent = fmtRp((c.qty_pk||0)*(c.unit_price||0));
+  pkGenRecalc();
+}
+function pkGenRecalc() {
+  const total = _pkGenState.comps.filter(c=>c.selected).reduce((s,c)=>s + (c.qty_pk||0) * (c.unit_price||0), 0);
+  const el = document.getElementById('pkTotal');
+  if (el) el.textContent = fmtRp(total);
+}
+
+async function pkGenSave(poId) {
+  const state = _pkGenState;
+  const chosen = state.comps.filter(c => c.selected && c.qty_pk > 0);
+  if (!chosen.length) { toast('Pilih minimal 1 komponen dgn qty > 0'); return; }
+
+  const total = chosen.reduce((s,c)=>s + c.qty_pk * (c.unit_price||0), 0);
+  const pkId = genId('PK');
+
+  const { error: e1 } = await sb.from('po_pk').insert({
+    id: pkId,
+    po_id: poId,
+    no_pk: pkId,
+    tgl_pengajuan: state.header.tgl_pengajuan,
+    keperluan: state.header.keperluan,
+    nilai_pengajuan: total,
+    status: 'Diajukan',
+    created_by: currentUser.id,
+  });
+  if (e1) { toast('Gagal buat PK: '+e1.message); return; }
+
+  const itemPayload = chosen.map((c,i) => ({
+    pk_id: pkId,
+    component_name: c.name,
+    part_number: c.part_number || null,
+    qty_bom: c.qty_bom,
+    qty_pk: c.qty_pk,
+    unit: c.unit,
+    unit_price: c.unit_price,
+    subtotal: c.qty_pk * (c.unit_price||0),
+    section: c.section || null,
+    note: c.note || null,
+    sort_order: i,
+  }));
+  const { error: e2 } = await sb.from('po_pk_items').insert(itemPayload);
+  if (e2) { toast('PK header tersimpan, tapi items gagal: '+e2.message); return; }
+
+  await logPO(poId, 'PK Dibuat', `${pkId} — ${chosen.length} komponen, ${fmtRp(total)}`);
+  toast(`✓ PK ${pkId} dibuat (${chosen.length} komponen)`);
+  closeAllModals();
+  await loadPOs();
+}
+
 
 // PO DETAIL
 async function openPODetail(id) {
