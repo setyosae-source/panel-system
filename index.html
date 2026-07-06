@@ -4480,12 +4480,78 @@ async function poStageBOM(poId, p) {
     toast('BOM masih draft. Ubah status ke Final saat sudah fix.');
     return;
   }
-  // Belum ada BOM — arahkan ke Tools BOM
-  if (confirm('Belum ada BOM untuk PO ini.\n\nBuka Tools BOM untuk membuat BOM baru?\n(Set field PO ID = '+ p.no_po +' saat menyimpan)')) {
-    switchModule('bom');
-    // set search filter agar mudah cari nanti
-    if (typeof bomState !== 'undefined') bomState.search = p.no_po || '';
+  // Belum ada BOM ter-link — tawarkan 2 opsi
+  openPOBOMChoiceModal(poId, p);
+}
+
+function openPOBOMChoiceModal(poId, p) {
+  const html = `
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header"><h2>📋 BOM untuk PO ini</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">Belum ada BOM ter-link ke ${p.no_project||p.no_po}.</div>
+        <button class="btn btn-primary" style="justify-content:flex-start" onclick="closeAllModals();switchModule('bom');" >+ Buat BOM Baru di Tools BOM</button>
+        <button class="btn" style="justify-content:flex-start" onclick="openPOBOMLinkPicker('${poId}','${(p.no_project||p.no_po||'').replace(/'/g,"\\'")}')">🔗 Sudah Punya BOM — Link Sekarang</button>
+      </div>
+    </div>`;
+  openModal(html);
+}
+
+async function openPOBOMLinkPicker(poId, poLabel) {
+  const { data: boms } = await sb.from('bom_lists')
+    .select('id,title,unit_category,status,po_id,total_price,created_at')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  _poBOMLinkCache = boms || [];
+  const html = `
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header"><h2>🔗 Pilih BOM untuk ${poLabel}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
+      <div class="modal-body">
+        <input type="text" placeholder="Cari judul BOM..." oninput="poFilterBOMPicker(this.value,'${poId}','${poLabel}')"
+          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;font-family:inherit">
+        <div id="poBomLinkList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+          ${poRenderBOMPickerItems(_poBOMLinkCache, poId, poLabel)}
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Tutup</button></div>
+    </div>`;
+  openModal(html);
+}
+
+let _poBOMLinkCache = [];
+
+function poRenderBOMPickerItems(boms, poId, poLabel) {
+  if (!boms.length) return `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:12px">Tidak ada BOM ditemukan</div>`;
+  return boms.map(b => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:6px">
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:12px">${escapeHtml(b.title)}</div>
+        <div style="font-size:11px;color:var(--text3)">${b.unit_category||'—'} · ${b.status}${b.po_id ? ' · <span style="color:var(--red)">sudah link ke '+b.po_id+'</span>' : ''}</div>
+      </div>
+      <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="poLinkBOM('${b.id}','${poId}','${poLabel}')">Pilih</button>
+    </div>
+  `).join('');
+}
+
+function poFilterBOMPicker(q, poId, poLabel) {
+  q = (q||'').toLowerCase();
+  const filtered = _poBOMLinkCache.filter(b => (b.title||'').toLowerCase().includes(q));
+  const el = document.getElementById('poBomLinkList');
+  if (el) el.innerHTML = poRenderBOMPickerItems(filtered, poId, poLabel);
+}
+
+async function poLinkBOM(bomId, poId, poLabel) {
+  const bom = _poBOMLinkCache.find(b => b.id === bomId);
+  if (bom?.po_id && bom.po_id !== poId) {
+    if (!confirm(`BOM ini sudah ter-link ke PO ${bom.po_id}. Pindahkan ke ${poLabel}?`)) return;
   }
+  const { error } = await sb.from('bom_lists').update({ po_id: poId, updated_at: new Date().toISOString() }).eq('id', bomId);
+  if (error) { toast('Gagal link: '+error.message); return; }
+  await logBOM(bomId, 'Link PO', 'Ter-link ke PO: ' + poLabel);
+  toast('✓ BOM ter-link ke ' + poLabel);
+  closeAllModals();
+  await loadPOs();
 }
 
 async function poStageSN(poId, p) {
@@ -12027,6 +12093,7 @@ function renderBOMDetailPage() {
             onchange="bdUpdateUnitQty('${d.id}', this.value)"
             style="width:56px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-weight:700;text-align:center;font-size:12px;color:var(--text);background:var(--surface)">
         </label>
+        ${canManage ? `<button class="btn btn-sm" style="${d.po_id?'background:var(--green-bg);color:var(--green);border-color:#bbf7d0':''}" onclick="openBOMLinkPO('${d.id}')">🔗 ${d.po_id?'PO: '+d.po_id:'Link ke PO'}</button>` : ''}
         ${canManage ? `
           <button class="btn btn-sm" onclick="openBOMAddItem('${d.id}')">+ Komponen</button>
           <div style="display:flex;gap:4px">
@@ -12853,6 +12920,94 @@ async function bdUpdateUnitQty(bomId, val) {
   bomDetail.data.unit_qty = n;
   renderBOMDetailPage();
   toast(n>1 ? `✓ Jumlah unit: ${n} — semua qty & subtotal dikali ${n}` : '✓ Jumlah unit: 1');
+}
+
+// ═══════ Link BOM existing ke PO ═══════
+async function openBOMLinkPO(bomId) {
+  const d = bomDetail.data;
+  if (!d) return;
+
+  const { data: pos } = await sb.from('purchase_orders')
+    .select('id,no_po,no_project,customer_name,project_name,status')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  const html = `
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h2>🔗 Link BOM ke PO</h2>
+        <button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        ${d.po_id ? `
+          <div style="background:#DCFCE7;border:1px solid #86EFAC;border-radius:6px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:12px">Saat ini ter-link ke: <strong>${d.po_id}</strong></div>
+            <button class="btn btn-sm" onclick="bdUnlinkPO('${bomId}')">Putuskan Link</button>
+          </div>
+        ` : ''}
+        <input type="text" id="bomLinkPOSearch" placeholder="Cari No. PO, project, atau customer..."
+          oninput="bdFilterPOPicker(this.value)"
+          style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;font-family:inherit">
+        <div id="bomLinkPOList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+          ${bdRenderPOPickerItems(pos || [], bomId)}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeAllModals()">Tutup</button>
+      </div>
+    </div>`;
+  _bomLinkPOCache = pos || [];
+  _bomLinkPOBomId = bomId;
+  openModal(html);
+}
+
+let _bomLinkPOCache = [];
+let _bomLinkPOBomId = null;
+
+function bdRenderPOPickerItems(pos, bomId) {
+  if (!pos.length) return `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:12px">Tidak ada PO ditemukan</div>`;
+  return pos.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:6px">
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:12px" class="mono">${p.no_project || p.no_po}</div>
+        <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.customer_name||'—'} · ${p.project_name||'—'}</div>
+      </div>
+      <button class="btn btn-sm btn-primary" style="flex-shrink:0" onclick="bdLinkPO('${bomId}','${p.id}','${(p.no_project||p.no_po||'').replace(/'/g,"\\'")}')">Pilih</button>
+    </div>
+  `).join('');
+}
+
+function bdFilterPOPicker(q) {
+  q = (q||'').toLowerCase();
+  const filtered = _bomLinkPOCache.filter(p =>
+    (p.no_po||'').toLowerCase().includes(q) ||
+    (p.no_project||'').toLowerCase().includes(q) ||
+    (p.customer_name||'').toLowerCase().includes(q) ||
+    (p.project_name||'').toLowerCase().includes(q)
+  );
+  const el = document.getElementById('bomLinkPOList');
+  if (el) el.innerHTML = bdRenderPOPickerItems(filtered, _bomLinkPOBomId);
+}
+
+async function bdLinkPO(bomId, poId, poLabel) {
+  const { error } = await sb.from('bom_lists').update({ po_id: poId, updated_at: new Date().toISOString() }).eq('id', bomId);
+  if (error) { toast('Gagal link PO: '+error.message); return; }
+  bomDetail.data.po_id = poId;
+  await logBOM(bomId, 'Link PO', 'Ter-link ke PO: ' + poLabel);
+  toast('✓ BOM ter-link ke PO: ' + poLabel);
+  closeAllModals();
+  renderBOMDetailPage();
+}
+
+async function bdUnlinkPO(bomId) {
+  if (!confirm('Putuskan link BOM ini dari PO? (BOM tidak dihapus, hanya link-nya)')) return;
+  const { error } = await sb.from('bom_lists').update({ po_id: null, updated_at: new Date().toISOString() }).eq('id', bomId);
+  if (error) { toast('Gagal: '+error.message); return; }
+  bomDetail.data.po_id = null;
+  await logBOM(bomId, 'Unlink PO', 'Link ke PO diputuskan');
+  toast('Link ke PO diputuskan');
+  closeAllModals();
+  renderBOMDetailPage();
 }
 
 function bdGoBack() {
