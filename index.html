@@ -3013,38 +3013,8 @@ async function generateSNForItem(itemId, poId) {
   const dateStr = gv('apicProdDate');
   if (!dateStr) { toast('Pilih tanggal mulai produksi'); return; }
   const prodDate = new Date(dateStr);
-  const po = allPOs.find(x=>x.id===poId);
-  const item = po?.po_items?.find(x=>x.id===itemId);
-  if (!item) { toast('Item tidak ditemukan'); return; }
-  if (item.serial_number) { toast('Item sudah punya SN'); return; }
-
-  // Load spec terstruktur
-  let spec = null;
-  try { const _r = await sb.from('item_specs').select('*').eq('item_id', itemId).single(); spec = _r.data; } catch(e) {}
-  if (!spec || !spec.kategori) { toast('Spec belum diisi. Isi via ETS dulu.'); return; }
-
-  const qty = item.qty || 1;
-  const serials = [];
-  // Loop per unit (multi-SN per item)
-  for (let i = 0; i < qty; i++) {
-    const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
-    let { huruf, angka } = counter;
-    const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, prodDate);
-    if (!sn) { toast('Gagal generate SN — cek field spec'); return; }
-    angka++;
-    if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
-    await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
-    serials.push(sn);
-  }
-
-  const snJoined = serials.join(', ');
-  await sb.from('po_items').update({
-    serial_number: snJoined,
-    serial_generated_at: new Date().toISOString()
-  }).eq('id', itemId);
-  await logPO(poId, 'Generate Serial', item.category + ': ' + snJoined);
-  toast(serials.length + ' SN di-generate: ' + snJoined);
-  // Re-open modal dengan SN baru
+  const ok = await _doGenerateSN(itemId, poId, prodDate);
+  if (!ok) return;
   closeAllModals();
   await loadPOs();
   openAssignProduksiModal(itemId, poId);
@@ -6203,20 +6173,10 @@ async function doGenerateSerials(poId) {
   const dateObj = new Date(prodDate);
   let generated = 0, skipped = 0;
   for (const it of items) {
-    let spec = null; try { const _r = await sb.from('item_specs').select('*').eq('item_id', it.id).single(); spec = _r.data; } catch(e) {}
-    if (!spec) { skipped++; continue; }
-    const { data: counter } = await sb.from('serial_counter').select('*').eq('id', 1).single();
-    let { huruf, angka } = counter;
-    const sn = buildSerialNumberFromSpec(spec, p.no_project, huruf, angka, dateObj);
-    if (!sn) { skipped++; continue; }
-    angka++;
-    if (angka > 999) { angka = 1; huruf = String.fromCharCode(huruf.charCodeAt(0) + 1); }
-    await sb.from('serial_counter').update({ huruf, angka }).eq('id', 1);
-    await sb.from('po_items').update({ serial_number: sn, serial_generated_at: new Date().toISOString() }).eq('id', it.id);
-    generated++;
+    const ok = await _doGenerateSN(it.id, poId, dateObj);
+    if (ok) generated++; else skipped++;
   }
-  await logPO(poId, 'Generate Serial', generated + ' item' + (skipped ? ', ' + skipped + ' item skip (belum ada spec)' : ''));
-  toast(generated + ' SN di-generate' + (skipped ? ', ' + skipped + ' skip (isi spec dulu)' : ''));
+  toast(generated + ' item di-generate' + (skipped ? ', ' + skipped + ' skip (cek spec)' : ''));
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
@@ -8059,16 +8019,21 @@ function copySNLabel(sn, customer, itemLabel) {
   );
 }
 
-// Helper: generate SN after spec saved — shared by ETS flow
+// Helper: generate SN after spec saved — shared by SEMUA flow (Assign Produksi, ETS, dsb)
+// Expand qty>1 menjadi N record product_units (per-unit tracking), sekaligus
+// tetap update po_items.serial_number (string gabungan) untuk backward-compat
+// dengan kode lain yang belum di-migrasi baca per-unit.
 async function _doGenerateSN(itemId, poId, prodDate) {
   const po = allPOs.find(x=>x.id===poId);
   const item = po?.po_items?.find(x=>x.id===itemId);
   if(!item) { toast('Item tidak ditemukan'); return false; }
+  if (item.serial_number) { toast('Item sudah punya SN'); return false; }
   let spec = null;
   try { const _r = await sb.from('item_specs').select('*').eq('item_id',itemId).single(); spec = _r.data; } catch(e){}
   if(!spec || !spec.kategori) { toast('Spec belum tersimpan'); return false; }
   const qty = item.qty || 1;
   const serials = [];
+  const unitRows = [];
   for(let i=0;i<qty;i++){
     const {data: counter} = await sb.from('serial_counter').select('*').eq('id',1).single();
     let {huruf, angka} = counter;
@@ -8078,10 +8043,24 @@ async function _doGenerateSN(itemId, poId, prodDate) {
     if(angka>999){angka=1;huruf=String.fromCharCode(huruf.charCodeAt(0)+1);}
     await sb.from('serial_counter').update({huruf,angka}).eq('id',1);
     serials.push(sn);
+    unitRows.push({
+      po_item_id: itemId,
+      unit_number: i + 1,
+      serial_number: sn,
+      qr_code: sn,
+      panel_type: item.category || null,
+      production_status: 'pending',
+      created_by: currentUser?.id || null,
+    });
+  }
+  // Insert per-unit records (product_units) — sumber kebenaran baru
+  const { error: puErr } = await sb.from('product_units').insert(unitRows);
+  if (puErr) {
+    toast('SN dibuat, tapi gagal simpan unit detail: ' + puErr.message);
   }
   const snJoined = serials.join(', ');
   await sb.from('po_items').update({serial_number:snJoined,serial_generated_at:new Date().toISOString()}).eq('id',itemId);
-  await logPO(poId,'Generate Serial',item.category+': '+snJoined);
+  await logPO(poId,'Generate Serial',item.category+': '+snJoined+(qty>1?` (${qty} unit)`:''));
   toast('✓ '+serials.length+' SN: '+snJoined);
   return true;
 }

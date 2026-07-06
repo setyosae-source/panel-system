@@ -147,7 +147,7 @@ const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const MONTH_ID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-let currentItem=null, currentPO=null;
+let currentItem=null, currentPO=null, currentUnit=null;
 
 let codeReader = null;
 
@@ -188,31 +188,46 @@ window.onload = () => {
 async function findBySN(){
   const sn = document.getElementById('snInput').value.trim().toUpperCase();
   if(!sn){ showError('Masukkan serial number terlebih dahulu'); return; }
-  
+
   const errEl = document.getElementById('scanError');
   errEl.style.display='none';
   document.querySelector('.scan-btn').textContent='Mencari...';
   document.querySelector('.scan-btn').disabled=true;
 
-  // Search by serial number
-  const{data:items, error} = await sb.from('po_items')
-    .select('*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files)')
-    .ilike('serial_number', '%'+sn+'%');
+  let item = null, unit = null;
+
+  // 1) Cari exact match di product_units dulu (sumber baru, per-unit, tidak rapuh)
+  const { data: units } = await sb.from('product_units')
+    .select('*,po_items(*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files))')
+    .eq('serial_number', sn)
+    .limit(1);
+
+  if (units && units.length) {
+    unit = units[0];
+    item = unit.po_items;
+  } else {
+    // 2) Fallback: SN lama (sebelum migrasi per-unit), masih tersimpan sbg string gabungan di po_items
+    const { data: items, error } = await sb.from('po_items')
+      .select('*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files)')
+      .ilike('serial_number', '%'+sn+'%');
+
+    if (!error && items && items.length) {
+      item = items.find(it =>
+        (it.serial_number||'').split(',').map(s=>s.trim().toUpperCase()).includes(sn)
+      ) || items[0];
+    }
+  }
 
   document.querySelector('.scan-btn').textContent='Cari Unit';
   document.querySelector('.scan-btn').disabled=false;
 
-  if(error || !items || !items.length){
+  if (!item) {
     showError('Serial number <strong>'+sn+'</strong> tidak ditemukan.<br><br>Silakan cek kembali serial number pada nameplate unit Anda dan pastikan penulisan sama persis. Serial number bersifat <strong>tidak case sensitive</strong> (huruf besar/kecil tidak berpengaruh).');
     return;
   }
 
-  // Find exact match
-  const item = items.find(it => 
-    (it.serial_number||'').split(',').map(s=>s.trim().toUpperCase()).includes(sn)
-  ) || items[0];
-
   currentItem = item;
+  currentUnit = unit; // null kalau fallback lama
   currentPO = item.purchase_orders;
   showApp();
 }
@@ -229,7 +244,7 @@ function resetToScan(){
   document.getElementById('snInput').value='';
   document.getElementById('scanError').style.display='none';
   document.getElementById('snInput').focus();
-  currentItem=null; currentPO=null;
+  currentItem=null; currentPO=null; currentUnit=null;
 }
 
 function showApp(){
@@ -244,7 +259,7 @@ function renderHero(){
   // item_specs adalah array (relasi 1-to-many di Supabase karena tidak ada UNIQUE constraint).
   // Ambil row pertama. Untuk safety, handle juga kalau Supabase return object.
   const spec = Array.isArray(it.item_specs) ? (it.item_specs[0]||{}) : (it.item_specs||{});
-  const sn=it.serial_number||'—';
+  const sn = currentUnit ? currentUnit.serial_number : (it.serial_number||'—');
   const prodDate=it.serial_generated_at?new Date(it.serial_generated_at):null;
   const prodDateStr=prodDate?MONTH_ID[prodDate.getMonth()]+' '+prodDate.getFullYear():'—';
 
