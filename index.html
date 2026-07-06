@@ -5701,19 +5701,19 @@ async function openDocModal(itemId, poId) {
     const rows = (files||[]).map((f,i)=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)" id="docrow_${key}_${i}">
         <div style="flex:1;min-width:0">
-          <input type="text" value="${escapeHtml(f.name||'')}" placeholder="Nama file"
-            onchange="docUpdateField('${key}',${i},'name',this.value)"
-            style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:4px">
-          <input type="text" value="${escapeHtml(f.url||'')}" placeholder="URL (Google Drive, dll)"
-            onchange="docUpdateField('${key}',${i},'url',this.value)"
-            style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'DM Mono',monospace">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+            ${f.url ? `<a href="${f.url}" target="_blank" style="color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">📎 ${escapeHtml(f.name||'file')}</a>`
+                    : `<span style="color:var(--text3);font-style:italic">Belum ada file diupload</span>`}
+          </div>
+          ${f._uploading ? `<div style="font-size:11px;color:var(--blue-text);margin-top:2px">⏳ Mengupload...</div>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
+        <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
           <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">
             <input type="checkbox" ${f.visible!==false?'checked':''} onchange="docUpdateField('${key}',${i},'visible',this.checked)">
             Tampil
           </label>
-          <button onclick="docOpenUrl('${key}',${i})" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer" title="Test URL">🔗</button>
+          <button onclick="document.getElementById('docUp_${key}_${i}').click()" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer">${f.url?'Ganti':'📤 Upload'}</button>
+          <input type="file" id="docUp_${key}_${i}" style="display:none" onchange="docUploadFile('${key}',${i},this)">
           <button onclick="docRemoveFile('${key}',${i})" style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;font-size:11px;background:var(--red-bg);color:var(--red);cursor:pointer">✕</button>
         </div>
       </div>`).join('');
@@ -5764,31 +5764,67 @@ function docAddFile(key) {
   const container = document.getElementById('docfiles_'+key);
   if(!container) return;
   const i = window._docState[key].length - 1;
-  const f = window._docState[key][i];
   const div = document.createElement('div');
   div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)';
   div.id = `docrow_${key}_${i}`;
   div.innerHTML = `
     <div style="flex:1;min-width:0">
-      <input type="text" value="" placeholder="Nama file"
-        onchange="docUpdateField('${key}',${i},'name',this.value)"
-        style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:4px">
-      <input type="text" value="" placeholder="URL (Google Drive, dll)"
-        onchange="docUpdateField('${key}',${i},'url',this.value)"
-        style="width:100%;padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'DM Mono',monospace">
+      <span style="color:var(--text3);font-style:italic;font-size:12px">Belum ada file diupload</span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
+    <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">
         <input type="checkbox" checked onchange="docUpdateField('${key}',${i},'visible',this.checked)"> Tampil
       </label>
-      <button onclick="docOpenUrl('${key}',${i})" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer">🔗</button>
+      <button onclick="document.getElementById('docUp_${key}_${i}').click()" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer">📤 Upload</button>
+      <input type="file" id="docUp_${key}_${i}" style="display:none" onchange="docUploadFile('${key}',${i},this)">
       <button onclick="docRemoveFile('${key}',${i})" style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;font-size:11px;background:var(--red-bg);color:var(--red);cursor:pointer">✕</button>
     </div>`;
   container.appendChild(div);
 }
 
+async function docUploadFile(key, idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const itemId = window._docItemId;
+  const row = document.getElementById(`docrow_${key}_${idx}`);
+  if (row) row.querySelector('div').innerHTML = `<span style="color:var(--blue-text);font-size:12px">⏳ Mengupload ${escapeHtml(file.name)}...</span>`;
+
+  const path = `${itemId}/${key}/${Date.now()}_${file.name}`;
+  const { error: upErr } = await sb.storage.from('item-docs').upload(path, file);
+  if (upErr) {
+    toast('Gagal upload: ' + upErr.message);
+    if (row) row.querySelector('div').innerHTML = `<span style="color:var(--red);font-size:12px">Gagal upload — coba lagi</span>`;
+    return;
+  }
+  const { data: pub } = sb.storage.from('item-docs').getPublicUrl(path);
+  window._docState[key][idx] = { name: file.name, url: pub.publicUrl, visible: window._docState[key][idx]?.visible !== false };
+
+  // Re-render baris ini saja
+  if (row) {
+    row.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <a href="${pub.publicUrl}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:280px">📎 ${escapeHtml(file.name)}</a>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">
+          <input type="checkbox" checked onchange="docUpdateField('${key}',${idx},'visible',this.checked)"> Tampil
+        </label>
+        <button onclick="document.getElementById('docUp_${key}_${idx}').click()" style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:var(--surface2);cursor:pointer">Ganti</button>
+        <input type="file" id="docUp_${key}_${idx}" style="display:none" onchange="docUploadFile('${key}',${idx},this)">
+        <button onclick="docRemoveFile('${key}',${idx})" style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;font-size:11px;background:var(--red-bg);color:var(--red);cursor:pointer">✕</button>
+      </div>`;
+  }
+  toast('✓ ' + file.name + ' diupload');
+}
+
 function docRemoveFile(key, idx) {
   if(!window._docState || !window._docState[key]) return;
+  const f = window._docState[key][idx];
+  if (f && f.url) {
+    // Ekstrak path dari public URL utk hapus dari storage
+    const m = f.url.match(/item-docs\/(.+)$/);
+    if (m) sb.storage.from('item-docs').remove([decodeURIComponent(m[1])]).catch(()=>{});
+  }
   window._docState[key].splice(idx, 1);
   const el = document.getElementById(`docrow_${key}_${idx}`);
   if(el) el.remove();
@@ -5797,11 +5833,6 @@ function docRemoveFile(key, idx) {
   if(container) {
     [...container.children].forEach((row,i)=>{ row.id=`docrow_${key}_${i}`; });
   }
-}
-
-function docOpenUrl(key, idx) {
-  const url = window._docState?.[key]?.[idx]?.url;
-  if(url) window.open(url,'_blank'); else toast('URL belum diisi');
 }
 
 async function saveDocModal() {
