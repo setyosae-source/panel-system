@@ -4362,7 +4362,7 @@ function poComputeStages(p) {
   const has = t => docs.some(d => d.doc_type === t);
 
   // s1 Drawing Approval
-  const s1 = has('drawing_approval');
+  const s1 = has('Approval Drawing');
   // s2 BOM (min 1 BOM Final)
   const s2 = boms.some(b => (b.status||'').toLowerCase() === 'final');
   // s3a PK (minimal 1 PK sudah diajukan & tidak ditolak)
@@ -4440,7 +4440,7 @@ function renderPOProgressStrip(p) {
 async function poProgress(poId, key) {
   const p = allPOs.find(x => x.id === poId);
   if (!p) return;
-  if (key === 'drawing')        poStageUpload(poId, 'drawing_approval', 'Drawing Approval', 'application/pdf,image/*', false);
+  if (key === 'drawing')        poStageUpload(poId, 'Approval Drawing', 'Drawing Approval', 'application/pdf,image/*', false);
   else if (key === 'po_vendor') poStageUpload(poId, 'po_vendor', 'PO ke Vendor', 'application/pdf,image/*', true);
   else if (key === 'bom')       poStageBOM(poId, p);
   else if (key === 'pk')        openPOPKGenerator(poId);
@@ -4855,6 +4855,7 @@ async function openPODetail(id) {
     { key: 'Approval Drawing', label: 'Approval Drawing', stage: 'Engineering' },
     { key: 'Drawing Approved', label: 'Drawing Approved', stage: 'Engineering' },
     { key: 'BOM', label: 'Dokumen BOM', stage: 'Engineering' },
+    { key: 'po_vendor', label: 'PO ke Vendor', stage: 'Engineering' },
     { key: 'Laporan Produksi', label: 'Laporan Produksi', stage: 'Produksi' },
     { key: 'Routine Test Report', label: 'Routine Test Report', stage: 'QC' },
     ...(p.has_fat ? [{ key: 'FAT Report', label: 'FAT Report', stage: 'FAT' }] : []),
@@ -6176,6 +6177,7 @@ async function deleteItem(itemId, poId) {
 async function openPOPKForm(poId, pkId) {
   const p = allPOs.find(x => x.id === poId);
   const k = pkId ? (p?.po_pk || []).find(x => x.id === pkId) : null;
+  const hasItems = !!(k?.po_pk_items && k.po_pk_items.length);
   openModal(`<div class="modal">
     <div class="modal-header"><h2>${k ? 'Edit PK' : 'Pengajuan PK Baru'}</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
@@ -6184,22 +6186,32 @@ async function openPOPKForm(poId, pkId) {
         <div class="form-row"><label>Tgl. Pengajuan <span class="req">*</span></label><input type="date" id="pkTgl" value="${k?.tgl_pengajuan || today()}"></div>
       </div>
       <div class="form-row"><label>Keperluan <span class="req">*</span></label><input type="text" id="pkKep" value="${k?.keperluan || ''}" placeholder="Keperluan pembelian material..."></div>
-      <div class="form-row"><label>Nilai Pengajuan (Rp) <span class="req">*</span></label><input type="text" id="pkNilai" value="${k?.nilai_pengajuan || ''}" placeholder="Contoh: 50000000"></div>
+      <div class="form-row">
+        <label>Nilai Pengajuan (Rp) <span class="req">*</span></label>
+        <input type="text" id="pkNilai" value="${k?.nilai_pengajuan || ''}" placeholder="Contoh: 50000000" ${hasItems?'disabled':''}
+          style="${hasItems?'background:var(--surface2);color:var(--text3)':''}">
+        ${hasItems ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">🔒 Dihitung otomatis dari ${k.po_pk_items.length} item PK. Ubah di "📋 Item &amp; Cetak PDF" kalau perlu revisi nilai.</div>` : ''}
+      </div>
       <div class="form-row"><label>Catatan</label><textarea id="pkCat">${k?.catatan || ''}</textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
-      <button class="btn btn-primary" onclick="savePK('${poId}','${pkId || ''}')">Simpan PK</button>
+      <button class="btn btn-primary" onclick="savePK('${poId}','${pkId || ''}',${hasItems})">Simpan PK</button>
     </div>
   </div>`);
 }
 
-async function savePK(poId, pkId) {
-  const kep = gv('pkKep').trim(), tgl = gv('pkTgl'), nilai = gv('pkNilai').replace(/[^0-9.]/g, '');
-  if (!kep || !tgl || !nilai) { toast('Lengkapi field wajib'); return; }
-  const payload = { keperluan: kep, tgl_pengajuan: tgl, nilai_pengajuan: parseFloat(nilai), no_pk: gv('pkNo').trim() || null, catatan: gv('pkCat').trim() || null };
+async function savePK(poId, pkId, hasItems) {
+  const kep = gv('pkKep').trim(), tgl = gv('pkTgl');
+  if (!kep || !tgl) { toast('Lengkapi field wajib'); return; }
+  const payload = { keperluan: kep, tgl_pengajuan: tgl, no_pk: gv('pkNo').trim() || null, catatan: gv('pkCat').trim() || null };
+  if (!hasItems) {
+    const nilai = gv('pkNilai').replace(/[^0-9.]/g, '');
+    if (!nilai) { toast('Isi nilai pengajuan'); return; }
+    payload.nilai_pengajuan = parseFloat(nilai);
+  }
   if (pkId) { await sb.from('po_pk').update(payload).eq('id', pkId); }
-  else { await sb.from('po_pk').insert({ ...payload, id: genId('PK'), po_id: poId, status: 'Diajukan', created_by: currentUser.id }); await logPO(poId, 'PK Diajukan', kep + ' — ' + fmtRp(parseFloat(nilai))); }
+  else { await sb.from('po_pk').insert({ ...payload, id: genId('PK'), po_id: poId, status: 'Diajukan', created_by: currentUser.id }); await logPO(poId, 'PK Diajukan', kep + (payload.nilai_pengajuan?' — ' + fmtRp(payload.nilai_pengajuan):'')); }
   toast('PK disimpan');
   closeAllModals();
   await loadPOs();
