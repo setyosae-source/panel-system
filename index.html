@@ -4196,7 +4196,7 @@ async function renderPOModule() {
 
 async function loadPOs() {
   const [{ data: pos }, { data: boms }] = await Promise.all([
-    sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
+    sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*,po_pk_items(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
     sb.from('bom_lists').select('id,po_id,po_item_id,status,title,unit_qty,total_price').not('po_id','is',null)
   ]);
   const bomByPo = {};
@@ -4365,8 +4365,8 @@ function poComputeStages(p) {
   const s1 = has('drawing_approval');
   // s2 BOM (min 1 BOM Final)
   const s2 = boms.some(b => (b.status||'').toLowerCase() === 'final');
-  // s3a PK (min 1 Approved/Selesai)
-  const s3a = pks.some(k => ['Approved','Disetujui','Selesai'].includes(k.status));
+  // s3a PK (minimal 1 PK sudah diajukan & tidak ditolak)
+  const s3a = pks.some(k => k.status && k.status !== 'Ditolak');
   // s3b PO Vendor
   const s3b = has('po_vendor');
   // s4 Serial Number (semua item punya SN)
@@ -4647,7 +4647,7 @@ async function openPOPKGenerator(poId) {
   // Aggregate per part_number + name + unit
   const map = {};
   (bomItems || []).forEach(it => {
-    const key = (it.part_number||'') + '||' + it.name + '||' + (it.unit||'pcs');
+    const key = (it.part_number||'').trim().toUpperCase() + '||' + (it.name||'').trim().toUpperCase() + '||' + (it.unit||'pcs').trim().toLowerCase();
     const uqty = parseInt(it.bom_lists?.unit_qty,10) || 1;
     const qtyTot = (parseFloat(it.qty)||0) * uqty;
     if (!map[key]) {
@@ -4823,7 +4823,7 @@ async function pkGenSave(poId) {
 async function openPODetail(id) {
   let p = allPOs.find(x => x.id === id);
   if (!p) {
-    const { data } = await sb.from('purchase_orders').select('*,po_items(*,item_specs(*)),po_docs(*),po_pk(*,pk_docs(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').eq('id', id).single();
+    const { data } = await sb.from('purchase_orders').select('*,po_items(*,item_specs(*)),po_docs(*),po_pk(*,po_pk_items(*),pk_docs(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').eq('id', id).single();
     p = data;
   }
   if (!p) return;
@@ -4893,12 +4893,19 @@ async function openPODetail(id) {
   // PK
   const pks = p.po_pk || [];
   const totalPK = pks.reduce((s, k) => s + (k.nilai_pengajuan || 0), 0);
-  const pksHtml = pks.length ? pks.map(k => `
+  const pksHtml = pks.length ? pks.map(k => {
+    const nItems = (k.po_pk_items||[]).length;
+    return `
     <div class="pk-card">
       <div class="pk-header"><div style="font-size:13px;font-weight:600">${k.keperluan}</div><span style="font-size:11px;font-weight:600;background:var(--surface2);padding:2px 8px;border-radius:20px">${k.status}</span></div>
-      <div style="font-size:12px;color:var(--text2)">Pengajuan: <strong>${fmtRp(k.nilai_pengajuan)}</strong>${k.nilai_realisasi ? ' &middot; Realisasi: ' + fmtRp(k.nilai_realisasi) : ''} &middot; ${fmtDate(k.tgl_pengajuan)}</div>
-      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px"><button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button><button class="btn btn-sm" onclick="openPOPKForm('${p.id}','${k.id}')">Edit</button></div>` : ''}
-    </div>`) .join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
+      <div style="font-size:12px;color:var(--text2)">Pengajuan: <strong>${fmtRp(k.nilai_pengajuan)}</strong>${k.nilai_realisasi ? ' &middot; Realisasi: ' + fmtRp(k.nilai_realisasi) : ''} &middot; ${fmtDate(k.tgl_pengajuan)} &middot; <span style="color:var(--text3)">${nItems} item</span></div>
+      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="openPKItemsModal('${k.id}','${p.id}')">📋 Item &amp; Cetak PDF</button>
+        <button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button>
+        <button class="btn btn-sm" onclick="openPOPKForm('${p.id}','${k.id}')">Edit Header</button>
+      </div>` : ''}
+    </div>`;
+  }).join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
 
   // Logs
   const logs = (p.po_logs || []).slice().reverse();
@@ -6241,6 +6248,289 @@ async function savePKStatus(pkId, poId) {
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
+}
+
+// ═══════ PK ITEMS: lihat/edit item, tambah manual, cetak PDF ═══════
+let _pkItemsState = { pkId:null, poId:null, items:[] };
+
+async function openPKItemsModal(pkId, poId) {
+  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items(*)').eq('id', pkId).single();
+  if (!pk) { toast('PK tidak ditemukan'); return; }
+  _pkItemsState = {
+    pkId, poId,
+    items: (pk.po_pk_items||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(it => ({...it}))
+  };
+  renderPKItemsModal(pk);
+}
+
+function renderPKItemsModal(pk) {
+  const showPrice = can('nilai_po');
+  const state = _pkItemsState;
+  const total = state.items.reduce((s,it)=>s+(it.qty_pk||0)*(it.unit_price||0),0);
+
+  const rows = state.items.map((it,i) => `
+    <tr id="pkItemRow_${i}">
+      <td class="mono" style="font-size:11px">
+        <input type="text" value="${escapeHtml(it.part_number||'')}" onchange="pkItemEdit(${i},'part_number',this.value)"
+          style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:11px" ${it.bom_item_id?'':''}>
+      </td>
+      <td>
+        <input type="text" value="${escapeHtml(it.component_name||'')}" onchange="pkItemEdit(${i},'component_name',this.value)"
+          style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:12px;font-weight:500">
+        ${!it.bom_item_id ? `<span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:3px;margin-top:2px;display:inline-block">✚ Manual</span>` : ''}
+      </td>
+      <td style="text-align:right;color:var(--text3);font-size:11px">${it.qty_bom || 0}</td>
+      <td>
+        <input type="number" min="0" step="0.01" value="${it.qty_pk||0}" onchange="pkItemEdit(${i},'qty_pk',this.value)"
+          style="width:65px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:12px">
+      </td>
+      <td>
+        <input type="text" value="${escapeHtml(it.unit||'pcs')}" onchange="pkItemEdit(${i},'unit',this.value)"
+          style="width:48px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center;font-family:inherit;font-size:11px">
+      </td>
+      ${showPrice ? `
+      <td>
+        <input type="text" value="${it.unit_price||0}" onchange="pkItemEdit(${i},'unit_price',this.value)"
+          style="width:95px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:11px">
+      </td>
+      <td style="text-align:right;font-weight:600;font-size:11px" id="pkItemSub_${i}">${fmtRp((it.qty_pk||0)*(it.unit_price||0))}</td>` : ''}
+      <td><button onclick="pkItemRemove(${i})" style="padding:3px 7px;border:1px solid var(--red-border);border-radius:4px;background:var(--red-bg);color:var(--red);cursor:pointer;font-size:11px">✕</button></td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="padding:1rem 1.25rem;max-width:940px;max-height:88vh;display:flex;flex-direction:column">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
+        <div style="font-size:15px;font-weight:700">📋 Item PK — ${pk.id}</div>
+        <button class="btn btn-sm btn-ghost" onclick="closeAllModals()">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:.75rem">${escapeHtml(pk.keperluan||'')} &middot; Status: <strong>${pk.status}</strong></div>
+      <div style="flex:1;overflow:auto;border:1px solid var(--border);border-radius:6px">
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <thead style="position:sticky;top:0;background:#2C3E50;color:#fff">
+            <tr>
+              <th style="padding:7px;text-align:left;width:100px">Part No.</th>
+              <th style="padding:7px;text-align:left">Nama Komponen</th>
+              <th style="padding:7px;text-align:right;width:65px">Qty BOM</th>
+              <th style="padding:7px;text-align:left;width:75px">Qty PK</th>
+              <th style="padding:7px;text-align:left;width:58px">Unit</th>
+              ${showPrice?'<th style="padding:7px;text-align:right;width:105px">Harga</th><th style="padding:7px;text-align:right;width:110px">Subtotal</th>':''}
+              <th style="padding:7px;width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="pkItemsTbody">${rows || `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Belum ada item</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:.6rem">
+        <button class="btn btn-sm btn-ghost" onclick="pkItemAddManual()">✚ Tambah Item Manual (di luar BOM)</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)">
+        <div style="font-size:13px">
+          ${showPrice ? `Total: <strong id="pkItemsTotal" style="font-size:15px">${fmtRp(total)}</strong>`:''}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-ghost" onclick="exportPKPrint('${pk.id}')">🖨 Cetak PDF</button>
+          <button class="btn btn-sm btn-primary" onclick="pkItemsSave()">💾 Simpan</button>
+        </div>
+      </div>
+    </div>`;
+  openModal('<div class="modal" style="max-width:980px">'+html+'</div>');
+}
+
+function pkItemEdit(i, field, val) {
+  const it = _pkItemsState.items[i];
+  if (!it) return;
+  it[field] = (field==='qty_pk'||field==='unit_price') ? (parseFloat(val)||0) : val;
+  if (field==='qty_pk' || field==='unit_price') {
+    const el = document.getElementById('pkItemSub_'+i);
+    if (el) el.textContent = fmtRp((it.qty_pk||0)*(it.unit_price||0));
+    const totalEl = document.getElementById('pkItemsTotal');
+    if (totalEl) totalEl.textContent = fmtRp(_pkItemsState.items.reduce((s,x)=>s+(x.qty_pk||0)*(x.unit_price||0),0));
+  }
+}
+
+function pkItemAddManual() {
+  _pkItemsState.items.push({
+    id: null, pk_id: _pkItemsState.pkId, bom_item_id: null,
+    part_number: '', component_name: '', qty_bom: 0, qty_pk: 1, unit: 'pcs', unit_price: 0, section: 'Manual (Luar BOM)', note: '',
+  });
+  // re-render tbody saja
+  const tbody = document.getElementById('pkItemsTbody');
+  const i = _pkItemsState.items.length - 1;
+  const showPrice = can('nilai_po');
+  const it = _pkItemsState.items[i];
+  const tr = document.createElement('tr');
+  tr.id = 'pkItemRow_'+i;
+  tr.innerHTML = `
+    <td class="mono"><input type="text" value="" onchange="pkItemEdit(${i},'part_number',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:11px"></td>
+    <td>
+      <input type="text" value="" placeholder="Nama komponen..." onchange="pkItemEdit(${i},'component_name',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:12px;font-weight:500">
+      <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:3px;margin-top:2px;display:inline-block">✚ Manual</span>
+    </td>
+    <td style="text-align:right;color:var(--text3);font-size:11px">0</td>
+    <td><input type="number" min="0" step="0.01" value="1" onchange="pkItemEdit(${i},'qty_pk',this.value)" style="width:65px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:12px"></td>
+    <td><input type="text" value="pcs" onchange="pkItemEdit(${i},'unit',this.value)" style="width:48px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center;font-family:inherit;font-size:11px"></td>
+    ${showPrice?`<td><input type="text" value="0" onchange="pkItemEdit(${i},'unit_price',this.value)" style="width:95px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:11px"></td><td style="text-align:right;font-weight:600;font-size:11px" id="pkItemSub_${i}">${fmtRp(0)}</td>`:''}
+    <td><button onclick="pkItemRemove(${i})" style="padding:3px 7px;border:1px solid var(--red-border);border-radius:4px;background:var(--red-bg);color:var(--red);cursor:pointer;font-size:11px">✕</button></td>`;
+  if (tbody.children.length===1 && tbody.children[0].children.length===1) tbody.innerHTML=''; // hapus "belum ada item"
+  tbody.appendChild(tr);
+}
+
+function pkItemRemove(i) {
+  if (!confirm('Hapus item ini dari PK?')) return;
+  _pkItemsState.items.splice(i,1);
+  rerenderPKItemsTable();
+}
+
+function rerenderPKItemsTable() {
+  const showPrice = can('nilai_po');
+  const tbody = document.getElementById('pkItemsTbody');
+  if (!tbody) return;
+  const rows = _pkItemsState.items.map((it,i) => `
+    <tr id="pkItemRow_${i}">
+      <td class="mono"><input type="text" value="${escapeHtml(it.part_number||'')}" onchange="pkItemEdit(${i},'part_number',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:11px"></td>
+      <td>
+        <input type="text" value="${escapeHtml(it.component_name||'')}" onchange="pkItemEdit(${i},'component_name',this.value)" style="width:100%;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:12px;font-weight:500">
+        ${!it.bom_item_id ? `<span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:3px;margin-top:2px;display:inline-block">✚ Manual</span>` : ''}
+      </td>
+      <td style="text-align:right;color:var(--text3);font-size:11px">${it.qty_bom||0}</td>
+      <td><input type="number" min="0" step="0.01" value="${it.qty_pk||0}" onchange="pkItemEdit(${i},'qty_pk',this.value)" style="width:65px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:12px"></td>
+      <td><input type="text" value="${escapeHtml(it.unit||'pcs')}" onchange="pkItemEdit(${i},'unit',this.value)" style="width:48px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:center;font-family:inherit;font-size:11px"></td>
+      ${showPrice?`<td><input type="text" value="${it.unit_price||0}" onchange="pkItemEdit(${i},'unit_price',this.value)" style="width:95px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;text-align:right;font-family:inherit;font-size:11px"></td><td style="text-align:right;font-weight:600;font-size:11px" id="pkItemSub_${i}">${fmtRp((it.qty_pk||0)*(it.unit_price||0))}</td>`:''}
+      <td><button onclick="pkItemRemove(${i})" style="padding:3px 7px;border:1px solid var(--red-border);border-radius:4px;background:var(--red-bg);color:var(--red);cursor:pointer;font-size:11px">✕</button></td>
+    </tr>`).join('');
+  tbody.innerHTML = rows || `<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Belum ada item</td></tr>`;
+  const totalEl = document.getElementById('pkItemsTotal');
+  if (totalEl) totalEl.textContent = fmtRp(_pkItemsState.items.reduce((s,x)=>s+(x.qty_pk||0)*(x.unit_price||0),0));
+}
+
+async function pkItemsSave() {
+  const state = _pkItemsState;
+  const total = state.items.reduce((s,it)=>s+(it.qty_pk||0)*(it.unit_price||0),0);
+
+  // Hapus dulu semua item lama, insert ulang (simpel & aman utk hindari drift id)
+  const { error: delErr } = await sb.from('po_pk_items').delete().eq('pk_id', state.pkId);
+  if (delErr) { toast('Gagal update item: '+delErr.message); return; }
+
+  if (state.items.length) {
+    const payload = state.items.map((it,i) => ({
+      pk_id: state.pkId,
+      bom_id: it.bom_id || null,
+      bom_item_id: it.bom_item_id || null,
+      component_name: it.component_name || '(tanpa nama)',
+      part_number: it.part_number || null,
+      qty_bom: it.qty_bom || 0,
+      qty_pk: it.qty_pk || 0,
+      unit: it.unit || 'pcs',
+      unit_price: it.unit_price || 0,
+      subtotal: (it.qty_pk||0) * (it.unit_price||0),
+      section: it.section || null,
+      note: it.note || null,
+      sort_order: i,
+    }));
+    const { error: insErr } = await sb.from('po_pk_items').insert(payload);
+    if (insErr) { toast('Gagal simpan item: '+insErr.message); return; }
+  }
+
+  await sb.from('po_pk').update({ nilai_pengajuan: total, updated_at: new Date().toISOString() }).eq('id', state.pkId);
+  await logPO(state.poId, 'PK Item Diperbarui', `${state.items.length} item, total ${fmtRp(total)}`);
+  toast('✓ Item PK disimpan');
+  closeAllModals();
+  await loadPOs();
+  openPODetail(state.poId);
+}
+
+// ═══════ Cetak PK ke PDF (browser print) ═══════
+async function exportPKPrint(pkId) {
+  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(no_po,no_project,customer_name,project_name)').eq('id', pkId).single();
+  if (!pk) { toast('PK tidak ditemukan'); return; }
+  const items = (pk.po_pk_items||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const showPrice = can('nilai_po');
+  const po = pk.purchase_orders || {};
+
+  // Group by section
+  const groups = {};
+  items.forEach(it => { const s = it.section||'Lainnya'; (groups[s]=groups[s]||[]).push(it); });
+
+  let runningNo = 0;
+  let grandTotal = 0;
+  const tbodyHtml = Object.keys(groups).map(g => {
+    let secTotal = 0;
+    const rows = groups[g].map(it => {
+      runningNo++;
+      const sub = (it.qty_pk||0)*(it.unit_price||0);
+      secTotal += sub; grandTotal += sub;
+      return `<tr>
+        <td class="c">${runningNo}</td>
+        <td class="mono">${(it.part_number||'—').replace(/</g,'&lt;')}</td>
+        <td>${(it.component_name||'').replace(/</g,'&lt;')}</td>
+        <td class="num">${it.qty_pk}</td>
+        <td class="c">${it.unit||'pcs'}</td>
+        ${showPrice?`<td class="num">${fmtRp(it.unit_price)}</td><td class="num">${fmtRp(sub)}</td>`:''}
+      </tr>`;
+    }).join('');
+    const sectionRow = `<tr class="section"><td colspan="${showPrice?7:5}">${g.toUpperCase()}</td></tr>`;
+    const subtotalRow = showPrice ? `<tr class="subtotal"><td colspan="5" class="num"><em>Subtotal ${g}</em></td><td></td><td class="num"><strong>${fmtRp(secTotal)}</strong></td></tr>` : '';
+    return sectionRow + rows + subtotalRow;
+  }).join('');
+
+  const headerCols = showPrice
+    ? `<th style="width:28px">#</th><th style="width:90px">Part No.</th><th>Nama Komponen</th><th style="width:55px">Qty</th><th style="width:45px">Unit</th><th style="width:95px">Harga</th><th style="width:110px">Subtotal</th>`
+    : `<th style="width:28px">#</th><th style="width:90px">Part No.</th><th>Nama Komponen</th><th style="width:55px">Qty</th><th style="width:45px">Unit</th>`;
+
+  const grandTotalBlock = showPrice ? `<div class="grand-total"><span>GRAND TOTAL</span><span>${fmtRp(grandTotal)}</span></div>` : '';
+
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>PK ${pk.id}</title>
+    <style>
+      @page { size: A4; margin: 14mm 12mm; }
+      *{box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:0;color:#000;font-size:10px;margin:0}
+      h1{font-size:16px;margin:0 0 3px}
+      .header{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+      .meta{display:grid;grid-template-columns:110px 1fr 110px 1fr;gap:3px 10px;font-size:10px;margin-bottom:10px}
+      .meta .k{color:#666}
+      table{border-collapse:collapse;margin-top:6px;width:100%;table-layout:fixed}
+      th,td{border:1px solid #999;padding:4px 5px;text-align:left;vertical-align:top;word-wrap:break-word}
+      th{background:#2C3E50;color:#fff;font-size:9px;text-transform:uppercase;text-align:center}
+      td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+      td.c{text-align:center}
+      td.mono{font-family:'Courier New',monospace;font-size:9px}
+      tr.section td{background:#D6E5F5;color:#1A4F8B;font-weight:bold;font-size:10px;padding:5px 7px;border-color:#1A4F8B}
+      tr.subtotal td{background:#F0F0F0;font-style:italic;font-size:9px}
+      .grand-total{display:flex;justify-content:space-between;align-items:center;background:#2C3E50;color:#fff;font-weight:bold;font-size:13px;padding:10px 14px;margin-top:0;border:1px solid #2C3E50}
+      .grand-total span:last-child{font-size:14px}
+      .footer{margin-top:20px;font-size:9px;color:#666;border-top:1px solid #ccc;padding-top:6px}
+      .sign{display:flex;justify-content:space-between;margin-top:40px;font-size:10px}
+      .sign div{text-align:center;width:150px}
+      .sign .line{margin-top:50px;border-top:1px solid #000;padding-top:4px}
+      @media print{ body{padding:0} thead{display:table-header-group} tr{page-break-inside:avoid} }
+    </style></head><body>
+    <div class="header">
+      <h1>PERMOHONAN KEUANGAN (PK)</h1>
+      <div style="font-size:12px;color:#666">${(pk.keperluan||'').replace(/</g,'&lt;')}</div>
+    </div>
+    <div class="meta">
+      <span class="k">No. PK</span><span><strong>${pk.id}</strong></span>
+      <span class="k">Status</span><span>${pk.status}</span>
+      <span class="k">Tgl Pengajuan</span><span>${fmtDate(pk.tgl_pengajuan)}</span>
+      <span class="k">No. Project</span><span>${po.no_project||po.no_po||'—'}</span>
+      <span class="k">Customer</span><span>${po.customer_name||'—'}</span>
+      <span class="k">Project</span><span>${po.project_name||'—'}</span>
+    </div>
+    <table>
+      <thead><tr>${headerCols}</tr></thead>
+      <tbody>${tbodyHtml || `<tr><td colspan="${showPrice?7:5}" class="c">Belum ada item</td></tr>`}</tbody>
+    </table>
+    ${grandTotalBlock}
+    <div class="sign">
+      <div>Dibuat oleh<div class="line">( &nbsp; )</div></div>
+      <div>Diperiksa<div class="line">( &nbsp; )</div></div>
+      <div>Disetujui<div class="line">( &nbsp; )</div></div>
+    </div>
+    <div class="footer">Dicetak pada ${new Date().toLocaleString('id-ID')} — SAE Panel System</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+  </body></html>`);
+  w.document.close();
 }
 
 // GENERATE SERIAL
