@@ -4369,10 +4369,12 @@ function poComputeStages(p) {
   const s3a = pks.some(k => k.status && k.status !== 'Ditolak');
   // s3b PO Vendor
   const s3b = has('po_vendor');
-  // s4 Serial Number (semua item punya SN)
-  const s4 = items.length>0 && items.every(it => !!it.serial_number);
-  // s5 Produksi selesai (semua item prod_finished_at set)
-  const s5 = items.length>0 && items.every(it => !!it.prod_finished_at);
+  // s4 Serial Number (hanya item yg butuh ETS/SN — item non-produksi seperti aksesoris beli-jadi tidak perlu SN)
+  const snItems = items.filter(it => it.needs_ets);
+  const s4 = items.length===0 ? false : (snItems.length===0 ? true : snItems.every(it => !!it.serial_number));
+  // s5 Produksi selesai (hanya item yg memang diproduksi internal — item non-produksi otomatis lolos)
+  const prodItems = items.filter(it => it.is_produksi);
+  const s5 = items.length===0 ? false : (prodItems.length===0 ? true : prodItems.every(it => !!it.prod_finished_at));
   // s6 Delivery
   const s6 = !!p.tgl_kirim_aktual;
   // s7 FAT & Commissioning
@@ -4903,6 +4905,7 @@ async function openPODetail(id) {
         <button class="btn btn-sm" onclick="openPKItemsModal('${k.id}','${p.id}')">📋 Item &amp; Cetak PDF</button>
         <button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button>
         <button class="btn btn-sm" onclick="openPOPKForm('${p.id}','${k.id}')">Edit Header</button>
+        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red-border)" onclick="deletePK('${k.id}','${p.id}')">🗑 Hapus</button>
       </div>` : ''}
     </div>`;
   }).join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
@@ -6245,6 +6248,26 @@ async function savePKStatus(pkId, poId) {
   await sb.from('po_pk').update(upd).eq('id', pkId);
   await logPO(poId, 'PK Update', '→ ' + status);
   toast('Status PK → ' + status);
+  closeAllModals();
+  await loadPOs();
+  openPODetail(poId);
+}
+
+async function deletePK(pkId, poId) {
+  const p = allPOs.find(x => x.id === poId);
+  const k = (p?.po_pk || []).find(x => x.id === pkId);
+  if (!k) { toast('PK tidak ditemukan'); return; }
+
+  if (['Realisasi','Selesai'].includes(k.status)) {
+    toast('PK dengan status "'+k.status+'" tidak bisa dihapus — sudah ada realisasi dana. Ubah status ke Ditolak jika perlu dibatalkan.');
+    return;
+  }
+  if (!confirm(`Hapus PK "${k.keperluan}" (${fmtRp(k.nilai_pengajuan)})?\n\nSemua item di dalamnya ikut terhapus. Tindakan ini tidak bisa dibatalkan.`)) return;
+
+  const { error } = await sb.from('po_pk').delete().eq('id', pkId); // po_pk_items ikut terhapus via ON DELETE CASCADE
+  if (error) { toast('Gagal hapus PK: ' + error.message); return; }
+  await logPO(poId, 'PK Dihapus', k.keperluan + ' — ' + fmtRp(k.nilai_pengajuan));
+  toast('✓ PK dihapus');
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
