@@ -10346,6 +10346,19 @@ function updateBOMGeneratorPreview() {
 function bomRawItem(section, name, specText, qty, unit, category, tokens, note, flags={}) {
   return { section, name, specText, qty: qty || 1, unit: unit || 'pcs', category: category || 'Lainnya', tokens: tokens || [], note: note || '', flags };
 }
+// Reklasifikasi section final: item custom-fabrikasi (trafo, induktor, enclosure, battery,
+// battery rack) dikelompokkan ke 'Vendor'; sisa 'Aksesori' digabung ke 'Sistem'.
+const BOM_VENDOR_CATEGORIES = new Set(['Transformer', 'Inductor', 'Enclosure', 'Battery', 'Battery Rack']);
+function bomReclassifySections(raw) {
+  for (const r of raw) {
+    if (BOM_VENDOR_CATEGORIES.has(r.category)) {
+      r.section = 'Vendor';
+    } else if (r.section === 'Aksesori') {
+      r.section = 'Sistem';
+    }
+  }
+  return raw;
+}
 // ══════════════════════════════════════════════════════════════
 // TABEL REFERENSI JEMBO NYAF + PHOENIX CONTACT TERMINAL
 // Basis: CB rating → NYAF mm² + Terminal WDU/WFF/WAH
@@ -10501,6 +10514,15 @@ function bomFanCabin(pLossW) {
   else if (cfmNeeded <= 340) fans.push({size:'10"',qty:1});
   else fans.push({size:'10"',qty:Math.ceil(cfmNeeded/300)});
   return {fans, cfmNeeded:Math.round(cfmNeeded)};
+}
+// Trafo suplai fan cabin — wajib untuk input 3P (tanpa netral, tidak ada sumber 220V L-N/L-L)
+// VA per fan = V x I dari datasheet Salzer (ref umum, cross-check ke PN master jika tersedia)
+const BOM_FAN_VA = {'4"':20, '6"':40, '8"':68, '10"':115};
+const BOM_STD_TRAFO_VA_KECIL = [25,40,63,100,160,250,400,630,1000,1600,2500,4000];
+function bomFanSupplyVA(fanSizing2) {
+  const totalVA = fanSizing2.fans.reduce((a,f) => a + (BOM_FAN_VA[f.size] || 40) * f.qty, 0);
+  const trafoVA = bomNextStd(BOM_STD_TRAFO_VA_KECIL, totalVA * 1.3);
+  return {totalVA, trafoVA};
 }
 
 // ── Enclosure spec dari size ──
@@ -10712,6 +10734,33 @@ function bomBaseGeneratedRawItems(spec) {
         `trf-r${trafoPhaseTag.toLowerCase()}-${spec.inputVoltage}v-${vdc}vdc-${idcA}a`
       ],
       `Vsec=${vSecRect.toFixed(1)}VAC: Vdc_max=${vdc}x1.25=${(vdc*1.25).toFixed(0)}VDC, ${spec.inputPhase==='3P'?'6P: 1.15x0.75xVdcmax':'2P: 1.15x1.1xVdcmax'}. Ref PN: ${trafoPnLookup}`));
+    // 7b. Trafo & suplai fan cabin — WAJIB untuk input 3P (incoming 3F+PE tanpa netral,
+    // sehingga tidak ada sumber 220V L-N/L-L untuk fan & lampu cabin 240VAC)
+    if (spec.inputPhase === '3P') {
+      const fanVA   = bomFanSupplyVA(fanSizing);
+      const fanPriA = fanVA.trafoVA / spec.inputVoltage; // primer L-L
+      const fanBr   = bomNextStd(BOM_STD_BREAKERS, fanPriA * 1.5);
+      const jFanIn  = bomJemboLookup(fanBr) || {nyaf:'custom'};
+      raw.push(bomRawItem('Sistem',
+        `${bomCbBrand(fanBr,'2P')} (MCB Trafo Fan Cabin)`,
+        `${spec.inputVoltage}VAC L-L - I=${fanPriA.toFixed(2)}A x1.5 -> ${fanBr}A`,
+        1, 'pcs', 'Breaker',
+        ['mcb','schneider','2p',`${fanBr}a`,'fan trafo','trafo fan','input'],
+        `Proteksi primer trafo fan cabin - I_primer=${fanPriA.toFixed(2)}A x1.5 -> next std ${fanBr}A`));
+      raw.push(bomRawItem('Sistem',
+        `Kabel NYAF ${jFanIn.nyaf}mm2 - Terminal Incoming ke MCB Trafo Fan`,
+        `CB ${fanBr}A => NYAF ${jFanIn.nyaf}mm2 (Jembo) — ${cLen('mcb_in_to_trafo')}m`,
+        cLen('mcb_in_to_trafo'), 'm', 'Kabel NYAF',
+        ['kabel nyaf', `nyaf ${jFanIn.nyaf}mm`, `nyaf${jFanIn.nyaf}mm2`, `${jFanIn.nyaf}mm`, 'trafo fan', 'kabel primer'],
+        `Kabel dari terminal AC incoming (2 phase L-L) ke MCB primer trafo fan`));
+      raw.push(bomRawItem('Sistem',
+        `Trafo AC ${spec.inputVoltage}/220VAC L-L/L-L ${fanVA.trafoVA}VA (Suplai Fan Cabin)`,
+        `${spec.inputVoltage}VAC L-L => 220VAC L-L, ${fanVA.trafoVA}VA`,
+        1, 'unit', 'Transformer',
+        ['trafo','fan supply','trafo fan','control transformer','380/220',`${fanVA.trafoVA}va`,'l-l'],
+        `Total beban fan cabin ${fanVA.totalVA}VA (${fanSizing.fans.map(f=>`${f.qty}x${f.size}`).join(', ')}) x1.3 spare = ${(fanVA.totalVA*1.3).toFixed(0)}VA -> std ${fanVA.trafoVA}VA. Wajib untuk input 3P ${spec.inputVoltage}VAC karena incoming tanpa netral — tidak ada sumber 220V L-N/L-L untuk fan & lampu cabin`));
+      bomAddTrafoSecCable(raw, 'Sistem', fanVA.trafoVA/1000, 220, '1P', 'Trafo Fan Cabin ke Terminal Suplai Fan 220VAC');
+    }
     // 8. Kabel secondary trafo ke modul (direct, no terminal)
     {
       const iSec=(trafoKva*1000)/(spec.inputPhase==='3P'?Math.sqrt(3)*vSecRect:vSecRect);
@@ -11329,7 +11378,7 @@ async function bomApplyRecommendedPrices(items) {
   return items;
 }
 async function generateBOMItemsFromEngineeringInput(spec) {
-  const raw = bomBaseGeneratedRawItems(spec);
+  const raw = bomReclassifySections(bomBaseGeneratedRawItems(spec));
   const items = [];
   for (let i=0;i<raw.length;i++) {
     const r = raw[i];
@@ -13817,7 +13866,7 @@ function groupItemsBySection(items) {
     map[sec].items.push(it);
   }
   // Sort: urutan logis panel dulu, sisanya abjad
-  const ORDER = ['Aksesori','Cubicle','Sistem','Supporting','Lainnya'];
+  const ORDER = ['Cubicle','Sistem','Supporting','Vendor','Lainnya'];
   groups.sort((a, b) => {
     const ia = ORDER.indexOf(a.name);
     const ib = ORDER.indexOf(b.name);
@@ -13828,14 +13877,17 @@ function groupItemsBySection(items) {
   });
   return groups;
 }
+// Label huruf A./B./C./D. berurutan sesuai posisi group setelah sort
+function bomSectionLetterLabel(groups) {
+  return groups.map((g, i) => ({ ...g, letter: String.fromCharCode(65 + i) }));
+}
 
 async function exportBOMExcel(bomId, withPrice) {
   if (typeof XLSX === 'undefined') { toast('SheetJS belum dimuat'); return; }
   const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const groups = groupItemsBySection(items);
-  const unitQty = Math.max(1, parseInt(bom.unit_qty,10) || 1);
+  const groups = bomSectionLetterLabel(groupItemsBySection(items));
   const multi = unitQty > 1;
 
   // Build sheet using AOA + cell-level formatting
@@ -13898,7 +13950,7 @@ async function exportBOMExcel(bomId, withPrice) {
   const dataRowStart = aoa.length;
 
   for (const g of groups) {
-    aoa.push([g.name.toUpperCase()]);
+    aoa.push([`${g.letter}. ${g.name.toUpperCase()}`]);
     sectionRows.push(aoa.length - 1);
     merges.push({ s: { r: aoa.length - 1, c: 0 }, e: { r: aoa.length - 1, c: numCols - 1 } });
 
@@ -14086,7 +14138,7 @@ async function exportBOMPrint(bomId, withPrice) {
   const { data: bom } = await sb.from('bom_lists').select('*,bom_items(*),app_users:created_by(full_name)').eq('id', bomId).single();
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-  const groups = groupItemsBySection(items);
+  const groups = bomSectionLetterLabel(groupItemsBySection(items));
   const grandTotal = items.reduce((s, it) => s + ((it.qty || 0) * (it.unit_price || 0)), 0);
   const numCols = withPrice ? 6 : 4;
 
@@ -14108,7 +14160,7 @@ async function exportBOMPrint(bomId, withPrice) {
         <td>${(subNote || '').replace(/</g, '&lt;')}</td>
       </tr>`;
     }).join('');
-    const sectionRow = `<tr class="section"><td colspan="${numCols + 1}">${g.name.toUpperCase()}</td></tr>`;
+    const sectionRow = `<tr class="section"><td colspan="${numCols + 1}">${g.letter}. ${g.name.toUpperCase()}</td></tr>`;
     const subtotalRow = withPrice
       ? `<tr class="subtotal"><td colspan="4" class="num"><em>Subtotal ${g.name}</em></td><td></td><td class="num"><strong>${fmtRp(secTotal)}</strong></td><td></td></tr>`
       : '';
