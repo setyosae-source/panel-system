@@ -9571,6 +9571,9 @@ function bomWizardCollectStep2() {
     s.batteryCell = num('wzBattCell', s.batteryCell);
     s.batteryString = Math.max(1, parseInt(sel('wzBattString','1')) || 1);
   }
+  if (t === 'Rectifier') {
+    s.dropperStage = sel('wzDropperStage', s.dropperStage || '');
+  }
   if (t === 'UPS') {
     s.bypassEnabled = chk('wzBypassEnabled');
     if (s.bypassEnabled) {
@@ -9810,6 +9813,23 @@ function bomWizardStep2Body() {
           </div>
         </div>
         <div id="wzBattInfo" style="font-size:12px;color:var(--text3);margin-top:6px;padding:8px;background:var(--surface2);border-radius:6px"></div>
+      </div>`;
+  }
+
+  if (t === 'Rectifier') {
+    html += `
+      <div class="wz-section">
+        <div class="wz-section-title">Dropper Jalur Load</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Dropper</label>
+            <select id="wzDropperStage">
+              <option value="" ${!s.dropperStage?'selected':''}>Tanpa Dropper</option>
+              <option value="Single" ${s.dropperStage==='Single'?'selected':''}>Single Stage (VRLA)</option>
+              <option value="Double" ${s.dropperStage==='Double'?'selected':''}>Double Stage (NiCd)</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px">Menurunkan tegangan bus DC (float/boost) ke nominal beban pakai diode stack seri di jalur MCB Load. Single stage = drop saat float saja (VRLA). Double stage = stage tambahan aktif saat boost (NiCd).</div>
       </div>`;
   }
 
@@ -10103,6 +10123,7 @@ async function bomWizardGenerate() {
     withBattery: !!s.withBattery,
     withMetering: !!s.withMetering,
     withRelayTerminal: !!s.withRelayTerminal,
+    dropperStage: s.dropperStage || '',
     // Enclosure
     enclosureSize: s.enclosureSize || 'Medium',
     encW: s.encW || 650,
