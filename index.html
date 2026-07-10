@@ -13987,6 +13987,7 @@ async function exportBOMExcel(bomId, withPrice) {
   if (!bom) return;
   const items = (bom.bom_items || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
   const groups = bomSectionLetterLabel(groupItemsBySection(items));
+  const unitQty = Math.max(1, parseInt(bom.unit_qty,10) || 1);
   const multi = unitQty > 1;
 
   // Build sheet using AOA + cell-level formatting
