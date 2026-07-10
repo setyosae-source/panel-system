@@ -10525,6 +10525,82 @@ function bomFanSupplyVA(fanSizing2) {
   return {totalVA, trafoVA};
 }
 
+// ── Dropper (voltage dropper) jalur Load ──
+// Fungsi: menurunkan tegangan bus DC (float/boost battery) ke level nominal beban,
+// pakai stack diode seri (forward drop). Single stage = VRLA (cuma float).
+// Double stage = NiCd (stage-1 aktif saat float, stage-2 tambahan aktif saat boost).
+// Basis qty diode/stage: round(V_nominal / 23) berdasarkan referensi drawing SAE
+// (110VDC-120A -> 5 diode/stage; 48VDC-100A -> 2 diode/stage). Min. 1 diode/stage.
+// Rating modul dipilih dari tabel Powersem PSKD dengan margin 30% di atas I_DC load.
+const BOM_DROPPER_DIODE_PN_A = 23; // V nominal per diode (empiris dari referensi drawing)
+const BOM_DROPPER_DIODE_TABLE = [
+  { maxA: 26,  pn: 'PSKD 26'  },
+  { maxA: 44,  pn: 'PSKD 44'  },
+  { maxA: 56,  pn: 'PSKD 56'  },
+  { maxA: 72,  pn: 'PSKD 72'  },
+  { maxA: 95,  pn: 'PSKD 95'  },
+  { maxA: 112, pn: 'PSKD 112MB' }, // ref real drawing SAE 86-0725-A/C
+  { maxA: 142, pn: 'PSKD 142' },
+  { maxA: 172, pn: 'PSKD 172' },
+  { maxA: 220, pn: 'PSKD 220' },
+  { maxA: 250, pn: 'PSKD 250' },
+  { maxA: 312, pn: 'PSKD 312' },
+];
+function bomDropperDiodeModule(idcA) {
+  const needA = idcA * 1.3; // margin 30% safety
+  return BOM_DROPPER_DIODE_TABLE.find(d => d.maxA >= needA) || BOM_DROPPER_DIODE_TABLE[BOM_DROPPER_DIODE_TABLE.length - 1];
+}
+function bomDropperSizing(vdc, idcA) {
+  const qtyPerStage = Math.max(1, Math.round(vdc / BOM_DROPPER_DIODE_PN_A));
+  const module = bomDropperDiodeModule(idcA);
+  return { qtyPerStage, module };
+}
+// Pasang 1 set dropper stage (diode stack + contactor bypass + thermostat + heatsink + fan) ke jalur Load
+function bomAddDropperStage(raw, section, stageNo, qtyDiode, module, idcA) {
+  const contactorA = bomNextStd(BOM_STD_BREAKERS, idcA * 1.25);
+  raw.push(bomRawItem(section,
+    `Diode Module ${module.pn} - Dropper Stage ${stageNo}`,
+    `${module.pn} — ${qtyDiode}x seri`,
+    qtyDiode, 'pcs', 'Diode',
+    ['diode','dropper','powersem',module.pn.toLowerCase().replace(/\s+/g,''),`stage${stageNo}`],
+    `Dropper Stage ${stageNo}: ${qtyDiode}x ${module.pn} seri — I_load=${idcA}A x1.3 margin => rating ${module.pn}`));
+  raw.push(bomRawItem(section,
+    `Contactor Bypass Dropper Stage ${stageNo} Schneider LC1D — ${contactorA}A`,
+    `LC1D — ${contactorA}A`,
+    1, 'pcs', 'Contactor',
+    ['contactor','bypass','dropper','schneider','lc1d',`stage${stageNo}`],
+    `Bypass stage ${stageNo} saat tidak aktif — ref I_load x1.25 => ${contactorA}A`));
+  raw.push(bomRawItem(section,
+    `Heatsink Thermostat 50°C N.O. - Dropper Stage ${stageNo}`, '50°C N.O.',
+    1, 'pcs', 'Thermostat', ['thermostat','dropper','50c','no',`stage${stageNo}`],
+    'Trigger dropper exhaust fan'));
+  raw.push(bomRawItem(section,
+    `Heatsink Thermostat 100°C N.O. - Dropper Stage ${stageNo}`, '100°C N.O.',
+    1, 'pcs', 'Thermostat', ['thermostat','dropper','100c','no',`stage${stageNo}`],
+    'Alarm/interlock fan dropper'));
+  raw.push(bomRawItem(section,
+    `Heatsink Thermostat 90°C N.C. - Dropper Stage ${stageNo}`, '90°C N.C.',
+    1, 'pcs', 'Thermostat', ['thermostat','dropper','90c','nc',`stage${stageNo}`],
+    'Dropper heatsink fail alarm ke control board'));
+  raw.push(bomRawItem(section,
+    `Dropper Heatsink AS192-193 35cm - Stage ${stageNo}`, 'AS192-193 35cm',
+    1, 'pcs', 'Heatsink', ['heatsink','dropper','as192-193',`stage${stageNo}`],
+    'Heatsink diode stack dropper'));
+  raw.push(bomRawItem(section,
+    `Dropper Exhaust Fan PD160M-220 220VAC - Stage ${stageNo}`, 'PD160M-220 220VAC',
+    1, 'pcs', 'Fan', ['fan','dropper','pd160m-220',`stage${stageNo}`],
+    'Exhaust fan heatsink dropper'));
+}
+// Entry point: pasang dropper di jalur Load sesuai spec.dropperStage ('Single'|'Double')
+function bomAddDropperLoad(raw, section, vdc, idcA, dropperStage) {
+  if (dropperStage !== 'Single' && dropperStage !== 'Double') return;
+  const { qtyPerStage, module } = bomDropperSizing(vdc, idcA);
+  bomAddDropperStage(raw, section, 1, qtyPerStage, module, idcA);
+  if (dropperStage === 'Double') {
+    bomAddDropperStage(raw, section, 2, qtyPerStage, module, idcA);
+  }
+}
+
 // ── Enclosure spec dari size ──
 function bomEnclosureSpec(spec) {
   if (!spec) return {w:650,d:800,h:1550,label:'Medium 650x800x1550',pn:'ENC-MEDIUM'};
@@ -10809,6 +10885,8 @@ function bomBaseGeneratedRawItems(spec) {
         ['kabel nyaf',`nyaf ${nyafDC}mm`,`nyaf${nyafDC}mm2`,`${nyafDC}mm`,'dc bus','internal'],
         `Internal DC wiring: modul => induktor, elco, MCB Load, MCB Battery — NO terminal`));
     }
+    // 12b. Dropper jalur Load (opsional, sebelum MCB Load — sesuai posisi di SLD referensi)
+    bomAddDropperLoad(raw, 'Sistem', vdc, idcA, spec.dropperStage);
     // 13. MCB Load DC + Auxiliary
     raw.push(bomRawItem('Sistem',
       `${bomCbBrand(mcbDcA,'2P')} DC (MCB Load)`,
