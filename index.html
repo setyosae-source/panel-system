@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -245,6 +246,46 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 /* ── PK CARD ── */
 .pk-card{background:var(--surface2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px;border:1px solid var(--border)}
 .pk-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+
+/* ── PK PROCUREMENT CONTROL ── */
+.pk-proc-progress{height:7px;background:var(--surface3);border-radius:20px;overflow:hidden;min-width:120px}
+.pk-proc-progress>span{display:block;height:100%;background:var(--green);border-radius:20px;transition:width .2s ease}
+.pk-proc-timeline{display:flex;align-items:center;overflow-x:auto;padding:4px 0 8px}
+.pk-proc-node{display:flex;align-items:center;flex-shrink:0}
+.pk-proc-node .dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:var(--surface3);color:var(--text3);border:1px solid var(--border2)}
+.pk-proc-node.done .dot{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.pk-proc-node.active .dot{background:var(--text);color:#fff;border-color:var(--text)}
+.pk-proc-node .lbl{font-size:10px;color:var(--text3);margin-left:4px;white-space:nowrap}
+.pk-proc-node.done .lbl,.pk-proc-node.active .lbl{color:var(--text);font-weight:600}
+.pk-proc-line{width:22px;height:1px;background:var(--border2);margin:0 5px;flex-shrink:0}
+.pk-proc-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.pk-proc-mini{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px}
+.pk-proc-mini .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.04em}
+.pk-proc-mini .val{font-size:17px;font-weight:700;margin-top:2px}
+/* Daftar item pengadaan: scroll vertikal mandiri agar semua barang dapat diakses */
+.pk-proc-detail-modal{height:min(92vh,860px);max-height:calc(100vh - 1.5rem)}
+.pk-proc-detail-modal .modal-body{overflow:hidden}
+.pk-proc-items-scroll{
+  max-height:min(42vh,430px);
+  min-height:180px;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.pk-proc-items-scroll table{min-width:980px}
+.pk-proc-items-scroll thead th{
+  position:sticky;
+  top:0;
+  z-index:8;
+  background:var(--surface2);
+  box-shadow:0 1px 0 var(--border);
+}
+.pk-proc-items-scroll tbody tr:last-child td{border-bottom:none}
+@media(max-width:768px){
+  .pk-proc-detail-modal{height:100vh;max-height:100vh;border-radius:0!important}
+  .pk-proc-items-scroll{max-height:48vh;min-height:220px}
+}
 
 /* ── SERVICE LOG CARD ── */
 .log-card{border-left:3px solid var(--border2);padding:8px 12px;margin-bottom:8px;background:var(--surface);border-radius:0 var(--r-sm) var(--r-sm) 0}
@@ -562,14 +603,14 @@ let salesFiles = [];
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════
 const ROLE_PERMS = {
-  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
-  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
+  owner: { all: 1, nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, pk_procurement_view: 1, pk_procurement_manage: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
+  admin: { nilai_po: 1, users: 1, teknisi: 1, pp_view: 1, pp_manage: 1, pp_input: 1, pp_upload_doc: 1, pp_upload_result: 1, po_view: 1, po_manage: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, pk_procurement_view: 1, pk_procurement_manage: 1, service_view: 1, service_manage: 1, kb_view: 1, bom_view: 1, bom_export: 1, bom_manage: 1, laporan_view: 1, laporan_export: 1 },
   sales: { pp_view: 1, pp_input: 1, pp_upload_doc: 1, bom_export: 1 },
-  engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, kb_view: 1, bom_view: 1, bom_manage: 1, bom_export: 1 },
-  produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, service_view: 1, kb_view: 1 },
-  logistik: { po_view: 1, po_logistik: 1 },
+  engineering: { pp_view: 1, pp_upload_result: 1, po_view: 1, po_engineering: 1, pk_procurement_view: 1, kb_view: 1, bom_view: 1, bom_manage: 1, bom_export: 1 },
+  produksi: { po_view: 1, po_produksi: 1, po_qc: 1, po_instalasi: 1, po_commissioning: 1, pk_procurement_view: 1, service_view: 1, kb_view: 1 },
+  logistik: { po_view: 1, po_logistik: 1, pk_procurement_view: 1, pk_procurement_manage: 1 },
   teknisi: { teknisi: 1,  service_view: 1, service_manage: 1, po_instalasi: 1, po_commissioning: 1, kb_view: 1 },
-  direktur: { direktur: 1, nilai_po: 1, pp_view: 1, po_view: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, service_view: 1, kb_view: 1, assign: 1, statistik: 1, laporan_view: 1, laporan_export: 1, bom_view: 1, bom_export: 1 }
+  direktur: { direktur: 1, nilai_po: 1, pp_view: 1, po_view: 1, po_engineering: 1, po_produksi: 1, po_qc: 1, po_logistik: 1, po_instalasi: 1, po_commissioning: 1, po_pk: 1, pk_procurement_view: 1, pk_procurement_manage: 1, service_view: 1, kb_view: 1, assign: 1, statistik: 1, laporan_view: 1, laporan_export: 1, bom_view: 1, bom_export: 1 }
 };
 
 function getPerms() {
@@ -585,6 +626,7 @@ function getPerms() {
   const MODULE_PERM = {
     pp:       ['pp_view','pp_upload_result'],
     po:       ['po_view'],
+    pengadaan:['pk_procurement_view','pk_procurement_manage'],
     ets:      ['po_engineering'],
     produksi: ['po_produksi','po_qc','po_instalasi','po_commissioning'],
     logistik: ['po_logistik'],
@@ -703,6 +745,7 @@ function buildSidebar() {
   nav += '<div class="sb-divider"></div><div class="sb-label">Modul</div>';
   if (can('pp_view')) nav += navItem('pp', ppIcon(), 'Pre-Project', 'nbPP');
   if (can('po_view')) nav += navItem('po', poIcon(), 'Kelola PO', 'nbPO');
+  if (can('pk_procurement_view')) nav += navItem('pkproc', pkProcIcon(), 'Pengadaan PK', 'nbPKPROC');
   if (can('po_engineering')) nav += navItem('ets', etsIcon(), 'ETS', 'nbETS');
   if (can('statistik') || can('po_manage')) nav += navItem('statistik', statIcon(), 'Dashboard Statistik', '');
   if (can('assign') || can('po_manage')) nav += navItem('assign', assignIcon(), 'Assign', 'nbASSIGN');
@@ -740,6 +783,7 @@ function statIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="rou
 function homeIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>'; }
 function etsIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>'; }
 function prodIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.121 2.121 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'; }
+function pkProcIcon() { return '<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4-9 4-9-4zm0 0v10l9 4 9-4V7M7 9v8m10-8v8M9 14h6"/></svg>'; }
 
 function ppIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`; }
 function poIcon() { return `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`; }
@@ -759,6 +803,7 @@ function switchModule(mod) {
   if (mod === 'home') renderHomeModule();
   else if (mod === 'pp') renderPPModule();
   else if (mod === 'po') renderPOModule();
+  else if (mod === 'pkproc') renderPKProcurementModule();
   else if (mod === 'ets') renderETSModule();
   else if (mod === 'statistik') renderStatistikModule();
   else if (mod === 'assign') renderAssignModule();
@@ -1630,6 +1675,415 @@ const PO_STATUS_ORDER = ['Terima PO', 'Engineering', 'Produksi', 'QC', 'FAT', 'P
 
 
 
+
+
+// ═══════════════════════════════════════════════════════════
+// KONTROL PENGADAAN PK
+// Status fisik barang dipisahkan dari status keuangan PK.
+// ═══════════════════════════════════════════════════════════
+const PK_PROC_STATUSES = ['Belum Dibeli','Dipesan','Dibayar','Dikirim','Sampai','Diserahkan'];
+const PK_PROC_COLORS = {
+  'Belum Dibeli': {bg:'#F3F4F6', color:'#4B5563'},
+  'Dipesan': {bg:'#EFF6FF', color:'#1D4ED8'},
+  'Dibayar': {bg:'#F5F3FF', color:'#6D28D9'},
+  'Dikirim': {bg:'#FFF7ED', color:'#C2410C'},
+  'Sampai': {bg:'#ECFDF5', color:'#047857'},
+  'Diserahkan': {bg:'#DCFCE7', color:'#15803D'}
+};
+let pkProcModuleState = { pks:[], procurement:[], handovers:[], search:'', filter:'' };
+let _pkProcCurrent = null;
+
+function pkProcBadge(status) {
+  const s = PK_PROC_STATUSES.includes(status) ? status : 'Belum Dibeli';
+  const c = PK_PROC_COLORS[s];
+  return `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${c.bg};color:${c.color}"><span style="width:5px;height:5px;border-radius:50%;background:${c.color}"></span>${s}</span>`;
+}
+
+function pkProcSummary(items, records) {
+  const recMap = {};
+  (records || []).forEach(r => { recMap[String(r.pk_item_id)] = r; });
+  const counts = Object.fromEntries(PK_PROC_STATUSES.map(s => [s,0]));
+  let score = 0;
+  (items || []).forEach(it => {
+    const s = recMap[String(it.id)]?.status || 'Belum Dibeli';
+    const idx = Math.max(0, PK_PROC_STATUSES.indexOf(s));
+    counts[s] = (counts[s] || 0) + 1;
+    score += idx;
+  });
+  const total = (items || []).length;
+  const progress = total ? Math.round((score / (total * (PK_PROC_STATUSES.length - 1))) * 100) : 0;
+  let overall = 'Belum Dibeli';
+  if (total && counts['Diserahkan'] === total) overall = 'Diserahkan';
+  else if (total && counts['Sampai'] + counts['Diserahkan'] === total) overall = 'Sampai';
+  else if (counts['Dikirim'] || counts['Sampai'] || counts['Diserahkan']) overall = 'Dikirim';
+  else if (counts['Dibayar']) overall = 'Dibayar';
+  else if (counts['Dipesan']) overall = 'Dipesan';
+  return { counts, total, progress, overall };
+}
+
+function pkProcTimeline(status) {
+  const idx = Math.max(0, PK_PROC_STATUSES.indexOf(status || 'Belum Dibeli'));
+  return `<div class="pk-proc-timeline">${PK_PROC_STATUSES.map((s,i) => {
+    const cls = i < idx ? 'done' : i === idx ? 'active' : '';
+    return `${i ? '<div class="pk-proc-line"></div>' : ''}<div class="pk-proc-node ${cls}"><span class="dot">${i < idx ? '✓' : i+1}</span><span class="lbl">${s}</span></div>`;
+  }).join('')}</div>`;
+}
+
+async function renderPKProcurementModule() {
+  if (!can('pk_procurement_view')) { toast('Tidak punya akses Pengadaan PK'); return; }
+  document.getElementById('mainContent').innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <div><div class="page-title">Kontrol Pengadaan PK</div><div class="page-sub">Pesan, bayar, kirim, penerimaan dan serah terima barang PK</div></div>
+      </div>
+      <div class="topbar-right"><button class="btn btn-sm" onclick="renderPKProcurementModule()">↻ Refresh</button></div>
+    </div>
+    <div class="page-body" id="pkProcBody">${loading()}</div>`;
+
+  const [pkRes, procRes, handRes] = await Promise.all([
+    sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}),
+    sb.from('po_pk_procurement').select('*').order('updated_at',{ascending:false}),
+    sb.from('po_pk_handovers').select('*').order('handover_date',{ascending:false})
+  ]);
+  pkProcModuleState.pks = pkRes.data || [];
+  pkProcModuleState.procurement = procRes.data || [];
+  pkProcModuleState.handovers = handRes.data || [];
+  pkProcModuleState.schemaError = procRes.error || handRes.error || null;
+  renderPKProcurementBody();
+}
+
+function renderPKProcurementBody() {
+  const body = document.getElementById('pkProcBody');
+  if (!body) return;
+  if (pkProcModuleState.schemaError) {
+    body.innerHTML = `<div style="background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);padding:1rem;border-radius:var(--r);font-size:13px;line-height:1.6"><strong>Tabel kontrol pengadaan belum tersedia.</strong><br>Jalankan file SQL migrasi yang disertakan, lalu refresh halaman.</div>`;
+    return;
+  }
+
+  const procByPk = {};
+  const handByPk = {};
+  pkProcModuleState.procurement.forEach(r => { (procByPk[r.pk_id] = procByPk[r.pk_id] || []).push(r); });
+  pkProcModuleState.handovers.forEach(r => { (handByPk[r.pk_id] = handByPk[r.pk_id] || []).push(r); });
+
+  let rows = pkProcModuleState.pks.map(pk => {
+    pk._procurement = procByPk[pk.id] || [];
+    pk._handovers = handByPk[pk.id] || [];
+    pk._summary = pkProcSummary(pk.po_pk_items || [], pk._procurement);
+    return pk;
+  });
+
+  const q = (pkProcModuleState.search || '').toLowerCase();
+  rows = rows.filter(pk => {
+    const po = pk.purchase_orders || {};
+    const hay = [pk.id,pk.no_pk,pk.keperluan,po.no_po,po.no_project,po.customer_name,po.project_name].join(' ').toLowerCase();
+    return (!q || hay.includes(q)) && (!pkProcModuleState.filter || pk._summary.overall === pkProcModuleState.filter);
+  });
+
+  const allItems = pkProcModuleState.pks.flatMap(pk => (pk.po_pk_items || []).map(it => {
+    const rec = (procByPk[pk.id] || []).find(r => String(r.pk_item_id) === String(it.id));
+    return rec?.status || 'Belum Dibeli';
+  }));
+  const countStatus = s => allItems.filter(x => x === s).length;
+  const totalItems = allItems.length;
+  const inProcess = ['Dipesan','Dibayar','Dikirim'].reduce((n,s)=>n+countStatus(s),0);
+
+  body.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Item PK</div><div class="stat-val">${totalItems}</div></div>
+      <div class="stat-card"><div class="stat-label">Belum Dibeli</div><div class="stat-val red">${countStatus('Belum Dibeli')}</div></div>
+      <div class="stat-card"><div class="stat-label">Dalam Proses</div><div class="stat-val amber">${inProcess}</div></div>
+      <div class="stat-card"><div class="stat-label">Sudah Diserahkan</div><div class="stat-val green">${countStatus('Diserahkan')}</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" value="${escapeHtml(pkProcModuleState.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;renderPKProcurementBody()"></div>
+      <select onchange="pkProcModuleState.filter=this.value;renderPKProcurementBody()" style="max-width:190px"><option value="">Semua Status</option>${PK_PROC_STATUSES.map(s=>`<option ${pkProcModuleState.filter===s?'selected':''}>${s}</option>`).join('')}</select>
+    </div>
+    <div class="table-card"><div class="table-wrap"><table style="min-width:900px">
+      <thead><tr><th style="min-width:110px">PK / PO</th><th>Customer & Project</th><th style="min-width:140px">Status Pengadaan</th><th style="min-width:190px">Progress</th><th style="min-width:100px">Serah Terima</th><th style="width:90px"></th></tr></thead>
+      <tbody>${rows.length ? rows.map(pk => {
+        const po = pk.purchase_orders || {};
+        const s = pk._summary;
+        return `<tr onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')" style="cursor:pointer">
+          <td><div class="mono" style="font-weight:600;color:var(--blue)">${pk.no_pk || pk.id}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${po.no_project || po.no_po || '—'}</div></td>
+          <td><div style="font-weight:600">${escapeHtml(po.customer_name || '—')}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(po.project_name || pk.keperluan || '—')}</div></td>
+          <td>${pkProcBadge(s.overall)}<div style="font-size:10px;color:var(--text3);margin-top:4px">${s.total} item</div></td>
+          <td><div class="pk-proc-progress"><span style="width:${s.progress}%"></span></div><div style="font-size:11px;color:var(--text3);margin-top:4px">${s.progress}% · ${s.counts['Diserahkan']||0}/${s.total} diserahkan</div></td>
+          <td><div style="font-weight:600">${(pk._handovers||[]).length}</div><div style="font-size:10px;color:var(--text3)">dokumen</div></td>
+          <td><button class="btn btn-sm btn-coral" onclick="event.stopPropagation();openPKProcurementDetail('${pk.id}','${pk.po_id}')">Buka</button></td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:var(--text3)">Tidak ada PK yang cocok</td></tr>`}</tbody>
+    </table></div></div>`;
+}
+
+async function openPKProcurementDetail(pkId, poId) {
+  if (!can('pk_procurement_view')) return;
+  const [pkRes, procRes, handRes] = await Promise.all([
+    sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').eq('id',pkId).single(),
+    sb.from('po_pk_procurement').select('*').eq('pk_id',pkId).order('updated_at',{ascending:false}),
+    sb.from('po_pk_handovers').select('*').eq('pk_id',pkId).order('handover_date',{ascending:false})
+  ]);
+  if (procRes.error || handRes.error) { toast('Tabel kontrol pengadaan belum tersedia. Jalankan SQL migrasi.'); return; }
+  const pk = pkRes.data;
+  if (!pk) { toast('PK tidak ditemukan'); return; }
+  const proc = procRes.data || [];
+  const handovers = handRes.data || [];
+  const recMap = {};
+  proc.forEach(r => { recMap[String(r.pk_item_id)] = r; });
+  _pkProcCurrent = {pk, poId:poId || pk.po_id, procurement:proc, handovers, recMap};
+  const summary = pkProcSummary(pk.po_pk_items || [], proc);
+  const canManage = can('pk_procurement_manage');
+  const items = (pk.po_pk_items || []).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+
+  const itemRows = items.map(it => {
+    const r = recMap[String(it.id)] || {};
+    const status = r.status || 'Belum Dibeli';
+    const dateInfo = [r.ordered_at&&'Pesan '+fmtDate(r.ordered_at),r.paid_at&&'Bayar '+fmtDate(r.paid_at),r.shipped_at&&'Kirim '+fmtDate(r.shipped_at),r.arrived_at&&'Sampai '+fmtDate(r.arrived_at),r.handed_over_at&&'Serah '+fmtDate(r.handed_over_at)].filter(Boolean).join(' · ');
+    return `<tr>
+      <td class="mono" style="font-size:11px">${escapeHtml(it.part_number||'—')}</td>
+      <td><div style="font-weight:600">${escapeHtml(it.component_name||'—')}</div><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')}</div></td>
+      <td>${pkProcBadge(status)}</td>
+      <td><div style="font-size:12px">${escapeHtml(r.supplier||'—')}</div><div style="font-size:10px;color:var(--text3)">${escapeHtml(r.order_reference||r.tracking_number||'')}</div></td>
+      <td><div style="font-size:12px">${r.qty_ordered||0} / ${r.qty_received||0}</div><div style="font-size:10px;color:var(--text3)">order / terima</div></td>
+      <td style="font-size:10px;color:var(--text3);white-space:normal;min-width:180px">${dateInfo||'Belum ada tanggal proses'}</td>
+      <td>${canManage?`<button class="btn btn-sm" onclick="openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')">Update</button>`:''}</td>
+    </tr>`;
+  }).join('');
+
+  const handoverHtml = handovers.length ? handovers.map(h => `
+    <div style="border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div><div style="font-weight:700">${escapeHtml(h.handover_no||h.id)}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${fmtDate(h.handover_date)} · diterima ${escapeHtml(h.received_by||'—')} · ${(Array.isArray(h.items)?h.items:[]).length} item</div></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-sm" onclick="printPKHandover('${h.id}')">🖨 Cetak</button>
+          ${h.document_path?`<button class="btn btn-sm" onclick="openDoc('${fileUrl('po-docs',h.document_path)}','${escapeHtml(h.document_name||'Dokumen Serah Terima')}')">📄 Dokumen</button>`:''}
+          ${canManage?`<button class="btn btn-sm" onclick="document.getElementById('pkHoUp_${h.id}').click()">📎 Upload Signed</button><input type="file" id="pkHoUp_${h.id}" accept="application/pdf,image/*" style="display:none" onchange="uploadPKHandoverDocument('${h.id}','${pk.id}','${_pkProcCurrent.poId}',this)">`:''}
+        </div>
+      </div>
+    </div>`).join('') : `<div style="font-size:12px;color:var(--text3);padding:8px 0">Belum ada serah terima barang</div>`;
+
+  openModal(`<div class="modal pk-proc-detail-modal" style="max-width:1120px;width:min(96vw,1120px)">
+    <div class="modal-header"><div><h2>Kontrol Pengadaan — ${pk.no_pk||pk.id}</h2><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(pk.purchase_orders?.customer_name||'')} · ${escapeHtml(pk.purchase_orders?.project_name||pk.keperluan||'')}</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">✕</button></div>
+    <div class="modal-body">
+      <div class="pk-proc-summary-grid">
+        ${PK_PROC_STATUSES.map(s=>`<div class="pk-proc-mini"><div class="lbl">${s}</div><div class="val">${summary.counts[s]||0}</div></div>`).join('')}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px"><div class="pk-proc-progress" style="flex:1;height:9px"><span style="width:${summary.progress}%"></span></div><strong>${summary.progress}%</strong></div>
+      <div class="table-card"><div class="table-wrap pk-proc-items-scroll" tabindex="0" aria-label="Daftar barang pengadaan, gunakan scroll untuk melihat seluruh item"><table><thead><tr><th>Part No.</th><th>Barang</th><th>Status</th><th>Supplier / Referensi</th><th>Qty</th><th>Tanggal Proses</th><th></th></tr></thead><tbody>${itemRows||`<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)">PK belum memiliki item</td></tr>`}</tbody></table></div></div>
+      <div class="detail-section" style="margin:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><div class="sect-title" style="margin:0">Serah Terima Barang (${handovers.length})</div>${canManage&&items.length?`<button class="btn btn-sm btn-primary" onclick="openPKHandoverForm('${pk.id}','${_pkProcCurrent.poId}')">+ Buat Serah Terima</button>`:''}</div>
+        ${handoverHtml}
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Tutup</button></div>
+  </div>`);
+  requestAnimationFrame(enablePKProcurementItemScroll);
+}
+
+function enablePKProcurementItemScroll() {
+  const el = document.querySelector('.pk-proc-items-scroll');
+  if (!el || el.dataset.scrollReady === '1') return;
+  el.dataset.scrollReady = '1';
+  el.addEventListener('wheel', function(ev) {
+    const canScrollY = this.scrollHeight > this.clientHeight;
+    if (!canScrollY || Math.abs(ev.deltaY) < Math.abs(ev.deltaX)) return;
+    const atTop = this.scrollTop <= 0;
+    const atBottom = Math.ceil(this.scrollTop + this.clientHeight) >= this.scrollHeight;
+    if ((ev.deltaY < 0 && atTop) || (ev.deltaY > 0 && atBottom)) return;
+    this.scrollTop += ev.deltaY;
+    ev.preventDefault();
+    ev.stopPropagation();
+  }, { passive:false });
+}
+
+function pkProcStatusAutofill(status) {
+  const idx = PK_PROC_STATUSES.indexOf(status);
+  const map = [null,'pkProcOrdered','pkProcPaid','pkProcShipped','pkProcArrived','pkProcHanded'];
+  for (let i=1;i<=idx;i++) {
+    const el = document.getElementById(map[i]);
+    if (el && !el.value) el.value = today();
+  }
+}
+
+function openPKProcurementItemForm(pkId, poId, itemId) {
+  const state = _pkProcCurrent;
+  if (!state || state.pk.id !== pkId) return;
+  const item = (state.pk.po_pk_items||[]).find(it => String(it.id) === String(itemId));
+  if (!item) return;
+  const r = state.recMap[String(itemId)] || {};
+  const status = r.status || 'Belum Dibeli';
+  openModal(`<div class="modal" style="max-width:720px">
+    <div class="modal-header"><div><h2>Update Pengadaan Barang</h2><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(item.component_name||'')} · ${item.qty_pk||0} ${escapeHtml(item.unit||'pcs')}</div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('pkProcItemModal')">✕</button></div>
+    <div class="modal-body">
+      ${pkProcTimeline(status)}
+      <div class="form-grid">
+        <div class="form-row"><label>Status <span class="req">*</span></label><select id="pkProcStatus" onchange="pkProcStatusAutofill(this.value)">${PK_PROC_STATUSES.map(s=>`<option ${status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="form-row"><label>Supplier / Vendor</label><input type="text" id="pkProcSupplier" value="${escapeHtml(r.supplier||'')}"></div>
+        <div class="form-row"><label>No. Order / Invoice</label><input type="text" id="pkProcOrderRef" value="${escapeHtml(r.order_reference||'')}"></div>
+        <div class="form-row"><label>No. Resi / Tracking</label><input type="text" id="pkProcTracking" value="${escapeHtml(r.tracking_number||'')}"></div>
+        <div class="form-row"><label>Qty Dipesan</label><input type="number" step="0.01" min="0" id="pkProcQtyOrdered" value="${r.qty_ordered ?? item.qty_pk ?? 0}"></div>
+        <div class="form-row"><label>Qty Diterima</label><input type="number" step="0.01" min="0" id="pkProcQtyReceived" value="${r.qty_received ?? 0}"></div>
+      </div>
+      <div class="form-section" style="margin-top:.25rem"><div class="form-section-title">Tanggal Tahapan</div><div class="form-grid">
+        <div class="form-row"><label>Dipesan</label><input type="date" id="pkProcOrdered" value="${r.ordered_at||''}"></div>
+        <div class="form-row"><label>Dibayar</label><input type="date" id="pkProcPaid" value="${r.paid_at||''}"></div>
+        <div class="form-row"><label>Dikirim</label><input type="date" id="pkProcShipped" value="${r.shipped_at||''}"></div>
+        <div class="form-row"><label>Sampai</label><input type="date" id="pkProcArrived" value="${r.arrived_at||''}"></div>
+        <div class="form-row"><label>Diserahkan</label><input type="date" id="pkProcHanded" value="${r.handed_over_at||''}"></div>
+      </div></div>
+      <div class="form-row"><label>Catatan</label><textarea id="pkProcNote">${escapeHtml(r.note||'')}</textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('pkProcItemModal')">Batal</button><button class="btn btn-primary" onclick="savePKProcurementItem('${pkId}','${poId}','${itemId}')">Simpan</button></div>
+  </div>`, 'pkProcItemModal', true);
+}
+
+async function savePKProcurementItem(pkId, poId, itemId) {
+  const state = _pkProcCurrent;
+  const item = (state?.pk?.po_pk_items||[]).find(it => String(it.id) === String(itemId));
+  if (!item) return;
+  const status = gv('pkProcStatus');
+  const payload = {
+    pk_id: pkId,
+    pk_item_id: String(itemId),
+    status,
+    supplier: gv('pkProcSupplier').trim() || null,
+    order_reference: gv('pkProcOrderRef').trim() || null,
+    tracking_number: gv('pkProcTracking').trim() || null,
+    qty_ordered: parseFloat(gv('pkProcQtyOrdered')) || 0,
+    qty_received: parseFloat(gv('pkProcQtyReceived')) || 0,
+    ordered_at: gv('pkProcOrdered') || null,
+    paid_at: gv('pkProcPaid') || null,
+    shipped_at: gv('pkProcShipped') || null,
+    arrived_at: gv('pkProcArrived') || null,
+    handed_over_at: gv('pkProcHanded') || null,
+    note: gv('pkProcNote').trim() || null,
+    updated_by: String(currentUser.id),
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await sb.from('po_pk_procurement').upsert(payload,{onConflict:'pk_id,pk_item_id'});
+  if (error) { toast('Gagal menyimpan: '+error.message); return; }
+  await logPO(poId, 'Pengadaan PK', `${item.component_name||item.part_number||itemId} → ${status}`);
+  toast('Status pengadaan diperbarui');
+  closeAllModals();
+  await loadPOs();
+  if (currentModule === 'pkproc') await renderPKProcurementModule();
+  await openPKProcurementDetail(pkId, poId);
+}
+
+function openPKHandoverForm(pkId, poId) {
+  const state = _pkProcCurrent;
+  if (!state || state.pk.id !== pkId) return;
+  const items = (state.pk.po_pk_items||[]).filter(it => (state.recMap[String(it.id)]?.status || 'Belum Dibeli') !== 'Diserahkan');
+  if (!items.length) { toast('Semua item sudah diserahkan'); return; }
+  const no = `BAST-PK-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+  const rows = items.map(it => {
+    const r = state.recMap[String(it.id)] || {};
+    const arrived = PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli') >= PK_PROC_STATUSES.indexOf('Sampai');
+    return `<label style="display:grid;grid-template-columns:28px 1fr 110px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" class="pkHoItem" data-item-id="${it.id}" ${arrived?'checked':''}>
+      <span><strong>${escapeHtml(it.component_name||'—')}</strong><span style="display:block;font-size:10px;color:var(--text3)">${escapeHtml(it.part_number||'')} · status ${r.status||'Belum Dibeli'}</span></span>
+      <input type="number" class="pkHoQty" data-item-id="${it.id}" min="0" step="0.01" value="${r.qty_received||it.qty_pk||0}" onclick="event.stopPropagation()">
+    </label>`;
+  }).join('');
+  openModal(`<div class="modal" style="max-width:760px">
+    <div class="modal-header"><h2>Buat Serah Terima Barang</h2><button class="btn btn-ghost btn-sm" onclick="closeModal('pkHandoverForm')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid"><div class="form-row"><label>No. Serah Terima <span class="req">*</span></label><input type="text" id="pkHoNo" value="${no}"></div><div class="form-row"><label>Tanggal <span class="req">*</span></label><input type="date" id="pkHoDate" value="${today()}"></div></div>
+      <div class="form-grid"><div class="form-row"><label>Diserahkan Oleh</label><input type="text" id="pkHoBy" value="${escapeHtml(currentUser.full_name||'')}"></div><div class="form-row"><label>Diterima Oleh <span class="req">*</span></label><input type="text" id="pkHoReceivedBy" placeholder="Nama penerima"></div></div>
+      <div class="form-row"><label>Lokasi / Bagian</label><input type="text" id="pkHoLocation" placeholder="Gudang, Produksi, Site, dll"></div>
+      <div class="form-row"><label>Barang yang Diserahkan</label><div style="border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden">${rows}</div></div>
+      <div class="form-row"><label>Catatan</label><textarea id="pkHoNotes"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('pkHandoverForm')">Batal</button><button class="btn btn-primary" onclick="savePKHandover('${pkId}','${poId}')">Simpan & Tandai Diserahkan</button></div>
+  </div>`, 'pkHandoverForm', true);
+}
+
+async function savePKHandover(pkId, poId) {
+  const no = gv('pkHoNo').trim(), date = gv('pkHoDate'), receivedBy = gv('pkHoReceivedBy').trim();
+  if (!no || !date || !receivedBy) { toast('Lengkapi No., tanggal dan penerima'); return; }
+  const state = _pkProcCurrent;
+  const chosen = [];
+  document.querySelectorAll('.pkHoItem:checked').forEach(cb => {
+    const itemId = cb.dataset.itemId;
+    const it = (state.pk.po_pk_items||[]).find(x => String(x.id) === String(itemId));
+    const qtyEl = document.querySelector(`.pkHoQty[data-item-id="${itemId}"]`);
+    if (it) chosen.push({
+      pk_item_id: String(itemId),
+      part_number: it.part_number || null,
+      component_name: it.component_name || '',
+      qty: parseFloat(qtyEl?.value)||0,
+      unit: it.unit || 'pcs'
+    });
+  });
+  if (!chosen.length) { toast('Pilih minimal satu barang'); return; }
+  const id = genId('BASTPK');
+  const payload = {
+    id, pk_id:pkId, po_id:poId, handover_no:no, handover_date:date,
+    handed_by:gv('pkHoBy').trim()||null, received_by:receivedBy,
+    location:gv('pkHoLocation').trim()||null, notes:gv('pkHoNotes').trim()||null,
+    items:chosen, created_by:String(currentUser.id)
+  };
+  const { error } = await sb.from('po_pk_handovers').insert(payload);
+  if (error) { toast('Gagal simpan serah terima: '+error.message); return; }
+
+  const updates = chosen.map(ch => {
+    const old = state.recMap[String(ch.pk_item_id)] || {};
+    return {
+      pk_id:pkId, pk_item_id:String(ch.pk_item_id), status:'Diserahkan',
+      supplier:old.supplier||null, order_reference:old.order_reference||null, tracking_number:old.tracking_number||null,
+      qty_ordered:old.qty_ordered||ch.qty, qty_received:Math.max(parseFloat(old.qty_received)||0,ch.qty),
+      ordered_at:old.ordered_at||null, paid_at:old.paid_at||null, shipped_at:old.shipped_at||null,
+      arrived_at:old.arrived_at||date, handed_over_at:date, note:old.note||null,
+      updated_by:String(currentUser.id), updated_at:new Date().toISOString()
+    };
+  });
+  const upRes = await sb.from('po_pk_procurement').upsert(updates,{onConflict:'pk_id,pk_item_id'});
+  if (upRes.error) toast('Serah terima tersimpan, tetapi status item gagal diperbarui: '+upRes.error.message);
+  await logPO(poId, 'Serah Terima PK', `${no} — ${chosen.length} item diterima ${receivedBy}`);
+  toast('Serah terima barang tersimpan');
+  closeAllModals();
+  await loadPOs();
+  if (currentModule === 'pkproc') await renderPKProcurementModule();
+  await openPKProcurementDetail(pkId, poId);
+}
+
+async function uploadPKHandoverDocument(handoverId, pkId, poId, input) {
+  const f = input.files?.[0];
+  if (!f) return;
+  const path = `${poId}/pk-handover/${handoverId}/${Date.now()}_${f.name}`;
+  const up = await sb.storage.from('po-docs').upload(path,f);
+  if (up.error) { toast('Upload gagal: '+up.error.message); return; }
+  const { error } = await sb.from('po_pk_handovers').update({document_name:f.name,document_path:path,document_size:f.size,updated_at:new Date().toISOString()}).eq('id',handoverId);
+  if (error) { toast('File terupload, tetapi data dokumen gagal disimpan: '+error.message); return; }
+  await logPO(poId,'Dokumen Serah Terima PK',`${handoverId} — ${f.name}`);
+  toast('Dokumen serah terima diupload');
+  closeAllModals();
+  await openPKProcurementDetail(pkId,poId);
+}
+
+async function printPKHandover(handoverId) {
+  const {data:h} = await sb.from('po_pk_handovers').select('*').eq('id',handoverId).single();
+  if (!h) { toast('Serah terima tidak ditemukan'); return; }
+  const [{data:pk},{data:po}] = await Promise.all([
+    sb.from('po_pk').select('*').eq('id',h.pk_id).single(),
+    sb.from('purchase_orders').select('no_po,no_project,customer_name,project_name').eq('id',h.po_id).single()
+  ]);
+  const items = Array.isArray(h.items) ? h.items : [];
+  const rows = items.map((it,i)=>`<tr><td style="text-align:center">${i+1}</td><td>${escapeHtml(it.part_number||'—')}</td><td>${escapeHtml(it.component_name||'')}</td><td style="text-align:right">${it.qty||0}</td><td style="text-align:center">${escapeHtml(it.unit||'pcs')}</td><td></td></tr>`).join('');
+  const w = window.open('','_blank','width=900,height=1000');
+  if (!w) { toast('Pop-up diblokir browser'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(h.handover_no||h.id)}</title><style>
+    @page{size:A4;margin:16mm 14mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;font-size:11px;margin:0}h1{text-align:center;font-size:18px;margin:0 0 4px}.sub{text-align:center;color:#555;margin-bottom:16px}.meta{display:grid;grid-template-columns:120px 1fr 120px 1fr;gap:5px 10px;margin-bottom:14px}.k{color:#666}table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #777;padding:6px;vertical-align:top}th{background:#e5e7eb;text-align:center;font-size:10px}.note{border:1px solid #999;padding:8px;margin-top:10px;min-height:50px}.sign{display:grid;grid-template-columns:1fr 1fr;gap:100px;margin-top:34px;text-align:center}.line{border-top:1px solid #111;margin-top:60px;padding-top:4px}.no-print{padding:10px;text-align:center;background:#fef3c7;margin-bottom:12px}@media print{.no-print{display:none}}
+  </style></head><body><div class="no-print"><button onclick="window.print()">Print / Save PDF</button> <button onclick="window.close()">Tutup</button></div>
+  <h1>BERITA ACARA SERAH TERIMA BARANG</h1><div class="sub">Pengadaan Permohonan Keuangan (PK)</div>
+  <div class="meta"><span class="k">No. Serah Terima</span><strong>${escapeHtml(h.handover_no||h.id)}</strong><span class="k">Tanggal</span><span>${fmtDate(h.handover_date)}</span><span class="k">No. PK</span><span>${escapeHtml(pk?.no_pk||pk?.id||h.pk_id)}</span><span class="k">No. Project</span><span>${escapeHtml(po?.no_project||po?.no_po||'—')}</span><span class="k">Customer</span><span>${escapeHtml(po?.customer_name||'—')}</span><span class="k">Project</span><span>${escapeHtml(po?.project_name||pk?.keperluan||'—')}</span><span class="k">Lokasi / Bagian</span><span>${escapeHtml(h.location||'—')}</span></div>
+  <p>Telah dilakukan serah terima barang pengadaan dengan rincian sebagai berikut:</p>
+  <table><thead><tr><th style="width:35px">No</th><th style="width:100px">Part No.</th><th>Nama Barang</th><th style="width:65px">Qty</th><th style="width:55px">Unit</th><th style="width:110px">Kondisi / Paraf</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="note"><strong>Catatan:</strong><br>${escapeHtml(h.notes||'')}</div>
+  <div class="sign"><div>Yang Menyerahkan<div class="line">${escapeHtml(h.handed_by||'')}</div></div><div>Yang Menerima<div class="line">${escapeHtml(h.received_by||'')}</div></div></div>
+  </body></html>`);
+  w.document.close();
+}
 
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD STATISTIK - Direktur/Owner/Admin
@@ -4195,13 +4649,25 @@ async function renderPOModule() {
 }
 
 async function loadPOs() {
-  const [{ data: pos }, { data: boms }] = await Promise.all([
+  const [{ data: pos }, { data: boms }, { data: procurement }, { data: handovers }] = await Promise.all([
     sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*,po_pk_items(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
-    sb.from('bom_lists').select('id,po_id,po_item_id,status,title,unit_qty,total_price').not('po_id','is',null)
+    sb.from('bom_lists').select('id,po_id,po_item_id,status,title,unit_qty,total_price').not('po_id','is',null),
+    sb.from('po_pk_procurement').select('*'),
+    sb.from('po_pk_handovers').select('*')
   ]);
   const bomByPo = {};
+  const procByPk = {};
+  const handoverByPk = {};
   (boms || []).forEach(b => { (bomByPo[b.po_id] = bomByPo[b.po_id] || []).push(b); });
-  (pos || []).forEach(p => { p._boms = bomByPo[p.id] || []; });
+  (procurement || []).forEach(r => { (procByPk[r.pk_id] = procByPk[r.pk_id] || []).push(r); });
+  (handovers || []).forEach(r => { (handoverByPk[r.pk_id] = handoverByPk[r.pk_id] || []).push(r); });
+  (pos || []).forEach(p => {
+    p._boms = bomByPo[p.id] || [];
+    (p.po_pk || []).forEach(k => {
+      k._procurement = procByPk[k.id] || [];
+      k._handovers = handoverByPk[k.id] || [];
+    });
+  });
   allPOs = pos || [];
   renderPOStats();
   renderPOTable();
@@ -4247,6 +4713,19 @@ function updateNavBadges() {
   });
   const nbASSIGN = document.getElementById('nbASSIGN');
   if (nbASSIGN) nbASSIGN.textContent = assignCount;
+
+  // ── nbPKPROC: PK dengan item yang belum seluruhnya diserahkan ──
+  let pkProcCount = 0;
+  (allPOs || []).forEach(p => {
+    (p.po_pk || []).forEach(k => {
+      const items = k.po_pk_items || [];
+      if (!items.length) return;
+      const summary = pkProcSummary(items, k._procurement || []);
+      if (summary.progress < 100) pkProcCount++;
+    });
+  });
+  const nbPKPROC = document.getElementById('nbPKPROC');
+  if (nbPKPROC) nbPKPROC.textContent = pkProcCount;
 
   // ── nbHome: jumlah total tugas pending untuk saya (sum semua card) ──
   const nbHome = document.getElementById('nbHome');
@@ -4898,15 +5377,18 @@ async function openPODetail(id) {
   const totalPK = pks.reduce((s, k) => s + (k.nilai_pengajuan || 0), 0);
   const pksHtml = pks.length ? pks.map(k => {
     const nItems = (k.po_pk_items||[]).length;
+    const proc = pkProcSummary(k.po_pk_items||[], k._procurement||[]);
     return `
     <div class="pk-card">
       <div class="pk-header"><div style="font-size:13px;font-weight:600">${k.keperluan}</div><span style="font-size:11px;font-weight:600;background:var(--surface2);padding:2px 8px;border-radius:20px">${k.status}</span></div>
       <div style="font-size:12px;color:var(--text2)">Pengajuan: <strong>${fmtRp(k.nilai_pengajuan)}</strong>${k.nilai_realisasi ? ' &middot; Realisasi: ' + fmtRp(k.nilai_realisasi) : ''} &middot; ${fmtDate(k.tgl_pengajuan)} &middot; <span style="color:var(--text3)">${nItems} item</span></div>
-      ${can('po_pk') ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="openPKItemsModal('${k.id}','${p.id}')">📋 Item &amp; Cetak PDF</button>
+      ${can('pk_procurement_view') && nItems ? `<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><div class="pk-proc-progress" style="flex:1"><span style="width:${proc.progress}%"></span></div><span style="font-size:11px;color:var(--text3);white-space:nowrap">${proc.progress}% · ${proc.counts['Diserahkan']||0}/${nItems} diserahkan</span></div>` : ''}
+      ${(can('po_pk') || can('pk_procurement_view')) ? `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        ${can('pk_procurement_view') ? `<button class="btn btn-sm btn-coral" onclick="openPKProcurementDetail('${k.id}','${p.id}')">📦 Kontrol Pengadaan</button>` : ''}
+        ${can('po_pk') ? `<button class="btn btn-sm" onclick="openPKItemsModal('${k.id}','${p.id}')">📋 Item &amp; Cetak PDF</button>
         <button class="btn btn-sm" onclick="openPKStatusModal('${k.id}','${p.id}')">Update Status</button>
         <button class="btn btn-sm" onclick="openPOPKForm('${p.id}','${k.id}')">Edit Header</button>
-        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red-border)" onclick="deletePK('${k.id}','${p.id}')">🗑 Hapus</button>
+        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red-border)" onclick="deletePK('${k.id}','${p.id}')">🗑 Hapus</button>` : ''}
       </div>` : ''}
     </div>`;
   }).join('') + `<div style="font-size:12px;color:var(--text3);margin-top:4px">Total pengajuan: <strong style="color:var(--text)">${fmtRp(totalPK)}</strong></div>` : noData('Belum ada PK');
@@ -7857,6 +8339,7 @@ async function doResetPw(userId) {
 const MODULE_LIST = [
   {key:'pp', label:'Pre-Project'},
   {key:'po', label:'Kelola PO'},
+  {key:'pengadaan', label:'Pengadaan PK'},
   {key:'ets', label:'ETS'},
   {key:'produksi', label:'Produksi (assign-only)'},
   {key:'logistik', label:'Logistik'},
