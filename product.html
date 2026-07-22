@@ -80,6 +80,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--offwhite);color:var(--tex
   .contact-grid{grid-template-columns:1fr}
   .hero-model{font-size:24px}
 }
+
+
+/* PANEL VISION MONITORING */
+.monitor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem}
+.monitor-toolbar-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.monitor-select,.monitor-btn{font-family:inherit;font-size:12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);padding:8px 11px}
+.monitor-btn{cursor:pointer;font-weight:600}.monitor-btn:hover{border-color:var(--green);color:var(--green)}.monitor-btn:disabled{opacity:.45;cursor:not-allowed}
+.monitor-btn.primary{background:var(--green);border-color:var(--green);color:#fff}
+.monitor-status-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem}
+.monitor-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:#f3f4f6;border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--muted)}
+.monitor-dot{width:8px;height:8px;border-radius:50%;background:#999}.monitor-dot.ok{background:#1a7a3c;box-shadow:0 0 0 3px rgba(26,122,60,.12)}.monitor-dot.bad{background:#cc0000}.monitor-dot.warn{background:#d97706}
+.monitor-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:1rem}
+.monitor-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px;min-width:0}
+.monitor-card-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.monitor-card-value{font-size:23px;font-weight:700;line-height:1.15;word-break:break-word}.monitor-card-unit{font-size:11px;color:var(--muted);margin-left:4px}
+.monitor-chart-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem}
+.monitor-chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.monitor-chart-title{font-size:14px;font-weight:700}.monitor-window{font-size:11px;color:var(--muted);margin-top:3px}
+.monitor-canvas-wrap{height:330px;border:1px solid var(--border);border-radius:9px;background:#fbfbfb;overflow:hidden;position:relative}
+#monitorCanvas{display:block;width:100%;height:100%}
+.monitor-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.monitor-error{background:#fff0f0;border:1px solid #f2b8b8;color:#9f1111;padding:12px;border-radius:9px;font-size:12px;line-height:1.6}
+.monitor-empty{text-align:center;padding:2.5rem 1rem;color:var(--muted);font-size:13px}
+@media(max-width:600px){.monitor-canvas-wrap{height:270px}.monitor-toolbar{align-items:flex-start}.monitor-toolbar-group{width:100%}.monitor-select{flex:1;min-width:110px}}
+
 </style>
 </head>
 <body>
@@ -148,6 +173,8 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const MONTH_ID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 let currentItem=null, currentPO=null, currentUnit=null;
+const PANELVISION_PUBLIC_URL='https://panelvision.ubnb.pw/public/monitor';
+const monitorState={hours:1,before:null,data:null,selectedKey:null,loading:false,refreshTimer:null};
 
 let codeReader = null;
 
@@ -285,8 +312,10 @@ function renderHero(){
 }
 
 function buildTabs(){
+  stopMonitoringRefresh();
   const tabs=[
     {id:'spec',label:'Spesifikasi'},
+    {id:'monitoring',label:'Monitoring'},
     {id:'download',label:'Download'},
     {id:'contact',label:'Kontak'}
   ];
@@ -299,7 +328,9 @@ function buildTabs(){
 function switchTab(tab,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  stopMonitoringRefresh();
   if(tab==='spec') renderSpec();
+  else if(tab==='monitoring') renderMonitoring();
   else if(tab==='download') renderDownload();  // async, no await needed (fire-and-forget)
   else if(tab==='contact') renderContact();
 }
@@ -554,6 +585,204 @@ async function renderDownload(){
       </table>
     </div>`;
 }
+
+
+function monitoringSerial(){
+  const raw=currentUnit?.serial_number || document.getElementById('snInput')?.value || currentItem?.serial_number || '';
+  return String(raw).split(',')[0].trim().toUpperCase();
+}
+
+function stopMonitoringRefresh(){
+  if(monitorState.refreshTimer){clearInterval(monitorState.refreshTimer);monitorState.refreshTimer=null;}
+}
+
+function startMonitoringRefresh(){
+  stopMonitoringRefresh();
+  if(!monitorState.before){
+    monitorState.refreshTimer=setInterval(()=>{
+      if(document.getElementById('monitorCanvas')) loadMonitoring(false);
+      else stopMonitoringRefresh();
+    },15000);
+  }
+}
+
+function monitorFmt(value,digits=1){
+  const n=Number(value);
+  return Number.isFinite(n)?n.toLocaleString('id-ID',{maximumFractionDigits:digits}):'—';
+}
+
+function monitorTime(value){
+  if(!value)return '—';
+  const d=new Date(value);
+  return Number.isNaN(d.getTime())?'—':d.toLocaleString('id-ID');
+}
+
+function monitorEscape(value=''){
+  return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
+function renderMonitoring(){
+  monitorState.before=null;
+  monitorState.data=null;
+  monitorState.selectedKey=null;
+  document.getElementById('tabContent').innerHTML=`
+    <div class="section">
+      <div class="sect-title">Panel Vision Monitoring</div>
+      <div class="monitor-toolbar">
+        <div class="monitor-toolbar-group">
+          <select class="monitor-select" id="monitorRange" aria-label="Rentang monitoring">
+            <option value="1">1 jam</option><option value="12">12 jam</option><option value="24">24 jam</option>
+          </select>
+          <select class="monitor-select" id="monitorSeries" aria-label="Parameter grafik"></select>
+        </div>
+        <div class="monitor-toolbar-group">
+          <button class="monitor-btn" id="monitorPrev">← Sebelumnya</button>
+          <button class="monitor-btn" id="monitorNext">Berikutnya →</button>
+          <button class="monitor-btn primary" id="monitorNow">Sekarang</button>
+        </div>
+      </div>
+      <div id="monitorBody"><div class="loading">Memuat data monitoring...</div></div>
+    </div>`;
+
+  document.getElementById('monitorRange').value=String(monitorState.hours);
+  document.getElementById('monitorRange').onchange=e=>{
+    monitorState.hours=Number(e.target.value)||1;
+    monitorState.before=null;
+    loadMonitoring(true);
+  };
+  document.getElementById('monitorSeries').onchange=e=>{
+    monitorState.selectedKey=e.target.value;
+    drawMonitoringChart();
+  };
+  document.getElementById('monitorPrev').onclick=()=>{
+    if(!monitorState.data?.window?.from)return;
+    monitorState.before=monitorState.data.window.from;
+    loadMonitoring(true);
+  };
+  document.getElementById('monitorNext').onclick=()=>{
+    if(!monitorState.before||!monitorState.data?.window?.to)return;
+    const nextEnd=new Date(monitorState.data.window.to).getTime()+monitorState.hours*3600000;
+    monitorState.before=nextEnd>=Date.now()-30000?null:new Date(nextEnd).toISOString();
+    loadMonitoring(true);
+  };
+  document.getElementById('monitorNow').onclick=()=>{
+    monitorState.before=null;
+    loadMonitoring(true);
+  };
+  loadMonitoring(true);
+}
+
+async function loadMonitoring(showLoading=true){
+  const serial=monitoringSerial();
+  if(!serial){
+    document.getElementById('monitorBody').innerHTML='<div class="monitor-error">Serial number unit tidak tersedia.</div>';
+    return;
+  }
+  if(monitorState.loading)return;
+  monitorState.loading=true;
+  if(showLoading)document.getElementById('monitorBody').innerHTML='<div class="loading">Memuat data monitoring...</div>';
+  try{
+    const params=new URLSearchParams({hours:String(monitorState.hours)});
+    if(monitorState.before)params.set('before',monitorState.before);
+    const response=await fetch(`${PANELVISION_PUBLIC_URL}/${encodeURIComponent(serial)}?${params}`);
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
+    monitorState.data=data;
+    const keys=new Set((data.registers||[]).map(r=>r.key));
+    if(!monitorState.selectedKey||!keys.has(monitorState.selectedKey)){
+      monitorState.selectedKey=(data.registers||[]).find(r=>r.key==='dc_load_voltage')?.key || data.registers?.[0]?.key || null;
+    }
+    renderMonitoringData();
+    startMonitoringRefresh();
+  }catch(error){
+    document.getElementById('monitorBody').innerHTML=`<div class="monitor-error"><strong>Monitoring belum dapat ditampilkan.</strong><br>${monitorEscape(error.message)}</div>`;
+    stopMonitoringRefresh();
+  }finally{
+    monitorState.loading=false;
+  }
+}
+
+function renderMonitoringData(){
+  const data=monitorState.data;
+  if(!data)return;
+  const latestRegs=new Map((data.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));
+  const status=data.status||{};
+  const stale=Boolean(status.stale);
+  const statusText=status.online?'ONLINE':stale?'OFFLINE / DATA LAMA':'OFFLINE';
+  const statusClass=status.online?'ok':stale?'warn':'bad';
+  const metricHtml=(data.registers||[]).map(def=>{
+    const reg=latestRegs.get(def.key);
+    return `<div class="monitor-card"><div class="monitor-card-label">${monitorEscape(def.name)}</div><div class="monitor-card-value">${monitorFmt(reg?.value,2)}<span class="monitor-card-unit">${monitorEscape(def.unit||'')}</span></div></div>`;
+  }).join('');
+
+  document.getElementById('monitorBody').innerHTML=`
+    <div class="monitor-status-row">
+      <div class="monitor-pill"><span class="monitor-dot ${statusClass}"></span>${statusText}</div>
+      <div class="monitor-pill"><span class="monitor-dot ${status.modbus_ok?'ok':'bad'}"></span>${status.modbus_ok?'MODBUS OK':'MODBUS OFFLINE'}</div>
+      <div class="monitor-pill">Data terakhir: ${monitorTime(data.latest?.captured_at||status.last_seen)}</div>
+    </div>
+    <div class="monitor-metrics">${metricHtml||'<div class="monitor-empty">Belum ada parameter monitoring.</div>'}</div>
+    <div class="monitor-chart-card">
+      <div class="monitor-chart-head">
+        <div><div class="monitor-chart-title">Trend Historis</div><div class="monitor-window" id="monitorWindow"></div></div>
+        <div class="monitor-window" id="monitorSampleCount"></div>
+      </div>
+      <div class="monitor-canvas-wrap"><canvas id="monitorCanvas"></canvas></div>
+      <div class="monitor-note">Grafik memakai serial number unit yang sedang dibuka. Data offline tetap menampilkan pembacaan terakhir, sedangkan grafik mengikuti periode yang dipilih.</div>
+    </div>`;
+
+  const series=document.getElementById('monitorSeries');
+  series.innerHTML=(data.registers||[]).map(def=>`<option value="${monitorEscape(def.key)}">${monitorEscape(def.name)}${def.unit?` (${monitorEscape(def.unit)})`:''}</option>`).join('');
+  if(monitorState.selectedKey)series.value=monitorState.selectedKey;
+  document.getElementById('monitorRange').value=String(monitorState.hours);
+  document.getElementById('monitorNext').disabled=!monitorState.before;
+  document.getElementById('monitorNow').disabled=!monitorState.before;
+  document.getElementById('monitorWindow').textContent=`${monitorTime(data.window?.from)} – ${monitorTime(data.window?.to)}`;
+  document.getElementById('monitorSampleCount').textContent=`${(data.history||[]).length.toLocaleString('id-ID')} sampel`;
+  requestAnimationFrame(drawMonitoringChart);
+}
+
+function drawMonitoringChart(){
+  const canvas=document.getElementById('monitorCanvas');
+  const data=monitorState.data;
+  if(!canvas||!data)return;
+  const rect=canvas.getBoundingClientRect();
+  if(rect.width<20||rect.height<20)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);
+  const def=(data.registers||[]).find(r=>r.key===monitorState.selectedKey)||data.registers?.[0];
+  if(!def)return;
+  const from=new Date(data.window.from).getTime(),to=new Date(data.window.to).getTime();
+  const points=(data.history||[]).map(row=>({t:new Date(row.captured_at).getTime(),v:Number(row.values?.[def.key])})).filter(p=>Number.isFinite(p.t)&&Number.isFinite(p.v));
+  if(!monitorState.before&&data.latest?.captured_at){
+    const latest=(data.latest.telemetry?.registers||[]).find(r=>r.key===def.key);
+    const t=new Date(data.latest.captured_at).getTime(),v=Number(latest?.value);
+    if(Number.isFinite(t)&&Number.isFinite(v)&&t>=from&&t<=to)points.push({t,v});
+  }
+  points.sort((a,b)=>a.t-b.t);
+  const margin={left:58,right:16,top:18,bottom:38},pw=w-margin.left-margin.right,ph=h-margin.top-margin.bottom;
+  ctx.font='10px DM Sans, sans-serif';ctx.lineWidth=1;
+  const vals=points.map(p=>p.v);let min=vals.length?Math.min(...vals):0,max=vals.length?Math.max(...vals):1;
+  if(min>=0)min=0;else min*=1.1;if(max<=min)max=min+1;else max*=1.1;
+  for(let i=0;i<=5;i++){
+    const y=margin.top+ph*i/5;ctx.strokeStyle='#e6e6e6';ctx.beginPath();ctx.moveTo(margin.left,y);ctx.lineTo(w-margin.right,y);ctx.stroke();
+    const value=max-(max-min)*i/5;ctx.fillStyle='#666';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(`${monitorFmt(value,1)} ${def.unit||''}`,margin.left-7,y);
+  }
+  for(let i=0;i<=5;i++){
+    const x=margin.left+pw*i/5;ctx.strokeStyle='#f0f0f0';ctx.beginPath();ctx.moveTo(x,margin.top);ctx.lineTo(x,h-margin.bottom);ctx.stroke();
+    const d=new Date(from+(to-from)*i/5);ctx.fillStyle='#666';ctx.textAlign=i===0?'left':i===5?'right':'center';ctx.textBaseline='top';ctx.fillText(d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),x,h-margin.bottom+9);
+  }
+  if(points.length){
+    ctx.strokeStyle='#1a7a3c';ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();
+    points.forEach((p,i)=>{const x=margin.left+(p.t-from)/(to-from)*pw,y=margin.top+(max-p.v)/(max-min)*ph;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  }else{
+    ctx.fillStyle='#777';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='13px DM Sans, sans-serif';ctx.fillText('Tidak ada data pada periode ini',margin.left+pw/2,margin.top+ph/2);
+  }
+}
+
+window.addEventListener('resize',()=>{if(document.getElementById('monitorCanvas'))requestAnimationFrame(drawMonitoringChart);});
 
 function renderContact(){
   document.getElementById('tabContent').innerHTML=`
