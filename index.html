@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -4275,6 +4276,36 @@ async function renderHomeModule() {
 // ═══════════════════════════════════════════════════════════
 let etsFilter = 'all'; // all | pending | done
 
+function splitItemSerials(item) {
+  return String(item?.serial_number || '')
+    .split(',')
+    .map(sn => sn.trim())
+    .filter(Boolean);
+}
+
+// ETS selalu bekerja per unit fisik. Sebelum SN dibuat, baris unit dibentuk
+// dari qty; setelah SN dibuat, product_units menjadi sumber data utama.
+function expandEtsUnits(item) {
+  const dbUnits = [...(item?.product_units || [])]
+    .filter(u => u && Number(u.unit_number) > 0)
+    .sort((a, b) => Number(a.unit_number) - Number(b.unit_number));
+  const legacySerials = splitItemSerials(item);
+  const totalUnits = Math.max(1, Number(item?.qty) || 1, dbUnits.length, legacySerials.length);
+  const byNumber = new Map(dbUnits.map(u => [Number(u.unit_number), u]));
+
+  return Array.from({ length: totalUnits }, (_, index) => {
+    const unitNumber = index + 1;
+    const unit = byNumber.get(unitNumber) || null;
+    return {
+      unit,
+      unitNumber,
+      totalUnits,
+      unitKey: `${item.id}:${unitNumber}`,
+      serialNumber: unit?.serial_number || legacySerials[index] || null
+    };
+  });
+}
+
 async function renderETSModule() {
   const main = document.getElementById('mainContent');
   main.innerHTML = `<div class="topbar">
@@ -4307,10 +4338,11 @@ function _buildEtsTable(allItems, dsItemIds) {
     return { rows: `<tr class="empty-row"><td colspan="5" style="text-align:center;padding:2rem;color:var(--text3)">Tidak ada item</td></tr>` };
   }
 
-  const rows = filtered.map(({po, item, hasSN, hasSpec, hasDetailSpec}) => {
-    const isExpanded = _etsExpandedId === item.id;
+  const rows = filtered.map(({po, item, unit, unitNumber, totalUnits, unitKey, serialNumber, hasSN, hasSpec, hasDetailSpec}) => {
+    const isExpanded = _etsExpandedId === unitKey;
     const arrow = isExpanded ? '▲' : '▼';
-    const itemLabel = `${item.category}${item.model_name ? ' · ' + item.model_name : ''}`;
+    const itemLabelText = `${item.category}${item.model_name ? ' · ' + item.model_name : ''}`;
+    const itemLabel = `${itemLabelText}<div style="font-size:10px;color:var(--text3);margin-top:3px;font-weight:600">Unit ${unitNumber} dari ${totalUnits}</div>`;
 
     // Kolom Serial Number / Aksi dinamis:
     // 1. Belum ada SN & belum ada spec → tombol Spec
@@ -4318,7 +4350,7 @@ function _buildEtsTable(allItems, dsItemIds) {
     // 3. Sudah ada SN → tampil serial number
     let snCell;
     if (hasSN) {
-      snCell = `<span class="mono" style="font-weight:600;color:var(--text)">${item.serial_number}</span>`;
+      snCell = `<span class="mono" style="font-weight:600;color:var(--text)">${serialNumber}</span>`;
     } else if (hasSpec) {
       snCell = `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0;white-space:nowrap" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>`;
     } else {
@@ -4330,21 +4362,21 @@ function _buildEtsTable(allItems, dsItemIds) {
       hasDetailSpec ? '<span style="font-size:10px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✓</span>' : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;font-weight:600">Detail ✕</span>'
     ].join(' ');
 
-    const snBlock = item.serial_number
+    const snBlock = serialNumber
       ? `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
            <div>
-             <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Serial Number</div>
-             <div class="mono" style="font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--text)">${item.serial_number}</div>
-             <div style="font-size:11px;color:var(--text3);margin-top:3px">${po.customer_name || ''}${itemLabel ? ' · ' + itemLabel : ''}</div>
+             <div style="font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Serial Number · Unit ${unitNumber}/${totalUnits}</div>
+             <div class="mono" style="font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--text)">${serialNumber}</div>
+             <div style="font-size:11px;color:var(--text3);margin-top:3px">${po.customer_name || ''}${itemLabelText ? ' · ' + itemLabelText : ''}</div>
            </div>
-           <button onclick="event.stopPropagation();copySNLabel('${escapeHtml(item.serial_number)}','${escapeHtml(po.customer_name||'')}','${escapeHtml(itemLabel)}')"
+           <button onclick="event.stopPropagation();copySNLabel('${escapeHtml(serialNumber)}','${escapeHtml(po.customer_name||'')}','${escapeHtml(itemLabelText)}')"
              style="flex-shrink:0;padding:6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2);color:var(--text2);font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;white-space:nowrap">
              📋 Copy
            </button>
          </div>`
       : `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
            <div style="display:flex;gap:4px">${statusBadges}</div>
-           <span style="font-size:12px;color:var(--text3)">Qty: <strong style="color:var(--text)">${item.qty || 1}</strong></span>
+           <span style="font-size:12px;color:var(--text3)">Unit: <strong style="color:var(--text)">${unitNumber}/${totalUnits}</strong></span>
          </div>`;
     const detailRow = !isExpanded ? '' : `
       <tr class="ets-detail-row">
@@ -4356,12 +4388,13 @@ function _buildEtsTable(allItems, dsItemIds) {
             <button class="btn btn-sm btn-blue" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openSpecModal(this.dataset.iid,this.dataset.pid,'teknis')">⚙ Spec</button>
             ${!item.serial_number && hasSpec ? `<button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();generateSNFromETS(this.dataset.iid,this.dataset.pid)">🔢 Generate SN</button>` : ''}
             <button class="btn btn-sm" style="background:var(--teal-bg);color:var(--teal);border:1px solid #99f6e4" data-iid="${item.id}" data-pid="${po.id}" onclick="event.stopPropagation();openDocModal(this.dataset.iid,this.dataset.pid)">📄 Doc</button>
+            ${serialNumber ? `<a class="btn btn-sm" style="background:#eef6ff;color:#1d4ed8;border:1px solid #bfdbfe;text-decoration:none" href="product.html?sn=${encodeURIComponent(serialNumber)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📈 Monitor</a>` : ''}
           </div>
         </td>
       </tr>`;
 
     return `
-      <tr onclick="toggleEtsRow('${item.id}')" style="cursor:pointer">
+      <tr onclick="toggleEtsRow('${unitKey}')" style="cursor:pointer" data-unit-id="${unit?.id || ''}">
         <td class="mono" style="font-weight:500;color:var(--accent)">${po.no_project || po.no_po}</td>
         <td>${po.customer_name || '—'}</td>
         <td>${itemLabel}</td>
@@ -4393,11 +4426,13 @@ async function renderETSList() {
   const allItems = [];
   for(const p of allPOs) {
     for(const it of (p.po_items||[]).filter(x=>x.needs_ets)) {
-      const hasSN = !!it.serial_number;
       const hasSpec = specItemIds.has(it.id);  // spec teknis sudah diisi
       const hasDetailSpec = dsItemIds.has(it.id);
-      const isPending = !hasSN || !hasDetailSpec;
-      allItems.push({po:p, item:it, hasSN, hasSpec, hasDetailSpec, isPending});
+      for (const unitInfo of expandEtsUnits(it)) {
+        const hasSN = !!unitInfo.serialNumber;
+        const isPending = !hasSN || !hasDetailSpec;
+        allItems.push({po:p, item:it, ...unitInfo, hasSN, hasSpec, hasDetailSpec, isPending});
+      }
     }
   }
   _etsCache = { allItems, dsItemIds, specItemIds };
@@ -4692,11 +4727,11 @@ function updateNavBadges() {
   const nbPROD = document.getElementById('nbPROD');
   if (nbPROD) nbPROD.textContent = prodCount;
 
-  // ── nbETS: items needs_ets yang belum punya SN ──
+  // ── nbETS: unit fisik needs_ets yang belum punya SN ──
   let etsCount = 0;
   (allPOs || []).forEach(p => {
     (p.po_items || []).filter(it => it.needs_ets).forEach(it => {
-      if (!it.serial_number) etsCount++;
+      etsCount += expandEtsUnits(it).filter(u => !u.serialNumber).length;
     });
   });
   const nbETS = document.getElementById('nbETS');
@@ -7055,12 +7090,13 @@ async function openGenSerialModal(poId) {
   const p = allPOs.find(x => x.id === poId);
   const items = (p?.po_items || []).filter(it => it.needs_ets && SPEC_CATEGORIES.includes(it.category) && !it.serial_number);
   if (!items.length) { toast('Tidak ada item yang perlu generate SN'); return; }
+  const totalUnits = items.reduce((sum, it) => sum + Math.max(1, Number(it.qty) || 1), 0);
   openModal(`<div class="modal">
     <div class="modal-header"><h2>Generate Serial Number</h2><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">&#x2715;</button></div>
     <div class="modal-body">
       <div class="form-row"><label>Tanggal Produksi <span class="req">*</span></label><input type="date" id="snProdDate" value="${today()}"></div>
-      <div style="margin-top:.875rem;font-size:13px;color:var(--text2)">Item yang akan di-generate (${items.length}):</div>
-      ${items.map(it => `<div class="item-card" style="margin-top:6px"><span style="font-size:13px;font-weight:600">${it.category}</span>${it.model_name ? '<span style="font-size:12px;color:var(--text3)"> — ' + it.model_name + '</span>' : ''}</div>`).join('')}
+      <div style="margin-top:.875rem;font-size:13px;color:var(--text2)">Unit yang akan di-generate (${totalUnits}):</div>
+      ${items.map(it => `<div class="item-card" style="margin-top:6px"><span style="font-size:13px;font-weight:600">${it.category}</span>${it.model_name ? '<span style="font-size:12px;color:var(--text3)"> — ' + it.model_name + '</span>' : ''}<span style="font-size:11px;color:var(--text3);margin-left:8px">Qty ${Math.max(1, Number(it.qty) || 1)}</span></div>`).join('')}
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeAllModals()">Batal</button>
@@ -7078,9 +7114,9 @@ async function doGenerateSerials(poId) {
   let generated = 0, skipped = 0;
   for (const it of items) {
     const ok = await _doGenerateSN(it.id, poId, dateObj);
-    if (ok) generated++; else skipped++;
+    if (ok) generated += Math.max(1, Number(it.qty) || 1); else skipped++;
   }
-  toast(generated + ' item di-generate' + (skipped ? ', ' + skipped + ' skip (cek spec)' : ''));
+  toast(generated + ' SN unit di-generate' + (skipped ? ', ' + skipped + ' item skip (cek spec)' : ''));
   closeAllModals();
   await loadPOs();
   openPODetail(poId);
@@ -8938,33 +8974,26 @@ async function _doGenerateSN(itemId, poId, prodDate) {
   if(!spec || !spec.kategori) { toast('Spec belum tersimpan'); return false; }
   const qty = item.qty || 1;
   const serials = [];
-  const unitRows = [];
   for(let i=0;i<qty;i++){
     const {data: counter} = await sb.from('serial_counter').select('*').eq('id',1).single();
+    if (!counter) { toast('Counter serial tidak ditemukan'); return false; }
     let {huruf, angka} = counter;
     const sn = buildSerialNumberFromSpec(spec, po.no_project, huruf, angka, prodDate);
     if(!sn){ toast('Gagal build SN — cek field spec'); return false; }
     angka++;
     if(angka>999){angka=1;huruf=String.fromCharCode(huruf.charCodeAt(0)+1);}
-    await sb.from('serial_counter').update({huruf,angka}).eq('id',1);
+    const {error: counterErr} = await sb.from('serial_counter').update({huruf,angka}).eq('id',1);
+    if (counterErr) { toast('Gagal update counter serial: ' + counterErr.message); return false; }
     serials.push(sn);
-    unitRows.push({
-      po_item_id: itemId,
-      unit_number: i + 1,
-      serial_number: sn,
-      qr_code: sn,
-      panel_type: item.category || null,
-      production_status: 'pending',
-      created_by: currentUser?.id || null,
-    });
-  }
-  // Insert per-unit records (product_units) — sumber kebenaran baru
-  const { error: puErr } = await sb.from('product_units').insert(unitRows);
-  if (puErr) {
-    toast('SN dibuat, tapi gagal simpan unit detail: ' + puErr.message);
   }
   const snJoined = serials.join(', ');
-  await sb.from('po_items').update({serial_number:snJoined,serial_generated_at:new Date().toISOString()}).eq('id',itemId);
+  // Trigger database menyinkronkan string SN ini menjadi satu record product_units per unit.
+  const {error: itemErr} = await sb.from('po_items')
+    .update({serial_number:snJoined,serial_generated_at:new Date().toISOString()})
+    .eq('id',itemId);
+  if (itemErr) { toast('Gagal menyimpan serial unit: ' + itemErr.message); return false; }
+
+  // Jika trigger gagal membentuk product_units, UPDATE di atas ikut gagal/rollback.
   await logPO(poId,'Generate Serial',item.category+': '+snJoined+(qty>1?` (${qty} unit)`:''));
   toast('✓ '+serials.length+' SN: '+snJoined);
   return true;
