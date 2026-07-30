@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -9843,7 +9844,7 @@ async function openBOMForm(opts) {
   bomWizardRender();
 }
 
-function bomWizardRender() {
+function bomWizardRenderLegacy() {
   const w = _bomWizard;
   let body = '', footer = '', stepLabel = '';
 
@@ -9962,7 +9963,7 @@ function bomWizardRender() {
   </div>`, 'bomWizardModal');
 }
 
-function bomWizardSelectType(t) {
+function bomWizardSelectTypeLegacy(t) {
   _bomWizard.type = t;
   // Set defaults per type
   const s = _bomWizard.spec;
@@ -10016,7 +10017,7 @@ function bomWizardSelectType(t) {
   if (tf && !tf.value) { tf.value = _bomWizard.title; }
 }
 
-function bomWizardNext() {
+function bomWizardNextLegacy() {
   const w = _bomWizard;
   if (w.step === 0) {
     w.title = (document.getElementById('wzTitle')?.value || '').trim();
@@ -10030,7 +10031,7 @@ function bomWizardNext() {
   bomWizardRender();
 }
 
-function bomWizardBack() {
+function bomWizardBackLegacy() {
   if (_bomWizard.step > 0) {
     if (_bomWizard.step === 1) bomWizardCollectStep1();
     if (_bomWizard.step === 2) bomWizardCollectStep2();
@@ -10594,7 +10595,7 @@ function bomWizardBattCheck() {
   info.style.color = ok ? 'var(--green)' : 'var(--amber)';
 }
 
-async function bomWizardGenerate() {
+async function bomWizardGenerateLegacy() {
   const w = _bomWizard;
   const s = w.spec;
   const t = w.type;
@@ -14857,6 +14858,301 @@ async function exportBOMPrint(bomId, withPrice) {
 
 // ─── GENID for BOM (uses existing pattern) ───────────────────
 // Already handled by genId('BOM') from existing code
+
+// ═══════════════════════════════════════════════════════════════
+// DISTRIBUTION BOM WIZARD V2 — MANUAL CONFIGURATION + RULE ENGINE
+// ACDB / UPS ACDB / DCDB. One answer is inherited by all dependent rules.
+// ═══════════════════════════════════════════════════════════════
+const _bomLegacy = {
+  render: bomWizardRenderLegacy,
+  selectType: bomWizardSelectTypeLegacy,
+  next: bomWizardNextLegacy,
+  back: bomWizardBackLegacy,
+  generate: bomWizardGenerateLegacy
+};
+
+function bomV2Defaults() {
+  return {
+    panelFamily:'ACDB', panelName:'380/220V ACDB', project:'', voltage:380, phaseSystem:'3P4W', frequency:50,
+    brand:'Schneider', controlVoltage:'220VAC', breakingCapacity:36, panelType:'Indoor', ipRating:'IP42', cableEntry:'Bottom',
+    cubicles:1, cubicleW:800, cubicleD:600, cubicleH:2000, busSections:1, busbarRating:400,
+    busbarMaterial:'Copper', busbarSize:'5x25', busbarAuto:true, busbarSizingMode:'auto', showBusbarAdvanced:false, busbarLengthOverride:0, groundBusQtyOverride:0,
+    incoming:[bomV2IncomingDefault(1)], coupler:{enabled:false, rating:400, poles:4, device:'MCCB', operation:'manual', interlock:'mechanical', includeAux:true, powerConnection:'auto', powerRouteOverrideM:0, connectionKit:'auto'},
+    ats:{enabled:false, topology:'two_source', controller:'PLC', transition:'open', priority:'Source 1', gensetStart:false,
+      autoManual:true, sourceHealthyLamp:true, alarm:false, transferDelay:5, returnDelay:30},
+    outgoing:[bomV2OutgoingDefault()],
+    metering:{enabled:true, perIncoming:true, analogVM:true, analogAM:true, powerMeter:true, voltTransducer:true,
+      ctMeterClass:'0.2s', ctProtectionClass:'1', spd:true, underVoltageRelay:true},
+    mechanical:{cabinLamp:true, heater:true, thermostat:true, socket:true, louvre:true, nameplate:true},
+    internalRouteM:3, branchCable:true, controlCable:true, connectionAllowance:1, connectionCost:0
+  };
+}
+function bomV2IncomingDefault(no) {
+  return {name:'Incoming '+no, source:no===1?'PLN':'Transformer', qty:1, device:'MCCB', rating:400, poles:4,
+    operation:'manual', mounting:'fixed', tripUnit:'Electronic', includeAux:true, shuntTrip:false, uvt:false,
+    localRemote:false, emergencyTrip:false, metering:true, spd:true,
+    powerConnection:'auto', breakerPosition:'middle', incomingTerminal:true, powerRouteOverrideM:0, parallelRunsOverride:0, connectionKit:'auto'};
+}
+function bomV2OutgoingDefault() {
+  return {description:'Outgoing Feeder', device:'MCB', rating:25, poles:2, qty:1, breakingCapacity:10,
+    aux:false, shuntTrip:false, earthLeakage:false, cableAuto:true, cableSize:6, routeM:3, spare:false};
+}
+function bomV2Ensure() {
+  if (!_bomWizard.spec.distV2) _bomWizard.spec.distV2 = bomV2Defaults();
+  const d=_bomWizard.spec.distV2;
+  if (!Array.isArray(d.incoming)||!d.incoming.length) d.incoming=[bomV2IncomingDefault(1)];
+  if (!Array.isArray(d.outgoing)||!d.outgoing.length) d.outgoing=[bomV2OutgoingDefault()];
+  return d;
+}
+
+function bomV2DeriveTopology(d){
+  const n=(d.incoming||[]).reduce((s,x)=>s+(x.qty||1),0);
+  const hasCoupler=!!d.coupler?.enabled && n>=2;
+  const hasGenset=(d.incoming||[]).some(x=>x.source==='Genset');
+  const topology=hasCoupler?'main_tie_main':(hasGenset?'pln_genset':(n>=2?'two_source':'single_source'));
+  const busSections=hasCoupler?2:1;
+  if(d.ats)d.ats.topology=topology;
+  d.busSections=busSections; // internal compatibility; no longer asked from user
+  return {incomingCount:n,hasCoupler,hasGenset,topology,busSections,label:topology==='main_tie_main'?'Dua Incoming + Bus Coupler':topology==='pln_genset'?'PLN + Genset':topology==='two_source'?'Dua Sumber – Satu Bus':'Single Incoming – Satu Bus'};
+}
+function bomV2RecommendedBusbarSize(rating,material='Copper'){
+  const r=Math.max(1,bomV2Num(rating,1));
+  let size;
+  if(r<=250) size='5x25';
+  else if(r<=400) size='5x40';
+  else if(r<=630) size='10x50';
+  else if(r<=800) size='10x60';
+  else if(r<=1000) size='10x80';
+  else size='10x100';
+  if(material==='Aluminium'){
+    const [t,w]=size.split('x').map(Number); size=`${t}x${Math.ceil(w*1.35/5)*5}`;
+  }
+  return size;
+}
+function bomV2EffectiveBusbarSize(d){
+  return d.busbarSizingMode==='manual' && d.busbarSize ? d.busbarSize : bomV2RecommendedBusbarSize(d.busbarRating,d.busbarMaterial);
+}
+function bomV2TopologyChanged(){ bomV2CollectCurrent(); bomWizardRender(); }
+function bomV2ToggleBusbarAdvanced(){ bomV2CollectCurrent(); const d=bomV2Ensure(); d.showBusbarAdvanced=!d.showBusbarAdvanced; bomWizardRender(); }
+function bomV2IsActive(){ return _bomWizard && _bomWizard.type==='Distribusi' && _bomWizard.spec?.distWizardV2; }
+function bomV2Esc(v){ return escapeHtml(v==null?'':String(v)); }
+function bomV2Num(v,d=0){ const n=parseFloat(v); return Number.isFinite(n)?n:d; }
+function bomV2Int(v,d=0){ const n=parseInt(v,10); return Number.isFinite(n)?n:d; }
+function bomV2Checked(v){ return v?'checked':''; }
+function bomV2Options(options,value){ return options.map(x=>`<option value="${bomV2Esc(x)}" ${String(x)===String(value)?'selected':''}>${bomV2Esc(x)}</option>`).join(''); }
+function bomV2Field(label,html,hint=''){ return `<div class="form-row"><label>${label}</label>${html}${hint?`<div class="form-hint">${hint}</div>`:''}</div>`; }
+function bomV2Select(id,label,options,value,change='bomV2CollectCurrent()'){return bomV2Field(label,`<select id="${id}" onchange="${change}">${bomV2Options(options,value)}</select>`)}
+function bomV2Input(id,label,value,type='text',attrs='',change='bomV2CollectCurrent()'){return bomV2Field(label,`<input id="${id}" type="${type}" value="${bomV2Esc(value)}" ${attrs} oninput="${change}">`)}
+function bomV2Check(id,label,value,change='bomV2CollectCurrent()'){return `<label class="wz2-check"><input id="${id}" type="checkbox" ${bomV2Checked(value)} onchange="${change}"><span>${label}</span></label>`}
+
+function bomWizardSelectType(t) {
+  _bomLegacy.selectType(t);
+  if (t==='Distribusi') {
+    _bomWizard.spec.distWizardV2=true;
+    bomV2Ensure();
+    if (!_bomWizard.title || _bomWizard.title==='BOM Panel Distribusi') _bomWizard.title='BOM ACDB / DCDB';
+  } else _bomWizard.spec.distWizardV2=false;
+}
+
+function bomWizardRender(){
+  if (!bomV2IsActive()) return _bomLegacy.render();
+  const w=_bomWizard, d=bomV2Ensure();
+  const labels=['Panel','Incoming & Coupler','Outgoing','Proteksi & Mekanikal','Review'];
+  let body='';
+  if(w.step===1) body=bomV2StepPanel(d);
+  else if(w.step===2) body=bomV2StepIncoming(d);
+  else if(w.step===3) body=bomV2StepOutgoing(d);
+  else if(w.step===4) body=bomV2StepSupport(d);
+  else if(w.step===5) body=bomV2StepReview(d);
+  else return _bomLegacy.render();
+  if(!document.getElementById('bomV2CSS')){
+    const st=document.createElement('style'); st.id='bomV2CSS'; st.textContent=`
+      .wz2-progress{display:flex;gap:5px;margin-bottom:14px}.wz2-progress div{flex:1;height:5px;border-radius:8px;background:var(--border)}.wz2-progress .done{background:var(--blue)}
+      .wz2-tabs{display:flex;gap:5px;overflow:auto;margin-bottom:12px}.wz2-tab{font-size:11px;white-space:nowrap;padding:5px 9px;border-radius:14px;background:var(--surface2);color:var(--text3)}.wz2-tab.active{background:var(--blue);color:white}
+      .wz2-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--surface)}.wz2-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}.wz2-card-title{font-weight:700;font-size:13px}
+      .wz2-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.wz2-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.wz2-checks{display:flex;gap:8px 14px;flex-wrap:wrap}.wz2-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer}.wz2-check input{accent-color:var(--blue)}
+      .wz2-readonly{min-height:38px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);font-size:12px}.wz2-readonly span{color:var(--text3);font-size:11px}.wz2-summary-inline{padding:9px 10px;border-radius:7px;background:var(--surface2);font-size:12px;color:var(--text2)}
+      .wz2-note{padding:8px 10px;border-radius:7px;background:var(--blue-bg);color:var(--blue-text);font-size:12px;line-height:1.45}.wz2-warn{background:var(--amber-bg);color:var(--amber);border-left:3px solid #f59e0b;padding:8px 10px;border-radius:6px;font-size:12px;margin:7px 0}.wz2-ok{background:var(--green-bg);color:var(--green);padding:8px 10px;border-radius:6px;font-size:12px;margin:7px 0}
+      .wz2-table{width:100%;table-layout:auto;border-collapse:collapse}.wz2-table th,.wz2-table td{padding:6px;border:1px solid var(--border);font-size:11px;white-space:nowrap}.wz2-table input,.wz2-table select{min-width:72px;padding:6px;font-size:11px}
+      .wz2-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.wz2-summary-grid>div{background:var(--surface2);padding:9px;border-radius:8px;font-size:11px;color:var(--text3)}.wz2-summary-grid strong{display:block;color:var(--text);font-size:14px;margin-top:2px}
+      @media(max-width:800px){.wz2-grid,.wz2-grid.two{grid-template-columns:1fr}.wz2-summary-grid{grid-template-columns:repeat(2,1fr)}}`;
+    document.head.appendChild(st);
+  }
+  const idx=Math.max(0,w.step-1);
+  const progress=`<div class="wz2-progress">${labels.map((_,i)=>`<div class="${i<=idx?'done':''}"></div>`).join('')}</div><div class="wz2-tabs">${labels.map((x,i)=>`<span class="wz2-tab ${i===idx?'active':''}">${i+1}. ${x}</span>`).join('')}</div>`;
+  const isLast=w.step===5;
+  openModal(`<div class="modal" style="width:min(97vw,1180px);max-width:97vw"><div class="modal-header"><div><h2>Engineering BOM Wizard — ACDB / DCDB</h2><div style="font-size:12px;color:var(--text3);margin-top:2px">Input konfigurasi panel; komponen turunan dihitung otomatis tanpa pertanyaan berulang.</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">✕</button></div><div class="modal-body">${progress}${body}</div><div class="modal-footer"><button class="btn" onclick="bomWizardBack()">← Kembali</button>${isLast?`<button class="btn btn-primary" onclick="bomWizardGenerate()">⚡ Generate BOM</button>`:`<button class="btn btn-primary" onclick="bomWizardNext()">Lanjut →</button>`}</div></div>`,'bomWizardModal');
+}
+
+function bomWizardNext(){
+  if(!bomV2IsActive()) return _bomLegacy.next();
+  bomV2CollectCurrent();
+  const d=bomV2Ensure();
+  const errors=bomV2Validate(d,_bomWizard.step);
+  if(errors.length){toast(errors[0]);return;}
+  _bomWizard.step=Math.min(5,_bomWizard.step+1); bomWizardRender();
+}
+function bomWizardBack(){
+  if(!bomV2IsActive()) return _bomLegacy.back();
+  bomV2CollectCurrent(); _bomWizard.step=Math.max(0,_bomWizard.step-1); bomWizardRender();
+}
+function bomV2Validate(d,step){
+  const e=[];
+  if(step===1){if(!d.panelName)e.push('Nama panel wajib diisi');if(d.cubicles<1)e.push('Jumlah cubicle minimal 1');}
+  if(step===2){if(!d.incoming.length)e.push('Minimal satu incoming harus tersedia');if(d.coupler.enabled&&d.incoming.reduce((s,x)=>s+(x.qty||1),0)<2)e.push('Bus coupler memerlukan minimal dua incoming'); if(d.ats.enabled && d.incoming.length<2)e.push('ATS memerlukan minimal dua incoming'); if(d.ats.enabled && !d.incoming.some(x=>x.operation==='automatic'))e.push('ATS aktif tetapi belum ada incoming Automatic');}
+  if(step===3){if(!d.outgoing.length)e.push('Minimal satu kelompok outgoing');if(d.outgoing.some(x=>x.qty<1||x.rating<1||x.poles<1))e.push('Periksa qty, rating, dan pole outgoing');}
+  return e;
+}
+
+function bomV2StepPanel(d){
+  const topo=bomV2DeriveTopology(d), autoSize=bomV2RecommendedBusbarSize(d.busbarRating,d.busbarMaterial), effectiveSize=bomV2EffectiveBusbarSize(d);
+  return `<div class="wz2-note">Nilai pada level panel diwariskan ke incoming, outgoing, wiring, dan BOM. Konfigurasi bus ditentukan otomatis dari jumlah incoming dan keberadaan bus coupler.</div>
+  <div class="wz2-card"><div class="wz2-card-title">Identitas & Sistem</div><div class="wz2-grid" style="margin-top:10px">
+    ${bomV2Select('wz2Family','Jenis Panel',['ACDB','UPS ACDB','DCDB'],d.panelFamily,'bomV2PanelFamilyChanged()')}
+    ${bomV2Input('wz2PanelName','Nama Panel',d.panelName)}
+    ${bomV2Input('wz2Project','Project / Customer',d.project)}
+    ${bomV2Input('wz2Voltage','Tegangan Sistem',d.voltage,'number','min="1"')}
+    ${bomV2Select('wz2Phase','Sistem Konduktor',d.panelFamily==='DCDB'?['DC 2-Wire','DC 3-Wire']:['1P2W','3P3W','3P4W'],d.phaseSystem)}
+    ${d.panelFamily==='DCDB'?'':bomV2Input('wz2Freq','Frekuensi (Hz)',d.frequency,'number','min="40" max="60"')}
+    ${bomV2Select('wz2Brand','Merek Utama',['Schneider','ABB','LS','Fuji','General / TBD'],d.brand)}
+    ${bomV2Select('wz2CtrlV','Tegangan Kontrol',['220VAC','110VAC','125VDC','110VDC','24VDC'],d.controlVoltage)}
+    ${bomV2Input('wz2Icu','Breaking Capacity Minimum (kA)',d.breakingCapacity,'number','min="1"')}
+  </div></div>
+  <div class="wz2-card"><div class="wz2-card-title">Konfigurasi Panel</div><div class="wz2-grid" style="margin-top:10px">
+    ${bomV2Input('wz2Cubicles','Jumlah Cubicle',d.cubicles,'number','min="1"')}
+    ${bomV2Input('wz2W','Lebar / Cubicle (mm)',d.cubicleW,'number','min="300"')}
+    ${bomV2Input('wz2D','Dalam (mm)',d.cubicleD,'number','min="300"')}
+    ${bomV2Input('wz2H','Tinggi (mm)',d.cubicleH,'number','min="600"')}
+    ${bomV2Select('wz2PanelType','Instalasi',['Indoor','Outdoor'],d.panelType)}
+    ${bomV2Select('wz2IP','IP Rating',['IP31','IP42','IP54','IP55','IP65'],d.ipRating)}
+    ${bomV2Select('wz2Entry','Cable Entry',['Bottom','Top','Top & Bottom'],d.cableEntry)}
+  </div></div>
+  <div class="wz2-card"><div class="wz2-card-head"><div><div class="wz2-card-title">Konfigurasi Busbar</div><div class="form-hint">Jumlah section tidak diinput. Sistem menyimpulkannya dari coupler pada tahap berikutnya.</div></div><button class="btn btn-sm" onclick="bomV2ToggleBusbarAdvanced()">${d.showBusbarAdvanced?'Sembunyikan Advanced':'Advanced'}</button></div>
+    <div class="wz2-grid">
+      ${bomV2Input('wz2BusRating','Rating Busbar (A)',d.busbarRating,'number','min="1"')}
+      ${bomV2Select('wz2BusMat','Material Busbar',['Copper','Aluminium'],d.busbarMaterial)}
+      ${bomV2Select('wz2BusSizing','Penentuan Ukuran',['auto','manual'],d.busbarSizingMode,'bomV2TopologyChanged()')}
+      ${d.busbarSizingMode==='manual'?bomV2Input('wz2BusSize','Ukuran Busbar Manual',d.busbarSize,'text','placeholder="contoh 10x50"'):bomV2Field('Ukuran Rekomendasi',`<div class="wz2-readonly"><b>${bomV2Esc(autoSize)} mm</b><br><span>berdasarkan rating ${d.busbarRating}A dan material ${bomV2Esc(d.busbarMaterial)}</span></div>`)}
+    </div>
+    ${d.showBusbarAdvanced?`<div class="wz2-grid" style="margin-top:10px">${bomV2Input('wz2BusLen','Override Total Busbar (m, 0=Auto)',d.busbarLengthOverride,'number','min="0" step="0.1"')}</div>`:''}
+    <div class="wz2-summary-inline" style="margin-top:10px"><b>Kesimpulan sementara:</b> ${bomV2Esc(topo.label)} · ${topo.busSections} rangkaian bus utama · ukuran ${bomV2Esc(effectiveSize)} mm. Kesimpulan akan otomatis berubah bila bus coupler diaktifkan.</div>
+  </div>`;
+}
+function bomV2PanelFamilyChanged(){
+  bomV2CollectCurrent(); const d=bomV2Ensure(); const fam=document.getElementById('wz2Family')?.value||d.panelFamily; d.panelFamily=fam;
+  if(fam==='DCDB'){d.voltage=125;d.phaseSystem='DC 2-Wire';d.panelName='125VDC BOARD';d.controlVoltage='125VDC';d.busbarSize='4x25';}
+  else if(fam==='UPS ACDB'){d.voltage=110;d.phaseSystem='1P2W';d.panelName='110VAC UPS ACDB';d.controlVoltage='110VAC';d.busbarSize='';}
+  else {d.voltage=380;d.phaseSystem='3P4W';d.panelName='380/220V ACDB';d.controlVoltage='220VAC';d.busbarSize='5x25';}
+  bomWizardRender();
+}
+
+function bomV2StepIncoming(d){
+  const inc=d.incoming.map((x,i)=>bomV2IncomingCard(x,i)).join('');
+  const c=d.coupler, topo=bomV2DeriveTopology(d), canCouple=topo.incomingCount>=2;
+  return `<div class="wz2-note">Cara operasi adalah keputusan utama: <b>Manual</b> tidak menambah motor/ATS; <b>Electrical Manual</b> menambah motor dan kontrol lokal/remote; <b>Automatic</b> dapat masuk logic ATS.</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0"><strong>Incoming</strong><button class="btn btn-sm" onclick="bomV2AddIncoming()">+ Tambah Incoming</button></div>${inc}
+  <div class="wz2-card"><div class="wz2-card-head"><div class="wz2-card-title">Bus Coupler</div>${canCouple?bomV2Check('wz2CouplerEnabled','Ada bus coupler',c.enabled,'bomV2ToggleCoupler()'):'<span class="form-hint">Tambahkan incoming kedua untuk mengaktifkan bus coupler</span>'}</div>
+  ${c.enabled?`<div class="wz2-grid">
+    ${bomV2Select('wz2CDevice','Device',['MCCB','ACB','Isolator'],c.device)}${bomV2Input('wz2CRating','Rating (A)',c.rating,'number')}${bomV2Input('wz2CPoles','Pole',c.poles,'number','min="1" max="4"')}
+    ${bomV2Select('wz2COperation','Operasi',['manual','electrical','automatic'],c.operation,'bomV2CouplerOperationChanged()')}${bomV2Select('wz2CInterlock','Interlock',['none','mechanical','electrical','both','key'],c.interlock)}
+    ${bomV2Select('wz2CPowerConn','Koneksi Daya ke Bus A & B',['auto','cable','flexible_busbar','rigid_busbar'],c.powerConnection)}${bomV2Select('wz2CConnKit','Connection Kit Pabrikan',['auto','yes','no'],c.connectionKit)}${bomV2Input('wz2CRouteOverride','Override Jalur per Sisi (m, 0=Auto)',c.powerRouteOverrideM,'number','min="0" step="0.1"')}
+  </div><div class="wz2-checks" style="margin-top:10px">${bomV2Check('wz2CAux','Auxiliary status contact',c.includeAux)}</div><div class="form-hint">Coupler otomatis membagi main bus menjadi Bus A dan Bus B serta dihitung memiliki dua koneksi daya, termasuk saat operasinya manual.</div>${c.operation==='manual'?`<div class="wz2-ok">Coupler manual: koneksi daya tetap dibuat, tetapi motor mechanism dan komponen ATS untuk coupler tidak dibuat.</div>`:''}`:''}</div>
+  <div class="wz2-card"><div class="wz2-card-head"><div class="wz2-card-title">Automatic Transfer Logic</div>${bomV2Check('wz2ATSEnabled','Panel menggunakan ATS / automatic bus transfer',d.ats.enabled,'bomV2ToggleATS()')}</div>
+  ${d.ats.enabled?bomV2ATSFields(d):`<div class="wz2-ok">ATS tidak aktif. Sistem tidak menambahkan PLC/ATS controller, timer transfer, atau relay logic ATS.</div>`}</div>`;
+}
+function bomV2IncomingCard(x,i){
+  return `<div class="wz2-card"><div class="wz2-card-head"><div class="wz2-card-title">${bomV2Esc(x.name||'Incoming '+(i+1))}</div><button class="btn btn-sm btn-danger" onclick="bomV2RemoveIncoming(${i})" ${_bomWizard.spec.distV2.incoming.length<=1?'disabled':''}>Hapus</button></div><div class="wz2-grid">
+  ${bomV2Input(`wz2IName${i}`,'Tag / Nama',x.name)}${bomV2Select(`wz2ISource${i}`,'Sumber',['PLN','Transformer','Genset','UPS','Panel Upstream'],x.source)}${bomV2Input(`wz2IQty${i}`,'Qty Breaker',x.qty,'number','min="1"')}
+  ${bomV2Select(`wz2IDevice${i}`,'Device',['MCCB','ACB','MCB','Isolator'],x.device)}${bomV2Input(`wz2IRating${i}`,'Rating (A)',x.rating,'number','min="1"')}${bomV2Input(`wz2IPoles${i}`,'Pole',x.poles,'number','min="1" max="4"')}
+  ${bomV2Select(`wz2IOperation${i}`,'Cara Operasi',['manual','electrical','automatic'],x.operation,`bomV2IncomingOperationChanged(${i})`)}${bomV2Select(`wz2IMount${i}`,'Mounting',['fixed','drawout'],x.mounting)}${bomV2Select(`wz2ITrip${i}`,'Trip Unit',['Thermal Magnetic','Electronic'],x.tripUnit)}
+  </div><div class="wz2-card" style="margin-top:10px;background:var(--surface2)"><div class="wz2-card-title">Koneksi Daya Incoming</div><div class="wz2-grid" style="margin-top:8px">
+  ${bomV2Select(`wz2IPowerConn${i}`,'Breaker → Main Busbar',['auto','cable','flexible_busbar','rigid_busbar'],x.powerConnection)}${bomV2Select(`wz2IPosition${i}`,'Posisi Breaker',['top','middle','bottom'],x.breakerPosition)}${bomV2Select(`wz2IConnKit${i}`,'Connection Kit Pabrikan',['auto','yes','no'],x.connectionKit)}
+  ${bomV2Input(`wz2IRouteOverride${i}`,'Override Total Jalur / Konduktor (m, 0=Auto)',x.powerRouteOverrideM,'number','min="0" step="0.1"')}${bomV2Input(`wz2IParallel${i}`,'Override Kabel Paralel / Pole (0=Auto)',x.parallelRunsOverride,'number','min="0" step="1"')}
+  </div><div class="wz2-checks" style="margin-top:8px">${bomV2Check(`wz2ITerminal${i}`,'Gunakan terminal incoming sebelum breaker',x.incomingTerminal)}</div><div class="form-hint">Auto memilih kabel sampai 250A, flexible busbar 315–630A, dan rigid busbar mulai 800A. Semua dapat di-override.</div></div>
+  <div class="wz2-checks" style="margin-top:10px">${bomV2Check(`wz2IAux${i}`,'OF/SD status contact',x.includeAux)}${bomV2Check(`wz2IUVT${i}`,'Undervoltage release (UVT/MN)',x.uvt)}${x.operation!=='manual'?bomV2Check(`wz2IShunt${i}`,'Shunt trip / opening release',x.shuntTrip):''}${x.operation==='electrical'?bomV2Check(`wz2ILR${i}`,'Local/Remote selector',x.localRemote):''}${bomV2Check(`wz2IMeter${i}`,'Metering incoming',x.metering)}${bomV2Check(`wz2ISPD${i}`,'SPD incoming',x.spd)}</div>
+  ${x.operation==='manual'?`<div class="wz2-ok">Manual: hanya breaker, handle/mounting, koneksi daya, dan auxiliary yang dipilih.</div>`:x.operation==='electrical'?`<div class="wz2-note">Electrical Manual: motor mechanism, OPEN/CLOSE control, relay interface, dan control protection otomatis ditambahkan; bukan ATS.</div>`:`<div class="wz2-note">Automatic: electrical operating accessories otomatis ditambahkan dan breaker dapat diikutkan dalam logic ATS.</div>`}</div>`;
+}
+function bomV2ATSFields(d){
+ const topo=bomV2DeriveTopology(d);
+ return `<div class="wz2-summary-inline" style="margin-bottom:10px"><b>Topologi otomatis:</b> ${bomV2Esc(topo.label)}. Ditentukan dari ${topo.incomingCount} incoming dan ${topo.hasCoupler?'ada':'tanpa'} bus coupler.</div><div class="wz2-grid">${bomV2Select('wz2ATSController','Controller',['Dedicated ATS Controller','PLC','Relay Logic'],d.ats.controller)}${bomV2Select('wz2ATSTransition','Transition',['open','closed'],d.ats.transition)}${bomV2Select('wz2ATSPriority','Source Priority',['Source 1','Source 2','No Priority'],d.ats.priority)}${bomV2Input('wz2ATSTransfer','Transfer Delay (s)',d.ats.transferDelay,'number','min="0"')}${bomV2Input('wz2ATSReturn','Return Delay (s)',d.ats.returnDelay,'number','min="0"')}</div><div class="wz2-checks" style="margin-top:10px">${bomV2Check('wz2ATSAutoManual','Auto/Manual selector',d.ats.autoManual)}${bomV2Check('wz2ATSHealthy','Source healthy indication',d.ats.sourceHealthyLamp)}${topo.hasGenset?bomV2Check('wz2ATSGenset','Genset start contact',d.ats.gensetStart):''}${bomV2Check('wz2ATSAlarm','Alarm buzzer/reset',d.ats.alarm)}</div>${d.coupler.enabled&&d.coupler.operation==='manual'?`<div class="wz2-warn">Bus coupler manual tidak dimasukkan ke automatic transfer. ATS hanya mengontrol incoming yang dipilih Automatic.</div>`:''}`;
+}
+function bomV2AddIncoming(){bomV2CollectCurrent();const d=bomV2Ensure();d.incoming.push(bomV2IncomingDefault(d.incoming.length+1));bomWizardRender()}
+function bomV2RemoveIncoming(i){bomV2CollectCurrent();const d=bomV2Ensure();if(d.incoming.length>1)d.incoming.splice(i,1);bomWizardRender()}
+function bomV2IncomingOperationChanged(i){bomV2CollectCurrent();const d=bomV2Ensure();d.incoming[i].operation=document.getElementById(`wz2IOperation${i}`)?.value||d.incoming[i].operation;if(d.incoming[i].operation==='automatic')d.ats.enabled=true;bomWizardRender()}
+function bomV2ToggleCoupler(){bomV2CollectCurrent();const d=bomV2Ensure();d.coupler.enabled=!!document.getElementById('wz2CouplerEnabled')?.checked;bomWizardRender()}
+function bomV2CouplerOperationChanged(){bomV2CollectCurrent();const d=bomV2Ensure();d.coupler.operation=document.getElementById('wz2COperation')?.value||d.coupler.operation;if(d.coupler.operation==='automatic')d.ats.enabled=true;bomWizardRender()}
+function bomV2ToggleATS(){bomV2CollectCurrent();const d=bomV2Ensure();d.ats.enabled=!!document.getElementById('wz2ATSEnabled')?.checked;bomWizardRender()}
+
+function bomV2StepOutgoing(d){
+  return `<div class="wz2-note">Input outgoing per kelompok. Kabel, terminal power, ferrule/lug, label, dan accessory mounting dihitung otomatis dari qty × pole. Feeder khusus dapat dibuat sebagai kelompok terpisah.</div><div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0"><strong>Kelompok Outgoing</strong><button class="btn btn-sm" onclick="bomV2AddOutgoing()">+ Tambah Kelompok</button></div><div class="table-wrap"><table class="wz2-table"><thead><tr><th>Deskripsi</th><th>Device</th><th>A</th><th>Pole</th><th>Qty</th><th>kA</th><th>Aux</th><th>Kabel</th><th>Route m</th><th>Spare</th><th></th></tr></thead><tbody>${d.outgoing.map((x,i)=>`<tr><td><input id="wz2ODesc${i}" value="${bomV2Esc(x.description)}"></td><td><select id="wz2ODevice${i}">${bomV2Options(['MCB','MCCB','ACB','Fuse Switch'],x.device)}</select></td><td><input type="number" id="wz2ORating${i}" value="${x.rating}" min="1"></td><td><input type="number" id="wz2OPoles${i}" value="${x.poles}" min="1" max="4"></td><td><input type="number" id="wz2OQty${i}" value="${x.qty}" min="1"></td><td><input type="number" id="wz2OIcu${i}" value="${x.breakingCapacity}" min="1"></td><td><input type="checkbox" id="wz2OAux${i}" ${bomV2Checked(x.aux)}></td><td><select id="wz2OCableAuto${i}" onchange="bomV2OutgoingCableMode(${i})"><option value="auto" ${x.cableAuto?'selected':''}>Auto</option><option value="manual" ${!x.cableAuto?'selected':''}>${x.cableSize} mm²</option></select>${!x.cableAuto?`<input type="number" id="wz2OCable${i}" value="${x.cableSize}" min="0.75" step="0.5">`:''}</td><td><input type="number" id="wz2ORoute${i}" value="${x.routeM||d.internalRouteM}" min="0.1" step="0.1"></td><td><input type="checkbox" id="wz2OSpare${i}" ${bomV2Checked(x.spare)}></td><td><button class="btn btn-sm btn-danger" onclick="bomV2RemoveOutgoing(${i})" ${d.outgoing.length<=1?'disabled':''}>×</button></td></tr>`).join('')}</tbody></table></div><div class="wz2-summary-grid" style="margin-top:12px">${bomV2OutgoingKPIs(d)}</div>`;
+}
+function bomV2OutgoingKPIs(d){const q=d.outgoing.reduce((s,x)=>s+bomV2Int(x.qty),0),p=d.outgoing.reduce((s,x)=>s+bomV2Int(x.qty)*bomV2Int(x.poles),0),a=d.outgoing.reduce((s,x)=>s+(x.aux?bomV2Int(x.qty):0),0);return `<div>Total Feeder<strong>${q}</strong></div><div>Power Poles<strong>${p}</strong></div><div>Aux Feeder<strong>${a}</strong></div><div>Group<strong>${d.outgoing.length}</strong></div>`}
+function bomV2AddOutgoing(){bomV2CollectCurrent();bomV2Ensure().outgoing.push(bomV2OutgoingDefault());bomWizardRender()}
+function bomV2RemoveOutgoing(i){bomV2CollectCurrent();const d=bomV2Ensure();if(d.outgoing.length>1)d.outgoing.splice(i,1);bomWizardRender()}
+function bomV2OutgoingCableMode(i){bomV2CollectCurrent();const d=bomV2Ensure();d.outgoing[i].cableAuto=document.getElementById(`wz2OCableAuto${i}`)?.value==='auto';bomWizardRender()}
+
+function bomV2StepSupport(d){
+ const m=d.metering,me=d.mechanical;
+ return `<div class="wz2-card"><div class="wz2-card-title">Metering & Protection</div><div class="wz2-checks" style="margin-top:10px">${bomV2Check('wz2MeterEnabled','Incoming metering package',m.enabled)}${bomV2Check('wz2AnalogVM','Analog voltmeter',m.analogVM)}${bomV2Check('wz2AnalogAM','Analog ammeter',m.analogAM)}${bomV2Check('wz2PowerMeter','Digital power meter',m.powerMeter)}${bomV2Check('wz2VoltTrans','Voltage transducer',m.voltTransducer)}${bomV2Check('wz2SPD','SPD',m.spd)}${bomV2Check('wz2UVRelay','Source undervoltage relay',m.underVoltageRelay)}</div><div class="wz2-grid" style="margin-top:10px">${bomV2Input('wz2CTMeter','CT Metering Class',m.ctMeterClass)}${bomV2Input('wz2CTProt','CT Protection Class',m.ctProtectionClass)}</div></div>
+ <div class="wz2-card"><div class="wz2-card-title">Mechanical Template</div><div class="wz2-checks" style="margin-top:10px">${bomV2Check('wz2Cabin','Cabin lamp + switch',me.cabinLamp)}${bomV2Check('wz2Heater','Panel heater',me.heater)}${bomV2Check('wz2Thermo','Thermostat',me.thermostat)}${bomV2Check('wz2Socket','DIN AC socket',me.socket)}${bomV2Check('wz2Louvre','Louvre / ventilation',me.louvre)}${bomV2Check('wz2Nameplate','Name plate package',me.nameplate)}</div></div>
+ <div class="wz2-card"><div class="wz2-card-title">Connection & Wiring Defaults</div><div class="wz2-grid" style="margin-top:10px">${bomV2Input('wz2RouteM','Default internal route / conductor (m)',d.internalRouteM,'number','min="0.1" step="0.1"')}${bomV2Input('wz2GroundQty','Override Qty Ground Busbar (0=Auto)',d.groundBusQtyOverride,'number','min="0"')}${bomV2Input('wz2ConnAllowance','Connection/Platform/Accessories (lot)',d.connectionAllowance,'number','min="0"')}</div><div class="wz2-checks" style="margin-top:10px">${bomV2Check('wz2BranchCable','Branch Cable NYAF 2.5 mm² package',d.branchCable)}${bomV2Check('wz2ControlCable','Control cable package',d.controlCable)}</div></div>`;
+}
+
+function bomV2StepReview(d){
+ const topo=bomV2DeriveTopology(d),items=bomV2BuildRaw(d), warnings=bomV2Warnings(d), op=d.incoming.map(x=>`${x.name}: ${x.device} ${x.rating}A ${x.poles}P — ${x.operation}`).join('<br>');
+ const atsText=d.ats.enabled?`${d.ats.controller}, ${d.ats.transition} transition`:'Tidak ada';
+ return `<div class="wz2-summary-grid"><div>Panel<strong>${bomV2Esc(d.panelFamily)}</strong></div><div>Incoming<strong>${topo.incomingCount}</strong></div><div>Outgoing<strong>${d.outgoing.reduce((s,x)=>s+x.qty,0)}</strong></div><div>Draft BOM<strong>${items.length} baris</strong></div></div>
+ <div class="wz2-card" style="margin-top:10px"><div class="wz2-card-title">Kesimpulan Sistem</div><div style="font-size:12px;line-height:1.7;margin-top:8px"><b>${bomV2Esc(d.panelName)}</b> — ${d.voltage}V, ${bomV2Esc(d.phaseSystem)}, ${d.cubicles} cubicle<br><b>Konfigurasi bus:</b> ${bomV2Esc(topo.label)} (${topo.busSections} section otomatis)<br><b>Main busbar:</b> ${d.busbarRating}A, ${bomV2Esc(d.busbarMaterial)}, ${bomV2Esc(bomV2EffectiveBusbarSize(d))} mm<br>${op}<br><b>Coupler:</b> ${d.coupler.enabled?`${d.coupler.device} ${d.coupler.rating}A — ${d.coupler.operation}`:'Tidak ada'}<br><b>ATS:</b> ${bomV2Esc(atsText)}</div></div>
+ ${warnings.length?warnings.map(x=>`<div class="wz2-warn">⚠ ${bomV2Esc(x)}</div>`).join(''):`<div class="wz2-ok">✓ Konfigurasi konsisten. BOM dapat digenerate dan tetap dapat diedit pada spreadsheet review.</div>`}
+ <div class="wz2-card"><div class="wz2-card-title">Komponen Turunan Penting</div><div class="table-wrap" style="margin-top:8px"><table class="wz2-table"><thead><tr><th>Section</th><th>Item</th><th>Qty</th><th>Dasar</th></tr></thead><tbody>${items.slice(0,45).map(x=>`<tr><td>${bomV2Esc(x.section)}</td><td>${bomV2Esc(x.name)}</td><td>${x.qty} ${bomV2Esc(x.unit)}</td><td>${bomV2Esc(x.note)}</td></tr>`).join('')}</tbody></table></div>${items.length>45?`<div class="form-hint">Menampilkan 45 dari ${items.length} baris. Semua baris tampil setelah Generate.</div>`:''}</div>`;
+}
+function bomV2Warnings(d){const w=[];if(d.ats.enabled&&d.incoming.filter(x=>x.operation==='automatic').length<2)w.push('ATS aktif, tetapi breaker incoming Automatic kurang dari dua.');if(d.coupler.enabled&&d.coupler.operation==='manual'&&d.ats.enabled)w.push('Coupler manual sengaja tidak dimasukkan ke logic ATS.');if(d.ats.transition==='closed')w.push('Closed transition memerlukan synchronism check dan studi paralel sumber; komponen sync-check akan ditambahkan.');if(d.outgoing.some(x=>x.device==='MCB'&&x.rating>63))w.push('Ada MCB di atas 63A; periksa apakah seharusnya MCCB.');d.incoming.forEach(x=>{const m=bomV2PowerConnectionMethod(x.rating,x.powerConnection);if(x.rating>=800&&m==='cable')w.push(`${x.name}: rating ${x.rating}A menggunakan kabel; verifikasi jumlah parallel run dan ruang terminasi.`);if(x.device==='ACB'&&x.connectionKit==='no')w.push(`${x.name}: ACB tanpa manufacturer connection kit; pastikan terminal extension/busbar adapter tidak diperlukan.`)});return w}
+
+function bomV2CollectCurrent(){
+ if(!bomV2IsActive())return;const d=bomV2Ensure(),v=id=>document.getElementById(id)?.value,c=id=>!!document.getElementById(id)?.checked;
+ if(_bomWizard.step===1){d.panelFamily=v('wz2Family')||d.panelFamily;d.panelName=v('wz2PanelName')??d.panelName;d.project=v('wz2Project')??d.project;d.voltage=bomV2Num(v('wz2Voltage'),d.voltage);d.phaseSystem=v('wz2Phase')||d.phaseSystem;d.frequency=bomV2Num(v('wz2Freq'),d.frequency);d.brand=v('wz2Brand')||d.brand;d.controlVoltage=v('wz2CtrlV')||d.controlVoltage;d.breakingCapacity=bomV2Num(v('wz2Icu'),d.breakingCapacity);d.cubicles=bomV2Int(v('wz2Cubicles'),d.cubicles);d.cubicleW=bomV2Num(v('wz2W'),d.cubicleW);d.cubicleD=bomV2Num(v('wz2D'),d.cubicleD);d.cubicleH=bomV2Num(v('wz2H'),d.cubicleH);d.panelType=v('wz2PanelType')||d.panelType;d.ipRating=v('wz2IP')||d.ipRating;d.cableEntry=v('wz2Entry')||d.cableEntry;d.busbarRating=bomV2Num(v('wz2BusRating'),d.busbarRating);d.busbarMaterial=v('wz2BusMat')||d.busbarMaterial;d.busbarSizingMode=v('wz2BusSizing')||d.busbarSizingMode||'auto';if(document.getElementById('wz2BusSize'))d.busbarSize=v('wz2BusSize')??d.busbarSize;if(document.getElementById('wz2BusLen'))d.busbarLengthOverride=bomV2Num(v('wz2BusLen'),d.busbarLengthOverride);}
+ if(_bomWizard.step===2){d.incoming.forEach((x,i)=>{x.name=v(`wz2IName${i}`)??x.name;x.source=v(`wz2ISource${i}`)||x.source;x.qty=bomV2Int(v(`wz2IQty${i}`),x.qty);x.device=v(`wz2IDevice${i}`)||x.device;x.rating=bomV2Num(v(`wz2IRating${i}`),x.rating);x.poles=bomV2Int(v(`wz2IPoles${i}`),x.poles);x.operation=v(`wz2IOperation${i}`)||x.operation;x.mounting=v(`wz2IMount${i}`)||x.mounting;x.tripUnit=v(`wz2ITrip${i}`)||x.tripUnit;x.includeAux=c(`wz2IAux${i}`);x.uvt=c(`wz2IUVT${i}`);if(document.getElementById(`wz2IShunt${i}`))x.shuntTrip=c(`wz2IShunt${i}`);if(document.getElementById(`wz2ILR${i}`))x.localRemote=c(`wz2ILR${i}`);x.metering=c(`wz2IMeter${i}`);x.spd=c(`wz2ISPD${i}`);x.powerConnection=v(`wz2IPowerConn${i}`)||x.powerConnection;x.breakerPosition=v(`wz2IPosition${i}`)||x.breakerPosition;x.connectionKit=v(`wz2IConnKit${i}`)||x.connectionKit;x.powerRouteOverrideM=bomV2Num(v(`wz2IRouteOverride${i}`),x.powerRouteOverrideM);x.parallelRunsOverride=bomV2Int(v(`wz2IParallel${i}`),x.parallelRunsOverride);x.incomingTerminal=c(`wz2ITerminal${i}`)});d.coupler.enabled=c('wz2CouplerEnabled') && d.incoming.reduce((sum,x)=>sum+(x.qty||1),0)>=2;if(d.coupler.enabled){d.coupler.device=v('wz2CDevice')||d.coupler.device;d.coupler.rating=bomV2Num(v('wz2CRating'),d.coupler.rating);d.coupler.poles=bomV2Int(v('wz2CPoles'),d.coupler.poles);d.coupler.operation=v('wz2COperation')||d.coupler.operation;d.coupler.interlock=v('wz2CInterlock')||d.coupler.interlock;d.coupler.includeAux=c('wz2CAux');d.coupler.powerConnection=v('wz2CPowerConn')||d.coupler.powerConnection;d.coupler.connectionKit=v('wz2CConnKit')||d.coupler.connectionKit;d.coupler.powerRouteOverrideM=bomV2Num(v('wz2CRouteOverride'),d.coupler.powerRouteOverrideM)}d.ats.enabled=c('wz2ATSEnabled');if(d.ats.enabled){d.ats.controller=v('wz2ATSController')||d.ats.controller;d.ats.transition=v('wz2ATSTransition')||d.ats.transition;d.ats.priority=v('wz2ATSPriority')||d.ats.priority;d.ats.transferDelay=bomV2Num(v('wz2ATSTransfer'),d.ats.transferDelay);d.ats.returnDelay=bomV2Num(v('wz2ATSReturn'),d.ats.returnDelay);d.ats.autoManual=c('wz2ATSAutoManual');d.ats.sourceHealthyLamp=c('wz2ATSHealthy');if(document.getElementById('wz2ATSGenset'))d.ats.gensetStart=c('wz2ATSGenset');else d.ats.gensetStart=false;d.ats.alarm=c('wz2ATSAlarm')}bomV2DeriveTopology(d)}
+ if(_bomWizard.step===3){d.outgoing.forEach((x,i)=>{x.description=v(`wz2ODesc${i}`)??x.description;x.device=v(`wz2ODevice${i}`)||x.device;x.rating=bomV2Num(v(`wz2ORating${i}`),x.rating);x.poles=bomV2Int(v(`wz2OPoles${i}`),x.poles);x.qty=bomV2Int(v(`wz2OQty${i}`),x.qty);x.breakingCapacity=bomV2Num(v(`wz2OIcu${i}`),x.breakingCapacity);x.aux=c(`wz2OAux${i}`);x.cableAuto=(v(`wz2OCableAuto${i}`)||'auto')==='auto';x.cableSize=x.cableAuto?bomV2CableSize(x.rating):bomV2Num(v(`wz2OCable${i}`),x.cableSize);x.routeM=bomV2Num(v(`wz2ORoute${i}`),d.internalRouteM);x.spare=c(`wz2OSpare${i}`)})}
+ if(_bomWizard.step===4){d.metering.enabled=c('wz2MeterEnabled');d.metering.analogVM=c('wz2AnalogVM');d.metering.analogAM=c('wz2AnalogAM');d.metering.powerMeter=c('wz2PowerMeter');d.metering.voltTransducer=c('wz2VoltTrans');d.metering.spd=c('wz2SPD');d.metering.underVoltageRelay=c('wz2UVRelay');d.metering.ctMeterClass=v('wz2CTMeter')??d.metering.ctMeterClass;d.metering.ctProtectionClass=v('wz2CTProt')??d.metering.ctProtectionClass;d.mechanical.cabinLamp=c('wz2Cabin');d.mechanical.heater=c('wz2Heater');d.mechanical.thermostat=c('wz2Thermo');d.mechanical.socket=c('wz2Socket');d.mechanical.louvre=c('wz2Louvre');d.mechanical.nameplate=c('wz2Nameplate');d.internalRouteM=bomV2Num(v('wz2RouteM'),d.internalRouteM);d.groundBusQtyOverride=bomV2Int(v('wz2GroundQty'),d.groundBusQtyOverride);d.connectionAllowance=bomV2Num(v('wz2ConnAllowance'),d.connectionAllowance);d.branchCable=c('wz2BranchCable');d.controlCable=c('wz2ControlCable')}
+ bomV2DeriveTopology(d);
+}
+function bomV2CableSize(a){if(a<=16)return 4;if(a<=25)return 6;if(a<=40)return 10;if(a<=63)return 16;if(a<=100)return 35;if(a<=160)return 50;if(a<=200)return 70;if(a<=250)return 95;if(a<=315)return 120;if(a<=400)return 185;return 240}
+function bomV2PowerConnectionMethod(rating,selected){if(selected&&selected!=='auto')return selected;if(rating<=250)return 'cable';if(rating<=630)return 'flexible_busbar';return 'rigid_busbar'}
+function bomV2IncomingCableRule(rating,overrideRuns=0){let size=240,runs=1;if(rating<=63){size=16;runs=1}else if(rating<=100){size=35;runs=1}else if(rating<=160){size=50;runs=1}else if(rating<=200){size=70;runs=1}else if(rating<=250){size=95;runs=1}else if(rating<=315){size=120;runs=1}else if(rating<=400){size=185;runs=1}else if(rating<=500){size=120;runs=2}else if(rating<=630){size=185;runs=2}else if(rating<=800){size=240;runs=2}else{size=240;runs=Math.ceil(rating/400)}if(overrideRuns>0)runs=overrideRuns;return {size,runs}}
+function bomV2IncomingAutoRoute(d,x){if(x.powerRouteOverrideM>0)return x.powerRouteOverrideM;const entry=d.cableEntry||'Bottom',pos=x.breakerPosition||'middle';let entryToBreaker=1.2;if(entry==='Top & Bottom')entryToBreaker=pos==='middle'?1.0:0.7;else if((entry==='Top'&&pos==='top')||(entry==='Bottom'&&pos==='bottom'))entryToBreaker=0.7;else if(pos==='middle')entryToBreaker=1.2;else entryToBreaker=1.8;const breakerToBus=0.8;return Math.round((entryToBreaker+breakerToBus)*10)/10}
+function bomV2BusbarConnectionSize(rating,material='Copper'){const k=material==='Aluminium'?1.35:1;if(rating<=400)return `${Math.ceil(30*k)}x5`;if(rating<=630)return `${Math.ceil(50*k)}x10`;if(rating<=800)return `${Math.ceil(60*k)}x10`;if(rating<=1000)return `${Math.ceil(80*k)}x10`;return `${Math.ceil(100*k)}x10`}
+function bomV2NeedsConnectionKit(x,method){return x.connectionKit==='yes'||(x.connectionKit==='auto'&&(x.device==='ACB'||x.rating>=630||method==='rigid_busbar'))}
+function bomV2Price(name){const n=name.toLowerCase(),p=[['cubicle',11000000],['free standing panel',11000000],['cabin lamp',120000],['lamp switch',120000],['panel heater',905000],['thermostat',342000],['din ac socket',294000],['louvre',150000],['name plate',150000],['busbar grounding',350000],['branch cable',1000000],['control cable nyaf',500000],['control cable 2x',500000],['mcb 2p 2a',487000],['undervoltage relay',1050000],['surge protector',3135000],['test -disconnect',87500],['fuse holder 3p',100000],['fuse holder 1p',75000],['pilot lamp',75000],['volt selector',750000],['analog vm',500000],['volt transducer',2500000],['analog am',750000],['power meter',4500000],['motorize',8500000],['auxiliary & al',1500000],['selector m.o.a',384000],['push button',100000],['plc',2900000],['relay my2n',350000],['relay my4n',380000],['uvt',1750000],['auxiliary mcb',320000],['auxiliary mccb',520000],['nyaf 4mm',39000],['nyaf 6mm',39000],['nyaf 10mm',65000],['nyaf 16mm',85000],['nyaf 35mm',155000],['nyaf 50mm',210000],['nyaf 70mm',285000],['nyaf 95mm',385000],['nyaf 120mm',485000],['nyaf 185mm',720000],['nyaf 240mm',920000],['cable lug',85000],['power terminal incoming',275000],['pe terminal incoming',95000],['flexible busbar connection',450000],['rigid busbar connection',400000],['busbar heat shrink',85000],['busbar support',175000],['manufacturer connection kit',2500000],['terminal',45000],['stopper',18000],['connection, platform',3000000]];for(const [k,v]of p)if(n.includes(k))return v;return 0}
+function bomV2Raw(section,name,qty,unit='pcs',note='',spec=''){return {section,name,qty:Math.round(qty*100)/100,unit,note,specText:spec,price:bomV2Price(name)}}
+function bomV2BuildRaw(d){
+ const topo=bomV2DeriveTopology(d),busSections=topo.busSections,busbarSize=bomV2EffectiveBusbarSize(d);
+ const a=[],add=(...x)=>{if(x[2]>0)a.push(bomV2Raw(...x))};const conductors=d.panelFamily==='DCDB'?(d.phaseSystem==='DC 3-Wire'?3:2):(d.phaseSystem==='3P4W'?4:d.phaseSystem==='3P3W'?3:2);
+ add('MECHANICAL',`${d.panelType==='Outdoor'?'Outdoor':'Free Standing'} Panel ${d.cubicleW}x${d.cubicleD}x${d.cubicleH}`,d.cubicles,'unit','Template berdasarkan jumlah cubicle');if(d.mechanical.cabinLamp){add('MECHANICAL','CABIN LAMP 220VAC',d.cubicles,'pcs','1 per cubicle');add('MECHANICAL','Lamp Switch + Rubber Cover',d.cubicles,'pcs','1 per cubicle')}if(d.mechanical.heater)add('MECHANICAL','Panel Heater 55W',d.cubicles,'pcs','1 per cubicle');if(d.mechanical.thermostat)add('MECHANICAL','Thermostat Heater',d.cubicles,'pcs','1 per cubicle');if(d.mechanical.socket)add('MECHANICAL','DIN AC SOCKET',d.cubicles,'pcs','1 per cubicle');if(d.mechanical.louvre)add('MECHANICAL','Louvre 6 Inch',Math.max(2,d.cubicles*2),'pcs','2 per cubicle');if(d.mechanical.nameplate)add('MECHANICAL','Name Plate Package',d.cubicles,'set','1 package per cubicle');
+ add('Busbar & Cable','BUSBAR GROUNDING',d.groundBusQtyOverride||d.cubicles,'pcs','Auto = jumlah cubicle');const busLen=d.busbarLengthOverride||Math.ceil((d.cubicleW/1000*d.cubicles+1.2)*conductors*busSections);add('Busbar & Cable',`BUSBAR ${d.busbarRating}A${busbarSize?' ('+busbarSize+')':''}`,busLen,'m',`Auto: ${conductors} conductor × ${d.busSections} bus section`);if(d.branchCable)add('Busbar & Cable','Branch Cable NYAF 2,5mm',1,'lot','Template panel');if(d.controlCable){add('Busbar & Cable','Control Cable NYAF 0,75mm',1,'lot','Template panel');add('Busbar & Cable','Control Cable 2x AWG 18mm',1,'lot','Template panel')}
+ const electricallyOperated=[];d.incoming.forEach((x,i)=>{const q=x.qty||1,sec=x.name||`INCOMING ${i+1}`;if(x.spd&&d.metering.spd)add(sec,`Surge Protector ${conductors}P ${d.voltage}V`,q,'set','Per incoming');add(sec,`${x.device} ${x.poles}P ${x.rating}A ${d.breakingCapacity}kA ${x.tripUnit}`,q,'pcs','Input utama dari konfigurasi');
+ const method=bomV2PowerConnectionMethod(x.rating,x.powerConnection),route=bomV2IncomingAutoRoute(d,x),cRule=bomV2IncomingCableRule(x.rating,x.parallelRunsOverride),poleQty=x.poles*q;
+ if(x.incomingTerminal){add(sec,`Power Terminal Incoming ${x.rating}A`,poleQty,'pcs',`${poleQty} terminal power sesuai pole breaker`);add(sec,'PE Terminal Incoming',q,'pcs','1 PE terminal per incoming');const upstreamLen=Math.max(0.5,Math.round((route-0.8)*10)/10);add(sec,`NYAF ${cRule.size}MM Incoming Terminal → Breaker`,poleQty*cRule.runs*upstreamLen,'m',`${poleQty} pole × ${cRule.runs} run × ${upstreamLen}m`);add(sec,`Cable Lug ${cRule.size}MM`,poleQty*cRule.runs*2,'pcs','Dua ujung kabel terminal → breaker')}
+ const busRoute=x.incomingTerminal?0.8:route;
+ if(method==='cable'){add(sec,`NYAF ${cRule.size}MM Breaker → Main Busbar`,poleQty*cRule.runs*busRoute,'m',`${poleQty} pole × ${cRule.runs} run × ${busRoute}m`);add(sec,`Cable Lug ${cRule.size}MM`,poleQty*cRule.runs*2,'pcs','Dua ujung kabel breaker → busbar')}
+ else {const bs=bomV2BusbarConnectionSize(x.rating,d.busbarMaterial);add(sec,`${method==='flexible_busbar'?'Flexible':'Rigid'} Busbar Connection ${bs}MM Breaker → Main Busbar`,poleQty*busRoute,'m',`${poleQty} pole × ${busRoute}m`);add(sec,'Busbar Heat Shrink / Insulation Sleeve',poleQty*busRoute,'m','Insulation allowance mengikuti panjang connection');add(sec,'Busbar Support / Insulator',Math.max(poleQty*2,q*4),'pcs','Minimum dua support per pole')}
+ if(bomV2NeedsConnectionKit(x,method))add(sec,`${x.device} Manufacturer Connection Kit ${x.rating}A`,q,'set','Auto berdasarkan device/rating/metode koneksi');
+ if(x.metering&&d.metering.enabled){add(sec,'Test -Disconnect terminal',x.poles*q,'pcs','1 per pole sensing');add(sec,`Fuse Holder ${d.panelFamily==='DCDB'?'1P':x.poles>=3?'3P':'1P'}`,Math.max(1,q*2),'pcs','Voltage sensing protection');add(sec,'Pilot Lamp',q*(d.panelFamily==='DCDB'?3:6),'pcs','Source/breaker indication');if(d.metering.analogVM)add(sec,'Volt Selector',d.panelFamily==='DCDB'?0:q,'pcs','AC phase selection');if(d.metering.analogVM)add(sec,'Analog VM',q,'pcs','Per metered incoming');if(d.metering.voltTransducer)add(sec,'Volt transducer',q,'pcs','Per metered incoming');if(d.panelFamily==='DCDB'){add(sec,`Shunt ${x.rating}A`,q,'pcs','DC current measurement')}else{const ctQty=(x.poles>=3?3:1)*q;if(d.metering.ctMeterClass)add(sec,`CT ${x.rating}/5A, Cl. ${d.metering.ctMeterClass}`,ctQty,'pcs','Metering CT');if(d.metering.ctProtectionClass)add(sec,`CT ${x.rating}/5A, Cl. ${d.metering.ctProtectionClass}`,ctQty,'pcs','Protection CT')}if(d.metering.analogAM){add(sec,'Amper Selector',d.panelFamily==='DCDB'?0:q,'pcs','AC current selection');add(sec,'Analog AM',q,'pcs','Per metered incoming')}if(d.metering.powerMeter)add(sec,'POWER METER DIGITAL',q,'pcs','Per metered incoming')}
+ if(x.operation!=='manual'){electricallyOperated.push({kind:'incoming',x,q});add(sec,`Motorize / Electrical Operating Mechanism ${x.device} ${x.rating}A`,q,'pcs','Derived from operation');add(sec,'Push Button MCCB',q*3,'pcs','OPEN, CLOSE, RESET');add(sec,'Relay MY2N',q*3,'pcs','Interposing/control relay');add(sec,'Relay MY4N',q*3,'pcs','Interlock/status relay');if(x.localRemote)add(sec,'Selector M.O.A 1P',q,'pcs','Local/Remote or M-O-A selector')}if(x.includeAux)add(sec,'Auxiliary & AL MCCB',q*2,'pcs','OF + SD/AL');if(x.uvt)add(sec,'UVT',q,'pcs','Selected undervoltage release');if(x.shuntTrip)add(sec,'Shunt Trip / MX',q,'pcs','Selected opening release')});
+ if(d.coupler.enabled){const c=d.coupler,q=1,sec='BUS COUPLER';add(sec,`${c.device} ${c.poles}P ${c.rating}A Bus Coupler`,q,'pcs',`${c.operation}; ${c.interlock} interlock`);
+ const cMethod=bomV2PowerConnectionMethod(c.rating,c.powerConnection),cRoute=c.powerRouteOverrideM>0?c.powerRouteOverrideM:0.8,cPoles=c.poles*2,cRule=bomV2IncomingCableRule(c.rating,0);
+ if(cMethod==='cable'){add(sec,`NYAF ${cRule.size}MM Coupler → Bus A & Bus B`,cPoles*cRule.runs*cRoute,'m',`${c.poles} pole × 2 sisi × ${cRule.runs} run × ${cRoute}m`);add(sec,`Cable Lug ${cRule.size}MM`,cPoles*cRule.runs*2,'pcs','Dua ujung setiap koneksi coupler')}
+ else {const cBs=bomV2BusbarConnectionSize(c.rating,d.busbarMaterial);add(sec,`${cMethod==='flexible_busbar'?'Flexible':'Rigid'} Busbar Connection ${cBs}MM Coupler → Bus A & Bus B`,cPoles*cRoute,'m',`${c.poles} pole × 2 sisi × ${cRoute}m`);add(sec,'Busbar Heat Shrink / Insulation Sleeve',cPoles*cRoute,'m','Insulation kedua sisi coupler');add(sec,'Busbar Support / Insulator',Math.max(cPoles*2,8),'pcs','Support koneksi Bus A dan Bus B')}
+ if(c.connectionKit==='yes'||(c.connectionKit==='auto'&&(c.device==='ACB'||c.rating>=630||cMethod==='rigid_busbar')))add(sec,`${c.device} Manufacturer Connection Kit ${c.rating}A`,2,'set','Satu kit per sisi coupler');
+ if(c.includeAux)add(sec,'Auxiliary & AL MCCB',2,'pcs','Coupler status');if(c.operation!=='manual'){electricallyOperated.push({kind:'coupler',x:c,q});add(sec,`Motorize / Electrical Operating Mechanism ${c.device} ${c.rating}A`,1,'pcs','Derived from coupler operation');add(sec,'Push Button MCCB',3,'pcs','OPEN, CLOSE, RESET');add(sec,'Relay MY2N',3,'pcs','Control relay');add(sec,'Relay MY4N',3,'pcs','Electrical interlock')} }
+ if(d.ats.enabled){const sec='ATS CONTROL',controlled=electricallyOperated.filter(z=>z.x.operation==='automatic').reduce((s,z)=>s+z.q,0);add(sec,d.ats.controller,1,'set','Automatic transfer controller');if(d.metering.underVoltageRelay)add(sec,`Undervoltage Relay ${d.panelFamily==='DCDB'?'DC':'3P+N'}`,d.incoming.length,'pcs','Source availability sensing');if(d.ats.autoManual)add(sec,'Selector M.O.A 1P',1,'pcs','ATS Auto/Manual control');if(d.ats.sourceHealthyLamp)add(sec,'Pilot Lamp',d.incoming.length*2,'pcs','Source healthy/available indication');add(sec,'Relay MY2N',Math.max(2,controlled*2),'pcs','ATS command interface');add(sec,'Relay MY4N',Math.max(2,controlled*2),'pcs','ATS interlock/feedback');add(sec,`MCB 2P 2A`,Math.max(1,d.incoming.length),'pcs','ATS/control protection');if(d.ats.controller==='PLC')add(sec,'PLC OMRON',1,'pcs','Selected ATS controller');if(d.ats.gensetStart)add(sec,'Genset Start Interface Relay',2,'pcs','Start/stop dry contacts');if(d.ats.alarm){add(sec,'Alarm Buzzer',1,'pcs','ATS alarm');add(sec,'Push Button Alarm Reset',1,'pcs','Alarm acknowledgement')}if(d.ats.transition==='closed')add(sec,'Synchronism Check Relay',1,'pcs','Mandatory for closed transition')}
+ let powerTerm=0,auxTerm=0;d.outgoing.forEach(x=>{const q=x.qty||0,sec='OUTGOING',cable=x.cableAuto?bomV2CableSize(x.rating):x.cableSize;add(sec,`${x.device} FEEDER, ${x.poles}P ${x.rating}A, ${x.breakingCapacity}kA${x.spare?' (SPARE)':''}`,q,'pcs','Outgoing group input');if(x.aux){add(sec,`Auxiliary ${x.device}`,q,'pcs','Selected remote/status indication');auxTerm+=q}const cableQty=q*x.poles*(x.routeM||d.internalRouteM);add(sec,`NYAF ${cable}MM`,cableQty,'m',`${q} × ${x.poles} pole × ${x.routeM||d.internalRouteM}m`);powerTerm+=q*x.poles});
+ add('CONNECTION','Terminal',powerTerm+auxTerm,'pcs',`Power ${powerTerm}${auxTerm?' + aux '+auxTerm:''}`);add('CONNECTION','Stopper',Math.max(20,Math.ceil((powerTerm+auxTerm)/20)*20),'pcs','Allowance by terminal quantity');add('CONNECTION','Connection, Platform & Accessories',d.connectionAllowance,'lot','General connection allowance');return a;
+}
+async function bomV2ToItems(d){const raw=bomV2BuildRaw(d),cache=await bomBuildPriceCache();return raw.map((r,i)=>{let price=r.price||0;for(const key of [r.name.toLowerCase(),...(r.name.toLowerCase().split(/[,()\s]+/).filter(x=>x.length>4))]){if(cache.byName[key]){price=cache.byName[key];break}}return {tmpRowId:'dist2_'+i+'_'+Date.now(),component_id:null,part_number:'AUTO/TBD',name:r.name,section:r.section,unit:r.unit,qty:r.qty,unit_price:price,note:r.note,sort_order:i+1,_extra:{x_section:r.section,x_spec_auto:r.specText||'',x_sizing_basis:r.note,x_master_status:'Rule Engine V2',x_source:'Manual Configuration Wizard'}}})}
+
+async function bomWizardGenerate(){
+ if(!bomV2IsActive())return _bomLegacy.generate();bomV2CollectCurrent();const d=bomV2Ensure(),errors=bomV2Validate(d,2);if(errors.length){toast(errors[0]);return}toast('Generating ACDB/DCDB BOM...');const items=await bomV2ToItems(d);_bomReviewData={meta:{title:_bomWizard.title||d.panelName,unit_category:d.panelFamily,description:_bomWizard.desc||`${d.panelName}${d.project?' — '+d.project:''}`,opts:_bomWizard.opts,templateName:'ACDB/DCDB Manual Configuration Wizard',mode:'generator',generatorSpec:d},items};bomInitGeneratedReviewSheet(items);closeAllModals();renderBOMReviewModal();
+}
 
 </script>
 </body>
