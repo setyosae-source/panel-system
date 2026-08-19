@@ -41,8 +41,9 @@
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
 const PUBLIC_MONITOR='https://panelvision.ubnb.pw/public/monitor';
-const REALTIME_STALE_MS=8000;
-const REALTIME_OFFLINE_MS=30000;
+const DATA_LAMA_MS=5*60*1000;      // 5 menit sejak last-good data
+const OFFLINE_MS=5*60*1000;         // 5 menit tanpa update gateway sama sekali
+const REALTIME_RECONNECT_MS=15000;  // watchdog socket
 const FALLBACK_CHECK_MS=5000;
 const FALLBACK_HTTP_MIN_MS=10000;
 const sb=supabase.createClient(SB_URL,SB_KEY);
@@ -75,16 +76,18 @@ function goodCapturedAt(data=state.monitor){
   return Number.isFinite(t)?new Date(t-age).toISOString():at;
 }
 function dataFreshness(){
-  const s=status(),m=telemetryModbus(),rr=state.monitor?.latest?.telemetry?.registers||[];
-  const registerStale=rr.some(r=>qualityOf(r)==='stale');
+  const s=status(),m=telemetryModbus();
   const baseAge=toNum(m.data_age_ms)||0;
   const updatedAt=state.monitor?.latest?.updated_at||state.monitor?.latest?.captured_at||s.last_seen||null;
   const updatedMs=updatedAt?new Date(updatedAt).getTime():NaN;
   const transportAge=Number.isFinite(updatedMs)?Math.max(0,Date.now()-updatedMs):0;
+
+  // data_age_ms berasal dari firmware dan menunjukkan umur LAST GOOD VALUE.
+  // Poll timeout sesaat tidak dianggap DATA LAMA.
   const age=baseAge+transportAge;
-  const transportStale=transportAge>REALTIME_STALE_MS;
-  const offline=s.online===false||transportAge>REALTIME_OFFLINE_MS;
-  const stale=offline||!!s.stale||s.modbus_ok===false||m.last_poll_ok===false||registerStale||transportStale;
+  const offline=s.online===false||transportAge>OFFLINE_MS;
+  const stale=!offline&&age>DATA_LAMA_MS;
+
   return {
     stale,offline,age_ms:age,transport_age_ms:transportAge,
     last_poll_ok:m.last_poll_ok,poll_success_pct:toNum(m.poll_success_pct)
@@ -106,14 +109,17 @@ function rememberLastGood(data){
 }
 function regMeta(key){
   const r=regObj(key),s=status(),fresh=dataFreshness();
-  const globalStale=fresh.stale||s.online===false||s.modbus_ok===false;
   if(readableReg(r)){
-    const stale=globalStale||qualityOf(r)==='stale';
-    return {value:r.value,stale,captured_at:stale?goodCapturedAt():state.monitor?.latest?.captured_at||s.last_seen||null,source:stale?'latest-stale':'latest'};
+    return {
+      value:r.value,
+      stale:fresh.stale,
+      captured_at:fresh.stale?goodCapturedAt():state.monitor?.latest?.captured_at||s.last_seen||null,
+      source:fresh.stale?'last-good-5min':'latest'
+    };
   }
   const last=state.lastGood[key];
-  if(last)return {value:last.value,stale:true,captured_at:last.captured_at||null,source:'last-good'};
-  return {value:null,stale:true,captured_at:null,source:'none'};
+  if(last)return {value:last.value,stale:fresh.stale,captured_at:last.captured_at||null,source:'last-good'};
+  return {value:null,stale:fresh.stale,captured_at:null,source:'none'};
 }
 function reg(key){return regMeta(key).value;}
 function isOwner(){return state.membership?.role==='owner';}
@@ -229,19 +235,21 @@ async function realtimeWatchdog(){
   const fresh=dataFreshness();
   setConnection();
 
-  // Re-render only when stale/offline transition can matter, not every second.
-  if(fresh.transport_age_ms>REALTIME_STALE_MS&&document.visibilityState==='visible'){
+  // UI baru menampilkan DATA LAMA setelah last-good > 5 menit.
+  if((fresh.stale||fresh.offline)&&document.visibilityState==='visible'){
     render();
   }
 
+  // Socket boleh direconnect lebih cepat tanpa mempengaruhi status DATA LAMA di UI.
   const rtSilent=state.realtimeStatus!=='SUBSCRIBED'||
-    (state.lastRealtimeAt>0&&Date.now()-state.lastRealtimeAt>REALTIME_STALE_MS);
+    (state.lastRealtimeAt>0&&Date.now()-state.lastRealtimeAt>REALTIME_RECONNECT_MS);
 
   if(rtSilent&&document.visibilityState==='visible'&&Date.now()-state.lastHttpAt>FALLBACK_HTTP_MIN_MS){
     await loadPublic();
   }
 
-  if(state.realtimeStatus==='CLOSED'||state.realtimeStatus==='CHANNEL_ERROR'||state.realtimeStatus==='TIMED_OUT'){
+  if(state.realtimeStatus==='CLOSED'||state.realtimeStatus==='CHANNEL_ERROR'||state.realtimeStatus==='TIMED_OUT'||
+     (state.lastRealtimeAt>0&&Date.now()-state.lastRealtimeAt>REALTIME_RECONNECT_MS)){
     startRealtime();
   }
 }
@@ -292,7 +300,7 @@ function renderMimic(){
   const loadState=(dc===null&&!lowValid)?'unknown':dcStale?'stale':(dcLive&&loadMcb)?'active':'off';
   const batState=(bat===null&&!lowValid)?'unknown':batStale?'stale':(batLive&&batMcb)?'active':'off';
   const mode=state.monitor?.latest?.charger_mode||'—',fresh=dataFreshness();
-  const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · realtime belum mendapat snapshot fresh; nilai terakhir yang valid tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
+  const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir sudah lebih dari 5 menit; nilai terakhir tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
   $('view').innerHTML=`
   ${staleBanner}
   <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
@@ -313,7 +321,7 @@ function renderMimic(){
 function metricCards(){return (state.monitor?.registers||[]).map(d=>{const m=regMeta(d.key),has=m.value!==null&&m.value!==undefined;const note=!has?'DATA INVALID':m.stale?'DATA LAMA':'LIVE';return `<div class="metric ${m.stale?'stale':''}"><div class="name">${esc(d.name)}</div><div class="value">${fmt(m.value,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)} · ${note}${m.stale&&m.captured_at?` · valid ${esc(time(m.captured_at))}`:''}</div></div>`}).join('')}
 function renderMonitoring(){
   const fresh=dataFreshness();
-  const banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · Last Good Value dipertahankan · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
+  const banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir > 5 menit · Last Good Value dipertahankan · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
   $('view').innerHTML=`${banner}<div class="card"><div class="toolbar"><h3 style="margin:0;flex:1">Live Monitoring</h3><select class="select" id="hours"><option value="1">1 jam</option><option value="12">12 jam</option><option value="24">24 jam</option></select><select class="select" id="series"></select><button class="btn" id="refresh">Refresh</button></div><div class="grid">${metricCards()}</div></div><div class="card"><h3>Trend Historis</h3><div class="chart-wrap"><canvas id="chart"></canvas></div><div class="hint" id="chartInfo"></div></div>`;
   $('hours').value=String(state.hours);$('hours').onchange=async e=>{state.hours=Number(e.target.value)||1;await loadPublic()};
   $('series').innerHTML=(state.monitor?.registers||[]).map(d=>`<option value="${esc(d.key)}">${esc(d.name)}${d.unit?` (${esc(d.unit)})`:''}</option>`).join('');$('series').value=state.series||'';$('series').onchange=e=>{state.series=e.target.value;drawChart()};$('refresh').onclick=loadPublic;requestAnimationFrame(drawChart);
@@ -346,4 +354,3 @@ init();
 </script>
 </body>
 </html>
-
