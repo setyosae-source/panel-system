@@ -44,7 +44,7 @@ const PUBLIC_MONITOR='https://panelvision.ubnb.pw/public/monitor';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const qs=new URLSearchParams(location.search);
 const serial=(qs.get('sn')||qs.get('serial')||'').trim().toUpperCase();
-const state={tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,timer:null,hours:1,series:null,commandBridge:false};
+const state={tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,timer:null,hours:1,series:null,commandBridge:false,lastGood:{}};
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -53,8 +53,31 @@ const fmt=(v,d=1)=>{const n=toNum(v);return n===null?'—':n.toLocaleString('id-
 const time=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('id-ID')};
 function regs(){return new Map((state.monitor?.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));}
 function regObj(key){return regs().get(key)||null;}
-function reg(key){const r=regObj(key);if(!r||r.value===null||r.value===undefined||r.quality==='bad')return null;return r.value;}
 function status(){return state.monitor?.status||{};}
+function validReg(r){return !!r&&r.value!==null&&r.value!==undefined&&r.quality!=='bad';}
+function rememberLastGood(data){
+  const latestAt=data?.latest?.captured_at||data?.status?.last_seen||null;
+  for(const r of (data?.latest?.telemetry?.registers||[])){
+    if(validReg(r))state.lastGood[r.key]={value:r.value,captured_at:latestAt};
+  }
+  const history=[...(data?.history||[])].sort((a,b)=>new Date(b.captured_at)-new Date(a.captured_at));
+  for(const row of history){
+    for(const def of (data?.registers||[])){
+      if(state.lastGood[def.key])continue;
+      const v=row?.values?.[def.key];
+      if(v!==null&&v!==undefined&&v!=='')state.lastGood[def.key]={value:v,captured_at:row.captured_at};
+    }
+  }
+}
+function regMeta(key){
+  const r=regObj(key),s=status();
+  const globalStale=!!s.stale||s.online===false||s.modbus_ok===false;
+  if(validReg(r))return {value:r.value,stale:globalStale,captured_at:state.monitor?.latest?.captured_at||s.last_seen||null,source:'latest'};
+  const last=state.lastGood[key];
+  if(last)return {value:last.value,stale:true,captured_at:last.captured_at||null,source:'last-good'};
+  return {value:null,stale:true,captured_at:null,source:'none'};
+}
+function reg(key){return regMeta(key).value;}
 function isOwner(){return state.membership?.role==='owner';}
 function perms(){
   if(isOwner())return {monitor:true,events:true,settings:true,relays:true,calibration:true,control:true,role:'owner'};
@@ -80,7 +103,7 @@ async function loadPublic(){
   try{
     const r=await fetch(`${PUBLIC_MONITOR}/${encodeURIComponent(serial)}?hours=${state.hours}`);
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
-    state.monitor=d; if(!state.series)state.series=(d.registers||[]).find(x=>x.key==='dc_load_voltage')?.key||d.registers?.[0]?.key||null;
+    state.monitor=d; rememberLastGood(d); if(!state.series)state.series=(d.registers||[]).find(x=>x.key==='dc_load_voltage')?.key||d.registers?.[0]?.key||null;
     setConnection();render();
   }catch(e){$('view').innerHTML=`<div class="card error">Monitoring gagal: ${esc(e.message)}</div>`;$('connDot').className='dot bad';$('connText').textContent='ERROR';}
 }
@@ -113,30 +136,32 @@ $('loginSubmit').onclick=async()=>{
   hideLogin();await loadSecure();
 };
 function render(){if(!state.monitor)return;({mimic:renderMimic,monitoring:renderMonitoring,settings:renderSettings,relays:renderRelays,events:renderEvents,calibration:renderCalibration}[state.tab]||renderMimic)();}
-function node(icon,title,sub,nodeState='unknown'){const active=nodeState==='active',off=nodeState==='off';const dotClass=active?'ok':off?'bad':'warn';const label=active?'ACTIVE':off?'OFF':'UNKNOWN';return `<div class="mnode"><div class="icon">${icon}</div><div class="title">${title}</div><div class="sub">${sub}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill"><span class="dot ${dotClass}"></span>${label}</span></div></div>`}
+function node(icon,title,sub,nodeState='unknown'){const active=nodeState==='active',off=nodeState==='off',stale=nodeState==='stale';const dotClass=active?'ok':off?'bad':'warn';const label=active?'ACTIVE':off?'OFF':stale?'DATA LAMA':'UNKNOWN';return `<div class="mnode"><div class="icon">${icon}</div><div class="title">${title}</div><div class="sub">${sub}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill"><span class="dot ${dotClass}"></span>${label}</span></div></div>`}
 function renderMimic(){
-  const ac=toNum(reg('ac_voltage_l1')),freq=toNum(reg('frequency')),dc=toNum(reg('dc_load_voltage')),loadI=toNum(reg('dc_load_current')),bat=toNum(reg('battery_voltage')),batI=toNum(reg('battery_current'));
+  const acM=regMeta('ac_voltage_l1'),freqM=regMeta('frequency'),dcM=regMeta('dc_load_voltage'),loadIM=regMeta('dc_load_current'),batM=regMeta('battery_voltage'),batIM=regMeta('battery_current');
+  const ac=toNum(acM.value),freq=toNum(freqM.value),dc=toNum(dcM.value),loadI=toNum(loadIM.value),bat=toNum(batM.value),batI=toNum(batIM.value);
   const gridValid=ac!==null&&freq!==null,dcValid=dc!==null,batValid=bat!==null;
   const grid=gridValid&&ac>50&&freq>40,dcLive=dcValid&&dc>10,batLive=batValid&&bat>10;
-  const gridState=gridValid?(grid?'active':'off'):'unknown',dcState=dcValid?(dcLive?'active':'off'):'unknown',batState=batValid?(batLive?'active':'off'):'unknown';
+  const gridStale=acM.stale||freqM.stale,dcStale=dcM.stale,batStale=batM.stale;
+  const gridState=!gridValid?'unknown':gridStale?'stale':grid?'active':'off',dcState=!dcValid?'unknown':dcStale?'stale':dcLive?'active':'off',batState=!batValid?'unknown':batStale?'stale':batLive?'active':'off';
   const mode=state.monitor?.latest?.charger_mode||'—';
   $('view').innerHTML=`
   <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
     <div class="mimic">
       ${node('⚡','GRID',`${fmt(ac,1)} V · ${fmt(freq,1)} Hz`,gridState)}
-      <div class="wire ${grid?'live':''}"></div>
+      <div class="wire ${grid&&!gridStale?'live':''}"></div>
       ${node('▣','RECTIFIER',`Mode: ${esc(mode)}`,dcState)}
-      <div class="wire load-wire ${dcLive?'live':''}"></div>
+      <div class="wire load-wire ${dcLive&&!dcStale?'live':''}"></div>
       <div class="load-node">${node('◉','LOAD',`${fmt(dc,1)} V · ${fmt(loadI,1)} A`,dcState)}</div>
     </div>
     <div class="battery-row">
       ${node('▥','BATTERY',`${fmt(bat,1)} V · ${fmt(batI,1)} A`,batState)}
-      <div class="wire ${batLive?'live':''}"></div>
+      <div class="wire ${batLive&&!batStale?'live':''}"></div>
       <div class="mnode"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list" style="justify-content:center;margin-top:9px"><span class="pill">MODBUS: ${status().modbus_ok?'OK':'OFF'}</span><span class="pill">Last: ${esc(time(state.monitor?.latest?.captured_at||status().last_seen))}</span></div></div>
     </div>
   </div>`;
 }
-function metricCards(){const rr=regs();return (state.monitor?.registers||[]).map(d=>{const r=rr.get(d.key),valid=!!r&&r.value!==null&&r.value!==undefined&&r.quality!=='bad';return `<div class="metric"><div class="name">${esc(d.name)}</div><div class="value">${fmt(valid?r.value:null,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)}${valid?'':' · DATA INVALID'}</div></div>`}).join('')}
+function metricCards(){return (state.monitor?.registers||[]).map(d=>{const m=regMeta(d.key),has=m.value!==null&&m.value!==undefined;const note=!has?' · DATA INVALID':m.stale?' · DATA LAMA':'';return `<div class="metric"><div class="name">${esc(d.name)}</div><div class="value">${fmt(m.value,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)}${note}${m.stale&&m.captured_at?` · ${esc(time(m.captured_at))}`:''}</div></div>`}).join('')}
 function renderMonitoring(){
   $('view').innerHTML=`<div class="card"><div class="toolbar"><h3 style="margin:0;flex:1">Live Monitoring</h3><select class="select" id="hours"><option value="1">1 jam</option><option value="12">12 jam</option><option value="24">24 jam</option></select><select class="select" id="series"></select><button class="btn" id="refresh">Refresh</button></div><div class="grid">${metricCards()}</div></div><div class="card"><h3>Trend Historis</h3><div class="chart-wrap"><canvas id="chart"></canvas></div><div class="hint" id="chartInfo"></div></div>`;
   $('hours').value=String(state.hours);$('hours').onchange=async e=>{state.hours=Number(e.target.value)||1;await loadPublic()};
@@ -148,7 +173,7 @@ function writeState(){return state.commandBridge?'<div class="success">Command b
 function renderSettings(){if(!tabAllowed('settings'))return locked('Settings','Settings');const p=perms();$('view').innerHTML=`<div class="card"><h3>Settings · role <span class="role">${esc(p.role)}</span></h3>${writeState()}<div class="form-grid" style="margin-top:12px"><div class="field"><label>Float Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Boost Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Current Limit</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Device Profile</label><input class="input" value="${esc(state.panel?.device_profile||'—')}" disabled></div></div><div class="control-row" style="margin-top:12px"><button class="btn primary" disabled>Apply Setting</button></div></div><div class="card danger-zone"><h3>Rectifier Control</h3><div class="hint">Izin control: ${p.control?'YA':'TIDAK'}. Tombol tetap dikunci sampai command mapping diverifikasi.</div><div class="control-row" style="margin-top:10px"><button class="btn primary" disabled>RECTIFIER ON</button><button class="btn danger" disabled>RECTIFIER OFF</button></div></div>`}
 function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays');const raw=toNum(reg('relay_outputs'));const valid=raw!==null;const bits=Array.from({length:16},(_,i)=>valid?!!(raw&(1<<i)):false);$('view').innerHTML=`<div class="card"><h3>Relay Outputs</h3>${writeState()}<div class="relay-grid" style="margin-top:12px">${bits.map((on,i)=>`<div class="relay"><span>Relay ${i+1}</span><span><span class="lamp ${on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: ${valid?raw:'—'}</div></div>`}
 async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
-function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>`<div class="field"><label>${esc(d.name)} · Live ${fmt(reg(d.key),2)} ${esc(d.unit||'')}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
+function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>{const m=regMeta(d.key);return `<div class="field"><label>${esc(d.name)} · Live ${fmt(m.value,2)} ${esc(d.unit||'')}${m.stale?' · DATA LAMA':''}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`}).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
 async function init(){
   $('unitText').textContent=`SN: ${serial||'—'}`;buildNav();updateAuth();await loadPublic();await loadSecure();
   state.timer=setInterval(()=>{if(document.visibilityState==='visible')loadPublic()},15000);
