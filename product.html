@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -316,6 +317,7 @@ function buildTabs(){
   const tabs=[
     {id:'spec',label:'Spesifikasi'},
     {id:'monitoring',label:'Monitoring'},
+    {id:'remote',label:'Remote HMI'},
     {id:'download',label:'Download'},
     {id:'contact',label:'Kontak'}
   ];
@@ -331,6 +333,7 @@ function switchTab(tab,btn){
   stopMonitoringRefresh();
   if(tab==='spec') renderSpec();
   else if(tab==='monitoring') renderMonitoring();
+  else if(tab==='remote') renderRemoteHMI();
   else if(tab==='download') renderDownload();  // async, no await needed (fire-and-forget)
   else if(tab==='contact') renderContact();
 }
@@ -783,6 +786,55 @@ function drawMonitoringChart(){
 }
 
 window.addEventListener('resize',()=>{if(document.getElementById('monitorCanvas'))requestAnimationFrame(drawMonitoringChart);});
+
+
+function renderRemoteHMI(){
+  const sn=monitoringSerial();
+  if(!sn){
+    document.getElementById('tabContent').innerHTML=`
+      <div class="section">
+        <div class="sect-title">Remote HMI</div>
+        <div class="monitor-error">Serial number unit tidak tersedia.</div>
+      </div>`;
+    return;
+  }
+
+  const hmiUrl=`remote-hmi.html?sn=${encodeURIComponent(sn)}`;
+
+  document.getElementById('tabContent').innerHTML=`
+    <div class="section">
+      <div class="sect-title">Remote HMI</div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="font-size:13px;color:var(--muted);line-height:1.6">
+          Monitoring dan kontrol unit
+          <strong style="font-family:'DM Mono',monospace;color:var(--text)">${monitorEscape(sn)}</strong>
+        </div>
+
+        <a href="${hmiUrl}" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;
+                  background:var(--green);color:#fff;border-radius:8px;
+                  text-decoration:none;font-size:12px;font-weight:600">
+          Buka Full Screen ↗
+        </a>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#0a0e1a">
+        <iframe
+          src="${hmiUrl}"
+          title="Remote HMI ${monitorEscape(sn)}"
+          loading="lazy"
+          referrerpolicy="same-origin"
+          style="display:block;width:100%;height:min(820px,82vh);min-height:620px;border:0;background:#0a0e1a">
+        </iframe>
+      </div>
+
+      <div class="monitor-note" style="margin-top:10px">
+        Remote HMI mengikuti serial number unit yang sedang dibuka. Monitoring bersifat read-only
+        untuk akses umum; fungsi kontrol tetap mengikuti login dan hak akses Panel Vision.
+      </div>
+    </div>`;
+}
 
 function renderContact(){
   document.getElementById('tabContent').innerHTML=`
