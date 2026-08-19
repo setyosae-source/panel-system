@@ -41,11 +41,18 @@
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
 const PUBLIC_MONITOR='https://panelvision.ubnb.pw/public/monitor';
-const PUBLIC_REFRESH_MS=5000;
+const REALTIME_STALE_MS=8000;
+const REALTIME_OFFLINE_MS=30000;
+const FALLBACK_CHECK_MS=5000;
+const FALLBACK_HTTP_MIN_MS=10000;
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const qs=new URLSearchParams(location.search);
 const serial=(qs.get('sn')||qs.get('serial')||'').trim().toUpperCase();
-const state={tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,timer:null,hours:1,series:null,commandBridge:false,lastGood:{}};
+const state={
+  tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,
+  timer:null,hours:1,series:null,commandBridge:false,lastGood:{},
+  realtimeChannel:null,realtimeStatus:'INIT',lastRealtimeAt:0,lastHttpAt:0
+};
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -70,9 +77,18 @@ function goodCapturedAt(data=state.monitor){
 function dataFreshness(){
   const s=status(),m=telemetryModbus(),rr=state.monitor?.latest?.telemetry?.registers||[];
   const registerStale=rr.some(r=>qualityOf(r)==='stale');
-  const age=toNum(m.data_age_ms);
-  const stale=!!s.stale||s.online===false||s.modbus_ok===false||m.last_poll_ok===false||registerStale;
-  return {stale,age_ms:age,last_poll_ok:m.last_poll_ok,poll_success_pct:toNum(m.poll_success_pct)};
+  const baseAge=toNum(m.data_age_ms)||0;
+  const updatedAt=state.monitor?.latest?.updated_at||state.monitor?.latest?.captured_at||s.last_seen||null;
+  const updatedMs=updatedAt?new Date(updatedAt).getTime():NaN;
+  const transportAge=Number.isFinite(updatedMs)?Math.max(0,Date.now()-updatedMs):0;
+  const age=baseAge+transportAge;
+  const transportStale=transportAge>REALTIME_STALE_MS;
+  const offline=s.online===false||transportAge>REALTIME_OFFLINE_MS;
+  const stale=offline||!!s.stale||s.modbus_ok===false||m.last_poll_ok===false||registerStale||transportStale;
+  return {
+    stale,offline,age_ms:age,transport_age_ms:transportAge,
+    last_poll_ok:m.last_poll_ok,poll_success_pct:toNum(m.poll_success_pct)
+  };
 }
 function rememberLastGood(data){
   const latestAt=goodCapturedAt(data);
@@ -116,19 +132,120 @@ function openTab(id){
   state.tab=id;buildNav();render();
 }
 function setConnection(){
-  const s=status(),fresh=dataFreshness(),offline=s.online===false;
-  $('connDot').className='dot '+(offline?'bad':fresh.stale?'warn':'ok');
-  $('connText').textContent=offline?'OFFLINE':fresh.stale?'DATA LAMA':'ONLINE';
+  const fresh=dataFreshness();
+  $('connDot').className='dot '+(fresh.offline?'bad':fresh.stale?'warn':'ok');
+  const rt=state.realtimeStatus==='SUBSCRIBED'?' · LIVE':' · FALLBACK';
+  $('connText').textContent=(fresh.offline?'OFFLINE':fresh.stale?'DATA LAMA':'ONLINE')+rt;
 }
 async function loadPublic(){
   if(!serial){$('view').innerHTML='<div class="card error">Serial number belum diberikan. Gunakan <b>?sn=SERIAL</b>.</div>';return;}
   try{
     const r=await fetch(`${PUBLIC_MONITOR}/${encodeURIComponent(serial)}?hours=${state.hours}`);
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
-    state.monitor=d;rememberLastGood(d);if(!state.series)state.series=(d.registers||[]).find(x=>x.key==='dc_load_voltage')?.key||d.registers?.[0]?.key||null;
+    state.monitor=d;
+    state.lastHttpAt=Date.now();
+    if(state.monitor?.latest&&!state.monitor.latest.updated_at){
+      state.monitor.latest.updated_at=state.monitor.latest.captured_at||state.monitor?.status?.last_seen||null;
+    }
+    rememberLastGood(d);
+    if(!state.series)state.series=(d.registers||[]).find(x=>x.key==='dc_load_voltage')?.key||d.registers?.[0]?.key||null;
     setConnection();render();
   }catch(e){$('view').innerHTML=`<div class="card error">Monitoring gagal: ${esc(e.message)}</div>`;$('connDot').className='dot bad';$('connText').textContent='ERROR';}
 }
+
+function rowValues(row){
+  const out={};
+  for(const r of (row?.telemetry?.registers||[])){
+    if(r?.key!==undefined&&r?.value!==undefined&&r?.value!==null)out[r.key]=r.value;
+  }
+  return out;
+}
+function appendRealtimeHistory(row){
+  if(!state.monitor)return;
+  if(!Array.isArray(state.monitor.history))state.monitor.history=[];
+  const at=row?.captured_at||row?.updated_at;
+  if(!at)return;
+  const key=String(at);
+  const values=rowValues(row);
+  const last=state.monitor.history[state.monitor.history.length-1];
+  if(last&&String(last.captured_at)===key){
+    last.values={...(last.values||{}),...values};
+  }else{
+    state.monitor.history.push({captured_at:at,values});
+    const cutoff=Date.now()-Math.max(1,state.hours)*3600000;
+    state.monitor.history=state.monitor.history
+      .filter(x=>new Date(x.captured_at).getTime()>=cutoff)
+      .slice(-5000);
+  }
+}
+function applyRealtimeRow(row){
+  if(!row||String(row.serial_number||'').toUpperCase()!==serial||!state.monitor)return;
+  const oldLatest=state.monitor.latest||{};
+  state.monitor.latest={
+    ...oldLatest,
+    captured_at:row.captured_at||oldLatest.captured_at||null,
+    updated_at:row.updated_at||row.captured_at||new Date().toISOString(),
+    charger_mode:row.charger_mode??oldLatest.charger_mode??null,
+    telemetry:row.telemetry||oldLatest.telemetry||{registers:[],modbus:{}}
+  };
+  state.monitor.status={
+    ...(state.monitor.status||{}),
+    online:true,
+    stale:false,
+    modbus_ok:row.modbus_ok!==false,
+    last_seen:row.updated_at||row.captured_at||new Date().toISOString()
+  };
+  state.lastRealtimeAt=Date.now();
+  appendRealtimeHistory(row);
+  rememberLastGood(state.monitor);
+  setConnection();
+  render();
+}
+function startRealtime(){
+  if(!serial)return;
+  if(state.realtimeChannel){
+    try{sb.removeChannel(state.realtimeChannel)}catch(_){}
+    state.realtimeChannel=null;
+  }
+  state.realtimeStatus='CONNECTING';
+  const channelName=`pv-public-${serial}-${Math.random().toString(36).slice(2,8)}`;
+  state.realtimeChannel=sb
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {event:'*',schema:'public',table:'pv_public_live',filter:`serial_number=eq.${serial}`},
+      payload=>applyRealtimeRow(payload.new)
+    )
+    .subscribe(st=>{
+      state.realtimeStatus=st;
+      setConnection();
+      if(st==='SUBSCRIBED'){
+        state.lastRealtimeAt=Date.now();
+      }
+    });
+}
+async function realtimeWatchdog(){
+  if(!state.monitor)return;
+  const fresh=dataFreshness();
+  setConnection();
+
+  // Re-render only when stale/offline transition can matter, not every second.
+  if(fresh.transport_age_ms>REALTIME_STALE_MS&&document.visibilityState==='visible'){
+    render();
+  }
+
+  const rtSilent=state.realtimeStatus!=='SUBSCRIBED'||
+    (state.lastRealtimeAt>0&&Date.now()-state.lastRealtimeAt>REALTIME_STALE_MS);
+
+  if(rtSilent&&document.visibilityState==='visible'&&Date.now()-state.lastHttpAt>FALLBACK_HTTP_MIN_MS){
+    await loadPublic();
+  }
+
+  if(state.realtimeStatus==='CLOSED'||state.realtimeStatus==='CHANNEL_ERROR'||state.realtimeStatus==='TIMED_OUT'){
+    startRealtime();
+  }
+}
+
 async function loadSecure(){
   const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
   if(!state.user){state.panel=state.membership=state.access=null;updateAuth();buildNav();return;}
@@ -175,7 +292,7 @@ function renderMimic(){
   const loadState=(dc===null&&!lowValid)?'unknown':dcStale?'stale':(dcLive&&loadMcb)?'active':'off';
   const batState=(bat===null&&!lowValid)?'unknown':batStale?'stale':(batLive&&batMcb)?'active':'off';
   const mode=state.monitor?.latest?.charger_mode||'—',fresh=dataFreshness();
-  const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · nilai terakhir yang valid tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
+  const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · realtime belum mendapat snapshot fresh; nilai terakhir yang valid tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
   $('view').innerHTML=`
   ${staleBanner}
   <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
@@ -209,8 +326,19 @@ function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays'
 async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
 function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>{const m=regMeta(d.key);return `<div class="field"><label>${esc(d.name)} · Live ${fmt(m.value,2)} ${esc(d.unit||'')}${m.stale?' · DATA LAMA':''}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`}).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
 async function init(){
-  $('unitText').textContent=`SN: ${serial||'—'}`;buildNav();updateAuth();await loadPublic();await loadSecure();
-  state.timer=setInterval(()=>{if(document.visibilityState==='visible')loadPublic()},PUBLIC_REFRESH_MS);
+  $('unitText').textContent=`SN: ${serial||'—'}`;
+  buildNav();
+  updateAuth();
+  await loadPublic();
+  await loadSecure();
+  startRealtime();
+  state.timer=setInterval(realtimeWatchdog,FALLBACK_CHECK_MS);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){
+      realtimeWatchdog();
+      if(state.realtimeStatus!=='SUBSCRIBED')startRealtime();
+    }
+  });
   sb.auth.onAuthStateChange(()=>setTimeout(loadSecure,0));
 }
 window.addEventListener('resize',()=>{if(state.tab==='monitoring')requestAnimationFrame(drawChart)});
@@ -218,3 +346,4 @@ init();
 </script>
 </body>
 </html>
+
