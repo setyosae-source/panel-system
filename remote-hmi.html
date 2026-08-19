@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>SAE Energy — Remote HMI</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#071019;--panel:#0d1823;--panel2:#111f2d;--line:#23384a;--text:#eaf2f8;--muted:#8ea4b6;--green:#23c483;--red:#ef4444;--amber:#f59e0b;--blue:#3ba7ff;--cyan:#32d3e4;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.app{min-height:100vh;display:flex;flex-direction:column}.top{height:60px;background:#09141e;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px;position:sticky;top:0;z-index:10}.brand{font-weight:800;letter-spacing:.07em}.brand b{color:#f12d2d}.unit{color:var(--muted);font:12px ui-monospace,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spacer{flex:1}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);padding:6px 10px;border-radius:999px;color:var(--muted);font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#617080}.dot.ok{background:var(--green);box-shadow:0 0 10px #23c48388}.dot.bad{background:var(--red)}.dot.warn{background:var(--amber)}button{font:inherit}.btn{border:1px solid var(--line);background:#122333;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}.btn:hover{border-color:#3d617d}.btn.primary{background:#145b8f;border-color:#2079b6}.btn.danger{background:#581b24;border-color:#8f2936}.btn:disabled{opacity:.42;cursor:not-allowed}.nav{display:flex;gap:4px;padding:8px 12px;background:#0a1520;border-bottom:1px solid var(--line);overflow-x:auto}.nav button{white-space:nowrap;border:0;background:transparent;color:var(--muted);padding:9px 13px;border-radius:7px;cursor:pointer;font-weight:650}.nav button.active{background:#132536;color:var(--white)}.nav button.locked:after{content:' 🔒';font-size:10px}.main{width:min(1180px,100%);margin:0 auto;padding:16px}.card{background:linear-gradient(180deg,var(--panel),#0b1620);border:1px solid var(--line);border-radius:12px;padding:15px;margin-bottom:12px}.card h3{margin:0 0 12px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#a9c3d6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}.metric .name{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.metric .value{font-size:26px;font-weight:750;margin-top:4px}.metric .unit{font-size:11px;margin-left:3px}.hint{color:var(--muted);font-size:12px}.error{background:#35151b;border:1px solid #74303b;color:#ffc8cf;padding:11px;border-radius:9px}.notice{background:#10283a;border:1px solid #235477;color:#cfeaff;padding:11px;border-radius:9px}.success{background:#103126;border:1px solid #236b4e;color:#ccffe9;padding:11px;border-radius:9px}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.select,.input{background:#0a1621;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;outline:none}.input{width:100%}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.field label{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.locked-panel{padding:28px;text-align:center}.locked-panel .big{font-size:34px;margin-bottom:8px}.mimic{display:grid;grid-template-columns:1fr 80px 1fr 80px 1fr;align-items:center;gap:8px;min-height:220px}.mnode{border:1px solid var(--line);background:#10202d;border-radius:12px;padding:18px;text-align:center;min-height:100px;display:flex;flex-direction:column;justify-content:center}.mnode .icon{font-size:30px}.mnode .title{font-weight:800;margin-top:5px}.mnode .sub{font-size:11px;color:var(--muted);margin-top:3px}.wire{height:4px;background:#334759;position:relative;border-radius:4px}.wire.live{background:var(--green);box-shadow:0 0 9px #23c48366}.wire.live:after{content:'▶';position:absolute;right:-3px;top:-9px;color:var(--green)}.battery-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:8px;align-items:center;margin-top:12px}.status-list{display:flex;gap:7px;flex-wrap:wrap}.relay-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.relay{display:flex;align-items:center;justify-content:space-between;background:#101e2a;border:1px solid var(--line);border-radius:9px;padding:10px}.lamp{width:10px;height:10px;border-radius:50%;background:#4b5965}.lamp.on{background:var(--green);box-shadow:0 0 8px #23c48388}.event{display:grid;grid-template-columns:155px 90px 1fr 95px;gap:10px;border-bottom:1px solid #1b2e3d;padding:10px 0;align-items:center}.sev{font-size:10px;border:1px solid var(--line);border-radius:999px;padding:3px 7px;text-align:center}.sev.alarm,.sev.critical{color:#ff9eaa;border-color:#7f3040}.sev.warning{color:#ffd67a;border-color:#7a5b1f}.chart-wrap{height:310px;background:#091520;border:1px solid var(--line);border-radius:10px;position:relative;overflow:hidden}canvas{width:100%;height:100%;display:block}.login-modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:50;padding:18px}.login-modal.show{display:flex}.login-box{width:min(410px,100%);background:#0d1b27;border:1px solid #31506a;border-radius:14px;padding:18px}.login-box h2{margin:0 0 6px}.login-actions{display:flex;gap:8px;margin-top:12px}.foot{color:#5f7688;font-size:10px;text-align:center;padding:14px}.role{color:#b8d8eb;font-weight:700}.control-row{display:flex;gap:8px;flex-wrap:wrap}.danger-zone{border-color:#63313a;background:#1c1015}.tiny{font-size:10px;color:var(--muted)}
+@media(max-width:760px){.top{padding:0 10px}.top .unit{display:none}.main{padding:10px}.mimic{grid-template-columns:1fr 38px 1fr;}.mimic .load-wire,.mimic .load-node{display:none}.battery-row{grid-template-columns:1fr 38px 1fr}.event{grid-template-columns:1fr 72px}.event .msg{grid-column:1/-1}.event .state{display:none}.metric .value{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand"><b>SAE</b> ENERGY · PANEL VISION</div>
+    <div class="unit" id="unitText">SN: —</div>
+    <div class="spacer"></div>
+    <div class="pill"><span class="dot" id="connDot"></span><span id="connText">Memuat…</span></div>
+    <button class="btn" id="authBtn">Login</button>
+  </div>
+  <div class="nav" id="nav"></div>
+  <main class="main" id="view"><div class="card">Memuat Remote HMI…</div></main>
+  <div class="foot">SAE Energy · Remote HMI · write command dikunci sampai command bridge terverifikasi</div>
+</div>
+
+<div class="login-modal" id="loginModal">
+  <div class="login-box">
+    <h2>Login Remote HMI</h2>
+    <div class="hint" style="margin-bottom:12px">Login diperlukan untuk Events dan fungsi write.</div>
+    <div class="field"><label>Email</label><input class="input" id="loginEmail" type="email" autocomplete="username"></div>
+    <div class="field" style="margin-top:9px"><label>Password</label><input class="input" id="loginPassword" type="password" autocomplete="current-password"></div>
+    <div id="loginMsg" style="margin-top:10px"></div>
+    <div class="login-actions"><button class="btn primary" id="loginSubmit">Login</button><button class="btn" id="loginCancel">Batal</button></div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
+const PUBLIC_MONITOR='https://panelvision.ubnb.pw/public/monitor';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const qs=new URLSearchParams(location.search);
+const serial=(qs.get('sn')||qs.get('serial')||'').trim().toUpperCase();
+const state={tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,timer:null,hours:1,series:null,commandBridge:false};
+const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=(v,d=1)=>Number.isFinite(Number(v))?Number(v).toLocaleString('id-ID',{maximumFractionDigits:d}):'—';
+const time=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('id-ID')};
+function regs(){return new Map((state.monitor?.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));}
+function reg(key){return regs().get(key)?.value;}
+function status(){return state.monitor?.status||{};}
+function isOwner(){return state.membership?.role==='owner';}
+function perms(){
+  if(isOwner())return {monitor:true,events:true,settings:true,relays:true,calibration:true,control:true,role:'owner'};
+  const a=state.access||{};
+  return {monitor:a.can_monitor!==false,events:!!a.can_events,settings:!!a.can_settings,relays:!!a.can_relays,calibration:!!a.can_calibration,control:!!a.can_control,role:a.access_role||'public'};
+}
+function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
+function buildNav(){
+  $('nav').innerHTML=menu.map(([id,label])=>`<button data-tab="${id}" class="${state.tab===id?'active ':''}${tabAllowed(id)?'':'locked'}">${label}</button>`).join('');
+  $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+}
+function openTab(id){
+  if(!tabAllowed(id)){showLogin(`Akses ${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login/permission.`);return;}
+  state.tab=id;buildNav();render();
+}
+function setConnection(){
+  const s=status(), stale=!!s.stale;
+  $('connDot').className='dot '+(s.online?'ok':stale?'warn':'bad');
+  $('connText').textContent=s.online?'ONLINE':stale?'DATA LAMA':'OFFLINE';
+}
+async function loadPublic(){
+  if(!serial){$('view').innerHTML='<div class="card error">Serial number belum diberikan. Gunakan <b>?sn=SERIAL</b>.</div>';return;}
+  try{
+    const r=await fetch(`${PUBLIC_MONITOR}/${encodeURIComponent(serial)}?hours=${state.hours}`);
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
+    state.monitor=d; if(!state.series)state.series=(d.registers||[]).find(x=>x.key==='dc_load_voltage')?.key||d.registers?.[0]?.key||null;
+    setConnection();render();
+  }catch(e){$('view').innerHTML=`<div class="card error">Monitoring gagal: ${esc(e.message)}</div>`;$('connDot').className='dot bad';$('connText').textContent='ERROR';}
+}
+async function loadSecure(){
+  const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
+  if(!state.user){state.panel=state.membership=state.access=null;updateAuth();buildNav();return;}
+  const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,active').eq('serial_number',serial).maybeSingle();
+  state.panel=p||null;
+  if(p){
+    const [{data:m},{data:a}]=await Promise.all([
+      sb.from('pv_memberships').select('role').eq('organization_id',p.organization_id).eq('user_id',state.user.id).maybeSingle(),
+      sb.from('pv_panel_access').select('*').eq('panel_id',p.id).eq('user_id',state.user.id).maybeSingle()
+    ]);
+    state.membership=m||null;state.access=a||null;
+  }
+  updateAuth();buildNav();render();
+}
+function updateAuth(){
+  $('authBtn').textContent=state.user?`Logout · ${perms().role}`:'Login';
+  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
+}
+function showLogin(msg=''){$('loginModal').classList.add('show');$('loginMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('loginEmail').focus(),50)}
+function hideLogin(){$('loginModal').classList.remove('show');$('loginPassword').value=''}
+$('loginCancel').onclick=hideLogin;
+$('loginSubmit').onclick=async()=>{
+  const email=$('loginEmail').value.trim(),password=$('loginPassword').value;
+  $('loginSubmit').disabled=true;$('loginMsg').innerHTML='<div class="hint">Login…</div>';
+  const {error}=await sb.auth.signInWithPassword({email,password});$('loginSubmit').disabled=false;
+  if(error){$('loginMsg').innerHTML=`<div class="error">${esc(error.message)}</div>`;return;}
+  hideLogin();await loadSecure();
+};
+function render(){if(!state.monitor)return;({mimic:renderMimic,monitoring:renderMonitoring,settings:renderSettings,relays:renderRelays,events:renderEvents,calibration:renderCalibration}[state.tab]||renderMimic)();}
+function node(icon,title,sub,live=true){return `<div class="mnode"><div class="icon">${icon}</div><div class="title">${title}</div><div class="sub">${sub}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill"><span class="dot ${live?'ok':'bad'}"></span>${live?'ACTIVE':'OFF'}</span></div></div>`}
+function renderMimic(){
+  const ac=Number(reg('ac_voltage_l1')),freq=Number(reg('frequency')),dc=Number(reg('dc_load_voltage')),loadI=Number(reg('dc_load_current')),bat=Number(reg('battery_voltage')),batI=Number(reg('battery_current'));
+  const grid=Number.isFinite(ac)&&ac>50&&Number.isFinite(freq)&&freq>40, dcLive=Number.isFinite(dc)&&dc>10, batLive=Number.isFinite(bat)&&bat>10;
+  const mode=state.monitor?.latest?.charger_mode||'—';
+  $('view').innerHTML=`
+  <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
+    <div class="mimic">
+      ${node('⚡','GRID',`${fmt(ac,1)} V · ${fmt(freq,1)} Hz`,grid)}
+      <div class="wire ${grid?'live':''}"></div>
+      ${node('▣','RECTIFIER',`Mode: ${esc(mode)}`,dcLive)}
+      <div class="wire load-wire ${dcLive?'live':''}"></div>
+      <div class="load-node">${node('◉','LOAD',`${fmt(dc,1)} V · ${fmt(loadI,1)} A`,dcLive)}</div>
+    </div>
+    <div class="battery-row">
+      ${node('▥','BATTERY',`${fmt(bat,1)} V · ${fmt(batI,1)} A`,batLive)}
+      <div class="wire ${batLive?'live':''}"></div>
+      <div class="mnode"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list" style="justify-content:center;margin-top:9px"><span class="pill">MODBUS: ${status().modbus_ok?'OK':'OFF'}</span><span class="pill">Last: ${esc(time(state.monitor?.latest?.captured_at||status().last_seen))}</span></div></div>
+    </div>
+  </div>`;
+}
+function metricCards(){const rr=regs();return (state.monitor?.registers||[]).map(d=>{const r=rr.get(d.key);return `<div class="metric"><div class="name">${esc(d.name)}</div><div class="value">${fmt(r?.value,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)}</div></div>`}).join('')}
+function renderMonitoring(){
+  $('view').innerHTML=`<div class="card"><div class="toolbar"><h3 style="margin:0;flex:1">Live Monitoring</h3><select class="select" id="hours"><option value="1">1 jam</option><option value="12">12 jam</option><option value="24">24 jam</option></select><select class="select" id="series"></select><button class="btn" id="refresh">Refresh</button></div><div class="grid">${metricCards()}</div></div><div class="card"><h3>Trend Historis</h3><div class="chart-wrap"><canvas id="chart"></canvas></div><div class="hint" id="chartInfo"></div></div>`;
+  $('hours').value=String(state.hours);$('hours').onchange=async e=>{state.hours=Number(e.target.value)||1;await loadPublic()};
+  $('series').innerHTML=(state.monitor?.registers||[]).map(d=>`<option value="${esc(d.key)}">${esc(d.name)}${d.unit?` (${esc(d.unit)})`:''}</option>`).join('');$('series').value=state.series||'';$('series').onchange=e=>{state.series=e.target.value;drawChart()};$('refresh').onclick=loadPublic;requestAnimationFrame(drawChart);
+}
+function drawChart(){const c=$('chart');if(!c)return;const def=(state.monitor?.registers||[]).find(x=>x.key===state.series);if(!def)return;const rect=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);c.width=Math.max(1,Math.round(rect.width*dpr));c.height=Math.max(1,Math.round(rect.height*dpr));const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,m={l:58,r:15,t:18,b:35},pw=w-m.l-m.r,ph=h-m.t-m.b;const pts=(state.monitor?.history||[]).map(q=>({t:new Date(q.captured_at).getTime(),v:Number(q.values?.[def.key])})).filter(q=>Number.isFinite(q.t)&&Number.isFinite(q.v)).sort((a,b)=>a.t-b.t);x.clearRect(0,0,w,h);x.font='10px system-ui';x.fillStyle='#8ea4b6';let min=pts.length?Math.min(...pts.map(p=>p.v)):0,max=pts.length?Math.max(...pts.map(p=>p.v)):1;if(min===max){min-=1;max+=1}const t0=pts[0]?.t||Date.now()-state.hours*3600000,t1=pts.at(-1)?.t||Date.now();for(let i=0;i<=5;i++){const y=m.t+ph*i/5;x.strokeStyle='#203444';x.beginPath();x.moveTo(m.l,y);x.lineTo(w-m.r,y);x.stroke();x.textAlign='right';x.fillText(fmt(max-(max-min)*i/5,1),m.l-7,y+3)}if(pts.length){x.strokeStyle='#32d3e4';x.lineWidth=2;x.beginPath();pts.forEach((p,i)=>{const xx=m.l+(p.t-t0)/Math.max(1,t1-t0)*pw,yy=m.t+(max-p.v)/(max-min)*ph;i?x.lineTo(xx,yy):x.moveTo(xx,yy)});x.stroke()}else{x.textAlign='center';x.fillText('Tidak ada data historis',w/2,h/2)}$('chartInfo').textContent=`${def.name} · ${pts.length} sampel · ${def.unit||''}`;}
+function locked(title,need){$('view').innerHTML=`<div class="card locked-panel"><div class="big">🔒</div><h3>${esc(title)}</h3><div class="hint">Dibutuhkan login dengan izin <b>${esc(need)}</b>.</div><button class="btn primary" style="margin-top:14px" onclick="showLogin()">Login</button></div>`}
+function writeState(){return state.commandBridge?'<div class="success">Command bridge aktif.</div>':'<div class="notice"><b>Write command belum diaktifkan.</b> Permission sudah diterapkan, tetapi pengiriman write ke ESP32 sengaja dikunci sampai format command firmware/server dipastikan.</div>'}
+function renderSettings(){if(!tabAllowed('settings'))return locked('Settings','Settings');const p=perms();$('view').innerHTML=`<div class="card"><h3>Settings · role <span class="role">${esc(p.role)}</span></h3>${writeState()}<div class="form-grid" style="margin-top:12px"><div class="field"><label>Float Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Boost Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Current Limit</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Device Profile</label><input class="input" value="${esc(state.panel?.device_profile||'—')}" disabled></div></div><div class="control-row" style="margin-top:12px"><button class="btn primary" disabled>Apply Setting</button></div></div><div class="card danger-zone"><h3>Rectifier Control</h3><div class="hint">Izin control: ${p.control?'YA':'TIDAK'}. Tombol tetap dikunci sampai command mapping diverifikasi.</div><div class="control-row" style="margin-top:10px"><button class="btn primary" disabled>RECTIFIER ON</button><button class="btn danger" disabled>RECTIFIER OFF</button></div></div>`}
+function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays');const raw=Number(reg('relay_outputs'));const valid=Number.isFinite(raw);const bits=Array.from({length:16},(_,i)=>valid?!!(raw&(1<<i)):false);$('view').innerHTML=`<div class="card"><h3>Relay Outputs</h3>${writeState()}<div class="relay-grid" style="margin-top:12px">${bits.map((on,i)=>`<div class="relay"><span>Relay ${i+1}</span><span><span class="lamp ${on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: ${valid?raw:'—'}</div></div>`}
+async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
+function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>`<div class="field"><label>${esc(d.name)} · Live ${fmt(reg(d.key),2)} ${esc(d.unit||'')}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
+async function init(){
+  $('unitText').textContent=`SN: ${serial||'—'}`;buildNav();updateAuth();await loadPublic();await loadSecure();
+  state.timer=setInterval(()=>{if(document.visibilityState==='visible')loadPublic()},15000);
+  sb.auth.onAuthStateChange(()=>setTimeout(loadSecure,0));
+}
+window.addEventListener('resize',()=>{if(state.tab==='monitoring')requestAnimationFrame(drawChart)});
+init();
+</script>
+</body>
+</html>
