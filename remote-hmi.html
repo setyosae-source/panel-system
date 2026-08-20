@@ -409,12 +409,16 @@ function renderMimic(){
   const dcLive=dc!==null&&dc>10,batLive=bat!==null&&bat>10;
   const gridStale=acM.stale||acIM.stale||freqM.stale||highM.stale,dcStale=dcM.stale||loadIM.stale||lowM.stale,batStale=batM.stale||batIM.stale||lowM.stale,statusStale=highM.stale||lowM.stale;
   const gridState=(ac===null&&freq===null&&!highValid)?'unknown':gridStale?'stale':grid?'active':'off';
-  const rectState=dc===null?'unknown':dcM.stale?'stale':dcLive?'active':'off';
+  // Status rectifier mengikuti LED High 0x26 seperti HMI lokal. Tegangan bus DC
+  // tidak dapat dijadikan acuan karena baterai tetap menjaga bus saat rectifier OFF.
+  const rectModeMask=0x0078;
+  const rectState=!highValid?'unknown':highM.stale?'stale':(high&rectModeMask)?'active':'off';
   const loadState=(dc===null&&!lowValid)?'unknown':dcStale?'stale':(dcLive&&loadMcb)?'active':'off';
   const batState=(bat===null&&!lowValid)?'unknown':batStale?'stale':(batLive&&batMcb)?'active':'off';
   const bitState=(raw,valid,mask,stale)=>!valid?'unknown':stale?'stale':(raw&mask)?'active':'off';
   const modeSignals={float:bitState(high,highValid,0x40,highM.stale),boost:bitState(high,highValid,0x20,highM.stale),current:bitState(high,highValid,0x10,highM.stale),equalize:bitState(high,highValid,0x08,highM.stale)};
-  const mode=state.monitor?.latest?.charger_mode||Object.entries(modeSignals).find(([,v])=>v==='active')?.[0]?.toUpperCase()||'—',fresh=dataFreshness();
+  const activeMode=Object.entries(modeSignals).find(([,v])=>v==='active')?.[0];
+  const mode=activeMode?activeMode.toUpperCase():(highValid?'OFF':(state.monitor?.latest?.charger_mode==='UNKNOWN'?'—':state.monitor?.latest?.charger_mode||'—')),fresh=dataFreshness();
   const alarmSignals=[
     ['BATTERY ENDING',bitState(low,lowValid,0x0080,lowM.stale)],
     ['LOW BATTERY',bitState(low,lowValid,0x0040,lowM.stale)],
