@@ -32,6 +32,7 @@ body.embed .foot{display:none}
   .mimic>.wire.live:after,.battery-row>.wire.live:after{content:'▼';right:-6px;top:auto;bottom:-12px}
   .battery-row{grid-template-columns:1fr;gap:8px}.mnode{min-height:88px;padding:13px}.mnode .icon{font-size:26px}
   .chart-wrap{height:270px}.trend-controls input[type=range]{min-width:150px}.trend-y-value{width:100%;min-width:0;text-align:left}.measure-number{font-size:22px}.indicator-grid{grid-template-columns:1fr}.indicator{min-height:46px}
+  .monitoring-metrics{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 </head>
@@ -390,18 +391,19 @@ function renderMimic(){
   const modeSignals={float:bitState(high,highValid,0x40,highM.stale),boost:bitState(high,highValid,0x20,highM.stale),current:bitState(high,highValid,0x10,highM.stale),equalize:bitState(high,highValid,0x08,highM.stale)};
   const mode=state.monitor?.latest?.charger_mode||Object.entries(modeSignals).find(([,v])=>v==='active')?.[0]?.toUpperCase()||'—',fresh=dataFreshness();
   const alarmSignals=[
-    ['BATTERY ENDING',signalFromAliases(['battery_ending','alarm_battery_ending'])],
-    ['LOW BATTERY',signalFromAliases(['low_battery','alarm_low_battery'])],
-    ['BATTERY TEST FAIL',signalFromAliases(['battery_test_fail','alarm_battery_test_fail'])],
-    ['LINE MCB OFF',bitState(low,lowValid,0x10,lowM.stale)],
-    ['SCR FUSE FAIL',signalFromAliases(['scr_fuse_fail','alarm_scr_fuse_fail'])],
-    ['(+) EARTH FAULT',signalFromAliases(['positive_earth_fault','earth_fault_positive'])],
-    ['(-) EARTH FAULT',signalFromAliases(['negative_earth_fault','earth_fault_negative'])],
-    ['FAN FAIL',signalFromAliases(['fan_fail','alarm_fan_fail'])],
-    ['OVER VOLTAGE',signalFromAliases(['over_voltage','alarm_over_voltage'])],
-    ['UNDER VOLTAGE',signalFromAliases(['under_voltage','alarm_under_voltage'])],
-    ['OVER TEMP.',signalFromAliases(['over_temperature','over_temp','alarm_over_temperature'])],
-    ['RECTIFIER FAIL',signalFromAliases(['rectifier_fail','alarm_rectifier_fail'])]
+    ['BATTERY ENDING',bitState(low,lowValid,0x0080,lowM.stale)],
+    ['LOW BATTERY',bitState(low,lowValid,0x0040,lowM.stale)],
+    ['BATTERY TEST FAIL',bitState(low,lowValid,0x0020,lowM.stale)],
+    ['LINE MCB OFF',bitState(low,lowValid,0x0010,lowM.stale)],
+    ['SCR FUSE FAIL',bitState(low,lowValid,0x0800,lowM.stale)],
+    ['(+) EARTH FAULT',bitState(low,lowValid,0x0200,lowM.stale)],
+    ['(-) EARTH FAULT',bitState(low,lowValid,0x0400,lowM.stale)],
+    ['FAN FAIL',bitState(low,lowValid,0x0100,lowM.stale)],
+    ['COMMON FAILURE',bitState(low,lowValid,0x1000,lowM.stale)],
+    ['OVER VOLTAGE',bitState(low,lowValid,0x8000,lowM.stale)],
+    ['UNDER VOLTAGE',bitState(low,lowValid,0x4000,lowM.stale)],
+    ['OVER TEMP.',bitState(low,lowValid,0x2000,lowM.stale)],
+    ['RECTIFIER FAIL',bitState(high,highValid,0x0001,highM.stale)]
   ];
   const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir sudah lebih dari 5 menit; nilai terakhir tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
   $('view').innerHTML=`
@@ -420,7 +422,7 @@ function renderMimic(){
       <div class="mnode"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list" style="justify-content:center;margin-top:9px">${statusPill('GRID',grid,statusStale)}${statusPill('MCB LOAD',loadMcb,statusStale)}${statusPill('MCB BATTERY',batMcb,statusStale)}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill">MODBUS: ${fresh.stale?'DATA LAMA':status().modbus_ok?'OK':'OFF'}</span><span class="pill">Age: ${esc(ageText(fresh.age_ms))}</span><span class="pill">Poll: ${fresh.poll_success_pct===null?'—':fmt(fresh.poll_success_pct,1)+'%'}</span></div></div>
     </div>
   </div>
-  <div class="card"><h3>Operating Mode & Alarm Indicators</h3><div class="indicator-grid">${ledIndicator('FLOAT MODE',modeSignals.float)}${ledIndicator('BOOST MODE',modeSignals.boost)}${ledIndicator('CURRENT MODE',modeSignals.current)}${ledIndicator('EQUALIZE MODE',modeSignals.equalize)}${alarmSignals.map(([label,signal])=>ledIndicator(label,signal,true)).join('')}</div><div class="hint" style="margin-top:10px">Indikator abu-abu bertanda “BELUM TERSEDIA” tetap ditampilkan, tetapi belum diberi status sampai register alarm ESP32 dipetakan dan diverifikasi.</div></div>`;
+  <div class="card"><h3>Operating Mode & Alarm Indicators</h3><div class="indicator-grid">${ledIndicator('FLOAT MODE',modeSignals.float)}${ledIndicator('BOOST MODE',modeSignals.boost)}${ledIndicator('CURRENT MODE',modeSignals.current)}${ledIndicator('EQUALIZE MODE',modeSignals.equalize)}${alarmSignals.map(([label,signal])=>ledIndicator(label,signal,true)).join('')}</div><div class="hint" style="margin-top:10px">Status langsung dari LED High register 0x26 dan LED Low register 0x27. Alarm aktif ditandai merah; kondisi tidak aktif ditampilkan NORMAL.</div></div>`;
 }
 function metricCards(){return (state.monitor?.registers||[]).map(d=>{const m=regMeta(d.key),has=m.value!==null&&m.value!==undefined;const note=!has?'DATA INVALID':m.stale?'DATA LAMA':'LIVE';return `<div class="metric ${m.stale?'stale':''}"><div class="name">${esc(d.name)}</div><div class="value">${fmt(m.value,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)} · ${note}${m.stale&&m.captured_at?` · valid ${esc(time(m.captured_at))}`:''}</div></div>`}).join('')}
 function renderMonitoringLegacy(){
@@ -643,7 +645,7 @@ function groupPanel(group){
   const ts=trendState(group.id),defs=groupSeries(group);
   const switches=defs.map(def=>`<label class="series-toggle ${def.resolvedKey?'':'unavailable'}"><input type="checkbox" data-trend-check="${esc(group.id)}" data-series="${esc(def.key)}" ${ts.selected.has(def.key)?'checked':''} ${def.resolvedKey?'':'disabled'}><span class="legend-line" style="background:${def.color}"></span>${esc(def.label)}${def.resolvedKey?'':' · belum tersedia'}</label>`).join('');
   const legend=defs.filter(def=>def.resolvedKey&&ts.selected.has(def.key)).map(def=>`<span class="legend-item"><span class="legend-line" style="background:${def.color}"></span>${esc(def.label)} (${esc(def.unit)})</span>`).join('');
-  return `<section class="card monitor-card" data-monitor-group="${esc(group.id)}"><div class="group-head"><div><h3>${esc(group.title)}</h3><div class="hint">Pilih satu atau beberapa parameter pada trend yang sama.</div></div><div class="series-switches">${switches}</div></div><div class="grid" id="metrics-${esc(group.id)}" style="margin-top:12px">${groupMetricCards(group)}</div><div class="legend" id="legend-${esc(group.id)}">${legend}</div><div class="chart-wrap"><canvas id="chart-${esc(group.id)}"></canvas></div><div class="trend-scroll" id="trend-scroll-${esc(group.id)}"><div class="trend-scroll-spacer" id="trend-spacer-${esc(group.id)}"></div></div><div class="trend-range"><span id="trend-from-${esc(group.id)}">—</span><span id="trend-mode-${esc(group.id)}" class="trend-live">LIVE · 5 menit terbaru</span><span id="trend-to-${esc(group.id)}">—</span></div><div class="trend-controls"><label for="trend-y-${esc(group.id)}">Y-Min · Zoom Y</label><span class="trend-zoom-label">0 / Zoom Out</span><input id="trend-y-${esc(group.id)}" type="range" min="0" max="100" step="1" value="${ts.yMinPct}"><span class="trend-zoom-label">Min data / Zoom In</span><span class="trend-y-value" id="trend-y-value-${esc(group.id)}">—</span></div><div class="hint" id="chart-info-${esc(group.id)}"></div></section>`;
+  return `<section class="card monitor-card" data-monitor-group="${esc(group.id)}"><div class="group-head"><div><h3>${esc(group.title)}</h3><div class="hint">Pilih satu atau beberapa parameter pada trend yang sama.</div></div><div class="series-switches">${switches}</div></div><div class="grid monitoring-metrics" id="metrics-${esc(group.id)}" style="margin-top:12px">${groupMetricCards(group)}</div><div class="legend" id="legend-${esc(group.id)}">${legend}</div><div class="chart-wrap"><canvas id="chart-${esc(group.id)}"></canvas></div><div class="trend-scroll" id="trend-scroll-${esc(group.id)}"><div class="trend-scroll-spacer" id="trend-spacer-${esc(group.id)}"></div></div><div class="trend-range"><span id="trend-from-${esc(group.id)}">—</span><span id="trend-mode-${esc(group.id)}" class="trend-live">LIVE · 5 menit terbaru</span><span id="trend-to-${esc(group.id)}">—</span></div><div class="trend-controls"><label for="trend-y-${esc(group.id)}">Y-Min · Zoom Y</label><span class="trend-zoom-label">0 / Zoom Out</span><input id="trend-y-${esc(group.id)}" type="range" min="0" max="100" step="1" value="${ts.yMinPct}"><span class="trend-zoom-label">Min data / Zoom In</span><span class="trend-y-value" id="trend-y-value-${esc(group.id)}">—</span></div><div class="hint" id="chart-info-${esc(group.id)}"></div></section>`;
 }
 function renderMonitoring(){
   const fresh=dataFreshness();
