@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -10,7 +9,8 @@
 <style>
 :root{--bg:#071019;--panel:#0d1823;--panel2:#111f2d;--line:#23384a;--text:#eaf2f8;--muted:#8ea4b6;--green:#23c483;--red:#ef4444;--amber:#f59e0b;--blue:#3ba7ff;--cyan:#32d3e4;--white:#fff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.app{min-height:100vh;display:flex;flex-direction:column}.top{height:60px;background:#09141e;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px;position:sticky;top:0;z-index:10}.brand{font-weight:800;letter-spacing:.07em}.brand b{color:#f12d2d}.unit{color:var(--muted);font:12px ui-monospace,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spacer{flex:1}.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);padding:6px 10px;border-radius:999px;color:var(--muted);font-size:11px}.dot{width:8px;height:8px;border-radius:50%;background:#617080}.dot.ok{background:var(--green);box-shadow:0 0 10px #23c48388}.dot.bad{background:var(--red)}.dot.warn{background:var(--amber);box-shadow:0 0 8px #f59e0b66}button{font:inherit}.btn{border:1px solid var(--line);background:#122333;color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer}.btn:hover{border-color:#3d617d}.btn.primary{background:#145b8f;border-color:#2079b6}.btn.danger{background:#581b24;border-color:#8f2936}.btn:disabled{opacity:.42;cursor:not-allowed}.nav{display:flex;gap:4px;padding:8px 12px;background:#0a1520;border-bottom:1px solid var(--line);overflow-x:auto}.nav button{white-space:nowrap;border:0;background:transparent;color:var(--muted);padding:9px 13px;border-radius:7px;cursor:pointer;font-weight:650}.nav button.active{background:#132536;color:var(--white)}.nav button.locked:after{content:' 🔒';font-size:10px}.main{width:min(1180px,100%);margin:0 auto;padding:16px}.card{background:linear-gradient(180deg,var(--panel),#0b1620);border:1px solid var(--line);border-radius:12px;padding:15px;margin-bottom:12px}.card h3{margin:0 0 12px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#a9c3d6}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}.metric.stale{border-color:#6c5522;background:#171d21}.metric.stale .value{color:#ffd67a}.metric .name{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.metric .value{font-size:26px;font-weight:750;margin-top:4px}.metric .unit{font-size:11px;margin-left:3px}.hint{color:var(--muted);font-size:12px}.error{background:#35151b;border:1px solid #74303b;color:#ffc8cf;padding:11px;border-radius:9px}.notice{background:#10283a;border:1px solid #235477;color:#cfeaff;padding:11px;border-radius:9px}.success{background:#103126;border:1px solid #236b4e;color:#ccffe9;padding:11px;border-radius:9px}.stale-banner{background:#382b10;border:1px solid #765b20;color:#ffe1a0;padding:10px 12px;border-radius:9px;margin-bottom:12px}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.select,.input{background:#0a1621;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;outline:none}.input{width:100%}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.field label{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.locked-panel{padding:28px;text-align:center}.locked-panel .big{font-size:34px;margin-bottom:8px}.mimic{display:grid;grid-template-columns:1fr 80px 1fr 80px 1fr;align-items:center;gap:8px;min-height:220px}.mnode{border:1px solid var(--line);background:#10202d;border-radius:12px;padding:18px;text-align:center;min-height:100px;display:flex;flex-direction:column;justify-content:center}.mnode .icon{font-size:30px}.mnode .title{font-weight:800;margin-top:5px}.mnode .sub{font-size:11px;color:var(--muted);margin-top:3px}.wire{height:4px;background:#334759;position:relative;border-radius:4px}.wire.live{background:var(--green);box-shadow:0 0 9px #23c48366}.wire.live:after{content:'▶';position:absolute;right:-3px;top:-9px;color:var(--green)}.wire.stale{background:#6d5727}.battery-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:8px;align-items:center;margin-top:12px}.status-list{display:flex;gap:7px;flex-wrap:wrap}.relay-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.relay{display:flex;align-items:center;justify-content:space-between;background:#101e2a;border:1px solid var(--line);border-radius:9px;padding:10px}.lamp{width:10px;height:10px;border-radius:50%;background:#4b5965}.lamp.on{background:var(--green);box-shadow:0 0 8px #23c48388}.lamp.stale{background:var(--amber);box-shadow:0 0 8px #f59e0b55}.event{display:grid;grid-template-columns:155px 90px 1fr 95px;gap:10px;border-bottom:1px solid #1b2e3d;padding:10px 0;align-items:center}.sev{font-size:10px;border:1px solid var(--line);border-radius:999px;padding:3px 7px;text-align:center}.sev.alarm,.sev.critical{color:#ff9eaa;border-color:#7f3040}.sev.warning{color:#ffd67a;border-color:#7a5b1f}.chart-wrap{height:310px;background:#091520;border:1px solid var(--line);border-radius:10px;position:relative;overflow:hidden}canvas{width:100%;height:100%;display:block}.trend-scroll{height:18px;overflow-x:auto;overflow-y:hidden;margin-top:8px;border-radius:8px;background:#0a1621;border:1px solid var(--line)}.trend-scroll-spacer{height:1px}.trend-range{display:flex;justify-content:space-between;gap:10px;margin-top:5px;color:var(--muted);font-size:10px}.trend-live{color:#89ffd0;font-weight:700}.trend-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:8px 10px;background:#0a1621;border:1px solid var(--line);border-radius:8px}.trend-controls label{font-size:10px;color:var(--muted);white-space:nowrap}.trend-controls input[type=range]{flex:1;min-width:180px}.trend-y-value{min-width:145px;text-align:right;font:11px ui-monospace,Consolas,monospace;color:#b8d8eb}.trend-zoom-label{font-size:10px;color:var(--muted)}.login-modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:50;padding:18px}.login-modal.show{display:flex}.login-box{width:min(410px,100%);background:#0d1b27;border:1px solid #31506a;border-radius:14px;padding:18px}.login-box h2{margin:0 0 6px}.login-actions{display:flex;gap:8px;margin-top:12px}.foot{color:#5f7688;font-size:10px;text-align:center;padding:14px}.role{color:#b8d8eb;font-weight:700}.control-row{display:flex;gap:8px;flex-wrap:wrap}.danger-zone{border-color:#63313a;background:#1c1015}.tiny{font-size:10px;color:var(--muted)}
-.nav{position:sticky;top:60px;z-index:9;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
+.measure-list{display:grid;gap:7px;margin-top:10px;text-align:left}.measure-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:7px;border-top:1px solid #1d3446}.measure-label{color:var(--muted);font-size:11px}.measure-number{font:800 24px/1 ui-monospace,Consolas,monospace;color:#fff;white-space:nowrap}.measure-number small{font:600 11px/1 system-ui;color:#9ab2c4;margin-left:4px}.indicator-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:8px}.indicator{display:flex;align-items:center;gap:9px;min-height:43px;background:#0d1c28;border:1px solid var(--line);border-radius:9px;padding:9px 10px}.indicator-dot{width:13px;height:13px;flex:0 0 13px;border-radius:50%;background:#52616d;box-shadow:inset 0 0 0 2px #71808b}.indicator.on .indicator-dot{background:var(--green);box-shadow:0 0 10px #23c48399}.indicator.alarm .indicator-dot{background:var(--red);box-shadow:0 0 10px #ef444499}.indicator.off .indicator-dot{background:#263642;box-shadow:inset 0 0 0 2px #52616d}.indicator.stale .indicator-dot{background:var(--amber);box-shadow:0 0 9px #f59e0b77}.indicator-name{font-weight:700;font-size:11px}.indicator-state{margin-left:auto;color:var(--muted);font-size:9px;text-align:right}.monitor-groups{display:grid;gap:14px}.monitor-card{margin-bottom:0}.group-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.series-switches{display:flex;gap:7px;flex-wrap:wrap}.series-toggle{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 9px;color:#b8cedd;font-size:10px;cursor:pointer;user-select:none}.series-toggle input{accent-color:var(--blue)}.series-toggle.unavailable{opacity:.5;cursor:default}.legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}.legend-item{display:flex;align-items:center;gap:6px;color:#b8cedd;font-size:10px}.legend-line{width:18px;height:3px;border-radius:3px}.pin-note{display:flex;gap:10px;align-items:flex-start}.pin-note .big{font-size:24px;line-height:1}.nav{position:sticky;top:60px;z-index:9;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
+.setting-groups{display:grid;gap:12px}.setting-list{display:grid;gap:7px}.setting-item{display:grid;grid-template-columns:minmax(170px,1.4fr) 110px minmax(130px,.8fr) 80px;gap:9px;align-items:center;padding:9px 10px;background:#0a1621;border:1px solid var(--line);border-radius:9px}.setting-current{font:700 13px ui-monospace,Consolas,monospace;color:#bfe2f5}.setting-unit{color:var(--muted);font-size:10px}.rectifier-box{display:flex;align-items:center;justify-content:space-between;gap:15px}.rectifier-actions{display:flex;gap:8px}.command-message{margin-top:10px}.safety-list{margin:8px 0 0;padding-left:18px;color:#b8cedd;font-size:11px}.safety-list li{margin:4px 0}
 body.embed .app{min-height:0}
 body.embed .top{height:52px;position:relative;padding:7px 12px}
 body.embed .top .brand,body.embed .top .unit{display:none}
@@ -21,14 +21,15 @@ body.embed .foot{display:none}
   .nav{top:56px;padding:7px 8px}.nav button{min-height:42px;padding:9px 12px}
   body.embed .top{height:50px}body.embed .nav{top:0}
   .main{padding:10px}.card{padding:12px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{min-width:0}.metric .value{font-size:22px;overflow-wrap:anywhere}
-  .event{grid-template-columns:1fr 72px}.event .msg{grid-column:1/-1}.event .state{display:none}
+  .event{grid-template-columns:1fr 72px}.event .msg{grid-column:1/-1}.event .state{display:none}.indicator-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.group-head{display:block}.series-switches{margin-top:9px}
+  .setting-item{grid-template-columns:1fr 90px}.setting-item .input{grid-column:1/2}.setting-item .btn{grid-column:2/3}.rectifier-box{align-items:stretch;flex-direction:column}.rectifier-actions .btn{flex:1}
 }
 @media(max-width:620px){
   .mimic{grid-template-columns:1fr;gap:8px;min-height:0}.mimic .load-wire,.mimic .load-node{display:block}
   .mimic>.wire,.battery-row>.wire{width:4px;height:30px;margin:0 auto}
   .mimic>.wire.live:after,.battery-row>.wire.live:after{content:'▼';right:-6px;top:auto;bottom:-12px}
   .battery-row{grid-template-columns:1fr;gap:8px}.mnode{min-height:88px;padding:13px}.mnode .icon{font-size:26px}
-  .chart-wrap{height:270px}.trend-controls input[type=range]{min-width:150px}.trend-y-value{width:100%;min-width:0;text-align:left}
+  .chart-wrap{height:270px}.trend-controls input[type=range]{min-width:150px}.trend-y-value{width:100%;min-width:0;text-align:left}.measure-number{font-size:22px}.indicator-grid{grid-template-columns:1fr}.indicator{min-height:46px}
 }
 </style>
 </head>
@@ -57,10 +58,21 @@ body.embed .foot{display:none}
   </div>
 </div>
 
+<div class="login-modal" id="pinModal">
+  <div class="login-box">
+    <h2>Buka Settings</h2>
+    <div class="hint" style="margin-bottom:12px">Masukkan password HMI 6 digit. Password awal: <b>888888</b>.</div>
+    <div class="field"><label>Password HMI</label><input class="input" id="settingsPin" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="current-password"></div>
+    <div id="pinMsg" style="margin-top:10px"></div>
+    <div class="login-actions"><button class="btn primary" id="pinSubmit">Buka Settings</button><button class="btn" id="pinCancel">Batal</button></div>
+  </div>
+</div>
+
 <script>
 const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
 const PUBLIC_MONITOR='https://panelvision.ubnb.pw/public/monitor';
+const CORE_API='https://panelvision.ubnb.pw';
 const DATA_LAMA_MS=5*60*1000;      // 5 menit sejak last-good data
 const OFFLINE_MS=5*60*1000;         // 5 menit tanpa update gateway sama sekali
 const REALTIME_RECONNECT_MS=15000;  // watchdog socket
@@ -73,12 +85,27 @@ const embedded=qs.get('embed')==='1';
 if(embedded)document.body.classList.add('embed');
 const state={
   tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,
-  timer:null,hours:1,series:null,commandBridge:false,lastGood:{},
+  timer:null,hours:1,series:null,commandBridge:true,lastGood:{},
   realtimeChannel:null,realtimeStatus:'INIT',lastRealtimeAt:0,lastHttpAt:0,
-  trendWindowMs:5*60*1000,trendFollowLive:true,trendEndTime:null,trendScrollBusy:false,
-  trendYMinPct:100
+  trendWindowMs:5*60*1000,trends:{},settingsUnlocked:false,settingsPin:'',settingValues:null,commandBusy:false,commandMessage:''
 };
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
+const MONITOR_GROUPS=[
+  {id:'voltage',title:'Voltage',series:[
+    {key:'ac_voltage_l1',aliases:['input_voltage','ac_input_voltage'],label:'V Input',unit:'V',color:'#32d3e4'},
+    {key:'battery_voltage',aliases:['vbat'],label:'V Battery',unit:'V',color:'#f59e0b'},
+    {key:'dc_load_voltage',aliases:['load_voltage','vl'],label:'V Load',unit:'V',color:'#23c483'}
+  ]},
+  {id:'current',title:'Current',series:[
+    {key:'ac_current_l1',aliases:['input_current','ac_input_current'],label:'I Input',unit:'A',color:'#32d3e4'},
+    {key:'battery_current',aliases:['ibat'],label:'I Battery',unit:'A',color:'#f59e0b'},
+    {key:'dc_load_current',aliases:['load_current','il'],label:'I Load',unit:'A',color:'#23c483'}
+  ]},
+  {id:'environment',title:'Hz & Temperature',series:[
+    {key:'frequency',aliases:['input_frequency'],label:'Frequency',unit:'Hz',color:'#a78bfa'},
+    {key:'internal_temperature',aliases:['cabinet_temperature','cabinet_temp','temperature'],label:'Cabinet Temp',unit:'°C',color:'#fb7185'}
+  ]}
+];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const toNum=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null};
@@ -87,6 +114,8 @@ const time=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.to
 const ageText=ms=>{const n=toNum(ms);if(n===null)return '—';if(n<1000)return `${Math.round(n)} ms`;if(n<60000)return `${(n/1000).toFixed(1)} dtk`;return `${(n/60000).toFixed(1)} mnt`};
 function regs(){return new Map((state.monitor?.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));}
 function regObj(key){return regs().get(key)||null;}
+function availableRegisterKeys(){return new Set([...(state.monitor?.registers||[]).map(x=>x.key),...regs().keys()]);}
+function resolveKey(def){const keys=availableRegisterKeys();return [def.key,...(def.aliases||[])].find(k=>keys.has(k))||null;}
 function status(){return state.monitor?.status||{};}
 function telemetryModbus(){return state.monitor?.latest?.telemetry?.modbus||{};}
 function qualityOf(r){return String(r?.quality||'').toLowerCase();}
@@ -152,13 +181,16 @@ function perms(){
   const a=state.access||{};
   return {monitor:a.can_monitor!==false,events:!!a.can_events,settings:!!a.can_settings,relays:!!a.can_relays,calibration:!!a.can_calibration,control:!!a.can_control,role:a.access_role||'public'};
 }
-function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
+function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='settings')return !!state.user&&(p.settings||p.control)&&state.settingsUnlocked;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
 function buildNav(){
-  const visibleMenu=state.user?menu:menu.filter(([id])=>id==='mimic'||id==='monitoring');
+  const visibleMenu=state.user?menu:menu.filter(([id])=>['mimic','monitoring','settings'].includes(id));
   $('nav').innerHTML=visibleMenu.map(([id,label])=>`<button data-tab="${id}" class="${state.tab===id?'active ':''}${tabAllowed(id)?'':'locked'}">${label}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
 }
 function openTab(id){
+  if(id==='settings'&&!state.user){showLogin('Settings memerlukan login user dan password HMI.');return;}
+  if(id==='settings'&&state.user&&!perms().settings&&!perms().control){locked('Settings','Settings / Control');return;}
+  if(id==='settings'&&!tabAllowed(id)){showPin();return;}
   if(!tabAllowed(id)){showLogin(`Akses ${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login/permission.`);return;}
   state.tab=id;buildNav();render();
 }
@@ -230,9 +262,8 @@ function applyRealtimeRow(row){
   state.lastRealtimeAt=Date.now();
   appendRealtimeHistory(row);
   rememberLastGood(state.monitor);
-  if(state.trendFollowLive){
-    state.trendEndTime=row.captured_at?new Date(row.captured_at).getTime():Date.now();
-  }
+  const latestTime=row.captured_at?new Date(row.captured_at).getTime():Date.now();
+  for(const group of MONITOR_GROUPS){const ts=trendState(group.id);if(ts.followLive)ts.endTime=latestTime;}
   setConnection();
   render();
 }
@@ -285,7 +316,7 @@ async function realtimeWatchdog(){
 
 async function loadSecure(){
   const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
-  if(!state.user){state.panel=state.membership=state.access=null;updateAuth();buildNav();return;}
+  if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;updateAuth();buildNav();return;}
   const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,active').eq('serial_number',serial).maybeSingle();
   state.panel=p||null;
   if(p){
@@ -299,7 +330,7 @@ async function loadSecure(){
 }
 function updateAuth(){
   $('authBtn').textContent=state.user?`Logout · ${perms().role}`:'Login';
-  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
+  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
 }
 function showLogin(msg=''){$('loginModal').classList.add('show');$('loginMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('loginEmail').focus(),50)}
 function hideLogin(){$('loginModal').classList.remove('show');$('loginPassword').value=''}
@@ -311,55 +342,86 @@ $('loginSubmit').onclick=async()=>{
   if(error){$('loginMsg').innerHTML=`<div class="error">${esc(error.message)}</div>`;return;}
   hideLogin();await loadSecure();
 };
+function showPin(msg=''){$('pinModal').classList.add('show');$('pinMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('settingsPin').focus(),50)}
+function hidePin(){$('pinModal').classList.remove('show');$('settingsPin').value='';$('pinMsg').innerHTML=''}
+$('pinCancel').onclick=hidePin;
+$('settingsPin').onkeydown=e=>{if(e.key==='Enter')$('pinSubmit').click()};
+$('pinSubmit').onclick=async()=>{
+  const pin=$('settingsPin').value.trim();
+  if(!/^\d{6}$/.test(pin)){$('pinMsg').innerHTML='<div class="error">Password harus tepat 6 digit angka.</div>';return;}
+  $('pinSubmit').disabled=true;$('pinMsg').innerHTML='<div class="hint">Memeriksa password…</div>';
+  const {data,error}=await sb.rpc('pv_verify_hmi_pin',{p_serial:serial,p_pin:pin});
+  $('pinSubmit').disabled=false;
+  if(error){$('pinMsg').innerHTML=`<div class="error">Settings belum siap: ${esc(error.message)}</div>`;return;}
+  if(!data){$('pinMsg').innerHTML='<div class="error">Password salah atau akses dikunci sementara setelah 5 percobaan.</div>';return;}
+  state.settingsUnlocked=true;state.settingsPin=pin;hidePin();state.tab='settings';buildNav();render();
+};
 function render(){
   if(!state.monitor)return;
-  if(state.tab==='monitoring'&&$('chart')&&$('trendScroll')){
-    // update metric cards + graph without rebuilding scrollbar / losing user's historical position
-    const grid=$('view').querySelector('.grid');
-    if(grid)grid.innerHTML=metricCards();
-    setupTrendScroll(false);
-    drawChart();
+  if(state.tab==='monitoring'&&document.querySelector('[data-monitor-group]')){
+    updateMonitoringLiveValues();
+    drawAllTrends(false);
     return;
   }
   ({mimic:renderMimic,monitoring:renderMonitoring,settings:renderSettings,relays:renderRelays,events:renderEvents,calibration:renderCalibration}[state.tab]||renderMimic)();
 }
-function node(icon,title,sub,nodeState='unknown'){const active=nodeState==='active',off=nodeState==='off',stale=nodeState==='stale';const dotClass=active?'ok':off?'bad':'warn';const label=active?'ACTIVE':off?'OFF':stale?'DATA LAMA':'UNKNOWN';return `<div class="mnode"><div class="icon">${icon}</div><div class="title">${title}</div><div class="sub">${sub}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill"><span class="dot ${dotClass}"></span>${label}</span></div></div>`}
+function measureRows(rows){return `<div class="measure-list">${rows.map(r=>`<div class="measure-row"><span class="measure-label">${esc(r.label)}</span><span class="measure-number">${esc(r.value)}${r.unit?`<small>${esc(r.unit)}</small>`:''}</span></div>`).join('')}</div>`}
+function node(icon,title,rows,nodeState='unknown'){const active=nodeState==='active',off=nodeState==='off',stale=nodeState==='stale';const dotClass=active?'ok':off?'bad':'warn';const label=active?'ACTIVE':off?'OFF':stale?'DATA LAMA':'UNKNOWN';return `<div class="mnode"><div class="icon">${icon}</div><div class="title">${title}</div>${measureRows(rows)}<div class="status-list" style="justify-content:center;margin-top:9px"><span class="pill"><span class="dot ${dotClass}"></span>${label}</span></div></div>`}
 function statusPill(label,on,stale){const cls=stale?'warn':on?'ok':'bad';const text=stale?'DATA LAMA':on?'ON':'OFF';return `<span class="pill"><span class="dot ${cls}"></span>${esc(label)}: ${text}</span>`}
+function signalFromAliases(aliases){const keys=availableRegisterKeys();const key=aliases.find(k=>keys.has(k));if(!key)return 'unknown';const meta=regMeta(key),value=toNum(meta.value);if(meta.stale)return 'stale';if(value===null)return 'unknown';return value!==0?'active':'off';}
+function ledIndicator(label,signal,isAlarm=false){const cls=signal==='stale'?'stale':signal==='unknown'?'unknown':signal==='active'?(isAlarm?'alarm':'on'):'off';const text=signal==='stale'?'DATA LAMA':signal==='unknown'?'BELUM TERSEDIA':signal==='active'?(isAlarm?'ALARM':'ACTIVE'):(isAlarm?'NORMAL':'OFF');return `<div class="indicator ${cls}"><span class="indicator-dot"></span><span class="indicator-name">${esc(label)}</span><span class="indicator-state">${text}</span></div>`}
 function renderMimic(){
-  const acM=regMeta('ac_voltage_l1'),freqM=regMeta('frequency'),dcM=regMeta('dc_load_voltage'),loadIM=regMeta('dc_load_current'),batM=regMeta('battery_voltage'),batIM=regMeta('battery_current'),highM=regMeta('led_high16'),lowM=regMeta('led_low16');
-  const ac=toNum(acM.value),freq=toNum(freqM.value),dc=toNum(dcM.value),loadI=toNum(loadIM.value),bat=toNum(batM.value),batI=toNum(batIM.value),high=toNum(highM.value),low=toNum(lowM.value);
+  const acM=regMeta('ac_voltage_l1'),acIM=regMeta('ac_current_l1'),freqM=regMeta('frequency'),dcM=regMeta('dc_load_voltage'),loadIM=regMeta('dc_load_current'),batM=regMeta('battery_voltage'),batIM=regMeta('battery_current'),highM=regMeta('led_high16'),lowM=regMeta('led_low16');
+  const ac=toNum(acM.value),acI=toNum(acIM.value),freq=toNum(freqM.value),dc=toNum(dcM.value),loadI=toNum(loadIM.value),bat=toNum(batM.value),batI=toNum(batIM.value),high=toNum(highM.value),low=toNum(lowM.value);
   const highValid=high!==null,lowValid=low!==null;
   const gridAnalog=ac!==null&&freq!==null&&ac>50&&freq>40;
   const grid=highValid?!!(high&0x80):gridAnalog;
   const batMcb=lowValid?!!(low&0x01):bat!==null&&bat>10;
   const loadMcb=lowValid?!!(low&0x02):dc!==null&&dc>10;
   const dcLive=dc!==null&&dc>10,batLive=bat!==null&&bat>10;
-  const gridStale=acM.stale||freqM.stale||highM.stale,dcStale=dcM.stale||lowM.stale,batStale=batM.stale||lowM.stale,statusStale=highM.stale||lowM.stale;
+  const gridStale=acM.stale||acIM.stale||freqM.stale||highM.stale,dcStale=dcM.stale||loadIM.stale||lowM.stale,batStale=batM.stale||batIM.stale||lowM.stale,statusStale=highM.stale||lowM.stale;
   const gridState=(ac===null&&freq===null&&!highValid)?'unknown':gridStale?'stale':grid?'active':'off';
   const rectState=dc===null?'unknown':dcM.stale?'stale':dcLive?'active':'off';
   const loadState=(dc===null&&!lowValid)?'unknown':dcStale?'stale':(dcLive&&loadMcb)?'active':'off';
   const batState=(bat===null&&!lowValid)?'unknown':batStale?'stale':(batLive&&batMcb)?'active':'off';
-  const mode=state.monitor?.latest?.charger_mode||'—',fresh=dataFreshness();
+  const bitState=(raw,valid,mask,stale)=>!valid?'unknown':stale?'stale':(raw&mask)?'active':'off';
+  const modeSignals={float:bitState(high,highValid,0x40,highM.stale),boost:bitState(high,highValid,0x20,highM.stale),current:bitState(high,highValid,0x10,highM.stale),equalize:bitState(high,highValid,0x08,highM.stale)};
+  const mode=state.monitor?.latest?.charger_mode||Object.entries(modeSignals).find(([,v])=>v==='active')?.[0]?.toUpperCase()||'—',fresh=dataFreshness();
+  const alarmSignals=[
+    ['BATTERY ENDING',signalFromAliases(['battery_ending','alarm_battery_ending'])],
+    ['LOW BATTERY',signalFromAliases(['low_battery','alarm_low_battery'])],
+    ['BATTERY TEST FAIL',signalFromAliases(['battery_test_fail','alarm_battery_test_fail'])],
+    ['LINE MCB OFF',bitState(low,lowValid,0x10,lowM.stale)],
+    ['SCR FUSE FAIL',signalFromAliases(['scr_fuse_fail','alarm_scr_fuse_fail'])],
+    ['(+) EARTH FAULT',signalFromAliases(['positive_earth_fault','earth_fault_positive'])],
+    ['(-) EARTH FAULT',signalFromAliases(['negative_earth_fault','earth_fault_negative'])],
+    ['FAN FAIL',signalFromAliases(['fan_fail','alarm_fan_fail'])],
+    ['OVER VOLTAGE',signalFromAliases(['over_voltage','alarm_over_voltage'])],
+    ['UNDER VOLTAGE',signalFromAliases(['under_voltage','alarm_under_voltage'])],
+    ['OVER TEMP.',signalFromAliases(['over_temperature','over_temp','alarm_over_temperature'])],
+    ['RECTIFIER FAIL',signalFromAliases(['rectifier_fail','alarm_rectifier_fail'])]
+  ];
   const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir sudah lebih dari 5 menit; nilai terakhir tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
   $('view').innerHTML=`
   ${staleBanner}
   <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
     <div class="mimic">
-      ${node('⚡','GRID',`${fmt(ac,1)} V · ${fmt(freq,1)} Hz`,gridState)}
+      ${node('⚡','GRID',[{label:'Voltage',value:fmt(ac,1),unit:'V'},{label:'Current',value:fmt(acI,1),unit:'A'},{label:'Frequency',value:fmt(freq,1),unit:'Hz'}],gridState)}
       <div class="wire ${gridStale?'stale':grid?'live':''}"></div>
-      ${node('▣','RECTIFIER',`Mode: ${esc(mode)}`,rectState)}
+      ${node('▣','RECTIFIER',[{label:'Mode',value:mode,unit:''}],rectState)}
       <div class="wire load-wire ${dcStale?'stale':(dcLive&&loadMcb)?'live':''}"></div>
-      <div class="load-node">${node('◉','LOAD',`${fmt(dc,1)} V · ${fmt(loadI,1)} A`,loadState)}</div>
+      <div class="load-node">${node('◉','LOAD',[{label:'Voltage',value:fmt(dc,1),unit:'V'},{label:'Current',value:fmt(loadI,1),unit:'A'}],loadState)}</div>
     </div>
     <div class="battery-row">
-      ${node('▥','BATTERY',`${fmt(bat,1)} V · ${fmt(batI,1)} A`,batState)}
+      ${node('▥','BATTERY',[{label:'Voltage',value:fmt(bat,1),unit:'V'},{label:'Current',value:fmt(batI,1),unit:'A'}],batState)}
       <div class="wire ${batStale?'stale':(batLive&&batMcb)?'live':''}"></div>
       <div class="mnode"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list" style="justify-content:center;margin-top:9px">${statusPill('GRID',grid,statusStale)}${statusPill('MCB LOAD',loadMcb,statusStale)}${statusPill('MCB BATTERY',batMcb,statusStale)}</div><div class="status-list" style="justify-content:center;margin-top:7px"><span class="pill">MODBUS: ${fresh.stale?'DATA LAMA':status().modbus_ok?'OK':'OFF'}</span><span class="pill">Age: ${esc(ageText(fresh.age_ms))}</span><span class="pill">Poll: ${fresh.poll_success_pct===null?'—':fmt(fresh.poll_success_pct,1)+'%'}</span></div></div>
     </div>
-  </div>`;
+  </div>
+  <div class="card"><h3>Operating Mode & Alarm Indicators</h3><div class="indicator-grid">${ledIndicator('FLOAT MODE',modeSignals.float)}${ledIndicator('BOOST MODE',modeSignals.boost)}${ledIndicator('CURRENT MODE',modeSignals.current)}${ledIndicator('EQUALIZE MODE',modeSignals.equalize)}${alarmSignals.map(([label,signal])=>ledIndicator(label,signal,true)).join('')}</div><div class="hint" style="margin-top:10px">Indikator abu-abu bertanda “BELUM TERSEDIA” tetap ditampilkan, tetapi belum diberi status sampai register alarm ESP32 dipetakan dan diverifikasi.</div></div>`;
 }
 function metricCards(){return (state.monitor?.registers||[]).map(d=>{const m=regMeta(d.key),has=m.value!==null&&m.value!==undefined;const note=!has?'DATA INVALID':m.stale?'DATA LAMA':'LIVE';return `<div class="metric ${m.stale?'stale':''}"><div class="name">${esc(d.name)}</div><div class="value">${fmt(m.value,2)}<span class="unit">${esc(d.unit||'')}</span></div><div class="tiny">${esc(d.key)} · ${note}${m.stale&&m.captured_at?` · valid ${esc(time(m.captured_at))}`:''}</div></div>`}).join('')}
-function renderMonitoring(){
+function renderMonitoringLegacy(){
   const fresh=dataFreshness();
   const banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir > 5 menit · Last Good Value dipertahankan · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
   $('view').innerHTML=`${banner}<div class="card"><div class="toolbar"><h3 style="margin:0;flex:1">Live Monitoring</h3><select class="select" id="hours"><option value="1">1 jam</option><option value="12">12 jam</option><option value="24">24 jam</option></select><select class="select" id="series"></select><button class="btn" id="refresh">Refresh</button></div><div class="grid">${metricCards()}</div></div><div class="card"><h3>Trend Historis · Jendela 5 Menit</h3><div class="chart-wrap"><canvas id="chart"></canvas></div><div class="trend-scroll" id="trendScroll"><div class="trend-scroll-spacer" id="trendScrollSpacer"></div></div><div class="trend-range"><span id="trendFrom">—</span><span id="trendMode" class="trend-live">LIVE · 5 menit terbaru</span><span id="trendTo">—</span></div><div class="trend-controls"><label for="trendYMin">Y-Min · Zoom Y</label><span class="trend-zoom-label">0 / Zoom Out</span><input id="trendYMin" type="range" min="0" max="100" step="1" value="${state.trendYMinPct}"><span class="trend-zoom-label">Min data / Zoom In</span><span class="trend-y-value" id="trendYMinValue">—</span></div><div class="hint" id="chartInfo"></div></div>`;
@@ -549,9 +611,176 @@ function drawChart(){
   if($('chartInfo'))$('chartInfo').textContent=`${def.name} · ${pts.length} sampel dalam 5 menit · total histori ${allPts.length} sampel · ${def.unit||''} · Y zoom ${state.trendYMinPct}%`;
 }
 
+function trendState(groupId){
+  if(!state.trends[groupId]){
+    const group=MONITOR_GROUPS.find(g=>g.id===groupId);
+    state.trends[groupId]={followLive:true,endTime:null,scrollBusy:false,yMinPct:100,selected:new Set((group?.series||[]).map(s=>s.key))};
+  }
+  return state.trends[groupId];
+}
+function groupSeries(group){return group.series.map(def=>({...def,resolvedKey:resolveKey(def)}));}
+function groupMetricCards(group){return groupSeries(group).map(def=>{
+  const meta=def.resolvedKey?regMeta(def.resolvedKey):{value:null,stale:false,captured_at:null};
+  const note=!def.resolvedKey?'BELUM TERSEDIA':meta.value===null?'DATA INVALID':meta.stale?'DATA LAMA':'LIVE';
+  return `<div class="metric ${meta.stale?'stale':''}"><div class="name">${esc(def.label)}</div><div class="value">${fmt(meta.value,2)}<span class="unit">${esc(def.unit)}</span></div><div class="tiny">${esc(def.resolvedKey||def.key)} · ${note}${meta.stale&&meta.captured_at?` · valid ${esc(time(meta.captured_at))}`:''}</div></div>`;
+}).join('')}
+function groupPanel(group){
+  const ts=trendState(group.id),defs=groupSeries(group);
+  const switches=defs.map(def=>`<label class="series-toggle ${def.resolvedKey?'':'unavailable'}"><input type="checkbox" data-trend-check="${esc(group.id)}" data-series="${esc(def.key)}" ${ts.selected.has(def.key)?'checked':''} ${def.resolvedKey?'':'disabled'}><span class="legend-line" style="background:${def.color}"></span>${esc(def.label)}${def.resolvedKey?'':' · belum tersedia'}</label>`).join('');
+  const legend=defs.filter(def=>def.resolvedKey&&ts.selected.has(def.key)).map(def=>`<span class="legend-item"><span class="legend-line" style="background:${def.color}"></span>${esc(def.label)} (${esc(def.unit)})</span>`).join('');
+  return `<section class="card monitor-card" data-monitor-group="${esc(group.id)}"><div class="group-head"><div><h3>${esc(group.title)}</h3><div class="hint">Pilih satu atau beberapa parameter pada trend yang sama.</div></div><div class="series-switches">${switches}</div></div><div class="grid" id="metrics-${esc(group.id)}" style="margin-top:12px">${groupMetricCards(group)}</div><div class="legend" id="legend-${esc(group.id)}">${legend}</div><div class="chart-wrap"><canvas id="chart-${esc(group.id)}"></canvas></div><div class="trend-scroll" id="trend-scroll-${esc(group.id)}"><div class="trend-scroll-spacer" id="trend-spacer-${esc(group.id)}"></div></div><div class="trend-range"><span id="trend-from-${esc(group.id)}">—</span><span id="trend-mode-${esc(group.id)}" class="trend-live">LIVE · 5 menit terbaru</span><span id="trend-to-${esc(group.id)}">—</span></div><div class="trend-controls"><label for="trend-y-${esc(group.id)}">Y-Min · Zoom Y</label><span class="trend-zoom-label">0 / Zoom Out</span><input id="trend-y-${esc(group.id)}" type="range" min="0" max="100" step="1" value="${ts.yMinPct}"><span class="trend-zoom-label">Min data / Zoom In</span><span class="trend-y-value" id="trend-y-value-${esc(group.id)}">—</span></div><div class="hint" id="chart-info-${esc(group.id)}"></div></section>`;
+}
+function renderMonitoring(){
+  const fresh=dataFreshness();
+  const banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir > 5 menit · Last Good Value dipertahankan · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
+  $('view').innerHTML=`${banner}<div class="card"><div class="toolbar" style="margin:0"><h3 style="margin:0;flex:1">Monitoring & Trend History</h3><select class="select" id="hours"><option value="1">Histori 1 jam</option><option value="12">Histori 12 jam</option><option value="24">Histori 24 jam</option></select><button class="btn" id="refresh">Refresh</button></div></div><div class="monitor-groups">${MONITOR_GROUPS.map(groupPanel).join('')}</div>`;
+  $('hours').value=String(state.hours);
+  $('hours').onchange=async e=>{state.hours=Number(e.target.value)||1;for(const g of MONITOR_GROUPS){const ts=trendState(g.id);ts.followLive=true;ts.endTime=null;}await loadPublic();};
+  $('refresh').onclick=loadPublic;
+  document.querySelectorAll('[data-trend-check]').forEach(input=>input.onchange=e=>{
+    const group=MONITOR_GROUPS.find(g=>g.id===e.target.dataset.trendCheck),ts=trendState(group.id);
+    e.target.checked?ts.selected.add(e.target.dataset.series):ts.selected.delete(e.target.dataset.series);
+    const available=groupSeries(group).filter(d=>d.resolvedKey&&ts.selected.has(d.key));
+    if(!available.length){ts.selected.add(e.target.dataset.series);e.target.checked=true;return;}
+    refreshGroupLegend(group);setupGroupScroll(group,false);drawGroupTrend(group);
+  });
+  for(const group of MONITOR_GROUPS){
+    const ts=trendState(group.id),sc=$(`trend-scroll-${group.id}`),slider=$(`trend-y-${group.id}`);
+    sc.onscroll=()=>{if(!ts.scrollBusy)updateGroupFromScroll(group)};
+    slider.oninput=e=>{ts.yMinPct=Math.max(0,Math.min(100,Number(e.target.value)||0));drawGroupTrend(group)};
+  }
+  requestAnimationFrame(()=>drawAllTrends(true));
+}
+function refreshGroupLegend(group){
+  const ts=trendState(group.id),box=$(`legend-${group.id}`);if(!box)return;
+  box.innerHTML=groupSeries(group).filter(def=>def.resolvedKey&&ts.selected.has(def.key)).map(def=>`<span class="legend-item"><span class="legend-line" style="background:${def.color}"></span>${esc(def.label)} (${esc(def.unit)})</span>`).join('');
+}
+function updateMonitoringLiveValues(){for(const group of MONITOR_GROUPS){const box=$(`metrics-${group.id}`);if(box)box.innerHTML=groupMetricCards(group);}}
+function groupTrendData(group){
+  const ts=trendState(group.id);
+  const series=groupSeries(group).filter(def=>def.resolvedKey&&ts.selected.has(def.key)).map(def=>({
+    ...def,
+    points:(state.monitor?.history||[]).map(row=>({t:new Date(row.captured_at).getTime(),v:toNum(row.values?.[def.resolvedKey])})).filter(p=>Number.isFinite(p.t)&&p.v!==null).sort((a,b)=>a.t-b.t)
+  }));
+  const timestamps=series.flatMap(s=>s.points.map(p=>p.t)).sort((a,b)=>a-b);
+  return {series,first:timestamps[0]??null,last:timestamps[timestamps.length-1]??null,total:timestamps.length};
+}
+function setupGroupScroll(group,forceRight=false){
+  const ts=trendState(group.id),sc=$(`trend-scroll-${group.id}`),sp=$(`trend-spacer-${group.id}`);if(!sc||!sp)return;
+  const {first,last}=groupTrendData(group);if(first===null||last===null)return;
+  const windows=Math.max(1,Math.max(state.trendWindowMs,last-first)/state.trendWindowMs),viewport=Math.max(300,sc.clientWidth||800);
+  sp.style.width=`${Math.round(Math.min(12000,Math.max(viewport+1,viewport*windows)))}px`;
+  ts.scrollBusy=true;
+  if(forceRight||ts.followLive){sc.scrollLeft=sc.scrollWidth-sc.clientWidth;ts.followLive=true;ts.endTime=last;}
+  else{const maxScroll=Math.max(1,sc.scrollWidth-sc.clientWidth),endMin=first+state.trendWindowMs,ratio=Math.max(0,Math.min(1,((ts.endTime||last)-endMin)/Math.max(1,last-endMin)));sc.scrollLeft=ratio*maxScroll;}
+  requestAnimationFrame(()=>{ts.scrollBusy=false});
+}
+function updateGroupFromScroll(group){
+  const ts=trendState(group.id),sc=$(`trend-scroll-${group.id}`),{first,last}=groupTrendData(group);if(!sc||first===null||last===null)return;
+  const ratio=Math.max(0,Math.min(1,sc.scrollLeft/Math.max(1,sc.scrollWidth-sc.clientWidth))),endMin=Math.min(last,first+state.trendWindowMs);
+  ts.endTime=endMin+ratio*Math.max(0,last-endMin);ts.followLive=ratio>0.995;if(ts.followLive)ts.endTime=last;drawGroupTrend(group);
+}
+function drawAllTrends(forceRight=false){for(const group of MONITOR_GROUPS){setupGroupScroll(group,forceRight);drawGroupTrend(group)}}
+function drawGroupTrend(group){
+  const ts=trendState(group.id),canvas=$(`chart-${group.id}`);if(!canvas)return;
+  const data=groupTrendData(group),latestT=data.last??Date.now();if(ts.followLive&&data.last!==null){ts.endTime=data.last;setupGroupScroll(group,false)}
+  const end=Math.min(latestT,ts.endTime||latestT),start=end-state.trendWindowMs;
+  const visible=data.series.map(s=>({...s,points:s.points.filter(p=>p.t>=start&&p.t<=end)})),values=visible.flatMap(s=>s.points.map(p=>p.v));
+  const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,m={l:58,r:15,t:18,b:35},pw=w-m.l-m.r,ph=h-m.t-m.b;ctx.clearRect(0,0,w,h);ctx.font='10px system-ui';ctx.fillStyle='#8ea4b6';
+  const dataMin=values.length?Math.min(...values):0,baseline=Math.min(0,dataMin);let min=baseline+(dataMin-baseline)*(ts.yMinPct/100),max=values.length?Math.max(...values):1;
+  if(min===max){const pad=Math.max(Math.abs(max)*.01,1);min-=pad;max+=pad}if(max-min<1e-9)max=min+1;
+  for(let i=0;i<=5;i++){const y=m.t+ph*i/5;ctx.strokeStyle='#203444';ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();ctx.textAlign='right';ctx.fillStyle='#8ea4b6';ctx.fillText(fmt(max-(max-min)*i/5,1),m.l-7,y+3)}
+  for(let i=0;i<=5;i++){const xx=m.l+pw*i/5;ctx.strokeStyle='#162a38';ctx.beginPath();ctx.moveTo(xx,m.t);ctx.lineTo(xx,m.t+ph);ctx.stroke();ctx.textAlign='center';ctx.fillStyle='#8ea4b6';ctx.fillText(new Date(start+state.trendWindowMs*i/5).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),xx,h-12)}
+  for(const series of visible){if(!series.points.length)continue;ctx.strokeStyle=series.color;ctx.lineWidth=2;ctx.beginPath();series.points.forEach((p,i)=>{const xx=m.l+(p.t-start)/state.trendWindowMs*pw,yy=m.t+(max-p.v)/(max-min)*ph;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke()}
+  if(!values.length){ctx.textAlign='center';ctx.fillStyle='#8ea4b6';ctx.fillText('Tidak ada data pada rentang 5 menit ini',w/2,h/2)}
+  $(`trend-from-${group.id}`).textContent=new Date(start).toLocaleString('id-ID');$(`trend-to-${group.id}`).textContent=new Date(end).toLocaleString('id-ID');
+  const mode=$(`trend-mode-${group.id}`);mode.textContent=ts.followLive?'LIVE · 5 menit terbaru':'HISTORI · scroll ke kanan untuk kembali LIVE';mode.className=ts.followLive?'trend-live':'';
+  $(`trend-y-value-${group.id}`).textContent=`Y min ${fmt(min,2)} · data min ${fmt(dataMin,2)}`;$(`trend-y-${group.id}`).value=String(ts.yMinPct);
+  $(`chart-info-${group.id}`).textContent=`${data.series.length} parameter · ${values.length} sampel dalam 5 menit · total histori ${data.total} titik · Y zoom ${ts.yMinPct}%`;
+}
+
 function locked(title,need){$('view').innerHTML=`<div class="card locked-panel"><div class="big">🔒</div><h3>${esc(title)}</h3><div class="hint">Dibutuhkan login dengan izin <b>${esc(need)}</b>.</div><button class="btn primary" style="margin-top:14px" onclick="showLogin()">Login</button></div>`}
 function writeState(){return state.commandBridge?'<div class="success">Command bridge aktif.</div>':'<div class="notice"><b>Write command belum diaktifkan.</b> Permission sudah diterapkan, tetapi pengiriman write ke ESP32 sengaja dikunci sampai format command firmware/server dipastikan.</div>'}
-function renderSettings(){if(!tabAllowed('settings'))return locked('Settings','Settings');const p=perms();$('view').innerHTML=`<div class="card"><h3>Settings · role <span class="role">${esc(p.role)}</span></h3>${writeState()}<div class="form-grid" style="margin-top:12px"><div class="field"><label>Float Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Boost Voltage</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Current Limit</label><input class="input" value="" placeholder="Baca dari profile HMI" disabled></div><div class="field"><label>Device Profile</label><input class="input" value="${esc(state.panel?.device_profile||'—')}" disabled></div></div><div class="control-row" style="margin-top:12px"><button class="btn primary" disabled>Apply Setting</button></div></div><div class="card danger-zone"><h3>Rectifier Control</h3><div class="hint">Izin control: ${p.control?'YA':'TIDAK'}. Tombol tetap dikunci sampai command mapping diverifikasi.</div><div class="control-row" style="margin-top:10px"><button class="btn primary" disabled>RECTIFIER ON</button><button class="btn danger" disabled>RECTIFIER OFF</button></div></div>`}
+const SETTING_DEFS={
+  voltage:[
+    ['float','Float Voltage','V',0.1,0,400],['boost','Boost Voltage','V',0.1,0,400],['equalize','Equalize Voltage','V',0.1,0,400],
+    ['low_bat','Low Battery','V',0.1,0,400],['bat_end','Battery Ending','V',0.1,0,400]
+  ],
+  current:[
+    ['bat_current','Battery Current Limit','A',0.1,0,1000],['load_current','Load Current Limit','A',0.1,0,1000],
+    ['return_float','Return to Float Current','A',0.1,0,1000],['go_boost','Go to Boost Current','A',0.1,0,1000]
+  ],
+  mode:[
+    ['mode_switch','Mode Switch','',1,1,5],['boost_time','Manual Boost Time','h',0.1,0,999],
+    ['test_mode','Battery Test Mode','',1,1,3],['auto_test','Auto Test Time','h',0.1,0,999],
+    ['discharge_current','Discharge Current','A',1,0,1000],['discharge_time','Discharge Time','min',1,0,999]
+  ]
+};
+async function coreRequest(path,options={}){
+  const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error('Sesi login berakhir. Silakan login kembali.');
+  const r=await fetch(CORE_API+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,...(options.headers||{})}});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d;
+}
+async function waitControl(correlationId){
+  for(let i=0;i<24;i++){
+    await new Promise(resolve=>setTimeout(resolve,500));
+    const d=await coreRequest(`/api/panels/${encodeURIComponent(state.panel.id)}/control/commands/${encodeURIComponent(correlationId)}`);
+    if(d.status==='completed')return d.response||{};
+    if(d.status==='failed'||d.status==='expired')throw new Error(d.response?.code||`Command ${d.status}`);
+  }
+  throw new Error('ESP32 belum memberi jawaban dalam 12 detik. Periksa koneksi MQTT.');
+}
+function setCommandMessage(message,type='notice'){
+  state.commandMessage=message;const box=$('commandMessage');if(box){box.className=`command-message ${type}`;box.textContent=message;}
+}
+async function runControl(path,body,waitingText){
+  if(state.commandBusy)throw new Error('Command lain masih diproses.');
+  state.commandBusy=true;setCommandMessage(waitingText,'notice');document.querySelectorAll('[data-control-btn]').forEach(b=>b.disabled=true);
+  try{const issued=await coreRequest(`/api/panels/${encodeURIComponent(state.panel.id)}/control/${path}`,{method:'POST',body:JSON.stringify(body)});return await waitControl(issued.correlation_id);}
+  finally{state.commandBusy=false;document.querySelectorAll('[data-control-btn]').forEach(b=>b.disabled=false);}
+}
+async function loadRemoteSettings(){
+  try{
+    const response=await runControl('settings/read',{pin:state.settingsPin,confirm_serial:serial},'Membaca settings langsung dari RBC-02…');
+    if(!response.ok||!response.settings)throw new Error(response.code||'Settings tidak diterima');
+    state.settingValues=response.settings;setCommandMessage('Settings berhasil dibaca dari RBC-02.','success');renderSettings();
+  }catch(e){setCommandMessage(`BACA SETTINGS GAGAL: ${e.message}`,'error');}
+}
+function settingInput(def){
+  const [key,,unit,step,min,max]=def,value=state.settingValues?.[key];
+  if(key==='mode_switch')return `<select class="input" id="setting-${key}">${[[1,'Auto Boost'],[2,'Float'],[3,'Manual Boost'],[4,'Equalize'],[5,'Slave']].map(([v,l])=>`<option value="${v}" ${Number(value)===v?'selected':''}>${v} · ${l}</option>`).join('')}</select>`;
+  if(key==='test_mode')return `<select class="input" id="setting-${key}">${[[1,'Auto'],[2,'Closed'],[3,'Manual']].map(([v,l])=>`<option value="${v}" ${Number(value)===v?'selected':''}>${v} · ${l}</option>`).join('')}</select>`;
+  return `<input class="input" id="setting-${key}" type="number" step="${step}" min="${min}" max="${max}" value="${value??''}" inputmode="decimal">`;
+}
+function settingRows(defs,allowed){return `<div class="setting-list">${defs.map(def=>{const [key,label,unit,,,]=def,val=state.settingValues?.[key];return `<div class="setting-item"><div><b>${esc(label)}</b><div class="setting-unit">${esc(key)} · ${def[4]}–${def[5]} ${esc(unit)}</div></div><div class="setting-current">${val??'—'} ${esc(unit)}</div>${settingInput(def)}<button class="btn primary" data-control-btn onclick="writeRemoteSetting('${key}')" ${allowed&&!state.commandBusy?'':'disabled'}>SET</button></div>`}).join('')}</div>`}
+async function writeRemoteSetting(key){
+  const def=Object.values(SETTING_DEFS).flat().find(x=>x[0]===key),input=$(`setting-${key}`),value=Number(input?.value);if(!def||!Number.isFinite(value))return setCommandMessage('Nilai setting tidak valid.','error');
+  if(value<def[4]||value>def[5])return setCommandMessage(`Nilai harus ${def[4]}–${def[5]} ${def[2]}.`,'error');
+  if(!confirm(`Ubah ${def[1]} menjadi ${value} ${def[2]} pada panel ${serial}? Nilai akan ditulis dengan FC06 dan diverifikasi read-back.`))return;
+  try{const response=await runControl('settings/write',{pin:state.settingsPin,confirm_serial:serial,key,value},`Menulis ${def[1]}…`);if(!response.ok)throw new Error(response.code||'Write ditolak');state.settingValues={...(state.settingValues||{}),[key]:response.readback};setCommandMessage(`${def[1]} berhasil · read-back ${response.readback} ${def[2]}.`,'success');renderSettings();}catch(e){setCommandMessage(`WRITE GAGAL: ${e.message}`,'error');}
+}
+async function setRectifier(target){
+  const action=target?'ON':'OFF';if(!confirm(`Perintah RECTIFIER ${action} untuk ${serial}. Pastikan kondisi panel aman dan operator lapangan mengetahui tindakan ini.`))return;
+  try{const response=await runControl('rectifier',{pin:state.settingsPin,confirm_serial:serial,target,confirm_phrase:`RECTIFIER ${action} ${serial}`},`Mengirim RECTIFIER ${action}…`);if(!response.ok)throw new Error(response.code||'Control ditolak');setCommandMessage(`RECTIFIER ${action} berhasil · read-back ${response.readback}.`,'success');}catch(e){setCommandMessage(`KONTROL RECTIFIER GAGAL: ${e.message}`,'error');}
+}
+function renderSettings(){
+  if(!tabAllowed('settings')){state.tab='mimic';buildNav();return renderMimic();}
+  const p=perms(),canSettings=!!p.settings,canControl=!!p.control;
+  $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Settings</button></div></div><div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
+  $('refreshSettingsBtn').onclick=loadRemoteSettings;
+  $('lockSettingsBtn').onclick=()=>{state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.tab='mimic';buildNav();render()};
+  $('changePinBtn').onclick=async()=>{
+    const current=$('pinCurrent').value.trim(),next=$('pinNew').value.trim(),confirm=$('pinConfirm').value.trim(),msg=$('changePinMsg');
+    if(!/^\d{6}$/.test(current)||!/^\d{6}$/.test(next)){msg.innerHTML='<div class="error">Password saat ini dan password baru harus tepat 6 digit angka.</div>';return;}
+    if(next!==confirm){msg.innerHTML='<div class="error">Konfirmasi password baru tidak sama.</div>';return;}
+    $('changePinBtn').disabled=true;msg.innerHTML='<div class="hint">Menyimpan password baru…</div>';
+    const {data,error}=await sb.rpc('pv_change_hmi_pin',{p_serial:serial,p_current_pin:current,p_new_pin:next});$('changePinBtn').disabled=false;
+    if(error){msg.innerHTML=`<div class="error">${esc(error.message)}</div>`;return}if(!data){msg.innerHTML='<div class="error">Password saat ini salah atau akses sedang dikunci sementara.</div>';return}
+    state.settingsPin=next;$('pinCurrent').value=$('pinNew').value=$('pinConfirm').value='';msg.innerHTML='<div class="success">Password berhasil diganti dan langsung berlaku di semua perangkat.</div>';
+  };
+  if(!state.settingValues&&!state.commandBusy)setTimeout(loadRemoteSettings,0);
+}
 function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays');const meta=regMeta('relay_outputs'),raw=toNum(meta.value),valid=raw!==null;const bits=Array.from({length:16},(_,i)=>valid?!!(raw&(1<<i)):false);$('view').innerHTML=`<div class="card"><h3>Relay Outputs</h3>${writeState()}${meta.stale?'<div class="stale-banner" style="margin-top:10px">Relay status menggunakan Last Good Value.</div>':''}<div class="relay-grid" style="margin-top:12px">${bits.map((on,i)=>`<div class="relay"><span>Relay ${i+1}</span><span><span class="lamp ${meta.stale?'stale':on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}${meta.stale?' · LAMA':''}</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: ${valid?raw:'—'}</div></div>`}
 async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
 function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>{const m=regMeta(d.key);return `<div class="field"><label>${esc(d.name)} · Live ${fmt(m.value,2)} ${esc(d.unit||'')}${m.stale?' · DATA LAMA':''}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`}).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
@@ -584,7 +813,7 @@ async function init(){
   });
   sb.auth.onAuthStateChange(()=>setTimeout(loadSecure,0));
 }
-window.addEventListener('resize',()=>{if(state.tab==='monitoring')requestAnimationFrame(drawChart);reportEmbedHeight()});
+window.addEventListener('resize',()=>{if(state.tab==='monitoring')requestAnimationFrame(()=>drawAllTrends(false));reportEmbedHeight()});
 init();
 </script>
 </body>

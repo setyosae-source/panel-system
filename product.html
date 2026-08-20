@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -844,8 +843,8 @@ function renderRemoteHMI(){
     <div class="section hmi-section">
       <div class="hmi-toolbar">
         <div class="hmi-toolbar-copy">
-          <div class="hmi-toolbar-title">Panel Vision Monitoring</div>
-          <div class="hmi-toolbar-sub">Unit <span class="hmi-toolbar-sn">${monitorEscape(sn)}</span> · monitoring read-only</div>
+          <div class="hmi-toolbar-title">Panel Vision Remote HMI</div>
+          <div class="hmi-toolbar-sub">Unit <span class="hmi-toolbar-sn">${monitorEscape(sn)}</span> · monitoring publik · settings & kontrol terlindungi</div>
         </div>
 
         <a class="hmi-fullscreen" href="${hmiUrl}" target="_blank" rel="noopener">
@@ -866,7 +865,7 @@ function renderRemoteHMI(){
       </div>
 
       <div class="monitor-note" style="margin-top:9px">
-        Data Remote HMI mengikuti nomor seri unit yang sedang dibuka. Gunakan tampilan penuh untuk ruang monitoring yang lebih luas.
+        Data Remote HMI mengikuti nomor seri unit yang sedang dibuka. Settings dan kontrol memerlukan login, permission, PIN HMI, serta Remote Write yang diaktifkan lokal pada ESP32.
       </div>
     </div>`;
   setupRemoteHmiFrame();
