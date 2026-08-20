@@ -14,6 +14,7 @@
 .main,#view,.monitor-groups,.monitor-card,.group-head,.series-switches,.chart-wrap,.trend-scroll{min-width:0;max-width:100%}.main{overflow-x:hidden}.monitor-groups{width:100%;overflow:hidden;grid-template-columns:minmax(0,1fr)}.monitor-card{width:100%;overflow:hidden}.chart-wrap,.trend-scroll{width:100%}.series-toggle{max-width:100%}.trend-scroll{position:relative;contain:size layout paint}.trend-scroll-spacer{position:absolute;left:0;top:0}
 .metric-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;padding-top:9px;border-top:1px solid #23384a}.metric-stat{min-width:0}.metric-stat span{display:block;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:.08em}.metric-stat b{display:block;margin-top:2px;color:#d9edfa;font:700 11px/1.25 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.metric-period{margin-top:7px;color:#7892a5;font-size:9px}
 .setting-groups{display:grid;gap:12px}.setting-list{display:grid;gap:7px}.setting-item{display:grid;grid-template-columns:minmax(170px,1.4fr) 110px minmax(130px,.8fr) 80px;gap:9px;align-items:center;padding:9px 10px;background:#0a1621;border:1px solid var(--line);border-radius:9px}.setting-current{font:700 13px ui-monospace,Consolas,monospace;color:#bfe2f5}.setting-unit{color:var(--muted);font-size:10px}.rectifier-box{display:flex;align-items:center;justify-content:space-between;gap:15px}.rectifier-actions{display:flex;gap:8px}.command-message{margin-top:10px}.safety-list{margin:8px 0 0;padding-left:18px;color:#b8cedd;font-size:11px}.safety-list li{margin:4px 0}
+.relay-config-list,.calibration-list{display:grid;gap:9px}.relay-config,.calibration-row{background:#0a1621;border:1px solid var(--line);border-radius:10px;padding:11px}.relay-config{display:grid;grid-template-columns:120px minmax(0,1fr) 80px;gap:12px;align-items:end}.relay-headline{align-self:center}.relay-headline b{display:block}.relay-live{margin-top:5px;color:var(--muted);font-size:12px}.relay-channel-grid{display:grid;grid-template-columns:repeat(3,minmax(130px,1fr));gap:8px}.relay-channel-grid label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}.relay-channel-grid .select{width:100%}.calibration-row{display:grid;grid-template-columns:minmax(180px,1.3fr) 125px 125px minmax(150px,.9fr) 80px;gap:10px;align-items:center}.cal-name b{display:block}.cal-cell span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}.cal-cell strong{display:block;margin-top:3px;font:700 14px ui-monospace,Consolas,monospace}.cal-reference label{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
 html[data-theme=dark]{color-scheme:dark}
 :root{--chart-bg:#091520;--chart-grid:#203444;--chart-grid-soft:#162a38;--chart-text:#9eb4c5}
 html[data-theme=light]{color-scheme:light;--bg:#eef3f7;--panel:#fff;--panel2:#f5f8fa;--line:#bdccd7;--text:#132532;--muted:#4d6575;--white:#132532;--chart-bg:#fff;--chart-grid:#c5d2db;--chart-grid-soft:#dde6ec;--chart-text:#405a6b}
@@ -24,6 +25,7 @@ html[data-theme=light] .top{background:#fff}html[data-theme=light] .nav{backgrou
 html[data-theme=light] .card{background:linear-gradient(180deg,#fff,#f6f9fb)}html[data-theme=light] .card h3{color:#36566a}html[data-theme=light] .metric,html[data-theme=light] .mnode,html[data-theme=light] .relay,html[data-theme=light] .indicator{background:#f5f8fa}
 html[data-theme=light] .btn{background:#e7eef3;border-color:#9fb3c1;color:#152936;-webkit-text-fill-color:currentColor}html[data-theme=light] .btn.primary{background:#d9edf9;border-color:#287fb2;color:#123e58;-webkit-text-fill-color:currentColor}html[data-theme=light] .btn.danger{background:#f8e2e6;border-color:#b74a5c;color:#752435;-webkit-text-fill-color:currentColor}html[data-theme=light] .select,html[data-theme=light] .input,html[data-theme=light] .trend-scroll,html[data-theme=light] .trend-controls,html[data-theme=light] .setting-item,html[data-theme=light] .login-box{background:#fff;color:#132532;-webkit-text-fill-color:currentColor}
 html[data-theme=light] .series-toggle,html[data-theme=light] .legend-item,html[data-theme=light] .role,html[data-theme=light] .setting-current,html[data-theme=light] .safety-list{color:#294b60}html[data-theme=light] .metric-stat b,html[data-theme=light] .measure-number{color:#102532}html[data-theme=light] .metric-period{color:#526e80}
+html[data-theme=light] .relay-config,html[data-theme=light] .calibration-row{background:#f8fafc}html[data-theme=light] .cal-cell strong{color:#18384b}
 html[data-theme=light] .notice{background:#eaf5fc;color:#174966}html[data-theme=light] .success{background:#e8f7ef;color:#15563d}html[data-theme=light] .error{background:#fff0f2;color:#8a2634}html[data-theme=light] .stale-banner{background:#fff6dd;color:#6b4d08}html[data-theme=light] .metric.stale{background:#fff8e8}html[data-theme=light] .trend-live{color:#087451}html[data-theme=light] .measure-row,html[data-theme=light] .metric-stats{border-color:#d6e0e7}
 html[data-theme=light] .measure-number small,html[data-theme=light] .trend-y-value{color:#334f61}
 html[data-theme=light] .metric.stale .value{color:#805400}
@@ -45,6 +47,7 @@ body.embed .foot{display:none}
   .main{padding:10px}.card{padding:12px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{min-width:0}.metric .value{font-size:22px;overflow-wrap:anywhere}
   .event{grid-template-columns:1fr 72px}.event .msg{grid-column:1/-1}.event .state{display:none}.indicator-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.group-head{display:block}.series-switches{margin-top:9px}
   .setting-item{grid-template-columns:1fr 90px}.setting-item .input{grid-column:1/2}.setting-item .btn{grid-column:2/3}.rectifier-box{align-items:stretch;flex-direction:column}.rectifier-actions .btn{flex:1}
+  .relay-config{grid-template-columns:1fr 80px}.relay-channel-grid{grid-column:1/-1;grid-row:2;grid-template-columns:1fr}.relay-config>.btn{grid-column:2;grid-row:1}.calibration-row{grid-template-columns:1fr 1fr}.cal-name{grid-column:1/-1}.cal-reference{grid-column:1/2}.calibration-row>.btn{grid-column:2/3;align-self:end}
 }
 @media(max-width:620px){
   .mimic{grid-template-columns:1fr;gap:8px;min-height:0}.mimic .load-wire,.mimic .load-node{display:block}
@@ -115,7 +118,9 @@ const state={
   tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,
   timer:null,hours:1,series:null,commandBridge:true,lastGood:{},
   realtimeChannel:null,realtimeStatus:'INIT',lastRealtimeAt:0,lastHttpAt:0,
-  trendWindowMs:5*60*1000,trends:{},settingsUnlocked:false,settingsPin:'',settingValues:null,settingsAutoLoadAttempted:false,commandBusy:false,commandMessage:''
+  trendWindowMs:5*60*1000,trends:{},settingsUnlocked:false,settingsPin:'',pinTarget:'settings',settingValues:null,settingsAutoLoadAttempted:false,
+  relayValues:null,relayAutoLoadAttempted:false,relayWriteUnlocked:false,relayMessage:'',relayMessageType:'notice',calibrationValues:null,calibrationAutoLoadAttempted:false,calibrationWriteUnlocked:false,calibrationMessage:'',calibrationMessageType:'notice',
+  commandBusy:false,commandMessage:''
 };
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
 const MONITOR_GROUPS=[
@@ -217,16 +222,18 @@ function perms(){
   const a=state.access||{};
   return {monitor:a.can_monitor!==false,events:!!a.can_events,settings:!!a.can_settings,relays:!!a.can_relays,calibration:!!a.can_calibration,control:!!a.can_control,role:a.access_role||'public'};
 }
-function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='settings')return !!state.user&&(p.settings||p.control)&&state.settingsUnlocked;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
+function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='settings')return !!state.user&&(p.settings||p.control)&&state.settingsUnlocked;if(id==='relays'||id==='calibration')return !!state.user&&!!p[id]&&state.settingsUnlocked;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
 function buildNav(){
   const visibleMenu=state.user?menu:menu.filter(([id])=>['mimic','monitoring','settings'].includes(id));
   $('nav').innerHTML=visibleMenu.map(([id,label])=>`<button data-tab="${id}" class="${state.tab===id?'active ':''}${tabAllowed(id)?'':'locked'}">${label}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
 }
 function openTab(id){
-  if(id==='settings'&&!state.user){showLogin('Settings memerlukan login user dan password HMI.');return;}
+  const protectedTab=['settings','relays','calibration'].includes(id);
+  if(protectedTab&&!state.user){showLogin(`${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login user dan password HMI.`);return;}
   if(id==='settings'&&state.user&&!perms().settings&&!perms().control){locked('Settings','Settings / Control');return;}
-  if(id==='settings'&&!tabAllowed(id)){showPin();return;}
+  if((id==='relays'||id==='calibration')&&state.user&&!perms()[id]){locked(menu.find(x=>x[0]===id)?.[1]||id,id);return;}
+  if(protectedTab&&!tabAllowed(id)){showPin(id,`Masukkan password HMI untuk membuka ${menu.find(x=>x[0]===id)?.[1]||id}.`);return;}
   if(!tabAllowed(id)){showLogin(`Akses ${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login/permission.`);return;}
   state.tab=id;buildNav();render();
 }
@@ -352,7 +359,7 @@ async function realtimeWatchdog(){
 
 async function loadSecure(){
   const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
-  if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;updateAuth();buildNav();return;}
+  if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.relayValues=null;state.relayAutoLoadAttempted=false;state.relayWriteUnlocked=false;state.calibrationValues=null;state.calibrationAutoLoadAttempted=false;state.calibrationWriteUnlocked=false;updateAuth();buildNav();return;}
   const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,active').eq('serial_number',serial).maybeSingle();
   state.panel=p||null;
   if(p){
@@ -366,7 +373,7 @@ async function loadSecure(){
 }
 function updateAuth(){
   $('authBtn').textContent=state.user?`Logout · ${perms().role}`:'Login';
-  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
+  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.relayValues=null;state.relayAutoLoadAttempted=false;state.relayWriteUnlocked=false;state.calibrationValues=null;state.calibrationAutoLoadAttempted=false;state.calibrationWriteUnlocked=false;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
 }
 function showLogin(msg=''){$('loginModal').classList.add('show');$('loginMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('loginEmail').focus(),50)}
 function hideLogin(){$('loginModal').classList.remove('show');$('loginPassword').value=''}
@@ -378,7 +385,12 @@ $('loginSubmit').onclick=async()=>{
   if(error){$('loginMsg').innerHTML=`<div class="error">${esc(error.message)}</div>`;return;}
   hideLogin();await loadSecure();
 };
-function showPin(msg=''){$('pinModal').classList.add('show');$('pinMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('settingsPin').focus(),50)}
+function showPin(target='settings',msg=''){
+  state.pinTarget=target;
+  const label=menu.find(x=>x[0]===target)?.[1]||'Settings',modal=$('pinModal');
+  modal.querySelector('h2').textContent=`Buka ${label}`;$('pinSubmit').textContent=`Buka ${label}`;
+  modal.classList.add('show');$('pinMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('settingsPin').focus(),50);
+}
 function hidePin(){$('pinModal').classList.remove('show');$('settingsPin').value='';$('pinMsg').innerHTML=''}
 $('pinCancel').onclick=hidePin;
 $('settingsPin').onkeydown=e=>{if(e.key==='Enter')$('pinSubmit').click()};
@@ -390,7 +402,7 @@ $('pinSubmit').onclick=async()=>{
   $('pinSubmit').disabled=false;
   if(error){$('pinMsg').innerHTML=`<div class="error">Settings belum siap: ${esc(error.message)}</div>`;return;}
   if(!data){$('pinMsg').innerHTML='<div class="error">Password salah atau akses dikunci sementara setelah 5 percobaan.</div>';return;}
-  state.settingsUnlocked=true;state.settingsPin=pin;state.settingsAutoLoadAttempted=false;hidePin();state.tab='settings';buildNav();render();
+  state.settingsUnlocked=true;state.settingsPin=pin;state.settingsAutoLoadAttempted=false;state.relayAutoLoadAttempted=false;state.calibrationAutoLoadAttempted=false;hidePin();state.tab=state.pinTarget||'settings';buildNav();render();
 };
 function render(){
   if(!state.monitor)return;
@@ -402,6 +414,8 @@ function render(){
   // Realtime telemetry must not rebuild Settings while the operator is typing.
   // Settings are refreshed only by the explicit read/write actions below.
   if(state.tab==='settings'&&document.querySelector('[data-settings-view]'))return;
+  if(state.tab==='relays'&&document.querySelector('[data-relays-view]')){updateRelayLiveStatus();return;}
+  if(state.tab==='calibration'&&document.querySelector('[data-calibration-view]')){updateCalibrationLiveValues();return;}
   ({mimic:renderMimic,monitoring:renderMonitoring,settings:renderSettings,relays:renderRelays,events:renderEvents,calibration:renderCalibration}[state.tab]||renderMimic)();
 }
 function measureRows(rows){return `<div class="measure-list">${rows.map(r=>`<div class="measure-row"><span class="measure-label">${esc(r.label)}</span><span class="measure-number">${esc(r.value)}${r.unit?`<small>${esc(r.unit)}</small>`:''}</span></div>`).join('')}</div>`}
@@ -774,6 +788,23 @@ const SETTING_DEFS={
     ['discharge_current','Discharge Current','A',1,0,1000],['discharge_time','Discharge Time','min',1,0,999]
   ]
 };
+const RELAY_CHANNELS=[
+  [-1,'Tidak digunakan'],[0,'Battery MCB'],[1,'Load MCB'],[4,'Line MCB'],[5,'Battery Test Fail'],[6,'Low Battery'],
+  [7,'Battery Ending'],[8,'Fan Failure'],[9,'Earth Leakage (+)'],[10,'Earth Leakage (-)'],[12,'Common Failure'],
+  [13,'Over Temperature'],[14,'Output Under Voltage'],[15,'Output Over Voltage'],[16,'Rectifier Failure'],
+  [17,'No Critical Alarm'],[18,'Control Power OK'],[19,'Equalize Mode'],[20,'Current Mode'],[21,'Boost Mode'],
+  [22,'Float Mode'],[23,'Grid / Line']
+];
+const RELAY_CHANNEL_IDS=new Set(RELAY_CHANNELS.map(x=>x[0]));
+const CALIBRATION_DEFS={
+  vin:{label:'AC Voltage L1',unit:'V',min:0,max:400,telemetry:'ac_voltage_l1'},
+  iin:{label:'AC Current L1',unit:'A',min:0,max:1000,telemetry:'ac_current_l1'},
+  vbat:{label:'Battery Voltage',unit:'V',min:0,max:400,telemetry:'battery_voltage'},
+  ibat:{label:'Battery Current',unit:'A',min:-1000,max:1000,telemetry:'battery_current'},
+  vload:{label:'DC Load Voltage',unit:'V',min:0,max:400,telemetry:'dc_load_voltage'},
+  iload:{label:'DC Load Current',unit:'A',min:0,max:1000,telemetry:'dc_load_current'},
+  temp:{label:'Internal Temperature',unit:'°C',min:-50,max:150,telemetry:'internal_temperature'}
+};
 async function coreRequest(path,options={}){
   const {data:{session}}=await sb.auth.getSession();if(!session)throw new Error('Sesi login berakhir. Silakan login kembali.');
   const r=await fetch(CORE_API+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,...(options.headers||{})}});
@@ -791,11 +822,21 @@ async function waitControl(correlationId){
 function setCommandMessage(message,type='notice'){
   state.commandMessage=message;const box=$('commandMessage');if(box){box.className=`command-message ${type}`;box.textContent=message;}
 }
+function refreshControlButtonStates(){
+  const p=perms();
+  document.querySelectorAll('[data-control-btn]').forEach(button=>{
+    const mode=button.dataset.controlMode||'always';
+    const allowed=mode==='settings'?p.settings:mode==='control'?p.control:mode==='relays'?p.relays:
+      mode==='relay-write'?(p.relays&&state.relayWriteUnlocked):mode==='calibration'?p.calibration:
+      mode==='calibration-write'?(p.calibration&&state.calibrationWriteUnlocked):true;
+    button.disabled=state.commandBusy||!allowed;
+  });
+}
 async function runControl(path,body,waitingText){
   if(state.commandBusy)throw new Error('Command lain masih diproses.');
-  state.commandBusy=true;setCommandMessage(waitingText,'notice');document.querySelectorAll('[data-control-btn]').forEach(b=>b.disabled=true);
+  state.commandBusy=true;setCommandMessage(waitingText,'notice');refreshControlButtonStates();
   try{const issued=await coreRequest(`/api/panels/${encodeURIComponent(state.panel.id)}/control/${path}`,{method:'POST',body:JSON.stringify(body)});return await waitControl(issued.correlation_id);}
-  finally{state.commandBusy=false;document.querySelectorAll('[data-control-btn]').forEach(b=>b.disabled=false);}
+  finally{state.commandBusy=false;refreshControlButtonStates();}
 }
 async function loadRemoteSettings(){
   try{
@@ -810,7 +851,7 @@ function settingInput(def){
   if(key==='test_mode')return `<select class="input" id="setting-${key}">${[[1,'Auto'],[2,'Closed'],[3,'Manual']].map(([v,l])=>`<option value="${v}" ${Number(value)===v?'selected':''}>${v} · ${l}</option>`).join('')}</select>`;
   return `<input class="input" id="setting-${key}" type="number" step="${step}" min="${min}" max="${max}" value="${value??''}" inputmode="decimal">`;
 }
-function settingRows(defs,allowed){return `<div class="setting-list">${defs.map(def=>{const [key,label,unit,,,]=def,val=state.settingValues?.[key];return `<div class="setting-item"><div><b>${esc(label)}</b><div class="setting-unit">${esc(key)} · ${def[4]}–${def[5]} ${esc(unit)}</div></div><div class="setting-current">${val??'—'} ${esc(unit)}</div>${settingInput(def)}<button class="btn primary" data-control-btn onclick="writeRemoteSetting('${key}')" ${allowed&&!state.commandBusy?'':'disabled'}>SET</button></div>`}).join('')}</div>`}
+function settingRows(defs,allowed){return `<div class="setting-list">${defs.map(def=>{const [key,label,unit,,,]=def,val=state.settingValues?.[key];return `<div class="setting-item"><div><b>${esc(label)}</b><div class="setting-unit">${esc(key)} · ${def[4]}–${def[5]} ${esc(unit)}</div></div><div class="setting-current">${val??'—'} ${esc(unit)}</div>${settingInput(def)}<button class="btn primary" data-control-btn data-control-mode="settings" onclick="writeRemoteSetting('${key}')" ${allowed&&!state.commandBusy?'':'disabled'}>SET</button></div>`}).join('')}</div>`}
 async function writeRemoteSetting(key){
   const def=Object.values(SETTING_DEFS).flat().find(x=>x[0]===key),input=$(`setting-${key}`),value=Number(input?.value);if(!def||!Number.isFinite(value))return setCommandMessage('Nilai setting tidak valid.','error');
   if(value<def[4]||value>def[5])return setCommandMessage(`Nilai harus ${def[4]}–${def[5]} ${def[2]}.`,'error');
@@ -821,12 +862,18 @@ async function setRectifier(target){
   const action=target?'ON':'OFF';if(!confirm(`Perintah RECTIFIER ${action} untuk ${serial}. Pastikan kondisi panel aman dan operator lapangan mengetahui tindakan ini.`))return;
   try{const response=await runControl('rectifier',{pin:state.settingsPin,confirm_serial:serial,target,confirm_phrase:`RECTIFIER ${action} ${serial}`},`Mengirim RECTIFIER ${action} dan menunggu read-back…`);if(!response.ok)throw new Error(response.code||'Control ditolak');const tries=response.readback_attempts?` · ${response.readback_attempts}x baca`:'';setCommandMessage(`RECTIFIER ${action} berhasil · read-back ${response.readback}${tries}.`,'success');}catch(e){setCommandMessage(`KONTROL RECTIFIER GAGAL: ${e.message}`,'error');}
 }
+function lockProtectedViews(){
+  state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;
+  state.relayValues=null;state.relayAutoLoadAttempted=false;state.relayWriteUnlocked=false;state.relayMessage='';
+  state.calibrationValues=null;state.calibrationAutoLoadAttempted=false;state.calibrationWriteUnlocked=false;state.calibrationMessage='';
+  state.tab='mimic';buildNav();render();
+}
 function renderSettings(){
   if(!tabAllowed('settings')){state.tab='mimic';buildNav();return renderMimic();}
   const p=perms(),canSettings=!!p.settings,canControl=!!p.control;
-  $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Settings</button></div></div><div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
+  $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn data-control-mode="settings" id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Akses HMI</button></div></div><div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn data-control-mode="control" onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn data-control-mode="control" onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
   $('refreshSettingsBtn').onclick=()=>{state.settingsAutoLoadAttempted=true;loadRemoteSettings()};
-  $('lockSettingsBtn').onclick=()=>{state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.tab='mimic';buildNav();render()};
+  $('lockSettingsBtn').onclick=lockProtectedViews;
   $('changePinBtn').onclick=async()=>{
     const current=$('pinCurrent').value.trim(),next=$('pinNew').value.trim(),confirm=$('pinConfirm').value.trim(),msg=$('changePinMsg');
     if(!/^\d{6}$/.test(current)||!/^\d{6}$/.test(next)){msg.innerHTML='<div class="error">Password saat ini dan password baru harus tepat 6 digit angka.</div>';return;}
@@ -838,9 +885,118 @@ function renderSettings(){
   };
   if(!state.settingValues&&!state.commandBusy&&!state.settingsAutoLoadAttempted){state.settingsAutoLoadAttempted=true;setTimeout(loadRemoteSettings,0)}
 }
-function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays');const meta=regMeta('relay_outputs'),raw=toNum(meta.value),valid=raw!==null;const bits=Array.from({length:16},(_,i)=>valid?!!(raw&(1<<i)):false);$('view').innerHTML=`<div class="card"><h3>Relay Outputs</h3>${writeState()}${meta.stale?'<div class="stale-banner" style="margin-top:10px">Relay status menggunakan Last Good Value.</div>':''}<div class="relay-grid" style="margin-top:12px">${bits.map((on,i)=>`<div class="relay"><span>Relay ${i+1}</span><span><span class="lamp ${meta.stale?'stale':on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}${meta.stale?' · LAMA':''}</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: ${valid?raw:'—'}</div></div>`}
+function formatHex16(value){const n=toNum(value);return n===null?'—':`0x${(n&0xFFFF).toString(16).toUpperCase().padStart(4,'0')}`}
+function relayChannelsFromMasks(high,low){
+  const selected=[];high=toNum(high)||0;low=toNum(low)||0;
+  for(let channel=0;channel<32;channel++){
+    const active=channel<16?!!(low&(1<<channel)):!!(high&(1<<(channel-16)));
+    if(active&&RELAY_CHANNEL_IDS.has(channel))selected.push(channel);
+  }
+  while(selected.length<3)selected.push(-1);return selected.slice(0,3);
+}
+function relayOptions(selected){return RELAY_CHANNELS.map(([value,label])=>`<option value="${value}" ${Number(selected)===value?'selected':''}>${value<0?'—':value+' ·'} ${esc(label)}</option>`).join('')}
+function relayRowsFromResponse(relays=[]){
+  return Array.from({length:8},(_,index)=>{
+    const source=relays.find(item=>Number(item.relay)===index+1)||{};
+    const high=toNum(source.high),low=toNum(source.low),channels=relayChannelsFromMasks(high,low);
+    return {relay:index+1,high,low,channels};
+  });
+}
+function updateRelayLiveStatus(){
+  const meta=regMeta('relay_outputs'),raw=toNum(meta.value),valid=raw!==null;
+  for(let relay=1;relay<=8;relay++){
+    const element=$(`relay-live-${relay}`);if(!element)continue;const on=valid?!!(raw&(1<<(relay-1))):false;
+    element.innerHTML=`<span class="lamp ${meta.stale?'stale':on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}${meta.stale?' · DATA LAMA':''}`;
+  }
+  const rawElement=$('relay-live-raw');if(rawElement)rawElement.textContent=valid?`${formatHex16(raw)} (${raw})`:'—';
+}
+function setRelayMessage(message,type='notice'){state.relayMessage=message;state.relayMessageType=type;setCommandMessage(message,type)}
+async function loadRemoteRelays(){
+  try{
+    const response=await runControl('relays/read',{pin:state.settingsPin,confirm_serial:serial},'Membaca konfigurasi 8 relay langsung dari RBC-02…');
+    if(!response.ok||!Array.isArray(response.relays))throw new Error(response.code||'Konfigurasi relay tidak diterima');
+    state.relayValues=relayRowsFromResponse(response.relays);setRelayMessage('Konfigurasi Relay 1–8 berhasil dibaca dari RBC-02.','success');renderRelays();
+  }catch(error){setRelayMessage(`BACA RELAY GAGAL: ${error.message}`,'error');}
+}
+function toggleRelayWrite(){
+  if(state.relayWriteUnlocked){state.relayWriteUnlocked=false;setRelayMessage('Perubahan relay dikunci. Mode baca tetap aktif.','notice');renderRelays();return;}
+  const phrase=prompt('Untuk mengaktifkan perubahan assignment relay, ketik RELAY.');
+  if(phrase!=='RELAY')return setRelayMessage('Perubahan relay tetap dikunci karena konfirmasi tidak cocok.','error');
+  state.relayWriteUnlocked=true;setRelayMessage('Perubahan relay dibuka. Ubah pilihan lalu tekan SIMPAN pada relay yang dituju.','notice');renderRelays();
+}
+async function writeRemoteRelay(relay){
+  const channels=[1,2,3].map(index=>Number($(`relay-${relay}-ch${index}`)?.value));
+  if(channels.some(value=>!RELAY_CHANNEL_IDS.has(value)))return setRelayMessage('Pilihan channel relay tidak valid.','error');
+  const assigned=channels.filter(value=>value>=0);if(new Set(assigned).size!==assigned.length)return setRelayMessage('Satu indikasi tidak boleh dipilih lebih dari sekali pada relay yang sama.','error');
+  const labels=channels.map(value=>RELAY_CHANNELS.find(item=>item[0]===value)?.[1]||'Tidak digunakan').join(' + ');
+  if(!confirm(`Simpan assignment Relay ${relay}: ${labels}? Perintah ditulis ke RBC-02 dan diperiksa read-back.`))return;
+  try{
+    const response=await runControl('relays/write',{pin:state.settingsPin,confirm_serial:serial,relay,ch1:channels[0],ch2:channels[1],ch3:channels[2],confirm_phrase:`RELAY ${relay} ${serial}`},`Menulis assignment Relay ${relay} dan menunggu read-back…`);
+    if(!response.ok)throw new Error(response.code||'Write relay ditolak');
+    const row={relay,high:response.high,low:response.low,channels};state.relayValues=(state.relayValues||relayRowsFromResponse()).map(item=>item.relay===relay?row:item);
+    const tries=response.readback_attempts?` · ${response.readback_attempts}x baca`:'';setRelayMessage(`Relay ${relay} berhasil disimpan · high ${formatHex16(response.high)} · low ${formatHex16(response.low)}${tries}.`,'success');renderRelays();
+  }catch(error){setRelayMessage(`WRITE RELAY ${relay} GAGAL: ${error.message}`,'error');}
+}
+function renderRelays(){
+  if(!tabAllowed('relays'))return locked('Relays','Relays');
+  const p=perms(),rows=state.relayValues||relayRowsFromResponse(),meta=regMeta('relay_outputs');
+  $('view').innerHTML=`<div data-relays-view><div class="card"><h3>Relay Setting · Register 0x46–0x55</h3><div class="success"><b>Mode aman aktif.</b> Assignment dibaca dari RBC-02. Write memerlukan izin Relay, PIN HMI, Remote Write lokal, konfirmasi, dan read-back dua register.</div><ul class="safety-list"><li>Maksimum 3 indikasi untuk setiap relay.</li><li>Perubahan assignment tidak menyalakan relay secara paksa; output mengikuti kondisi indikasinya.</li><li>Verifikasi LED/relay fisik setelah perubahan pertama.</li></ul><div id="commandMessage" class="command-message ${esc(state.relayMessageType)}">${esc(state.relayMessage||'Tekan Refresh Relay untuk membaca assignment aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn data-control-mode="relays" id="refreshRelaysBtn">Refresh Relay</button><button class="btn ${state.relayWriteUnlocked?'danger':'primary'}" id="toggleRelayWriteBtn">${state.relayWriteUnlocked?'Kunci Perubahan':'Buka Perubahan'}</button><button class="btn" id="lockRelayAccessBtn">Kunci Akses HMI</button></div>${p.relays?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_relays.</div>'}</div><div class="card"><h3>Status Output Relay</h3>${meta.stale?'<div class="stale-banner">Status relay menggunakan Last Good Value.</div>':''}<div class="relay-grid">${Array.from({length:8},(_,index)=>`<div class="relay"><b>Relay ${index+1}</b><span id="relay-live-${index+1}">—</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: <span id="relay-live-raw">—</span></div></div><div class="card"><h3>Assignment Relay</h3><div class="relay-config-list">${rows.map(row=>`<div class="relay-config"><div class="relay-headline"><b>Relay ${row.relay}</b><div class="relay-live">High ${formatHex16(row.high)}<br>Low ${formatHex16(row.low)}</div></div><div class="relay-channel-grid">${[0,1,2].map(index=>`<div><label>Indikasi ${index+1}</label><select class="select" id="relay-${row.relay}-ch${index+1}" ${state.relayWriteUnlocked?'':'disabled'}>${relayOptions(row.channels[index])}</select></div>`).join('')}</div><button class="btn primary" data-control-btn data-control-mode="relay-write" onclick="writeRemoteRelay(${row.relay})">SIMPAN</button></div>`).join('')}</div></div></div>`;
+  $('refreshRelaysBtn').onclick=()=>{state.relayAutoLoadAttempted=true;loadRemoteRelays()};$('toggleRelayWriteBtn').onclick=toggleRelayWrite;$('lockRelayAccessBtn').onclick=lockProtectedViews;
+  updateRelayLiveStatus();refreshControlButtonStates();
+  if(!state.relayValues&&!state.commandBusy&&!state.relayAutoLoadAttempted){state.relayAutoLoadAttempted=true;setTimeout(loadRemoteRelays,0)}
+}
 async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
-function renderCalibration(){if(!tabAllowed('calibration'))return locked('Calibration','Calibration');const live=(state.monitor?.registers||[]).slice(0,12);$('view').innerHTML=`<div class="card"><h3>Calibration</h3>${writeState()}<div class="hint" style="margin:10px 0">Live value terus mengikuti monitoring. Measured value dan faktor kalibrasi belum dikirim ke ESP32 sampai command contract diverifikasi.</div><div class="form-grid">${live.map(d=>{const m=regMeta(d.key);return `<div class="field"><label>${esc(d.name)} · Live ${fmt(m.value,2)} ${esc(d.unit||'')}${m.stale?' · DATA LAMA':''}</label><input class="input" type="number" step="any" placeholder="Measured value" disabled></div>`}).join('')}</div><button class="btn primary" style="margin-top:12px" disabled>Save Calibration</button></div>`}
+function calibrationLive(key){
+  const def=CALIBRATION_DEFS[key],meta=regMeta(def.telemetry),value=toNum(meta.value);
+  if(value!==null)return {value,stale:meta.stale};
+  return {value:toNum(state.calibrationValues?.live?.[key]),stale:false};
+}
+function updateCalibrationLiveValues(){
+  for(const [key,def] of Object.entries(CALIBRATION_DEFS)){
+    const live=calibrationLive(key),element=$(`cal-live-${key}`);if(!element)continue;
+    element.textContent=`${fmt(live.value,2)} ${def.unit}${live.stale?' · DATA LAMA':''}`;element.style.color=live.stale?'var(--amber)':'';
+  }
+}
+function setCalibrationMessage(message,type='notice'){state.calibrationMessage=message;state.calibrationMessageType=type;setCommandMessage(message,type)}
+async function loadRemoteCalibration(){
+  try{
+    const response=await runControl('calibration/read',{pin:state.settingsPin,confirm_serial:serial},'Membaca parameter kalibrasi langsung dari RBC-02…');
+    if(!response.ok||!response.stored)throw new Error(response.code||'Parameter kalibrasi tidak diterima');
+    state.calibrationValues={stored:response.stored,live:response.live||{}};setCalibrationMessage('Parameter kalibrasi berhasil dibaca dari RBC-02.','success');renderCalibration();
+  }catch(error){setCalibrationMessage(`BACA KALIBRASI GAGAL: ${error.message}`,'error');}
+}
+function toggleCalibrationWrite(){
+  if(state.calibrationWriteUnlocked){state.calibrationWriteUnlocked=false;setCalibrationMessage('Perubahan kalibrasi dikunci. Mode baca tetap aktif.','notice');renderCalibration();return;}
+  const phrase=prompt('Kalibrasi mengubah faktor ukur RBC-02. Untuk membuka perubahan, ketik CALIBRATE.');
+  if(phrase!=='CALIBRATE')return setCalibrationMessage('Perubahan kalibrasi tetap dikunci karena konfirmasi tidak cocok.','error');
+  state.calibrationWriteUnlocked=true;setCalibrationMessage('Perubahan kalibrasi dibuka. Masukkan nilai alat ukur referensi, lalu simpan satu parameter pada satu waktu.','notice');renderCalibration();
+}
+function parseReference(value){const normalized=String(value??'').trim().replace(',','.');return normalized===''?NaN:Number(normalized)}
+async function writeRemoteCalibration(key){
+  const def=CALIBRATION_DEFS[key],reference=parseReference($(`cal-reference-${key}`)?.value);
+  if(!def||!Number.isFinite(reference))return setCalibrationMessage('Nilai alat ukur referensi belum valid. Gunakan angka, misalnya 123,8.','error');
+  if(reference<def.min||reference>def.max||Math.abs(reference)<0.05)return setCalibrationMessage(`${def.label}: referensi harus ${def.min}–${def.max} ${def.unit} dan tidak boleh mendekati nol.`,'error');
+  const live=calibrationLive(key).value;
+  if(live!==null&&Math.abs(live)>=0.05){
+    if((live<0&&reference>0)||(live>0&&reference<0))return setCalibrationMessage(`${def.label}: polaritas referensi harus sama dengan nilai live.`,'error');
+    const ratio=reference/live;if(ratio<0.8||ratio>1.2)return setCalibrationMessage(`${def.label}: selisih referensi melebihi batas aman ±20% dari nilai live ${fmt(live,2)} ${def.unit}.`,'error');
+  }
+  if(!confirm(`Kalibrasi ${def.label} pada ${serial}? Live ${fmt(live,2)} ${def.unit}, alat referensi ${fmt(reference,2)} ${def.unit}. Parameter baru akan diverifikasi read-back.`))return;
+  try{
+    const response=await runControl('calibration/write',{pin:state.settingsPin,confirm_serial:serial,key,reference,confirm_phrase:`CALIBRATE ${key.toUpperCase()} ${serial}`},`Mengalibrasi ${def.label} dan menunggu read-back…`);
+    if(!response.ok)throw new Error(response.code||'Kalibrasi ditolak');
+    state.calibrationValues={...(state.calibrationValues||{}),stored:{...(state.calibrationValues?.stored||{}),[key]:response.parameter}};
+    const tries=response.readback_attempts?` · ${response.readback_attempts}x baca`:'';setCalibrationMessage(`${def.label} berhasil · parameter ${response.old_parameter} → ${response.parameter} · referensi ${fmt(response.reference,2)} ${def.unit}${tries}.`,'success');renderCalibration();
+  }catch(error){setCalibrationMessage(`KALIBRASI ${def.label.toUpperCase()} GAGAL: ${error.message}`,'error');}
+}
+function renderCalibration(){
+  if(!tabAllowed('calibration'))return locked('Calibration','Calibration');
+  const p=perms(),stored=state.calibrationValues?.stored||{};
+  $('view').innerHTML=`<div data-calibration-view><div class="card"><h3>Calibration · Register 0x3C–0x43</h3><div class="success"><b>Kalibrasi terpandu siap.</b> Nilai live hanya untuk pembanding dan tidak pernah mengisi input. Operator memasukkan hasil alat ukur referensi secara manual.</div><ul class="safety-list"><li>Gunakan multimeter/clamp meter/temperature reference yang layak dan stabil.</li><li>Kalibrasi satu parameter pada satu waktu; batas koreksi maksimum ±20%.</li><li>Jangan kalibrasi arus ketika nilai live mendekati 0 A.</li><li>Periksa hasil pada TFT fisik dan alat ukur setelah setiap perubahan.</li></ul><div id="commandMessage" class="command-message ${esc(state.calibrationMessageType)}">${esc(state.calibrationMessage||'Tekan Refresh Calibration untuk membaca parameter aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn data-control-mode="calibration" id="refreshCalibrationBtn">Refresh Calibration</button><button class="btn ${state.calibrationWriteUnlocked?'danger':'primary'}" id="toggleCalibrationWriteBtn">${state.calibrationWriteUnlocked?'Kunci Perubahan':'Buka Perubahan'}</button><button class="btn" id="lockCalibrationAccessBtn">Kunci Akses HMI</button></div>${p.calibration?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_calibration.</div>'}</div><div class="card"><h3>Parameter Kalibrasi</h3><div class="calibration-list">${Object.entries(CALIBRATION_DEFS).map(([key,def])=>`<div class="calibration-row"><div class="cal-name"><b>${esc(def.label)}</b><div class="setting-unit">${esc(key)} · ${def.min}–${def.max} ${esc(def.unit)}</div></div><div class="cal-cell"><span>Live</span><strong id="cal-live-${key}">—</strong></div><div class="cal-cell"><span>Parameter</span><strong>${stored[key]??'—'}</strong></div><div class="cal-reference"><label>Alat ukur referensi (${esc(def.unit)})</label><input class="input" id="cal-reference-${key}" type="text" inputmode="decimal" placeholder="Ketik manual" autocomplete="off" ${state.calibrationWriteUnlocked?'':'disabled'}></div><button class="btn primary" data-control-btn data-control-mode="calibration-write" onclick="writeRemoteCalibration('${key}')">SIMPAN</button></div>`).join('')}</div></div></div>`;
+  $('refreshCalibrationBtn').onclick=()=>{state.calibrationAutoLoadAttempted=true;loadRemoteCalibration()};$('toggleCalibrationWriteBtn').onclick=toggleCalibrationWrite;$('lockCalibrationAccessBtn').onclick=lockProtectedViews;
+  updateCalibrationLiveValues();refreshControlButtonStates();
+  if(!state.calibrationValues&&!state.commandBusy&&!state.calibrationAutoLoadAttempted){state.calibrationAutoLoadAttempted=true;setTimeout(loadRemoteCalibration,0)}
+}
 function reportEmbedHeight(){
   if(!embedded||window.parent===window)return;
   requestAnimationFrame(()=>{
