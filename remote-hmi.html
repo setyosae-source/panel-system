@@ -399,6 +399,9 @@ function render(){
     drawAllTrends(false);
     return;
   }
+  // Realtime telemetry must not rebuild Settings while the operator is typing.
+  // Settings are refreshed only by the explicit read/write actions below.
+  if(state.tab==='settings'&&document.querySelector('[data-settings-view]'))return;
   ({mimic:renderMimic,monitoring:renderMonitoring,settings:renderSettings,relays:renderRelays,events:renderEvents,calibration:renderCalibration}[state.tab]||renderMimic)();
 }
 function measureRows(rows){return `<div class="measure-list">${rows.map(r=>`<div class="measure-row"><span class="measure-label">${esc(r.label)}</span><span class="measure-number">${esc(r.value)}${r.unit?`<small>${esc(r.unit)}</small>`:''}</span></div>`).join('')}</div>`}
@@ -777,13 +780,13 @@ async function coreRequest(path,options={}){
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d;
 }
 async function waitControl(correlationId){
-  for(let i=0;i<24;i++){
+  for(let i=0;i<50;i++){
     await new Promise(resolve=>setTimeout(resolve,500));
     const d=await coreRequest(`/api/panels/${encodeURIComponent(state.panel.id)}/control/commands/${encodeURIComponent(correlationId)}`);
     if(d.status==='completed')return d.response||{};
     if(d.status==='failed'||d.status==='expired')throw new Error(d.response?.code||`Command ${d.status}`);
   }
-  throw new Error('ESP32 belum memberi jawaban dalam 12 detik. Periksa koneksi MQTT.');
+  throw new Error('ESP32 belum memberi jawaban dalam 25 detik setelah retry. Periksa koneksi MQTT/Modbus.');
 }
 function setCommandMessage(message,type='notice'){
   state.commandMessage=message;const box=$('commandMessage');if(box){box.className=`command-message ${type}`;box.textContent=message;}
@@ -812,11 +815,11 @@ async function writeRemoteSetting(key){
   const def=Object.values(SETTING_DEFS).flat().find(x=>x[0]===key),input=$(`setting-${key}`),value=Number(input?.value);if(!def||!Number.isFinite(value))return setCommandMessage('Nilai setting tidak valid.','error');
   if(value<def[4]||value>def[5])return setCommandMessage(`Nilai harus ${def[4]}–${def[5]} ${def[2]}.`,'error');
   if(!confirm(`Ubah ${def[1]} menjadi ${value} ${def[2]} pada panel ${serial}? Nilai akan ditulis dengan FC06 dan diverifikasi read-back.`))return;
-  try{const response=await runControl('settings/write',{pin:state.settingsPin,confirm_serial:serial,key,value},`Menulis ${def[1]}…`);if(!response.ok)throw new Error(response.code||'Write ditolak');state.settingValues={...(state.settingValues||{}),[key]:response.readback};setCommandMessage(`${def[1]} berhasil · read-back ${response.readback} ${def[2]}.`,'success');renderSettings();}catch(e){setCommandMessage(`WRITE GAGAL: ${e.message}`,'error');}
+  try{const response=await runControl('settings/write',{pin:state.settingsPin,confirm_serial:serial,key,value},`Menulis ${def[1]} dan menunggu read-back…`);if(!response.ok)throw new Error(response.code||'Write ditolak');state.settingValues={...(state.settingValues||{}),[key]:response.readback};const tries=response.readback_attempts?` · ${response.readback_attempts}x baca`:'';setCommandMessage(`${def[1]} berhasil · read-back ${response.readback} ${def[2]}${tries}.`,'success');renderSettings();}catch(e){setCommandMessage(`WRITE GAGAL: ${e.message}`,'error');}
 }
 async function setRectifier(target){
   const action=target?'ON':'OFF';if(!confirm(`Perintah RECTIFIER ${action} untuk ${serial}. Pastikan kondisi panel aman dan operator lapangan mengetahui tindakan ini.`))return;
-  try{const response=await runControl('rectifier',{pin:state.settingsPin,confirm_serial:serial,target,confirm_phrase:`RECTIFIER ${action} ${serial}`},`Mengirim RECTIFIER ${action}…`);if(!response.ok)throw new Error(response.code||'Control ditolak');setCommandMessage(`RECTIFIER ${action} berhasil · read-back ${response.readback}.`,'success');}catch(e){setCommandMessage(`KONTROL RECTIFIER GAGAL: ${e.message}`,'error');}
+  try{const response=await runControl('rectifier',{pin:state.settingsPin,confirm_serial:serial,target,confirm_phrase:`RECTIFIER ${action} ${serial}`},`Mengirim RECTIFIER ${action} dan menunggu read-back…`);if(!response.ok)throw new Error(response.code||'Control ditolak');const tries=response.readback_attempts?` · ${response.readback_attempts}x baca`:'';setCommandMessage(`RECTIFIER ${action} berhasil · read-back ${response.readback}${tries}.`,'success');}catch(e){setCommandMessage(`KONTROL RECTIFIER GAGAL: ${e.message}`,'error');}
 }
 function renderSettings(){
   if(!tabAllowed('settings')){state.tab='mimic';buildNav();return renderMimic();}
