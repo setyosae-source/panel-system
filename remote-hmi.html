@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SAE Energy — Remote HMI</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('panelvision-theme')==='light'?'light':'dark'}catch(_){document.documentElement.dataset.theme='dark'}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#071019;--panel:#0d1823;--panel2:#111f2d;--line:#23384a;--text:#eaf2f8;--muted:#8ea4b6;--green:#23c483;--red:#ef4444;--amber:#f59e0b;--blue:#3ba7ff;--cyan:#32d3e4;--white:#fff}
@@ -13,6 +14,17 @@
 .main,#view,.monitor-groups,.monitor-card,.group-head,.series-switches,.chart-wrap,.trend-scroll{min-width:0;max-width:100%}.main{overflow-x:hidden}.monitor-groups{width:100%;overflow:hidden;grid-template-columns:minmax(0,1fr)}.monitor-card{width:100%;overflow:hidden}.chart-wrap,.trend-scroll{width:100%}.series-toggle{max-width:100%}.trend-scroll{position:relative;contain:size layout paint}.trend-scroll-spacer{position:absolute;left:0;top:0}
 .metric-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;padding-top:9px;border-top:1px solid #23384a}.metric-stat{min-width:0}.metric-stat span{display:block;color:var(--muted);font-size:8px;font-weight:700;letter-spacing:.08em}.metric-stat b{display:block;margin-top:2px;color:#d9edfa;font:700 11px/1.25 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}.metric-period{margin-top:7px;color:#7892a5;font-size:9px}
 .setting-groups{display:grid;gap:12px}.setting-list{display:grid;gap:7px}.setting-item{display:grid;grid-template-columns:minmax(170px,1.4fr) 110px minmax(130px,.8fr) 80px;gap:9px;align-items:center;padding:9px 10px;background:#0a1621;border:1px solid var(--line);border-radius:9px}.setting-current{font:700 13px ui-monospace,Consolas,monospace;color:#bfe2f5}.setting-unit{color:var(--muted);font-size:10px}.rectifier-box{display:flex;align-items:center;justify-content:space-between;gap:15px}.rectifier-actions{display:flex;gap:8px}.command-message{margin-top:10px}.safety-list{margin:8px 0 0;padding-left:18px;color:#b8cedd;font-size:11px}.safety-list li{margin:4px 0}
+html[data-theme=dark]{color-scheme:dark}
+:root{--chart-bg:#091520;--chart-grid:#203444;--chart-grid-soft:#162a38;--chart-text:#9eb4c5}
+html[data-theme=light]{color-scheme:light;--bg:#eef3f7;--panel:#fff;--panel2:#f5f8fa;--line:#bdccd7;--text:#132532;--muted:#4d6575;--white:#132532;--chart-bg:#fff;--chart-grid:#c5d2db;--chart-grid-soft:#dde6ec;--chart-text:#405a6b}
+body{font-size:15px}.card h3{font-size:15px}.metric .name{font-size:12px}.metric .value{font-size:28px}.metric .unit{font-size:13px}.hint{font-size:13px}.tiny{font-size:11px}.pill{font-size:12px}.nav button{font-size:13px}.field label{font-size:13px}.mnode .sub{font-size:13px}.measure-label{font-size:13px}.measure-number{font-size:27px}.measure-number small{font-size:13px}.indicator-name{font-size:13px}.indicator-state{font-size:11px}.series-toggle,.legend-item{font-size:12px}.trend-range,.trend-controls label,.trend-zoom-label{font-size:12px}.trend-y-value{font-size:12px}.metric-stat span{font-size:10px}.metric-stat b{font-size:13px}.metric-period{font-size:11px}.setting-unit{font-size:12px}.safety-list{font-size:13px}.foot{font-size:11px}
+.theme-toggle{display:flex;align-items:center;gap:7px;position:relative;color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer}.theme-toggle input{position:absolute;opacity:0;pointer-events:none}.theme-track{width:48px;height:28px;display:inline-flex;align-items:center;justify-content:space-between;padding:0 5px;border:1px solid var(--line);border-radius:999px;background:#172b3c;position:relative;color:#b9cfdd;font-size:13px}.theme-knob{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0006;transition:transform .2s ease}.theme-toggle input:checked+.theme-track{background:#dbe8f0;color:#385366}.theme-toggle input:checked+.theme-track .theme-knob{transform:translateX(20px);background:#f59e0b}.theme-toggle input:focus-visible+.theme-track{outline:3px solid #3ba7ff66;outline-offset:2px}.brand-short{display:none}
+.chart-wrap{background:var(--chart-bg)}
+html[data-theme=light] .top{background:#fff}html[data-theme=light] .nav{background:#e8eff4}html[data-theme=light] .nav button.active{background:#cbdbe6;color:#10222e}
+html[data-theme=light] .card{background:linear-gradient(180deg,#fff,#f6f9fb)}html[data-theme=light] .card h3{color:#36566a}html[data-theme=light] .metric,html[data-theme=light] .mnode,html[data-theme=light] .relay,html[data-theme=light] .indicator{background:#f5f8fa}
+html[data-theme=light] .btn{background:#e7eef3;color:#152936}html[data-theme=light] .btn.primary,html[data-theme=light] .btn.danger{color:#fff}html[data-theme=light] .select,html[data-theme=light] .input,html[data-theme=light] .trend-scroll,html[data-theme=light] .trend-controls,html[data-theme=light] .setting-item,html[data-theme=light] .login-box{background:#fff;color:#132532}
+html[data-theme=light] .series-toggle,html[data-theme=light] .legend-item,html[data-theme=light] .role,html[data-theme=light] .setting-current,html[data-theme=light] .safety-list{color:#294b60}html[data-theme=light] .metric-stat b,html[data-theme=light] .measure-number{color:#102532}html[data-theme=light] .metric-period{color:#526e80}
+html[data-theme=light] .notice{background:#eaf5fc;color:#174966}html[data-theme=light] .success{background:#e8f7ef;color:#15563d}html[data-theme=light] .error{background:#fff0f2;color:#8a2634}html[data-theme=light] .stale-banner{background:#fff6dd;color:#6b4d08}html[data-theme=light] .metric.stale{background:#fff8e8}html[data-theme=light] .trend-live{color:#087451}html[data-theme=light] .measure-row,html[data-theme=light] .metric-stats{border-color:#d6e0e7}
 body.embed .app{min-height:0}
 body.embed .top{height:52px;position:relative;padding:7px 12px}
 body.embed .top .brand,body.embed .top .unit{display:none}
@@ -33,16 +45,21 @@ body.embed .foot{display:none}
   .battery-row{grid-template-columns:1fr;gap:8px}.mnode{min-height:88px;padding:13px}.mnode .icon{font-size:26px}
   .chart-wrap{height:270px}.trend-controls input[type=range]{min-width:150px}.trend-y-value{width:100%;min-width:0;text-align:left}.measure-number{font-size:22px}.indicator-grid{grid-template-columns:1fr}.indicator{min-height:46px}
   .monitoring-metrics{grid-template-columns:minmax(0,1fr)}
+  body{font-size:16px}.main{padding:12px}.card{padding:14px}.card h3{font-size:15px}.hint{font-size:14px;line-height:1.55}.tiny{font-size:12px;line-height:1.5}.nav button{font-size:14px}.metric .name{font-size:13px}.metric .value{font-size:30px}.metric-stat b{font-size:14px}.metric-period{font-size:12px}.measure-label{font-size:14px}.measure-number{font-size:29px}.indicator{min-height:54px;padding:11px 12px}.indicator-name{font-size:14px}.indicator-state{font-size:12px}.series-toggle,.legend-item{font-size:13px;padding:8px 10px}.trend-range,.trend-controls label,.trend-zoom-label,.trend-y-value{font-size:13px}.foot{font-size:12px}.theme-label{display:none}
+}
+@media(max-width:420px){
+  .top{padding:0 8px;gap:6px}.brand-full{display:none}.brand-short{display:inline}.brand{font-size:12px}.theme-track{width:46px}.top .pill{padding:6px}.top #connText{display:none}
 }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
-    <div class="brand"><b>SAE</b> ENERGY · PANEL VISION</div>
+    <div class="brand"><b>SAE</b><span class="brand-full"> ENERGY · PANEL VISION</span><span class="brand-short"> · HMI</span></div>
     <div class="unit" id="unitText">SN: —</div>
     <div class="spacer"></div>
     <div class="pill"><span class="dot" id="connDot"></span><span id="connText">Memuat…</span></div>
+    <label class="theme-toggle" title="Ganti tema gelap atau terang"><span class="theme-label" id="themeLabel">Gelap</span><input id="themeToggle" type="checkbox" aria-label="Gunakan tema terang"><span class="theme-track"><span>☾</span><span>☀</span><span class="theme-knob"></span></span></label>
     <button class="btn" id="authBtn">Login</button>
   </div>
   <div class="nav" id="nav"></div>
@@ -115,6 +132,14 @@ const toNum=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(v)
 const fmt=(v,d=1)=>{const n=toNum(v);return n===null?'—':n.toLocaleString('id-ID',{maximumFractionDigits:d})};
 const time=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?'—':d.toLocaleString('id-ID')};
 const ageText=ms=>{const n=toNum(ms);if(n===null)return '—';if(n<1000)return `${Math.round(n)} ms`;if(n<60000)return `${(n/1000).toFixed(1)} dtk`;return `${(n/60000).toFixed(1)} mnt`};
+function chartPalette(){const s=getComputedStyle(document.documentElement);return {text:s.getPropertyValue('--chart-text').trim()||'#8ea4b6',grid:s.getPropertyValue('--chart-grid').trim()||'#203444',gridSoft:s.getPropertyValue('--chart-grid-soft').trim()||'#162a38'};}
+function chartLayout(){const mobile=innerWidth<=620;return {font:mobile?12:11,left:mobile?64:58,bottom:mobile?42:35};}
+function applyTheme(theme,persist=false){
+  const value=theme==='light'?'light':'dark';document.documentElement.dataset.theme=value;
+  const toggle=$('themeToggle'),label=$('themeLabel');if(toggle){toggle.checked=value==='light';toggle.setAttribute('aria-label',value==='light'?'Gunakan tema gelap':'Gunakan tema terang')}if(label)label.textContent=value==='light'?'Terang':'Gelap';
+  if(persist){try{localStorage.setItem('panelvision-theme',value)}catch(_){}}
+  if(state.tab==='monitoring')requestAnimationFrame(()=>drawAllTrends(false));reportEmbedHeight();
+}
 function regs(){return new Map((state.monitor?.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));}
 function regObj(key){return regs().get(key)||null;}
 function availableRegisterKeys(){return new Set([...(state.monitor?.registers||[]).map(x=>x.key),...regs().keys()]);}
@@ -538,10 +563,10 @@ function drawChart(){
   const x=c.getContext('2d');
   x.setTransform(dpr,0,0,dpr,0,0);
 
-  const w=rect.width,h=rect.height,m={l:58,r:15,t:18,b:35},pw=w-m.l-m.r,ph=h-m.t-m.b;
+  const colors=chartPalette(),layout=chartLayout(),w=rect.width,h=rect.height,m={l:layout.left,r:15,t:18,b:layout.bottom},pw=w-m.l-m.r,ph=h-m.t-m.b;
   x.clearRect(0,0,w,h);
-  x.font='10px system-ui';
-  x.fillStyle='#8ea4b6';
+  x.font=`${layout.font}px system-ui`;
+  x.fillStyle=colors.text;
 
   const dataMin=pts.length?Math.min(...pts.map(p=>p.v)):0;
   let max=pts.length?Math.max(...pts.map(p=>p.v)):1;
@@ -572,7 +597,7 @@ function drawChart(){
 
   for(let i=0;i<=5;i++){
     const y=m.t+ph*i/5;
-    x.strokeStyle='#203444';
+    x.strokeStyle=colors.grid;
     x.beginPath();x.moveTo(m.l,y);x.lineTo(w-m.r,y);x.stroke();
     x.textAlign='right';
     x.fillText(fmt(max-(max-min)*i/5,1),m.l-7,y+3);
@@ -581,11 +606,11 @@ function drawChart(){
   // vertical grid every minute
   for(let i=0;i<=5;i++){
     const xx=m.l+pw*i/5;
-    x.strokeStyle='#162a38';
+    x.strokeStyle=colors.gridSoft;
     x.beginPath();x.moveTo(xx,m.t);x.lineTo(xx,m.t+ph);x.stroke();
     x.textAlign='center';
     const tt=new Date(start+state.trendWindowMs*i/5);
-    x.fillStyle='#8ea4b6';
+    x.fillStyle=colors.text;
     x.fillText(tt.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),xx,h-12);
   }
 
@@ -601,7 +626,7 @@ function drawChart(){
     x.stroke();
   }else{
     x.textAlign='center';
-    x.fillStyle='#8ea4b6';
+    x.fillStyle=colors.text;
     x.fillText('Tidak ada data pada rentang 5 menit ini',w/2,h/2);
   }
 
@@ -704,13 +729,13 @@ function drawGroupTrend(group){
   const end=Math.min(latestT,ts.endTime||latestT),start=end-state.trendWindowMs;
   const visible=data.series.map(s=>({...s,points:s.points.filter(p=>p.t>=start&&p.t<=end)})),values=visible.flatMap(s=>s.points.map(p=>p.v));
   const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));
-  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,m={l:58,r:15,t:18,b:35},pw=w-m.l-m.r,ph=h-m.t-m.b;ctx.clearRect(0,0,w,h);ctx.font='10px system-ui';ctx.fillStyle='#8ea4b6';
+  const ctx=canvas.getContext('2d'),colors=chartPalette(),layout=chartLayout();ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height,m={l:layout.left,r:15,t:18,b:layout.bottom},pw=w-m.l-m.r,ph=h-m.t-m.b;ctx.clearRect(0,0,w,h);ctx.font=`${layout.font}px system-ui`;ctx.fillStyle=colors.text;
   const dataMin=values.length?Math.min(...values):0,baseline=Math.min(0,dataMin);let min=baseline+(dataMin-baseline)*(ts.yMinPct/100),max=values.length?Math.max(...values):1;
   if(min===max){const pad=Math.max(Math.abs(max)*.01,1);min-=pad;max+=pad}if(max-min<1e-9)max=min+1;
-  for(let i=0;i<=5;i++){const y=m.t+ph*i/5;ctx.strokeStyle='#203444';ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();ctx.textAlign='right';ctx.fillStyle='#8ea4b6';ctx.fillText(fmt(max-(max-min)*i/5,1),m.l-7,y+3)}
-  for(let i=0;i<=5;i++){const xx=m.l+pw*i/5;ctx.strokeStyle='#162a38';ctx.beginPath();ctx.moveTo(xx,m.t);ctx.lineTo(xx,m.t+ph);ctx.stroke();ctx.textAlign='center';ctx.fillStyle='#8ea4b6';ctx.fillText(new Date(start+state.trendWindowMs*i/5).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),xx,h-12)}
+  for(let i=0;i<=5;i++){const y=m.t+ph*i/5;ctx.strokeStyle=colors.grid;ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();ctx.textAlign='right';ctx.fillStyle=colors.text;ctx.fillText(fmt(max-(max-min)*i/5,1),m.l-7,y+4)}
+  for(let i=0;i<=5;i++){const xx=m.l+pw*i/5;ctx.strokeStyle=colors.gridSoft;ctx.beginPath();ctx.moveTo(xx,m.t);ctx.lineTo(xx,m.t+ph);ctx.stroke();ctx.textAlign='center';ctx.fillStyle=colors.text;ctx.fillText(new Date(start+state.trendWindowMs*i/5).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit'}),xx,h-12)}
   for(const series of visible){if(!series.points.length)continue;ctx.strokeStyle=series.color;ctx.lineWidth=2;ctx.beginPath();series.points.forEach((p,i)=>{const xx=m.l+(p.t-start)/state.trendWindowMs*pw,yy=m.t+(max-p.v)/(max-min)*ph;i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke()}
-  if(!values.length){ctx.textAlign='center';ctx.fillStyle='#8ea4b6';ctx.fillText('Tidak ada data pada rentang 5 menit ini',w/2,h/2)}
+  if(!values.length){ctx.textAlign='center';ctx.fillStyle=colors.text;ctx.fillText('Tidak ada data pada rentang 5 menit ini',w/2,h/2)}
   $(`trend-from-${group.id}`).textContent=new Date(start).toLocaleString('id-ID');$(`trend-to-${group.id}`).textContent=new Date(end).toLocaleString('id-ID');
   const mode=$(`trend-mode-${group.id}`);mode.textContent=ts.followLive?'LIVE · 5 menit terbaru':'HISTORI · scroll ke kanan untuk kembali LIVE';mode.className=ts.followLive?'trend-live':'';
   $(`trend-y-value-${group.id}`).textContent=`Y min ${fmt(min,2)} · data min ${fmt(dataMin,2)}`;$(`trend-y-${group.id}`).value=String(ts.yMinPct);
@@ -815,6 +840,8 @@ if(embedded){
   window.addEventListener('load',reportEmbedHeight);
 }
 async function init(){
+  applyTheme(document.documentElement.dataset.theme||'dark',false);
+  $('themeToggle').onchange=e=>applyTheme(e.target.checked?'light':'dark',true);
   $('unitText').textContent=`SN: ${serial||'—'}`;
   buildNav();
   updateAuth();
