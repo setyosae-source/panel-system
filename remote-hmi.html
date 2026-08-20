@@ -126,7 +126,7 @@ const state={
   relayValues:null,relayAutoLoadAttempted:false,relayWriteUnlocked:false,relayMessage:'',relayMessageType:'notice',calibrationValues:null,calibrationAutoLoadAttempted:false,calibrationWriteUnlocked:false,calibrationMessage:'',calibrationMessageType:'notice',
   eventRows:null,eventBusy:false,eventLoadedAt:null,eventMessage:'',commandBusy:false,commandMessage:''
 };
-const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
+const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration'],['users','Users']];
 const MONITOR_GROUPS=[
   {id:'voltage',title:'Voltage',series:[
     {key:'ac_voltage_l1',aliases:['input_voltage','ac_input_voltage'],label:'V Input',unit:'V',color:'#32d3e4'},
@@ -223,16 +223,17 @@ function reg(key){return regMeta(key).value;}
 function isOwner(){return state.membership?.role==='owner';}
 function perms(){
   if(isOwner())return {monitor:true,events:true,settings:true,relays:true,calibration:true,control:true,role:'owner'};
-  const a=state.access||{};
-  return {monitor:a.can_monitor!==false,events:!!a.can_events,settings:!!a.can_settings,relays:!!a.can_relays,calibration:!!a.can_calibration,control:!!a.can_control,role:a.access_role||'public'};
+  const a=state.membership?.access_scope==='all'?(state.membership||{}):(state.access||{});
+  return {monitor:!!a.can_monitor,events:!!a.can_events,settings:!!a.can_settings,relays:!!a.can_relays,calibration:!!a.can_calibration,control:!!a.can_control,role:a.access_role||state.membership?.role||'public'};
 }
-function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='settings')return !!state.user&&(p.settings||p.control)&&state.settingsUnlocked;if(id==='relays'||id==='calibration')return !!state.user&&!!p[id]&&state.settingsUnlocked;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
+function tabAllowed(id){const p=perms();if(id==='mimic'||id==='monitoring')return true;if(id==='users')return !!state.user&&isOwner();if(id==='settings')return !!state.user&&(p.settings||p.control)&&state.settingsUnlocked;if(id==='relays'||id==='calibration')return !!state.user&&!!p[id]&&state.settingsUnlocked;if(id==='events')return !!state.user&&p.events;return !!state.user&&!!p[id];}
 function buildNav(){
-  const visibleMenu=state.user?menu:menu.filter(([id])=>['mimic','monitoring','settings'].includes(id));
+  const visibleMenu=state.user?menu.filter(([id])=>id!=='users'||isOwner()):menu.filter(([id])=>['mimic','monitoring','settings'].includes(id));
   $('nav').innerHTML=visibleMenu.map(([id,label])=>`<button data-tab="${id}" class="${state.tab===id?'active ':''}${tabAllowed(id)?'':'locked'}">${label}</button>`).join('');
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
 }
 function openTab(id){
+  if(id==='users'){if(!isOwner()){locked('Users','Owner');return;}window.open('user-access.html','_blank','noopener');return;}
   const protectedTab=['settings','relays','calibration'].includes(id);
   if(protectedTab&&!state.user){showLogin(`${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login user dan password HMI.`);return;}
   if(id==='settings'&&state.user&&!perms().settings&&!perms().control){locked('Settings','Settings / Control');return;}
@@ -368,7 +369,7 @@ async function loadSecure(){
   state.panel=p||null;
   if(p){
     const [{data:m},{data:a}]=await Promise.all([
-      sb.from('pv_memberships').select('role').eq('organization_id',p.organization_id).eq('user_id',state.user.id).maybeSingle(),
+      sb.from('pv_memberships').select('role,access_scope,can_monitor,can_events,can_settings,can_relays,can_calibration,can_control').eq('organization_id',p.organization_id).eq('user_id',state.user.id).maybeSingle(),
       sb.from('pv_panel_access').select('*').eq('panel_id',p.id).eq('user_id',state.user.id).maybeSingle()
     ]);
     state.membership=m||null;state.access=a||null;

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Vision — User Access</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('panelvision-theme')==='light'?'light':'dark'}catch(_){document.documentElement.dataset.theme='dark'}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#071019;--panel:#0d1823;--panel2:#111f2d;--line:#294155;--text:#eaf2f8;--muted:#94aabd;--green:#23c483;--red:#ef5d6c;--blue:#3ba7ff;--amber:#f59e0b}
+html[data-theme=light]{--bg:#eef3f7;--panel:#fff;--panel2:#f5f8fa;--line:#b8cad7;--text:#142733;--muted:#506879;--green:#087451;--red:#a52e40;--blue:#146b9e;--amber:#805400;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}.top{height:60px;display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}.brand{font-weight:850;letter-spacing:.06em}.brand b{color:#ef3434}.spacer{flex:1}.main{width:min(1180px,100%);margin:auto;padding:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:13px}.card h2,.card h3{margin:0 0 10px}.card h3{font-size:14px;letter-spacing:.08em;text-transform:uppercase}.muted{color:var(--muted)}.btn{border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);padding:9px 13px;min-height:40px;cursor:pointer}.btn.primary{background:#145b8f;border-color:#287fb2;color:#fff}.btn.danger{background:#5c1e28;border-color:#a33a4a;color:#fff}.btn:disabled{opacity:.45;cursor:not-allowed}.input,.select{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);padding:10px;min-height:42px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.notice,.success,.error{border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-top:10px}.notice{background:#10283a;color:#d1edff}.success{background:#103126;color:#d6ffee}.error{background:#35151b;color:#ffd0d6}.permission-grid{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:8px}.check{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:10px;cursor:pointer}.check input{width:18px;height:18px;accent-color:var(--blue)}.panel-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}.panel-choice{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:10px}.panel-choice input{width:18px;height:18px;margin-top:2px}.panel-choice b{display:block}.panel-choice small{color:var(--muted)}.user-list{display:grid;gap:10px}.user-card{border:1px solid var(--line);border-radius:11px;background:var(--panel2);padding:13px}.user-head{display:flex;align-items:flex-start;gap:10px}.user-name{font-weight:800;font-size:16px}.user-email{color:var(--muted);overflow-wrap:anywhere}.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.badge{border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px}.badge.read{color:#7ee9c0;border-color:#29785e}.badge.write{color:#ffd28a;border-color:#8a6420}.badge.owner{color:#9dd7ff;border-color:#337ca7}.user-actions{display:flex;gap:7px;margin-top:11px}.hidden{display:none!important}.modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:16px;z-index:30}.modal.show{display:flex}.dialog{width:min(760px,100%);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px}.dialog h2{margin:0 0 12px}.login{width:min(430px,100%)}.theme{white-space:nowrap}.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.summary>div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px}.summary b{display:block;font-size:22px}.summary span{font-size:12px;color:var(--muted)}
+html[data-theme=light] .btn.primary{background:#dceef8;color:#123f58}html[data-theme=light] .btn.danger{background:#f9e3e7;color:#782536}html[data-theme=light] .notice{background:#eaf5fc;color:#174966}html[data-theme=light] .success{background:#e8f7ef;color:#15563d}html[data-theme=light] .error{background:#fff0f2;color:#8a2634}
+@media(max-width:700px){.top{height:auto;min-height:58px;padding:9px 10px;flex-wrap:wrap}.main{padding:10px}.form-grid,.permission-grid,.summary{grid-template-columns:1fr}.user-head{display:block}.user-actions .btn{flex:1}.brand span{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand"><b>SAE</b><span> ENERGY · USER ACCESS</span></div><div class="spacer"></div><button class="btn theme" id="themeBtn">Tema</button><button class="btn" id="logoutBtn">Logout</button></header>
+<main class="main">
+  <section class="card">
+    <div class="toolbar"><div><h2>User Access Management</h2><div class="muted" id="orgText">Memuat organisasi…</div></div><div class="spacer"></div><button class="btn primary" id="inviteBtn">+ Undang User</button><button class="btn" id="refreshBtn">Refresh</button></div>
+    <div id="pageMsg"></div>
+  </section>
+  <section class="summary" id="summary"></section>
+  <section class="card"><h3>Daftar User</h3><div class="user-list" id="userList"><div class="muted">Memuat user…</div></div></section>
+</main>
+
+<div class="modal" id="loginModal"><div class="dialog login"><h2>Login Owner</h2><div class="muted">Halaman ini hanya dapat dibuka oleh owner Panel Vision.</div><div class="field" style="margin-top:12px"><label>Email</label><input class="input" id="loginEmail" type="email" autocomplete="username"></div><div class="field" style="margin-top:9px"><label>Password</label><input class="input" id="loginPassword" type="password" autocomplete="current-password"></div><div id="loginMsg"></div><div class="toolbar" style="margin-top:12px"><button class="btn primary" id="loginSubmit">Login</button></div></div></div>
+
+<div class="modal" id="accessModal"><div class="dialog">
+  <h2 id="formTitle">Undang User</h2>
+  <div class="form-grid">
+    <div class="field"><label>Email</label><input class="input" id="userEmail" type="email" autocomplete="off"></div>
+    <div class="field"><label>Nama</label><input class="input" id="displayName" type="text" maxlength="100" autocomplete="off"></div>
+    <div class="field"><label>Cakupan Unit</label><select class="select" id="accessScope"><option value="selected">Unit tertentu</option><option value="all">Semua unit sekarang & mendatang</option></select></div>
+    <div class="field"><label>Preset Akses</label><select class="select" id="accessPreset"><option value="readonly">Read Only</option><option value="write">Read & Write</option><option value="custom">Custom</option></select></div>
+  </div>
+  <h3 style="margin-top:16px">Hak Akses</h3>
+  <div class="permission-grid" id="permissionGrid">
+    <label class="check"><input type="checkbox" data-perm="can_monitor">Monitoring & Mimic</label>
+    <label class="check"><input type="checkbox" data-perm="can_events">Events & Download</label>
+    <label class="check"><input type="checkbox" data-perm="can_settings">Settings</label>
+    <label class="check"><input type="checkbox" data-perm="can_control">Rectifier Control</label>
+    <label class="check"><input type="checkbox" data-perm="can_relays">Relay Settings</label>
+    <label class="check"><input type="checkbox" data-perm="can_calibration">Calibration</label>
+  </div>
+  <div id="panelSection"><h3 style="margin-top:16px">Pilih Unit</h3><div class="panel-list" id="panelList"></div></div>
+  <div id="formMsg"></div>
+  <div class="toolbar" style="margin-top:15px"><button class="btn primary" id="saveBtn">Kirim Undangan</button><button class="btn" id="cancelBtn">Batal</button></div>
+</div></div>
+
+<script>
+const SB_URL='https://sswslwddemackxrrbpre.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzd3Nsd2RkZW1hY2t4cnJicHJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NTE2MjcsImV4cCI6MjA5MTMyNzYyN30.aQivrCTGvzJ6-_OLUOUvFjOcu7qQ53Ajv2urvLZb9xg';
+const CORE_API='https://panelvision.ubnb.pw';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const permissionKeys=['can_monitor','can_events','can_settings','can_relays','can_calibration','can_control'];
+const permissionLabels={can_monitor:'Monitoring',can_events:'Events',can_settings:'Settings',can_relays:'Relay',can_calibration:'Calibration',can_control:'Control'};
+const state={data:null,editing:null,busy:false};
+
+function setTheme(theme){document.documentElement.dataset.theme=theme;try{localStorage.setItem('panelvision-theme',theme)}catch(_){}}
+$('themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
+
+async function coreFetch(path,options={}){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)throw new Error('Sesi login berakhir. Silakan login kembali.');
+  const response=await fetch(CORE_API+path,{...options,headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,...(options.headers||{})}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||data.message||`HTTP ${response.status}`);
+  return data;
+}
+
+function message(target,text,type='notice'){target.innerHTML=text?`<div class="${type}">${esc(text)}</div>`:'';}
+function permissionPreset(name){
+  const values=name==='write'
+    ?{can_monitor:true,can_events:true,can_settings:true,can_relays:true,can_calibration:true,can_control:true}
+    :{can_monitor:true,can_events:true,can_settings:false,can_relays:false,can_calibration:false,can_control:false};
+  document.querySelectorAll('[data-perm]').forEach(input=>input.checked=!!values[input.dataset.perm]);
+}
+function readPermissions(){return Object.fromEntries(permissionKeys.map(key=>[key,!!document.querySelector(`[data-perm="${key}"]`).checked]));}
+function selectedPanels(){return [...document.querySelectorAll('[data-panel]:checked')].map(input=>input.value);}
+function setScopeUI(){$('panelSection').classList.toggle('hidden',$('accessScope').value==='all');}
+$('accessScope').onchange=setScopeUI;
+$('accessPreset').onchange=()=>{if($('accessPreset').value!=='custom')permissionPreset($('accessPreset').value)};
+document.querySelectorAll('[data-perm]').forEach(input=>input.onchange=()=>{$('accessPreset').value='custom'});
+
+function renderPanels(selected=[]){
+  const chosen=new Set(selected);
+  $('panelList').innerHTML=(state.data?.panels||[]).map(panel=>`<label class="panel-choice"><input type="checkbox" data-panel value="${esc(panel.id)}" ${chosen.has(panel.id)?'checked':''}><span><b>${esc(panel.serial_number||panel.name||'Tanpa SN')}</b><small>${esc(panel.name||'')} ${panel.model?`· ${esc(panel.model)}`:''}</small></span></label>`).join('')||'<div class="muted">Belum ada unit aktif.</div>';
+}
+
+function render(){
+  const data=state.data;if(!data)return;
+  $('orgText').textContent=`${data.organization.name} · login sebagai owner`;
+  const users=data.users||[],all=users.filter(user=>user.access_scope==='all').length,writers=users.filter(user=>permissionKeys.slice(2).some(key=>user.permissions?.[key])).length;
+  $('summary').innerHTML=`<div><b>${users.length}</b><span>Total user</span></div><div><b>${all}</b><span>Akses semua unit</span></div><div><b>${writers}</b><span>Memiliki izin write</span></div>`;
+  $('userList').innerHTML=users.map(user=>{
+    const owner=user.role==='owner';
+    const write=permissionKeys.slice(2).some(key=>user.permissions?.[key]);
+    const panels=user.access_scope==='all'?'Semua unit':`${(user.panel_ids||[]).length} unit terpilih`;
+    const permissionBadges=permissionKeys.filter(key=>user.permissions?.[key]||owner).map(key=>`<span class="badge ${key==='can_monitor'||key==='can_events'?'read':'write'}">${permissionLabels[key]}</span>`).join('');
+    return `<article class="user-card"><div class="user-head"><div><div class="user-name">${esc(user.display_name||user.email||'User')}</div><div class="user-email">${esc(user.email||user.user_id)}</div></div><div class="spacer"></div><span class="badge ${owner?'owner':''}">${owner?'OWNER':esc(user.role)}</span><span class="badge">${esc(panels)}</span><span class="badge">${user.email_confirmed?'Aktif':'Menunggu aktivasi'}</span></div><div class="badges">${permissionBadges}</div>${owner?'':`<div class="user-actions"><button class="btn" data-edit="${esc(user.user_id)}">Ubah Akses</button><button class="btn danger" data-revoke="${esc(user.user_id)}">Cabut Akses</button></div>`}</article>`;
+  }).join('')||'<div class="muted">Belum ada user.</div>';
+  document.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>openEdit(button.dataset.edit));
+  document.querySelectorAll('[data-revoke]').forEach(button=>button.onclick=()=>revokeUser(button.dataset.revoke));
+}
+
+async function load(){
+  message($('pageMsg'),'Memuat user dan unit…');
+  try{state.data=await coreFetch('/api/admin/user-access');message($('pageMsg'),'');render();}
+  catch(error){message($('pageMsg'),error.message,'error');if(/sesi|unauthorized/i.test(error.message))showLogin();}
+}
+
+function openInvite(){
+  state.editing=null;$('formTitle').textContent='Undang User';$('saveBtn').textContent='Kirim Undangan';$('userEmail').disabled=false;$('displayName').disabled=false;$('userEmail').value='';$('displayName').value='';$('accessScope').value='selected';$('accessPreset').value='readonly';permissionPreset('readonly');renderPanels([]);setScopeUI();message($('formMsg'),'');$('accessModal').classList.add('show');
+}
+function openEdit(userId){
+  const user=state.data.users.find(item=>item.user_id===userId);if(!user)return;
+  state.editing=user;$('formTitle').textContent='Ubah Hak Akses';$('saveBtn').textContent='Simpan Akses';$('userEmail').value=user.email||'';$('displayName').value=user.display_name||'';$('userEmail').disabled=true;$('displayName').disabled=true;$('accessScope').value=user.access_scope||'selected';$('accessPreset').value='custom';document.querySelectorAll('[data-perm]').forEach(input=>input.checked=!!user.permissions?.[input.dataset.perm]);renderPanels(user.panel_ids||[]);setScopeUI();message($('formMsg'),'');$('accessModal').classList.add('show');
+}
+function closeForm(){$('accessModal').classList.remove('show');state.editing=null}
+$('inviteBtn').onclick=openInvite;$('cancelBtn').onclick=closeForm;$('refreshBtn').onclick=load;
+
+$('saveBtn').onclick=async()=>{
+  if(state.busy)return;
+  const access_scope=$('accessScope').value,panel_ids=access_scope==='all'?[]:selectedPanels(),permissions=readPermissions();
+  if(access_scope==='selected'&&!panel_ids.length)return message($('formMsg'),'Pilih minimal satu unit.','error');
+  if((permissions.can_settings||permissions.can_relays||permissions.can_calibration||permissions.can_control)&&!permissions.can_monitor)return message($('formMsg'),'Izin write memerlukan Monitoring.','error');
+  const body={access_scope,panel_ids,permissions};
+  let path,method;
+  if(state.editing){path=`/api/admin/user-access/${encodeURIComponent(state.editing.user_id)}`;method='PUT';}
+  else{const email=$('userEmail').value.trim(),display_name=$('displayName').value.trim();if(!email)return message($('formMsg'),'Email wajib diisi.','error');Object.assign(body,{email,display_name});path='/api/admin/user-access/invite';method='POST';}
+  state.busy=true;$('saveBtn').disabled=true;message($('formMsg'),state.editing?'Menyimpan akses…':'Mengirim undangan…');
+  try{const result=await coreFetch(path,{method,body:JSON.stringify(body)});closeForm();await load();message($('pageMsg'),result.invited?'Undangan email terkirim dan akses sudah dipetakan.':'Hak akses berhasil disimpan.','success');}
+  catch(error){message($('formMsg'),error.message,'error');}
+  finally{state.busy=false;$('saveBtn').disabled=false;}
+};
+
+async function revokeUser(userId){
+  const user=state.data.users.find(item=>item.user_id===userId);if(!user||!confirm(`Cabut seluruh akses Panel Vision untuk ${user.email}? Akun login tidak akan dihapus.`))return;
+  try{await coreFetch(`/api/admin/user-access/${encodeURIComponent(userId)}`,{method:'DELETE'});await load();message($('pageMsg'),'Akses user berhasil dicabut. Akun Supabase tetap tersimpan.','success');}
+  catch(error){message($('pageMsg'),error.message,'error');}
+}
+
+function showLogin(){$('loginModal').classList.add('show')}
+$('loginSubmit').onclick=async()=>{message($('loginMsg'),'Login…');$('loginSubmit').disabled=true;const {error}=await sb.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});$('loginSubmit').disabled=false;if(error)return message($('loginMsg'),error.message,'error');$('loginModal').classList.remove('show');await load();};
+$('logoutBtn').onclick=async()=>{await sb.auth.signOut();showLogin()};
+sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session)showLogin()});
+(async()=>{const {data:{session}}=await sb.auth.getSession();if(!session)showLogin();else await load();})();
+</script>
+</body>
+</html>
