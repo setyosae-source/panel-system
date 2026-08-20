@@ -107,7 +107,7 @@ const state={
   tab:'mimic',monitor:null,panel:null,user:null,membership:null,access:null,
   timer:null,hours:1,series:null,commandBridge:true,lastGood:{},
   realtimeChannel:null,realtimeStatus:'INIT',lastRealtimeAt:0,lastHttpAt:0,
-  trendWindowMs:5*60*1000,trends:{},settingsUnlocked:false,settingsPin:'',settingValues:null,commandBusy:false,commandMessage:''
+  trendWindowMs:5*60*1000,trends:{},settingsUnlocked:false,settingsPin:'',settingValues:null,settingsAutoLoadAttempted:false,commandBusy:false,commandMessage:''
 };
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration']];
 const MONITOR_GROUPS=[
@@ -344,7 +344,7 @@ async function realtimeWatchdog(){
 
 async function loadSecure(){
   const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
-  if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;updateAuth();buildNav();return;}
+  if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;updateAuth();buildNav();return;}
   const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,active').eq('serial_number',serial).maybeSingle();
   state.panel=p||null;
   if(p){
@@ -358,7 +358,7 @@ async function loadSecure(){
 }
 function updateAuth(){
   $('authBtn').textContent=state.user?`Logout · ${perms().role}`:'Login';
-  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
+  $('authBtn').onclick=async()=>{if(state.user){await sb.auth.signOut();state.user=state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.tab='mimic';updateAuth();buildNav();render();}else showLogin();};
 }
 function showLogin(msg=''){$('loginModal').classList.add('show');$('loginMsg').innerHTML=msg?`<div class="notice">${esc(msg)}</div>`:'';setTimeout(()=>$('loginEmail').focus(),50)}
 function hideLogin(){$('loginModal').classList.remove('show');$('loginPassword').value=''}
@@ -382,7 +382,7 @@ $('pinSubmit').onclick=async()=>{
   $('pinSubmit').disabled=false;
   if(error){$('pinMsg').innerHTML=`<div class="error">Settings belum siap: ${esc(error.message)}</div>`;return;}
   if(!data){$('pinMsg').innerHTML='<div class="error">Password salah atau akses dikunci sementara setelah 5 percobaan.</div>';return;}
-  state.settingsUnlocked=true;state.settingsPin=pin;hidePin();state.tab='settings';buildNav();render();
+  state.settingsUnlocked=true;state.settingsPin=pin;state.settingsAutoLoadAttempted=false;hidePin();state.tab='settings';buildNav();render();
 };
 function render(){
   if(!state.monitor)return;
@@ -810,8 +810,8 @@ function renderSettings(){
   if(!tabAllowed('settings')){state.tab='mimic';buildNav();return renderMimic();}
   const p=perms(),canSettings=!!p.settings,canControl=!!p.control;
   $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Settings</button></div></div><div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
-  $('refreshSettingsBtn').onclick=loadRemoteSettings;
-  $('lockSettingsBtn').onclick=()=>{state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.tab='mimic';buildNav();render()};
+  $('refreshSettingsBtn').onclick=()=>{state.settingsAutoLoadAttempted=true;loadRemoteSettings()};
+  $('lockSettingsBtn').onclick=()=>{state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.tab='mimic';buildNav();render()};
   $('changePinBtn').onclick=async()=>{
     const current=$('pinCurrent').value.trim(),next=$('pinNew').value.trim(),confirm=$('pinConfirm').value.trim(),msg=$('changePinMsg');
     if(!/^\d{6}$/.test(current)||!/^\d{6}$/.test(next)){msg.innerHTML='<div class="error">Password saat ini dan password baru harus tepat 6 digit angka.</div>';return;}
@@ -821,7 +821,7 @@ function renderSettings(){
     if(error){msg.innerHTML=`<div class="error">${esc(error.message)}</div>`;return}if(!data){msg.innerHTML='<div class="error">Password saat ini salah atau akses sedang dikunci sementara.</div>';return}
     state.settingsPin=next;$('pinCurrent').value=$('pinNew').value=$('pinConfirm').value='';msg.innerHTML='<div class="success">Password berhasil diganti dan langsung berlaku di semua perangkat.</div>';
   };
-  if(!state.settingValues&&!state.commandBusy)setTimeout(loadRemoteSettings,0);
+  if(!state.settingValues&&!state.commandBusy&&!state.settingsAutoLoadAttempted){state.settingsAutoLoadAttempted=true;setTimeout(loadRemoteSettings,0)}
 }
 function renderRelays(){if(!tabAllowed('relays'))return locked('Relays','Relays');const meta=regMeta('relay_outputs'),raw=toNum(meta.value),valid=raw!==null;const bits=Array.from({length:16},(_,i)=>valid?!!(raw&(1<<i)):false);$('view').innerHTML=`<div class="card"><h3>Relay Outputs</h3>${writeState()}${meta.stale?'<div class="stale-banner" style="margin-top:10px">Relay status menggunakan Last Good Value.</div>':''}<div class="relay-grid" style="margin-top:12px">${bits.map((on,i)=>`<div class="relay"><span>Relay ${i+1}</span><span><span class="lamp ${meta.stale?'stale':on?'on':''}"></span> ${valid?(on?'ON':'OFF'):'—'}${meta.stale?' · LAMA':''}</span></div>`).join('')}</div><div class="hint" style="margin-top:10px">Raw relay_outputs: ${valid?raw:'—'}</div></div>`}
 async function renderEvents(){if(!tabAllowed('events'))return locked('Events','Events');$('view').innerHTML='<div class="card">Memuat event…</div>';if(!state.panel){$('view').innerHTML='<div class="card error">Panel tidak ditemukan pada akses user ini.</div>';return}const {data,error}=await sb.from('pv_alarm_events').select('id,code,severity,message,state,started_at,cleared_at,acknowledged_at').eq('panel_id',state.panel.id).order('started_at',{ascending:false}).limit(50);if(error){$('view').innerHTML=`<div class="card error">${esc(error.message)}</div>`;return}$('view').innerHTML=`<div class="card"><h3>Events · 50 terbaru</h3>${(data||[]).length?(data||[]).map(e=>`<div class="event"><div>${esc(time(e.started_at))}</div><div class="sev ${esc((e.severity||'').toLowerCase())}">${esc(e.severity||'—')}</div><div class="msg"><b>${esc(e.code)}</b> · ${esc(e.message)}</div><div class="state">${esc(e.state)}</div></div>`).join(''):'<div class="hint">Belum ada event.</div>'}</div>`}
