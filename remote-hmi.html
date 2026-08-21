@@ -242,7 +242,7 @@ function buildNav(){
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
 }
 function openTab(id){
-  if(id==='users'){if(!isOwner()){locked('Users','Owner');return;}window.open('user-access.html?v=20260821a','_blank','noopener');return;}
+  if(id==='users'){if(!isOwner()){locked('Users','Owner');return;}window.open('user-access.html?v=20260821b','_blank','noopener');return;}
   const protectedTab=['settings','relays','calibration'].includes(id);
   if(protectedTab&&!state.user){showLogin(`${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login user dan password HMI.`);return;}
   if(id==='settings'&&state.user&&!perms().settings&&!perms().control){locked('Settings','Settings / Control');return;}
@@ -259,7 +259,7 @@ function setConnection(){
   $('connText').textContent=statusText+transport;
 }
 async function loadPublic(){
-  if(!serial){$('view').innerHTML='<div class="card locked-panel"><div class="big">▦</div><h3>Pilih Unit</h3><div class="hint">Buka halaman Unit Saya untuk memilih unit yang dapat Anda akses.</div><a class="btn primary" style="margin-top:14px;text-decoration:none;display:inline-block" href="my-devices.html?v=20260821a">Buka Unit Saya</a></div>';return;}
+  if(!serial){$('view').innerHTML='<div class="card locked-panel"><div class="big">▦</div><h3>Pilih Unit</h3><div class="hint">Buka halaman Unit Saya untuk memilih unit yang dapat Anda akses.</div><a class="btn primary" style="margin-top:14px;text-decoration:none;display:inline-block" href="my-devices.html?v=20260821b">Buka Unit Saya</a></div>';return;}
   try{
     const r=await fetch(`${PUBLIC_MONITOR}/${encodeURIComponent(serial)}?hours=${state.hours}`);
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
@@ -471,8 +471,8 @@ function renderMimic(){
     ['BATTERY TEST FAIL',bitState(low,lowValid,0x0020,lowM.stale)],
     ['LINE MCB OFF',bitState(low,lowValid,0x0010,lowM.stale)],
     ['SCR FUSE FAIL',bitState(low,lowValid,0x0800,lowM.stale)],
-    ['(+) EARTH FAULT',bitState(low,lowValid,0x0200,lowM.stale)],
-    ['(-) EARTH FAULT',bitState(low,lowValid,0x0400,lowM.stale)],
+    ['(+) EARTH FAULT',bitState(low,lowValid,0x0400,lowM.stale)],
+    ['(-) EARTH FAULT',bitState(low,lowValid,0x0200,lowM.stale)],
     ['FAN FAIL',bitState(low,lowValid,0x0100,lowM.stale)],
     ['COMMON FAILURE',bitState(low,lowValid,0x1000,lowM.stale)],
     ['OVER VOLTAGE',bitState(low,lowValid,0x8000,lowM.stale)],
