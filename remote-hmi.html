@@ -18,8 +18,10 @@
 .relay-output{transition:background .18s,border-color .18s,box-shadow .18s}.relay-output.on-state{background:#0d3025;border-color:#23a472;box-shadow:inset 4px 0 0 #23c483}.relay-output.on-state b,.relay-output.on-state .relay-state-badge{color:#80ffd0}.relay-output.off-state{background:#101a23;border-color:#344858}.relay-output.stale-state{border-color:#9a741f;background:#302813}.relay-state-badge{display:inline-flex;align-items:center;gap:7px;font-weight:800;letter-spacing:.04em}.relay-output.off-state .relay-state-badge{color:#aebdc8}.relay-output.unknown-state .relay-state-badge{color:var(--muted)}
 .calibration-row{grid-template-columns:minmax(170px,1.05fr) 110px minmax(230px,1.25fr) minmax(230px,1.25fr);align-items:stretch}.cal-control{border-left:1px solid var(--line);padding-left:12px;display:flex;flex-direction:column;justify-content:flex-end;gap:7px}.cal-control>label{display:block;color:var(--muted);font-size:11px}.cal-action-line{display:flex;gap:7px;align-items:center}.cal-action-line .input{min-width:0}.cal-action-line .btn{white-space:nowrap}.cal-stepper{display:grid;grid-template-columns:42px minmax(80px,1fr) 42px;gap:6px}.cal-stepper .btn{padding:6px;font-size:20px;font-weight:800}.cal-stepper .input{text-align:center;font:700 14px ui-monospace,Consolas,monospace}.cal-save-param{width:100%}.event-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}.event-toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
 .performance-note{display:flex;gap:12px;align-items:flex-start;border-color:#6b5724;background:#29230f;color:#ffe8a6}.performance-note .big{font-size:25px;line-height:1}.performance-note b{display:block;margin-bottom:3px;color:#fff0bd}.performance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.performance-card{min-width:0;background:#0a1621;border:1px solid var(--line);border-radius:10px;padding:12px}.performance-card .perf-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.performance-card .perf-name{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:750}.perf-source{flex:0 0 auto;border:1px solid #39617a;border-radius:999px;padding:2px 6px;color:#a9d9f3;font-size:9px;font-weight:800;letter-spacing:.04em}.perf-source.calc{border-color:#7b6222;color:#ffd67a}.perf-source.indication{border-color:#694a80;color:#dcbdff}.performance-card .perf-value{font:800 25px/1.15 ui-monospace,Consolas,monospace;margin-top:8px;overflow-wrap:anywhere}.performance-card .perf-value small{font:650 12px system-ui;margin-left:4px;color:var(--muted)}.perf-detail{margin-top:8px;color:var(--muted);font-size:11px;line-height:1.5}.perf-detail b{color:#cfe4f2}.performance-card.stale{border-color:#765b20;background:#211c10}.phase-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.phase-cell{border:1px solid var(--line);border-radius:8px;background:#0a1621;padding:9px}.phase-cell span{display:block;color:var(--muted);font-size:10px}.phase-cell b{display:block;margin-top:3px;font:800 15px ui-monospace,Consolas,monospace}.mode-bars{display:grid;gap:8px}.mode-row{display:grid;grid-template-columns:110px minmax(100px,1fr) 55px;gap:9px;align-items:center}.mode-label{font-size:12px;font-weight:700}.mode-track{height:10px;border-radius:999px;background:#172939;overflow:hidden}.mode-fill{height:100%;border-radius:inherit;background:var(--green)}.mode-fill.boost{background:var(--amber)}.mode-fill.current{background:var(--cyan)}.mode-fill.equalize{background:#a78bfa}.mode-value{text-align:right;font:750 12px ui-monospace,Consolas,monospace}.performance-unavailable{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.performance-unavailable span{border:1px dashed var(--line);border-radius:999px;padding:5px 8px;color:var(--muted);font-size:10px}.performance-chart{height:280px}.performance-chart-legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 0}.performance-chart-legend span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}.performance-chart-legend i{width:18px;height:3px;border-radius:2px;display:inline-block}.performance-filter{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}.performance-filter input{width:18px;height:18px;accent-color:var(--green)}.performance-filter-summary{margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#0a1621;color:var(--muted);font-size:12px;line-height:1.55}.performance-filter-summary b{color:var(--text)}.analysis-session{border-color:#25865f;background:#0d2b22}.analysis-session b{color:#8affd1}.analysis-actions{display:flex;gap:8px;flex-wrap:wrap}.analysis-actions .btn{white-space:nowrap}
+.phase-strip.one{grid-template-columns:1fr}
 .load-util-gauge{min-width:0;text-align:center;background:#0a1621;border:1px solid var(--line);border-radius:10px;padding:10px}.load-util-gauge.performance{grid-column:span 2;padding:12px}.load-util-title{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:800}.load-util-svg{display:block;width:min(230px,100%);height:auto;margin:2px auto -2px}.load-util-track{fill:none;stroke:#203442;stroke-width:14;stroke-linecap:round}.load-util-scale{fill:none;stroke-width:11;stroke-linecap:round}.load-util-needle{stroke:var(--text);stroke-width:3;stroke-linecap:round;transition:transform .35s ease;transform-origin:110px 105px}.load-util-hub{fill:var(--text)}.load-util-number{fill:var(--text);font:800 22px ui-monospace,Consolas,monospace}.load-util-scale-label{fill:var(--muted);font:700 9px system-ui}.load-util-values{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:2px;color:var(--muted);font-size:11px}.load-util-values b{color:var(--text)}.load-util-note{margin-top:5px;color:var(--muted);font-size:10px}.load-util-gauge.warn{border-color:#82631d}.load-util-gauge.high{border-color:#ad5f15}.load-util-gauge.over{border-color:#a73543;box-shadow:inset 0 0 0 1px #ef444433}.load-util-gauge.invalid .load-util-needle{opacity:.15}.load-util-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:9px}.load-util-stat{border-top:1px solid var(--line);padding-top:7px}.load-util-stat span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase}.load-util-stat b{display:block;margin-top:2px;font:800 13px ui-monospace,Consolas,monospace;color:var(--text)}
 .load-util-gauge.mimic{margin-top:10px}
+.phase-profile-card{border-color:#2a6688}.phase-profile-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) auto;gap:10px;align-items:end}.phase-profile-current{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.phase-profile-card .field .select{width:100%}.phase-profile-note{margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#0a1621;color:var(--muted);font-size:12px}.phase-profile-note b{color:var(--text)}
 .mimic-compact{width:100%;max-width:980px;margin:0 auto}.mimic-flow{display:grid;grid-template-columns:minmax(180px,1fr) 44px minmax(180px,1fr) 44px minmax(180px,1fr);align-items:center;gap:8px}.mimic-compact .mnode{min-height:126px;padding:13px 15px}.mimic-compact .mnode .icon{font-size:25px;line-height:1}.mimic-compact .mnode .title{font-size:13px}.mimic-compact .measure-list{gap:5px;margin-top:8px}.mimic-compact .measure-row{padding-top:5px}.mimic-compact .measure-number{font-size:22px}.mimic-compact .pill{padding:4px 8px;font-size:10px}.mimic-flow .wire{width:100%;height:4px}.dc-branch{position:relative;width:5px;height:48px;margin:0 auto;background:#334759;border-radius:5px}.dc-branch.live{background:var(--green);box-shadow:0 0 11px #23c48377}.dc-branch.stale{background:#8a6b25}.dc-branch:after{content:'⇅';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:34px;height:36px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:#748897;font-size:27px;font-weight:900;line-height:1}.dc-branch.live:after{color:var(--green);border-color:#23c48388;box-shadow:0 0 12px #23c48333}.dc-branch.stale:after{color:var(--amber);border-color:#a47a24}.mimic-battery{width:calc((100% - 120px)/3);min-width:220px;max-width:300px;margin:0 auto}.mimic-battery>.mnode{height:100%}.mimic-bottom{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:min(680px,100%);margin:10px auto 0;align-items:stretch}.mimic-status{height:100%;min-width:0}.mimic-status .status-list{justify-content:center;margin-top:7px;gap:5px}.mimic-status .pill{font-size:10px}.load-util-gauge.mimic{margin:0;min-height:126px;padding:10px 12px;display:grid;grid-template-columns:130px minmax(0,1fr);grid-template-areas:'title title' 'meter values' 'meter note';column-gap:10px;align-items:center}.load-util-gauge.mimic .load-util-title{grid-area:title;font-size:11px}.load-util-gauge.mimic .load-util-svg{grid-area:meter;width:130px;margin:-2px auto -7px}.load-util-gauge.mimic .load-util-values{grid-area:values;display:grid;justify-content:stretch;gap:6px;margin:0;text-align:left;font-size:12px}.load-util-gauge.mimic .load-util-values span{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:4px}.load-util-gauge.mimic .load-util-note{grid-area:note;margin:0;text-align:left;font-size:10px;line-height:1.35}.load-util-gauge.mimic .load-util-number{font-size:24px}
 html[data-theme=dark]{color-scheme:dark}
 :root{--chart-bg:#091520;--chart-grid:#203444;--chart-grid-soft:#162a38;--chart-text:#9eb4c5}
@@ -46,6 +48,7 @@ html[data-theme=light] .performance-note{background:#fff8df;border-color:#b7983d
 html[data-theme=light] .analysis-session{background:#eaf8f1;border-color:#4c9c79}html[data-theme=light] .analysis-session b{color:#12603f}
 html[data-theme=light] .btn:disabled,html[data-theme=light] .btn.primary:disabled,html[data-theme=light] .btn.danger:disabled{opacity:1;background:#e6edf2;border-color:#9fb3c1;color:#40596a}
 html[data-theme=light] .load-util-gauge{background:#f7fafc}html[data-theme=light] .load-util-track{stroke:#d7e2e9}
+html[data-theme=light] .phase-profile-note{background:#f7fafc}
 body.embed .app{min-height:0}
 body.embed .top{height:52px;position:relative;padding:7px 12px}
 body.embed .top .brand,body.embed .top .unit{display:none}
@@ -60,6 +63,7 @@ body.embed .foot{display:none}
   .setting-item{grid-template-columns:1fr 90px}.setting-item .input{grid-column:1/2}.setting-item .btn{grid-column:2/3}.rectifier-box{align-items:stretch;flex-direction:column}.rectifier-actions .btn{flex:1}
   .relay-config{grid-template-columns:1fr 80px}.relay-channel-grid{grid-column:1/-1;grid-row:2;grid-template-columns:1fr}.relay-config>.btn{grid-column:2;grid-row:1}.calibration-row{grid-template-columns:1fr 1fr}.cal-name{grid-column:1/-1}.cal-control{border-left:0;border-top:1px solid var(--line);padding:10px 0 0}.calibration-row>.cal-control:nth-last-child(2),.calibration-row>.cal-control:last-child{grid-column:auto}
   .performance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.performance-card .perf-value{font-size:21px}.phase-strip{grid-template-columns:1fr}.mode-row{grid-template-columns:88px minmax(80px,1fr) 48px}.performance-chart{height:250px}
+  .phase-profile-grid{grid-template-columns:1fr 1fr}.phase-profile-grid .btn{grid-column:1/-1}
 }
 @media(max-width:620px){
   .mimic{grid-template-columns:1fr;gap:8px;min-height:0}.mimic .load-wire,.mimic .load-node{display:block}
@@ -68,6 +72,7 @@ body.embed .foot{display:none}
   .battery-row{grid-template-columns:1fr;gap:8px}.mnode{min-height:88px;padding:13px}.mnode .icon{font-size:26px}
   .chart-wrap{height:270px}.trend-controls input[type=range]{min-width:150px}.trend-y-value{width:100%;min-width:0;text-align:left}.measure-number{font-size:22px}.indicator-grid{grid-template-columns:1fr}.indicator{min-height:46px}
   .monitoring-metrics{grid-template-columns:minmax(0,1fr)}
+  .phase-profile-grid{grid-template-columns:1fr}
   .calibration-row{grid-template-columns:1fr}.cal-name,.cal-cell,.cal-control{grid-column:1/-1}.cal-cell{padding:4px 0}.cal-action-line{align-items:stretch;flex-direction:column}.cal-action-line .btn{width:100%}
   .mimic-compact{max-width:460px}.mimic-flow{grid-template-columns:1fr;gap:7px}.mimic-flow>.wire{width:4px;height:26px;margin:0 auto}.mimic-flow>.wire.live:after{content:'▼';right:-6px;top:auto;bottom:-12px}.mimic-compact .mnode{min-height:104px;padding:12px 14px}.dc-branch{height:48px}.mimic-battery{width:100%;min-width:0;max-width:none}.mimic-bottom{grid-template-columns:1fr;width:100%;gap:8px}.mimic-battery>.mnode,.mimic-status{min-height:104px}.load-util-gauge.mimic{min-height:128px}
   body{font-size:16px}.main{padding:12px}.card{padding:14px}.card h3{font-size:15px}.hint{font-size:14px;line-height:1.55}.tiny{font-size:12px;line-height:1.5}.nav button{font-size:14px}.metric .name{font-size:13px}.metric .value{font-size:30px}.metric-stat b{font-size:14px}.metric-period{font-size:12px}.measure-label{font-size:14px}.measure-number{font-size:29px}.indicator{min-height:54px;padding:11px 12px}.indicator-name{font-size:14px}.indicator-state{font-size:12px}.series-toggle,.legend-item{font-size:13px;padding:8px 10px}.trend-range,.trend-controls label,.trend-zoom-label,.trend-y-value{font-size:13px}.foot{font-size:12px}.theme-label{display:none}
@@ -100,7 +105,7 @@ body.embed .foot{display:none}
     <div class="field"><label>Email</label><input class="input" id="loginEmail" type="email" autocomplete="username"></div>
     <div class="field" style="margin-top:9px"><label>Password</label><input class="input" id="loginPassword" type="password" autocomplete="current-password"></div>
     <label class="show-password"><input id="showLoginPassword" type="checkbox">Tampilkan password</label>
-    <div class="account-links"><a href="my-devices.html?v=20260821h&auth=forgot">Lupa password?</a><a href="my-devices.html?v=20260821h&auth=register">Ajukan pendaftaran</a></div>
+    <div class="account-links"><a href="my-devices.html?v=20260821i&auth=forgot">Lupa password?</a><a href="my-devices.html?v=20260821i&auth=register">Ajukan pendaftaran</a></div>
     <div id="loginMsg" style="margin-top:10px"></div>
     <div class="login-actions"><button class="btn primary" id="loginSubmit">Login</button><button class="btn" id="loginCancel">Batal</button></div>
   </div>
@@ -145,12 +150,16 @@ const state={
 const menu=[['mimic','Mimic'],['monitoring','Monitoring'],['performance','Performance'],['settings','Settings'],['relays','Relays'],['events','Events'],['calibration','Calibration'],['users','Users']];
 const MONITOR_GROUPS=[
   {id:'voltage',title:'Voltage',series:[
-    {key:'ac_voltage_l1',aliases:['input_voltage','ac_input_voltage'],label:'V Input',unit:'V',color:'#32d3e4'},
+    {key:'ac_voltage_l1',aliases:['input_voltage','ac_input_voltage'],label:'V Input L1',unit:'V',color:'#32d3e4'},
+    {key:'ac_voltage_l2',aliases:[],label:'V Input L2',unit:'V',color:'#60a5fa'},
+    {key:'ac_voltage_l3',aliases:[],label:'V Input L3',unit:'V',color:'#a78bfa'},
     {key:'battery_voltage',aliases:['vbat'],label:'V Battery',unit:'V',color:'#f59e0b'},
     {key:'dc_load_voltage',aliases:['load_voltage','vl'],label:'V Load',unit:'V',color:'#23c483'}
   ]},
   {id:'current',title:'Current',series:[
-    {key:'ac_current_l1',aliases:['input_current','ac_input_current'],label:'I Input',unit:'A',color:'#32d3e4'},
+    {key:'ac_current_l1',aliases:['input_current','ac_input_current'],label:'I Input L1',unit:'A',color:'#32d3e4'},
+    {key:'ac_current_l2',aliases:[],label:'I Input L2',unit:'A',color:'#60a5fa'},
+    {key:'ac_current_l3',aliases:[],label:'I Input L3',unit:'A',color:'#a78bfa'},
     {key:'battery_current',aliases:['ibat'],label:'I Battery',unit:'A',color:'#f59e0b'},
     {key:'dc_load_current',aliases:['load_current','il'],label:'I Load',unit:'A',color:'#23c483'}
   ]},
@@ -238,6 +247,14 @@ function regMeta(key){
   return {value:null,stale:fresh.stale,captured_at:null,source:'none'};
 }
 function reg(key){return regMeta(key).value;}
+function phaseProfile(){
+  const p=state.monitor?.panel||state.panel||{},count=Number(p.ac_phase_count)===3?3:1;
+  const active=/^L[123]$/.test(String(p.active_phase||''))?String(p.active_phase):'L1';
+  return {count,active,label:count===3?'3 PHASE':`1 PHASE · ${active}`};
+}
+function activePhaseNumbers(){const p=phaseProfile();return p.count===3?[1,2,3]:[Number(p.active.slice(1))||1];}
+function phaseKeyVisible(key){const match=String(key||'').match(/_l([123])$/);return !match||activePhaseNumbers().includes(Number(match[1]));}
+function phaseFilteredSeries(series){return series.filter(def=>phaseKeyVisible(def.key));}
 function isOwner(){return state.membership?.role==='owner';}
 function perms(){
   if(isOwner())return {monitor:true,events:true,settings:true,relays:true,calibration:true,control:true,role:'owner'};
@@ -251,7 +268,7 @@ function buildNav(){
   $('nav').querySelectorAll('button').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
 }
 function openTab(id){
-  if(id==='users'){if(!isOwner()){locked('Users','Owner');return;}window.open('user-access.html?v=20260821h','_blank','noopener');return;}
+  if(id==='users'){if(!isOwner()){locked('Users','Owner');return;}window.open('user-access.html?v=20260821i','_blank','noopener');return;}
   const protectedTab=['settings','relays','calibration'].includes(id);
   if(protectedTab&&!state.user){showLogin(`${menu.find(x=>x[0]===id)?.[1]||id} memerlukan login user dan password HMI.`);return;}
   if(id==='settings'&&state.user&&!perms().settings&&!perms().control){locked('Settings','Settings / Control');return;}
@@ -273,11 +290,13 @@ function requestedHistoryHours(){
   return Math.max(state.hours,needed);
 }
 async function loadPublic(){
-  if(!serial){$('view').innerHTML='<div class="card locked-panel"><div class="big">▦</div><h3>Pilih Unit</h3><div class="hint">Buka halaman Unit Saya untuk memilih unit yang dapat Anda akses.</div><a class="btn primary" style="margin-top:14px;text-decoration:none;display:inline-block" href="my-devices.html?v=20260821h">Buka Unit Saya</a></div>';return;}
+  if(!serial){$('view').innerHTML='<div class="card locked-panel"><div class="big">▦</div><h3>Pilih Unit</h3><div class="hint">Buka halaman Unit Saya untuk memilih unit yang dapat Anda akses.</div><a class="btn primary" style="margin-top:14px;text-decoration:none;display:inline-block" href="my-devices.html?v=20260821i">Buka Unit Saya</a></div>';return;}
   try{
+    const previousProfile=state.monitor?phaseProfile().label:null;
     const r=await fetch(`${PUBLIC_MONITOR}/${encodeURIComponent(serial)}?hours=${requestedHistoryHours()}`);
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
     state.monitor=d;
+    if(previousProfile&&previousProfile!==phaseProfile().label)state.trends={};
     state.lastHttpAt=Date.now();
     if(state.monitor?.latest&&!state.monitor.latest.updated_at){
       state.monitor.latest.updated_at=state.monitor.latest.captured_at||state.monitor?.status?.last_seen||null;
@@ -388,7 +407,7 @@ async function realtimeWatchdog(){
 async function loadSecure(){
   const {data:{session}}=await sb.auth.getSession();state.user=session?.user||null;
   if(!state.user){state.panel=state.membership=state.access=null;state.settingsUnlocked=false;state.settingsPin='';state.settingValues=null;state.settingsAutoLoadAttempted=false;state.relayValues=null;state.relayAutoLoadAttempted=false;state.relayWriteUnlocked=false;state.calibrationValues=null;state.calibrationAutoLoadAttempted=false;state.calibrationWriteUnlocked=false;updateAuth();buildNav();return;}
-  const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,active').eq('serial_number',serial).maybeSingle();
+  const {data:p}=await sb.from('pv_panels').select('id,organization_id,gateway_id,name,model,serial_number,binding_type,binding_label,device_profile,ac_phase_count,active_phase,register_profile,active').eq('serial_number',serial).maybeSingle();
   state.panel=p||null;
   if(p){
     const [{data:m},{data:a}]=await Promise.all([
@@ -471,16 +490,19 @@ function loadUtilizationGauge(location='mimic'){
   return `<div class="load-util-gauge ${location} ${band}" role="group" aria-label="${esc(aria)}"><div class="load-util-title">DC Load Utilization</div><svg class="load-util-svg" viewBox="0 0 220 125" role="img" aria-hidden="true"><defs><linearGradient id="${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#23c483"/><stop offset="58%" stop-color="#23c483"/><stop offset="72%" stop-color="#f5c542"/><stop offset="83%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs><path class="load-util-track" d="M25 105 A85 85 0 0 1 195 105" pathLength="120"/><path class="load-util-scale" d="M25 105 A85 85 0 0 1 195 105" pathLength="120" stroke="url(#${uid})"/><line class="load-util-needle" x1="110" y1="105" x2="110" y2="35" style="transform:rotate(${angle}deg)"/><circle class="load-util-hub" cx="110" cy="105" r="6"/><text class="load-util-number" x="110" y="84" text-anchor="middle">${d.valid?fmt(d.percent,1)+'%':'N/A'}</text><text class="load-util-scale-label" x="19" y="121">0</text><text class="load-util-scale-label" x="104" y="18">60</text><text class="load-util-scale-label" x="174" y="56">100</text><text class="load-util-scale-label" x="194" y="121">120%</text></svg><div class="load-util-values"><span>Actual <b>${fmt(d.current,1)} A</b></span><span>Limit <b>${fmt(d.limit,1)} A</b></span></div>${stats}<div class="load-util-note">${note}</div></div>`;
 }
 function renderMimic(){
-  const acM=regMeta('ac_voltage_l1'),acIM=regMeta('ac_current_l1'),freqM=regMeta('frequency'),dcM=regMeta('dc_load_voltage'),loadIM=regMeta('dc_load_current'),batM=regMeta('battery_voltage'),batIM=regMeta('battery_current'),highM=regMeta('led_high16'),lowM=regMeta('led_low16');
-  const ac=toNum(acM.value),acI=toNum(acIM.value),freq=toNum(freqM.value),dc=toNum(dcM.value),loadI=toNum(loadIM.value),bat=toNum(batM.value),batI=toNum(batIM.value),high=toNum(highM.value),low=toNum(lowM.value);
+  const profile=phaseProfile(),phases=activePhaseNumbers(),phaseData=phases.map(n=>({n,vMeta:regMeta(`ac_voltage_l${n}`),iMeta:regMeta(`ac_current_l${n}`)}));
+  const freqM=regMeta('frequency'),dcM=regMeta('dc_load_voltage'),loadIM=regMeta('dc_load_current'),batM=regMeta('battery_voltage'),batIM=regMeta('battery_current'),highM=regMeta('led_high16'),lowM=regMeta('led_low16');
+  const freq=toNum(freqM.value),dc=toNum(dcM.value),loadI=toNum(loadIM.value),bat=toNum(batM.value),batI=toNum(batIM.value),high=toNum(highM.value),low=toNum(lowM.value);
+  const gridRows=profile.count===3?phaseData.map(x=>({label:`Phase L${x.n}`,value:`${fmt(x.vMeta.value,1)} V · ${fmt(x.iMeta.value,1)} A`,unit:''})):[{label:'Voltage',value:fmt(phaseData[0]?.vMeta.value,1),unit:'V'},{label:'Current',value:fmt(phaseData[0]?.iMeta.value,1),unit:'A'}];
+  gridRows.push({label:'Frequency',value:fmt(freq,1),unit:'Hz'});
   const highValid=high!==null,lowValid=low!==null;
-  const gridAnalog=ac!==null&&freq!==null&&ac>50&&freq>40;
+  const gridAnalog=phaseData.some(x=>toNum(x.vMeta.value)>50)&&freq!==null&&freq>40;
   const grid=highValid?!!(high&0x80):gridAnalog;
   const batMcb=lowValid?!!(low&0x01):bat!==null&&bat>10;
   const loadMcb=lowValid?!!(low&0x02):dc!==null&&dc>10;
   const dcLive=dc!==null&&dc>10,batLive=bat!==null&&bat>10;
-  const gridStale=acM.stale||acIM.stale||freqM.stale||highM.stale,dcStale=dcM.stale||loadIM.stale||lowM.stale,batStale=batM.stale||batIM.stale||lowM.stale,statusStale=highM.stale||lowM.stale;
-  const gridState=(ac===null&&freq===null&&!highValid)?'unknown':gridStale?'stale':grid?'active':'off';
+  const gridStale=phaseData.some(x=>x.vMeta.stale||x.iMeta.stale)||freqM.stale||highM.stale,dcStale=dcM.stale||loadIM.stale||lowM.stale,batStale=batM.stale||batIM.stale||lowM.stale,statusStale=highM.stale||lowM.stale;
+  const gridState=(phaseData.every(x=>toNum(x.vMeta.value)===null)&&freq===null&&!highValid)?'unknown':gridStale?'stale':grid?'active':'off';
   // Status rectifier mengikuti LED High 0x26 seperti HMI lokal. Tegangan bus DC
   // tidak dapat dijadikan acuan karena baterai tetap menjaga bus saat rectifier OFF.
   const rectModeMask=0x0078;
@@ -509,10 +531,10 @@ function renderMimic(){
   const staleBanner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir sudah lebih dari 5 menit; nilai terakhir tetap ditampilkan. Age ${esc(ageText(fresh.age_ms))}; animasi aliran dihentikan sampai poll berikutnya berhasil.</div>`:'';
   $('view').innerHTML=`
   ${staleBanner}
-  <div class="card"><h3>Mimic Diagram · ${esc(serial)}</h3>
+  <div class="card"><h3>Mimic Diagram · ${esc(serial)} · ${esc(profile.label)}</h3>
     <div class="mimic-compact">
       <div class="mimic-flow">
-        ${node('⚡','GRID',[{label:'Voltage',value:fmt(ac,1),unit:'V'},{label:'Current',value:fmt(acI,1),unit:'A'},{label:'Frequency',value:fmt(freq,1),unit:'Hz'}],gridState)}
+        ${node('⚡',`GRID · ${profile.count===3?'3Ø':`1Ø ${profile.active}`}`,gridRows,gridState)}
         <div class="wire ${gridStale?'stale':grid?'live':''}"></div>
         ${node('▣','RECTIFIER',[{label:'Mode',value:mode,unit:''}],rectState)}
         <div class="wire ${dcStale?'stale':(dcLive&&loadMcb)?'live':''}"></div>
@@ -522,7 +544,7 @@ function renderMimic(){
       <div class="mimic-battery">${node('▥','BATTERY',[{label:'Voltage',value:fmt(bat,1),unit:'V'},{label:'Current',value:fmt(batI,1),unit:'A'}],batState)}</div>
       <div class="mimic-bottom">
         ${loadUtilizationGauge('mimic')}
-        <div class="mnode mimic-status"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list">${statusPill('GRID',grid,statusStale)}${statusPill('MCB LOAD',loadMcb,statusStale)}${statusPill('MCB BATTERY',batMcb,statusStale)}</div><div class="status-list"><span class="pill">MODBUS: ${fresh.stale?'DATA LAMA':status().modbus_ok?'OK':'OFF'}</span><span class="pill">Age: ${esc(ageText(fresh.age_ms))}</span><span class="pill">Poll: ${fresh.poll_success_pct===null?'—':fmt(fresh.poll_success_pct,1)+'%'}</span></div></div>
+        <div class="mnode mimic-status"><div class="title">SYSTEM STATUS</div><div class="sub">Gateway ${esc(state.monitor?.gateway?.id||state.monitor?.gateway_id||'—')}</div><div class="status-list"><span class="pill">${esc(profile.label)}</span>${statusPill('GRID',grid,statusStale)}${statusPill('MCB LOAD',loadMcb,statusStale)}${statusPill('MCB BATTERY',batMcb,statusStale)}</div><div class="status-list"><span class="pill">MODBUS: ${fresh.stale?'DATA LAMA':status().modbus_ok?'OK':'OFF'}</span><span class="pill">Age: ${esc(ageText(fresh.age_ms))}</span><span class="pill">Poll: ${fresh.poll_success_pct===null?'—':fmt(fresh.poll_success_pct,1)+'%'}</span></div></div>
       </div>
     </div>
   </div>
@@ -722,11 +744,11 @@ function drawChart(){
 function trendState(groupId){
   if(!state.trends[groupId]){
     const group=MONITOR_GROUPS.find(g=>g.id===groupId);
-    state.trends[groupId]={followLive:true,endTime:null,scrollBusy:false,yMinPct:100,selected:new Set((group?.series||[]).map(s=>s.key))};
+    state.trends[groupId]={followLive:true,endTime:null,scrollBusy:false,yMinPct:100,selected:new Set(phaseFilteredSeries(group?.series||[]).map(s=>s.key))};
   }
   return state.trends[groupId];
 }
-function groupSeries(group){return group.series.map(def=>({...def,resolvedKey:resolveKey(def)}));}
+function groupSeries(group){return phaseFilteredSeries(group.series).map(def=>({...def,resolvedKey:resolveKey(def)}));}
 function parameterStats(def){
   if(!def.resolvedKey)return {min:null,max:null,range:null,count:0};
   const cutoff=Date.now()-Math.max(1,state.hours)*3600000;
@@ -752,9 +774,9 @@ function groupPanel(group){
   return `<section class="card monitor-card" data-monitor-group="${esc(group.id)}"><div class="group-head"><div><h3>${esc(group.title)}</h3><div class="hint">Pilih satu atau beberapa parameter pada trend yang sama.</div></div><div class="series-switches">${switches}</div></div><div class="grid monitoring-metrics" id="metrics-${esc(group.id)}" style="margin-top:12px">${groupMetricCards(group)}</div><div class="legend" id="legend-${esc(group.id)}">${legend}</div><div class="chart-wrap"><canvas id="chart-${esc(group.id)}"></canvas></div><div class="trend-scroll" id="trend-scroll-${esc(group.id)}"><div class="trend-scroll-spacer" id="trend-spacer-${esc(group.id)}"></div></div><div class="trend-range"><span id="trend-from-${esc(group.id)}">—</span><span id="trend-mode-${esc(group.id)}" class="trend-live">LIVE · 5 menit terbaru</span><span id="trend-to-${esc(group.id)}">—</span></div><div class="trend-controls"><label for="trend-y-${esc(group.id)}">Y-Min · Zoom Y</label><span class="trend-zoom-label">0 / Zoom Out</span><input id="trend-y-${esc(group.id)}" type="range" min="0" max="100" step="1" value="${ts.yMinPct}"><span class="trend-zoom-label">Min data / Zoom In</span><span class="trend-y-value" id="trend-y-value-${esc(group.id)}">—</span></div><div class="hint" id="chart-info-${esc(group.id)}"></div></section>`;
 }
 function renderMonitoring(){
-  const fresh=dataFreshness();
+  const fresh=dataFreshness(),profile=phaseProfile();
   const banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · data valid terakhir > 5 menit · Last Good Value dipertahankan · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
-  $('view').innerHTML=`${banner}<div class="card"><div class="toolbar" style="margin:0"><h3 style="margin:0;flex:1">Monitoring & Trend History</h3><select class="select" id="hours"><option value="1">Histori 1 jam</option><option value="12">Histori 12 jam</option><option value="24">Histori 24 jam</option></select><button class="btn" id="refresh">Refresh</button></div></div><div class="monitor-groups">${MONITOR_GROUPS.map(groupPanel).join('')}</div>`;
+  $('view').innerHTML=`${banner}<div class="card"><div class="toolbar" style="margin:0"><div style="flex:1"><h3 style="margin:0">Monitoring & Trend History · ${esc(profile.label)}</h3><div class="hint">Kanal AC mengikuti profil fase unit; kanal yang tidak digunakan tidak ditampilkan.</div></div><select class="select" id="hours"><option value="1">Histori 1 jam</option><option value="12">Histori 12 jam</option><option value="24">Histori 24 jam</option></select><button class="btn" id="refresh">Refresh</button></div></div><div class="monitor-groups">${MONITOR_GROUPS.map(groupPanel).join('')}</div>`;
   $('hours').value=String(state.hours);
   $('hours').onchange=async e=>{state.hours=Number(e.target.value)||1;for(const g of MONITOR_GROUPS){const ts=trendState(g.id);ts.followLive=true;ts.endTime=null;}await loadPublic();};
   $('refresh').onclick=loadPublic;
@@ -875,11 +897,10 @@ function integrateKwh(points){
   return accepted?energy:null;
 }
 function inputApparentPower(){
-  const voltages=['ac_voltage_l1','ac_voltage_l2','ac_voltage_l3'].map(currentValue),currents=['ac_current_l1','ac_current_l2','ac_current_l3'].map(currentValue);
-  const active=voltages.map((v,index)=>({v,i:currents[index]})).filter(x=>x.v!==null&&x.v>20&&x.i!==null);
-  if(active.length===1)return {value:active[0].v*active[0].i/1000,detail:'Auto 1 fase · V×I · bukan real power kW'};
-  if(active.length===3){const avgV=active.reduce((s,x)=>s+x.v,0)/3,avgI=active.reduce((s,x)=>s+x.i,0)/3;return {value:Math.sqrt(3)*avgV*avgI/1000,detail:'Indikasi 3 fase dengan asumsi V line-line · bukan real power kW'};}
-  return {value:null,detail:'Konfigurasi kanal AC belum dapat ditentukan'};
+  const profile=phaseProfile(),active=activePhaseNumbers().map(n=>({n,v:currentValue(`ac_voltage_l${n}`),i:currentValue(`ac_current_l${n}`)}));
+  if(active.some(x=>x.v===null||x.i===null))return {value:null,detail:`Data ${profile.label} belum lengkap`};
+  const value=active.reduce((sum,x)=>sum+x.v*x.i,0)/1000;
+  return {value,detail:profile.count===3?'3 fase · Σ(V fase×I fase) · bukan real power kW':`${profile.active} · V×I · bukan real power kW`};
 }
 function phaseBalance(keys,minAverage=.1){
   const values=keys.map(currentValue);if(values.some(v=>v===null))return null;
@@ -910,7 +931,7 @@ function modeBarsHtml(){
   return `<div class="mode-bars">${mode.rows.map(row=>`<div class="mode-row"><div class="mode-label">${esc(row.name)}</div><div class="mode-track"><div class="mode-fill ${row.cls}" style="width:${Math.max(0,Math.min(100,row.pct||0))}%"></div></div><div class="mode-value">${fmt(row.pct,1)}%</div></div>`).join('')}</div><div class="hint" style="margin-top:10px">Distribusi berdasarkan ${mode.valid} sampel register LED High 0x26. Sampel dengan satu atau lebih alarm aktif: <b>${fmt(mode.alarmPct,1)}%</b>.</div>`;
 }
 function phaseStripHtml(){
-  const phases=[1,2,3];return `<div class="phase-strip">${phases.map(n=>`<div class="phase-cell"><span>AC CHANNEL L${n}</span><b>${fmt(currentValue(`ac_voltage_l${n}`),1)} V</b><b>${fmt(currentValue(`ac_current_l${n}`),1)} A</b></div>`).join('')}</div>`;
+  const phases=activePhaseNumbers();return `<div class="phase-strip ${phases.length===1?'one':'three'}">${phases.map(n=>`<div class="phase-cell"><span>AC CHANNEL L${n}</span><b>${fmt(currentValue(`ac_voltage_l${n}`),1)} V</b><b>${fmt(currentValue(`ac_current_l${n}`),1)} A</b></div>`).join('')}</div>`;
 }
 function performancePowerHtml(){
   const vLoad=currentValue('dc_load_voltage'),iLoad=currentValue('dc_load_current'),vBat=currentValue('battery_voltage'),iBat=currentValue('battery_current'),loadPower=vLoad===null||iLoad===null?null:vLoad*iLoad/1000,batteryPower=vBat===null||iBat===null?null:vBat*iBat/1000,loadPoints=powerPoints('dc_load_voltage','dc_load_current',false),batteryPoints=powerPoints('battery_voltage','battery_current',false),input=inputApparentPower(),stale=dataFreshness().stale;
@@ -924,13 +945,18 @@ function performancePowerHtml(){
   ].join('');
 }
 function performanceStabilityHtml(){
+  const profile=phaseProfile(),acCards=activePhaseNumbers().flatMap(n=>[
+    stabilityCard(`AC Voltage L${n} Variation`,`ac_voltage_l${n}`,'V'),stabilityCard(`AC Current L${n} Variation`,`ac_current_l${n}`,'A')
+  ]),balanceCards=profile.count===3?[
+    performanceCard('AC Voltage Balance',fmt(phaseBalance(['ac_voltage_l1','ac_voltage_l2','ac_voltage_l3'],20),2),'%','INDICATION','Deviasi maksimum L1–L3 terhadap rata-rata',dataFreshness().stale),
+    performanceCard('AC Current Balance',fmt(phaseBalance(['ac_current_l1','ac_current_l2','ac_current_l3'],.1),2),'%','INDICATION','Deviasi maksimum L1–L3 terhadap rata-rata',dataFreshness().stale)
+  ]:[];
   return [
-    stabilityCard('AC Voltage L1 Variation','ac_voltage_l1','V'),stabilityCard('AC Current L1 Variation','ac_current_l1','A'),
+    ...acCards,
     stabilityCard('DC Load Voltage Variation','dc_load_voltage','V'),stabilityCard('DC Load Current Variation','dc_load_current','A'),
     stabilityCard('Battery Voltage Variation','battery_voltage','V'),stabilityCard('Battery Current Variation','battery_current','A'),
     stabilityCard('Frequency Variation','frequency','Hz'),stabilityCard('Temperature Variation','internal_temperature','°C'),
-    performanceCard('AC Voltage Balance',fmt(phaseBalance(['ac_voltage_l1','ac_voltage_l2','ac_voltage_l3'],20),2),'%','INDICATION','Deviasi maksimum L1–L3 terhadap rata-rata',dataFreshness().stale),
-    performanceCard('AC Current Balance',fmt(phaseBalance(['ac_current_l1','ac_current_l2','ac_current_l3'],.1),2),'%','INDICATION','Deviasi maksimum L1–L3 terhadap rata-rata',dataFreshness().stale)
+    ...balanceCards
   ].join('');
 }
 function performanceCommunicationHtml(){
@@ -958,8 +984,8 @@ function updatePerformanceView(){
   if(summary)summary.innerHTML=performanceFilterSummaryHtml();if(power)power.innerHTML=performancePowerHtml();if(stability)stability.innerHTML=performanceStabilityHtml();if(phase)phase.innerHTML=phaseStripHtml();if(mode)mode.innerHTML=modeBarsHtml();if(comm)comm.innerHTML=performanceCommunicationHtml();requestAnimationFrame(drawPerformancePowerChart);
 }
 function renderPerformance(){
-  const fresh=dataFreshness(),filter=performanceFilterInfo(),banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · perhitungan mempertahankan Last Good Value · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
-  $('view').innerHTML=`<div data-performance-view>${banner}<div class="card"><div class="toolbar" style="margin:0"><div style="flex:1"><h3 style="margin:0">Performance Information · Modbus Derived</h3><div class="hint">Informasi performa operasional dari register dan histori yang sudah tersedia.</div></div><select class="select" id="performanceHours"><option value="1">Histori 1 jam</option><option value="12">Histori 12 jam</option><option value="24">Histori 24 jam</option></select><label class="performance-filter"><input id="performanceActiveOnly" type="checkbox">Hanya saat beban aktif</label><button class="btn" id="performanceRefresh">Refresh</button></div><div class="performance-filter-summary"><b>${filter.used} sampel digunakan</b> · ${filter.active} beban aktif · ${filter.idle} No Load (I Load = 0 A)${filter.missing?` · ${filter.missing} tanpa data arus`:''}. ${state.performanceActiveOnly?'Sampel No Load tidak ikut statistik, power, energy, stability, dan operating performance.':'Semua sampel disertakan.'}</div></div><div class="card performance-note"><div class="big">ⓘ</div><div><b>Batasan informasi pengukuran</b>Informasi performa pada halaman ini dihitung dari data polling Modbus yang berasal dari sensor internal sistem. Nilai yang ditampilkan bukan hasil pengukuran langsung menggunakan alat ukur eksternal yang telah dikalibrasi. Informasi ini ditujukan untuk monitoring operasional, analisis tren, dan indikasi kondisi unit, bukan sebagai pengganti hasil pengujian atau sertifikat kalibrasi.</div></div><div class="card"><h3>Power & Energy</h3><div class="performance-grid" id="performancePowerGrid">${performancePowerHtml()}</div><div class="performance-chart-legend"><span><i style="background:#32d3e4"></i>DC Load Power</span><span><i style="background:#f59e0b"></i>Battery Power</span></div><div class="chart-wrap performance-chart" style="margin-top:8px"><canvas id="performancePowerChart"></canvas></div><div class="hint" id="performanceChartInfo"></div></div><div class="card"><h3>Stability & Phase Indication</h3><div class="hint">Variation menampilkan σ/rata-rata. Ketika nilai rata-rata mendekati nol, yang ditampilkan adalah range absolut.</div><div class="performance-grid" id="performanceStabilityGrid" style="margin-top:11px">${performanceStabilityHtml()}</div><div id="performancePhaseStrip">${phaseStripHtml()}</div></div><div class="card"><h3>Operating Performance</h3><div id="performanceModeBars">${modeBarsHtml()}</div></div><div class="card"><h3>Communication Health</h3><div class="performance-grid" id="performanceCommunicationGrid">${performanceCommunicationHtml()}</div></div><div class="card"><h3>Belum Dapat Dihitung dari Register Saat Ini</h3><div class="hint">Parameter berikut tidak ditampilkan sebagai angka agar tidak menimbulkan interpretasi yang keliru.</div><div class="performance-unavailable"><span>Real Input Power (kW)</span><span>Efficiency</span><span>Power Factor</span><span>Harmonics / THD</span><span>Inrush Current</span><span>DC Ripple</span></div><div class="hint" style="margin-top:10px">*Input Apparent Power adalah indikasi kVA berdasarkan kanal V/I yang aktif, bukan real input power dan bukan dasar perhitungan efficiency.</div></div></div>`;
+  const fresh=dataFreshness(),filter=performanceFilterInfo(),profile=phaseProfile(),banner=fresh.stale?`<div class="stale-banner"><b>DATA LAMA</b> · perhitungan mempertahankan Last Good Value · age ${esc(ageText(fresh.age_ms))}.</div>`:'';
+  $('view').innerHTML=`<div data-performance-view>${banner}<div class="card"><div class="toolbar" style="margin:0"><div style="flex:1"><h3 style="margin:0">Performance Information · ${esc(profile.label)}</h3><div class="hint">Informasi performa operasional mengikuti profil fase unit dan histori Modbus yang tersedia.</div></div><select class="select" id="performanceHours"><option value="1">Histori 1 jam</option><option value="12">Histori 12 jam</option><option value="24">Histori 24 jam</option></select><label class="performance-filter"><input id="performanceActiveOnly" type="checkbox">Hanya saat beban aktif</label><button class="btn" id="performanceRefresh">Refresh</button></div><div class="performance-filter-summary"><b>${filter.used} sampel digunakan</b> · ${filter.active} beban aktif · ${filter.idle} No Load (I Load = 0 A)${filter.missing?` · ${filter.missing} tanpa data arus`:''}. ${state.performanceActiveOnly?'Sampel No Load tidak ikut statistik, power, energy, stability, dan operating performance.':'Semua sampel disertakan.'}</div></div><div class="card performance-note"><div class="big">ⓘ</div><div><b>Batasan informasi pengukuran</b>Informasi performa pada halaman ini dihitung dari data polling Modbus yang berasal dari sensor internal sistem. Nilai yang ditampilkan bukan hasil pengukuran langsung menggunakan alat ukur eksternal yang telah dikalibrasi. Informasi ini ditujukan untuk monitoring operasional, analisis tren, dan indikasi kondisi unit, bukan sebagai pengganti hasil pengujian atau sertifikat kalibrasi.</div></div><div class="card"><h3>Power & Energy</h3><div class="performance-grid" id="performancePowerGrid">${performancePowerHtml()}</div><div class="performance-chart-legend"><span><i style="background:#32d3e4"></i>DC Load Power</span><span><i style="background:#f59e0b"></i>Battery Power</span></div><div class="chart-wrap performance-chart" style="margin-top:8px"><canvas id="performancePowerChart"></canvas></div><div class="hint" id="performanceChartInfo"></div></div><div class="card"><h3>Stability & Phase Indication · ${esc(profile.label)}</h3><div class="hint">Variation menampilkan σ/rata-rata. Ketika nilai rata-rata mendekati nol, yang ditampilkan adalah range absolut. Phase balance hanya dihitung untuk profil 3 phase.</div><div class="performance-grid" id="performanceStabilityGrid" style="margin-top:11px">${performanceStabilityHtml()}</div><div id="performancePhaseStrip">${phaseStripHtml()}</div></div><div class="card"><h3>Operating Performance</h3><div id="performanceModeBars">${modeBarsHtml()}</div></div><div class="card"><h3>Communication Health</h3><div class="performance-grid" id="performanceCommunicationGrid">${performanceCommunicationHtml()}</div></div><div class="card"><h3>Belum Dapat Dihitung dari Register Saat Ini</h3><div class="hint">Parameter berikut tidak ditampilkan sebagai angka agar tidak menimbulkan interpretasi yang keliru.</div><div class="performance-unavailable"><span>Real Input Power (kW)</span><span>Efficiency</span><span>Power Factor</span><span>Harmonics / THD</span><span>Inrush Current</span><span>DC Ripple</span></div><div class="hint" style="margin-top:10px">*Input Apparent Power adalah indikasi kVA berdasarkan kanal V/I yang aktif, bukan real input power dan bukan dasar perhitungan efficiency.</div></div></div>`;
   const hoursSelect=$('performanceHours');hoursSelect.value=String(state.hours);hoursSelect.disabled=!!state.performanceSince;hoursSelect.title=state.performanceSince?'Gunakan Semua Histori untuk mengganti rentang waktu':'';hoursSelect.onchange=async e=>{state.hours=Number(e.target.value)||1;await loadPublic();};
   const zeroFilter=$('performanceActiveOnly');zeroFilter.checked=state.performanceActiveOnly;zeroFilter.parentElement.lastChild.textContent=' Abaikan arus 0 A';zeroFilter.onchange=e=>{state.performanceActiveOnly=e.target.checked;renderPerformance();};
   const refresh=$('performanceRefresh'),analysisActions=document.createElement('div');analysisActions.className='analysis-actions';analysisActions.innerHTML=`<button class="btn primary" id="performanceStartNow">${state.performanceSince?'↻ Restart Analisis':'▶ Analyze From Now'}</button>${state.performanceSince?'<button class="btn" id="performanceUseAll">Gunakan Semua Histori</button>':''}`;refresh.before(analysisActions);
@@ -1064,13 +1090,35 @@ function lockProtectedViews(){
   state.calibrationValues=null;state.calibrationAutoLoadAttempted=false;state.calibrationWriteUnlocked=false;state.calibrationMessage='';
   state.tab='mimic';buildNav();render();
 }
+function phaseProfileCardHtml(canSettings){
+  const profile=phaseProfile();
+  return `<div class="card phase-profile-card"><h3>Unit Display Profile · Universal 1P/3P</h3><div class="phase-profile-current"><span class="pill"><span class="dot ok"></span>Aktif: ${esc(profile.label)}</span><span class="pill">Modbus: PESS RBC General</span></div><div class="phase-profile-grid" style="margin-top:12px"><div class="field"><label>Jumlah Fase Unit</label><select class="select" id="phaseCountSelect" ${canSettings?'':'disabled'}><option value="1" ${profile.count===1?'selected':''}>1 Phase</option><option value="3" ${profile.count===3?'selected':''}>3 Phase</option></select></div><div class="field" id="activePhaseField"><label>Kanal Aktif untuk 1 Phase</label><select class="select" id="activePhaseSelect" ${canSettings?'':'disabled'}>${[1,2,3].map(n=>`<option value="L${n}" ${profile.active===`L${n}`?'selected':''}>L${n}</option>`).join('')}</select></div><button class="btn primary" id="savePhaseProfileBtn" ${canSettings?'':'disabled'}>Simpan Profil</button></div><div class="phase-profile-note"><b>1 Phase:</b> hanya kanal yang dipilih ditampilkan. <b>3 Phase:</b> L1, L2, dan L3 ditampilkan serta masuk histori dan analisis phase balance. Perubahan ini tidak menulis register rectifier dan tidak menambah polling Modbus.</div><div id="phaseProfileMessage" style="margin-top:10px"></div></div>`;
+}
+function refreshPhaseProfileForm(){
+  const count=Number($('phaseCountSelect')?.value)||1,field=$('activePhaseField');if(field)field.style.display=count===1?'block':'none';
+}
+async function savePhaseProfile(){
+  const count=Number($('phaseCountSelect')?.value),active=count===1?$('activePhaseSelect')?.value:null,msg=$('phaseProfileMessage'),button=$('savePhaseProfileBtn');
+  if(![1,3].includes(count)||count===1&&!/^L[123]$/.test(active||'')){if(msg)msg.innerHTML='<div class="error">Profil fase tidak valid.</div>';return;}
+  const label=count===3?'3 PHASE':`1 PHASE · ${active}`;
+  if(!confirm(`Ubah profil tampilan ${serial} menjadi ${label}?\n\nTidak ada register rectifier yang ditulis.`))return;
+  button.disabled=true;if(msg)msg.innerHTML='<div class="hint">Menyimpan profil unit…</div>';
+  const {data,error}=await sb.rpc('pv_set_panel_phase_profile',{p_serial:serial,p_pin:state.settingsPin,p_phase_count:count,p_active_phase:active});
+  button.disabled=false;
+  if(error){if(msg)msg.innerHTML=`<div class="error">Gagal menyimpan: ${esc(error.message)}</div>`;return;}
+  if(!data?.ok){if(msg)msg.innerHTML=`<div class="error">${esc(data?.message||'Profil tidak dapat disimpan.')}</div>`;return;}
+  if(state.panel){state.panel.ac_phase_count=count;state.panel.active_phase=active;}
+  state.trends={};await loadPublic();renderSettings();
+  const saved=$('phaseProfileMessage');if(saved)saved.innerHTML=`<div class="success">Profil ${esc(label)} berhasil disimpan. Mimic, Monitoring, dan Performance sudah mengikuti profil baru.</div>`;
+}
 function renderSettings(){
   if(!tabAllowed('settings')){state.tab='mimic';buildNav();return renderMimic();}
   const p=perms(),canSettings=!!p.settings,canControl=!!p.control;
-  $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC-02.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn data-control-mode="settings" id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Akses HMI</button></div></div><div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn data-control-mode="control" onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn data-control-mode="control" onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
+  $('view').innerHTML=`<div data-settings-view><div class="card"><h3>Settings · akses <span class="role">${esc(p.role)}</span></h3><div class="success"><b>Guarded Remote Control siap.</b> Login, permission, PIN HMI, status online/Modbus, TTL 30 detik, whitelist register, FC06 dan read-back diperiksa pada setiap perintah.</div><ul class="safety-list"><li>Remote Write pada ESP32 harus diaktifkan secara lokal melalui hotspot 192.168.4.1.</li><li>Periksa nilai pada TFT fisik setelah perubahan pertama.</li><li>Jangan gunakan kontrol remote saat pekerjaan listrik sedang berlangsung di panel.</li></ul><div id="commandMessage" class="command-message ${state.commandMessage?'notice':'hint'}">${esc(state.commandMessage||'Tekan Refresh Settings untuk membaca nilai aktual RBC.')}</div><div class="control-row" style="margin-top:12px"><button class="btn" data-control-btn data-control-mode="settings" id="refreshSettingsBtn" ${canSettings&&!state.commandBusy?'':'disabled'}>Refresh Settings</button><button class="btn" id="lockSettingsBtn">Kunci Akses HMI</button></div></div>${phaseProfileCardHtml(canSettings)}<div class="card"><h3>Rectifier Control · Register 0x0F</h3><div class="rectifier-box"><div><b>Charger / Rectifier</b><div class="hint">0 = OFF · 1 = ON · selalu dengan read-back</div></div><div class="rectifier-actions"><button class="btn primary" data-control-btn data-control-mode="control" onclick="setRectifier(1)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER ON</button><button class="btn danger" data-control-btn data-control-mode="control" onclick="setRectifier(0)" ${canControl&&!state.commandBusy?'':'disabled'}>RECTIFIER OFF</button></div></div>${canControl?'':'<div class="hint" style="margin-top:10px">User ini tidak memiliki izin can_control.</div>'}</div><div class="setting-groups"><div class="card"><h3>Voltage Settings</h3>${settingRows(SETTING_DEFS.voltage,canSettings)}</div><div class="card"><h3>Current Settings</h3>${settingRows(SETTING_DEFS.current,canSettings)}</div><div class="card"><h3>Mode, Boost & Battery Test</h3>${settingRows(SETTING_DEFS.mode,canSettings)}</div></div><div class="card"><h3>Ubah Password Settings</h3><div class="pin-note notice"><div class="big">🔐</div><div>Password tersimpan terpusat dan terenkripsi. Password baru harus 6 digit angka. Setelah diganti, password baru berlaku pada desktop dan mobile.</div></div><div class="form-grid" style="margin-top:12px"><div class="field"><label>Password Saat Ini</label><input class="input" id="pinCurrent" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></div><div class="field"><label>Password Baru</label><input class="input" id="pinNew" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div><div class="field"><label>Ulangi Password Baru</label><input class="input" id="pinConfirm" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></div></div><div id="changePinMsg" style="margin-top:10px"></div><div class="control-row" style="margin-top:12px"><button class="btn primary" id="changePinBtn">Simpan Password Baru</button></div><div class="hint" style="margin-top:12px">Lupa password? Hubungi Admin PT. Sarana Andalan Elektrika (PT. SAE) untuk reset ke password awal 888888.</div></div></div>`;
   const showPinLabel=document.createElement('label');showPinLabel.className='show-password';showPinLabel.innerHTML='<input id="showChangePin" type="checkbox">Tampilkan password';$('changePinMsg').before(showPinLabel);bindPasswordToggle('showChangePin',['pinCurrent','pinNew','pinConfirm']);
   $('refreshSettingsBtn').onclick=()=>{state.settingsAutoLoadAttempted=true;loadRemoteSettings()};
   $('lockSettingsBtn').onclick=lockProtectedViews;
+  $('phaseCountSelect').onchange=refreshPhaseProfileForm;refreshPhaseProfileForm();$('savePhaseProfileBtn').onclick=savePhaseProfile;
   $('changePinBtn').onclick=async()=>{
     const current=$('pinCurrent').value.trim(),next=$('pinNew').value.trim(),confirm=$('pinConfirm').value.trim(),msg=$('changePinMsg');
     if(!/^\d{6}$/.test(current)||!/^\d{6}$/.test(next)){msg.innerHTML='<div class="error">Password saat ini dan password baru harus tepat 6 digit angka.</div>';return;}
