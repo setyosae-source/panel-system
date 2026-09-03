@@ -646,6 +646,35 @@ function monitorEscape(value=''){
   return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
 
+function monitoringPhaseProfile(data=monitorState.data){
+  const panel=data?.panel||{},count=Number(panel.ac_phase_count)===3?3:1;
+  const active=/^L[123]$/.test(String(panel.active_phase||''))?String(panel.active_phase):'L1';
+  return {count,active,label:count===3?'3 Phase · L-L':`1 Phase · ${active}-N`};
+}
+
+function monitoringVoltageLabel(phase,profile=monitoringPhaseProfile()){
+  const n=Math.max(1,Math.min(3,Number(phase)||1));
+  return profile.count===3?['L1-L2','L2-L3','L3-L1'][n-1]:`L${n}-N`;
+}
+
+function monitoringRegisterVisible(def,profile=monitoringPhaseProfile()){
+  const match=String(def?.key||'').match(/_l([123])$/);
+  return !match||profile.count===3||Number(match[1])===Number(profile.active.slice(1));
+}
+
+function monitoringRegisterName(def,profile=monitoringPhaseProfile()){
+  const voltage=String(def?.key||'').match(/^ac_voltage_l([123])$/);
+  if(voltage)return `AC Voltage ${monitoringVoltageLabel(Number(voltage[1]),profile)}`;
+  const current=String(def?.key||'').match(/^ac_current_l([123])$/);
+  if(current)return `AC Current L${current[1]}`;
+  return def?.name||def?.key||'—';
+}
+
+function monitoringRegisters(data=monitorState.data){
+  const profile=monitoringPhaseProfile(data);
+  return (data?.registers||[]).filter(def=>monitoringRegisterVisible(def,profile));
+}
+
 function renderMonitoring(){
   monitorState.before=null;
   monitorState.data=null;
@@ -713,9 +742,9 @@ async function loadMonitoring(showLoading=true){
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);
     monitorState.data=data;
-    const keys=new Set((data.registers||[]).map(r=>r.key));
+    const keys=new Set(monitoringRegisters(data).map(r=>r.key));
     if(!monitorState.selectedKey||!keys.has(monitorState.selectedKey)){
-      monitorState.selectedKey=(data.registers||[]).find(r=>r.key==='dc_load_voltage')?.key || data.registers?.[0]?.key || null;
+      monitorState.selectedKey=monitoringRegisters(data).find(r=>r.key==='dc_load_voltage')?.key || monitoringRegisters(data)[0]?.key || null;
     }
     renderMonitoringData();
     startMonitoringRefresh();
@@ -732,18 +761,20 @@ function renderMonitoringData(){
   if(!data)return;
   const latestRegs=new Map((data.latest?.telemetry?.registers||[]).map(r=>[r.key,r]));
   const status=data.status||{};
+  const profile=monitoringPhaseProfile(data),visibleRegisters=monitoringRegisters(data);
   const stale=Boolean(status.stale);
   const statusText=status.online?'ONLINE':stale?'OFFLINE / DATA LAMA':'OFFLINE';
   const statusClass=status.online?'ok':stale?'warn':'bad';
-  const metricHtml=(data.registers||[]).map(def=>{
+  const metricHtml=visibleRegisters.map(def=>{
     const reg=latestRegs.get(def.key);
-    return `<div class="monitor-card"><div class="monitor-card-label">${monitorEscape(def.name)}</div><div class="monitor-card-value">${monitorFmt(reg?.value,2)}<span class="monitor-card-unit">${monitorEscape(def.unit||'')}</span></div></div>`;
+    return `<div class="monitor-card"><div class="monitor-card-label">${monitorEscape(monitoringRegisterName(def,profile))}</div><div class="monitor-card-value">${monitorFmt(reg?.value,2)}<span class="monitor-card-unit">${monitorEscape(def.unit||'')}</span></div></div>`;
   }).join('');
 
   document.getElementById('monitorBody').innerHTML=`
     <div class="monitor-status-row">
       <div class="monitor-pill"><span class="monitor-dot ${statusClass}"></span>${statusText}</div>
       <div class="monitor-pill"><span class="monitor-dot ${status.modbus_ok?'ok':'bad'}"></span>${status.modbus_ok?'MODBUS OK':'MODBUS OFFLINE'}</div>
+      <div class="monitor-pill">Profil AC: ${monitorEscape(profile.label)}</div>
       <div class="monitor-pill">Data terakhir: ${monitorTime(data.latest?.captured_at||status.last_seen)}</div>
     </div>
     <div class="monitor-metrics">${metricHtml||'<div class="monitor-empty">Belum ada parameter monitoring.</div>'}</div>
@@ -753,11 +784,11 @@ function renderMonitoringData(){
         <div class="monitor-window" id="monitorSampleCount"></div>
       </div>
       <div class="monitor-canvas-wrap"><canvas id="monitorCanvas"></canvas></div>
-      <div class="monitor-note">Grafik memakai serial number unit yang sedang dibuka. Data offline tetap menampilkan pembacaan terakhir, sedangkan grafik mengikuti periode yang dipilih.</div>
+      <div class="monitor-note">Profil 1 phase menampilkan tegangan kanal aktif L-N. Profil 3 phase menampilkan L1-L2, L2-L3, dan L3-L1; arus tetap per fase. Data offline tetap menampilkan pembacaan terakhir.</div>
     </div>`;
 
   const series=document.getElementById('monitorSeries');
-  series.innerHTML=(data.registers||[]).map(def=>`<option value="${monitorEscape(def.key)}">${monitorEscape(def.name)}${def.unit?` (${monitorEscape(def.unit)})`:''}</option>`).join('');
+  series.innerHTML=visibleRegisters.map(def=>`<option value="${monitorEscape(def.key)}">${monitorEscape(monitoringRegisterName(def,profile))}${def.unit?` (${monitorEscape(def.unit)})`:''}</option>`).join('');
   if(monitorState.selectedKey)series.value=monitorState.selectedKey;
   document.getElementById('monitorRange').value=String(monitorState.hours);
   document.getElementById('monitorNext').disabled=!monitorState.before;
@@ -777,7 +808,7 @@ function drawMonitoringChart(){
   canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);
   const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
   const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);
-  const def=(data.registers||[]).find(r=>r.key===monitorState.selectedKey)||data.registers?.[0];
+  const def=monitoringRegisters(data).find(r=>r.key===monitorState.selectedKey)||monitoringRegisters(data)[0];
   if(!def)return;
   const from=new Date(data.window.from).getTime(),to=new Date(data.window.to).getTime();
   const points=(data.history||[]).map(row=>({t:new Date(row.captured_at).getTime(),v:Number(row.values?.[def.key])})).filter(p=>Number.isFinite(p.t)&&Number.isFinite(p.v));
@@ -836,7 +867,7 @@ function renderRemoteHMI(){
     return;
   }
 
-  const hmiUrl=`remote-hmi.html?v=20260821i&sn=${encodeURIComponent(sn)}`;
+  const hmiUrl=`remote-hmi.html?v=20260903a&sn=${encodeURIComponent(sn)}`;
   const hmiEmbedUrl=`${hmiUrl}&embed=1`;
 
   document.getElementById('tabContent').innerHTML=`
