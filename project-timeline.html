@@ -276,6 +276,7 @@
   .snapshot-item .variance.neg{color:var(--danger)}
   .snapshot-item .variance.zero{color:var(--muted)}
 </style>
+<script src="panel-security.js?v=20261125-1"></script>
 </head>
 <body>
 
@@ -522,6 +523,8 @@ let allPOs = [];
 let allTimelines = [];
 let cachedSnapshots = []; // snapshots for current timeline
 
+window.addEventListener('storage', e => { if (e.key === 'sae_secure_session_v1') initSupabase(); });
+
 // ============================
 // COLORING
 // ============================
@@ -540,6 +543,11 @@ function colorForActivity(phaseName, activityName){
 function initSupabase(){
   const cfg = JSON.parse(localStorage.getItem('sae_timeline_cfg') || '{}');
   if(cfg.url && cfg.key){
+    if (!PanelSecurity.hasSession()) {
+      setConnStatus(false);
+      document.getElementById('connText').innerHTML='<a href="./index.html" target="_blank" rel="noopener">Login Panel System</a>';
+      return false;
+    }
     try {
       supabase = window.supabase.createClient(cfg.url, cfg.key);
       setConnStatus(true);

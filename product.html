@@ -133,6 +133,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--offwhite);color:var(--tex
 @media(max-width:600px){.monitor-canvas-wrap{height:270px}.monitor-toolbar{align-items:flex-start}.monitor-toolbar-group{width:100%}.monitor-select{flex:1;min-width:110px}}
 
 </style>
+<script src="panel-security.js?v=20261125-1"></script>
 </head>
 <body>
 
@@ -250,26 +251,16 @@ async function findBySN(){
 
   let item = null, unit = null;
 
-  // 1) Cari exact match di product_units dulu (sumber baru, per-unit, tidak rapuh)
-  const { data: units } = await sb.from('product_units')
-    .select('*,po_items(*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files))')
-    .eq('serial_number', sn)
-    .limit(1);
-
-  if (units && units.length) {
-    unit = units[0];
-    item = unit.po_items;
-  } else {
-    // 2) Fallback: SN lama (sebelum migrasi per-unit), masih tersimpan sbg string gabungan di po_items
-    const { data: items, error } = await sb.from('po_items')
-      .select('*,item_specs(*),item_detail_specs(*),purchase_orders(id,no_po,no_project,customer_name,project_name,download_files)')
-      .ilike('serial_number', '%'+sn+'%');
-
-    if (!error && items && items.length) {
-      item = items.find(it =>
-        (it.serial_number||'').split(',').map(s=>s.trim().toUpperCase()).includes(sn)
-      ) || items[0];
-    }
+  try {
+    const {data, error} = await sb.rpc('panel_public_product', {p_serial: sn});
+    if (error) throw new Error(error.message);
+    item = data?.item || null;
+    unit = data?.unit || null;
+  } catch (e) {
+    document.querySelector('.scan-btn').textContent='Cari Unit';
+    document.querySelector('.scan-btn').disabled=false;
+    showError('Pencarian sementara tidak tersedia. Silakan coba kembali.');
+    return;
   }
 
   document.querySelector('.scan-btn').textContent='Cari Unit';

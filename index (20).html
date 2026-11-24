@@ -301,6 +301,7 @@ tr:hover td{background:var(--bg);cursor:pointer}
 /* ── RESTRICTED ── */
 .restricted-blur{filter:blur(5px);user-select:none;pointer-events:none}
 </style>
+<script src="panel-security.js?v=20261125-1"></script>
 </head>
 <body>
 
@@ -472,22 +473,16 @@ async function doLogin() {
   const btn = document.getElementById('btnLogin');
   btn.disabled = true; btn.textContent = 'Memuat...';
   try {
-    const hash = await sha256(password);
-    const { data: users, error } = await sb.from('app_users').select('*').eq('username', username).eq('is_active', true);
-    if (error || !users?.length) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
-    const user = users.find(u => u.password_hash === hash);
-    if (!user) { showLoginError('Username atau password salah'); btn.disabled = false; btn.textContent = 'Masuk'; return; }
-    currentUser = user;
-    sessionStorage.setItem('panelUser', JSON.stringify(user));
-    await sb.from('app_users').update({ last_login: new Date().toISOString() }).eq('id', user.id);
+    currentUser = await PanelSecurity.login(sb, username, password);
     startApp();
-  } catch (e) { showLoginError('Error: ' + e.message); }
-  btn.disabled = false; btn.textContent = 'Masuk';
+  } catch (e) { showLoginError(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Masuk'; }
 }
 
 function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.style.display = 'block'; }
 
 function doLogout() {
+  PanelSecurity.logout(sb);
   currentUser = null;
   sessionStorage.removeItem('panelUser');
   ['appShell', 'salesShell'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -510,9 +505,11 @@ function startApp() {
   switchModule('home');
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  const saved = sessionStorage.getItem('panelUser');
-  if (saved) { try { currentUser = JSON.parse(saved); startApp(); return; } catch (e) {} }
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    currentUser = await PanelSecurity.resume(sb);
+    if (currentUser) { startApp(); return; }
+  } catch (e) { showLoginError('Tidak dapat memeriksa sesi. Silakan coba login kembali.'); }
   document.getElementById('loginShell').style.display = 'block';
 });
 
@@ -3390,7 +3387,7 @@ async function renderUsersModule() {
 }
 
 async function loadUsers() {
-  const { data } = await sb.from('app_users').select('*').order('role').order('full_name');
+  const { data } = await sb.from('app_users').select('id,username,full_name,role,permissions,is_active,last_login,created_at,phone_wa').order('role').order('full_name');
   allUsers = data || [];
   const tbody = document.getElementById('userTableBody');
   if (!tbody) return;

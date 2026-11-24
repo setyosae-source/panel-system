@@ -217,6 +217,7 @@ tr:hover td{background:var(--bg)}
 .topbar-user .role-chip{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
 
 </style>
+<script src="panel-security.js?v=20261125-1"></script>
 </head>
 <body>
 
@@ -880,27 +881,17 @@ async function sha256(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-async function doLogin(){
+async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-  if(!username||!password){showLoginError('Username dan password wajib diisi');return;}
+  if (!username || !password) { showLoginError('Username dan password wajib diisi'); return; }
   const btn = document.getElementById('btnLogin');
-  btn.disabled=true; btn.textContent='Memuat...';
-  try{
-    const hash = await sha256(password);
-    // Cari user by username dulu
-    const{data:users,error:err1} = await sb.from('app_users').select('*').eq('username',username).eq('is_active',true);
-    if(err1){showLoginError('Error: '+err1.message);btn.disabled=false;btn.textContent='Masuk';return;}
-    if(!users||users.length===0){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
-    // Cek password hash
-    const user = users.find(u=>u.password_hash===hash);
-    if(!user){showLoginError('Username atau password salah');btn.disabled=false;btn.textContent='Masuk';return;}
-    currentUser = user;
-    sessionStorage.setItem('panelUser', JSON.stringify(user));
-    await sb.from('app_users').update({last_login:new Date().toISOString()}).eq('id',user.id);
+  btn.disabled = true; btn.textContent = 'Memuat...';
+  try {
+    currentUser = await PanelSecurity.login(sb, username, password);
     startApp();
-  }catch(e){showLoginError('Error: '+e.message);}
-  btn.disabled=false; btn.textContent='Masuk';
+  } catch (e) { showLoginError(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Masuk'; }
 }
 
 function showLoginError(msg){
@@ -908,7 +899,8 @@ function showLoginError(msg){
   el.textContent=msg; el.style.display='block';
 }
 
-function doLogout(){
+function doLogout() {
+  PanelSecurity.logout(sb);
   currentUser=null;
   sessionStorage.removeItem('panelUser');
   ['ppShell','poShell','salesShell'].forEach(id=>document.getElementById(id).style.display='none');
@@ -960,20 +952,12 @@ function buildNav(){
   });
 }
 
-window.addEventListener('DOMContentLoaded',()=>{
-  if(isSales){
-    // Sales mode via URL — still require login
-    document.title='Request Drawing & BOM — Panel System';
-  }
-  const saved = sessionStorage.getItem('panelUser');
-  if(saved){
-    try{
-      currentUser = JSON.parse(saved);
-      startApp();
-      return;
-    }catch(e){}
-  }
-  document.getElementById('loginShell').style.display='block';
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    currentUser = await PanelSecurity.resume(sb);
+    if (currentUser) { startApp(); return; }
+  } catch (e) { showLoginError('Tidak dapat memeriksa sesi. Silakan coba login kembali.'); }
+  document.getElementById('loginShell').style.display = 'block';
 });
 
 window.addEventListener('popstate',()=>{
@@ -2116,7 +2100,7 @@ async function openUserMgmt(){
 }
 
 async function loadUsers(){
-  const{data}=await sb.from('app_users').select('*').order('role').order('full_name');
+  const{data}=await sb.from('app_users').select('id,username,full_name,role,permissions,is_active,last_login,created_at,phone_wa').order('role').order('full_name');
   allUsers=data||[];
   renderUserList();
 }
@@ -2606,7 +2590,7 @@ async function openAssignPIC(poId, stage){
   _assignCtx = {poId, stage};
   // Load all users
   if(!allUsers.length){
-    const{data}=await sb.from('app_users').select('*').eq('is_active',true).order('full_name');
+    const{data}=await sb.from('app_users').select('id,username,full_name,role,permissions,is_active,last_login,created_at,phone_wa').eq('is_active',true).order('full_name');
     allUsers=data||[];
   }
   // Filter: only show users with fabrication permission or admin role
