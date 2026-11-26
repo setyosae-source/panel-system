@@ -573,6 +573,7 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-pur-budget-source b{display:block;font-weight:600}
 .pk-pur-alloc{align-items:start!important}.pk-pur-alloc>.btn{margin-top:7px}.pk-pur-alloc .pk-pur-autocomplete{min-width:0}.pk-pur-alloc .pk-pur-fund-query{width:100%;min-width:0}.pk-pur-alloc .pk-pur-amount[readonly]{background:var(--surface2)}
 .pk-purchase-form .form-row:has(.pk-pur-qty){position:relative}.pk-purchase-form .pk-pur-qty{padding-right:29px!important;appearance:textfield;-moz-appearance:textfield}.pk-purchase-form .pk-pur-qty::-webkit-inner-spin-button,.pk-purchase-form .pk-pur-qty::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}.pk-qty-stepper{position:absolute;right:5px;bottom:3px;height:32px;display:flex;flex-direction:column;width:20px}.pk-qty-stepper button{flex:1;min-height:0;padding:0;border:0;background:transparent;color:var(--text3);font-size:13px;line-height:1;cursor:pointer;border-radius:3px}.pk-qty-stepper button:hover{background:var(--surface2);color:var(--text)}
+.pk-pur-budget-error{outline:1px solid var(--red-border);background:var(--red-bg)!important}.pk-pur-budget-warning{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:9px;color:var(--red);font-size:12px}.pk-pur-budget-warning .btn{color:var(--text)}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -2158,6 +2159,7 @@ function pkPurchaseFundKey(e,input){
  opts.forEach((o,j)=>{o.classList.toggle('is-active',j===n);o.setAttribute('aria-selected',String(j===n));});input.setAttribute('aria-activedescendant',opts[n].id);opts[n].scrollIntoView({block:'nearest'});
 }
 
+function pkPurchaseAddMissingSource(btn){const row=btn.closest('.pk-pur-line');if(!row)return;const host=row.querySelector('.pk-pur-allocs');let a=[...host.children].find(el=>!el.querySelector('.pk-pur-source').value);if(!a){pkPurchaseAllocAdd(row);a=host.lastElementChild;}const input=a?.querySelector('.pk-pur-fund-query');if(input){input.focus();pkPurchaseFundSuggest(input);}}
 function pkPurchaseRemoveAlloc(btn){const host=btn.closest('.pk-pur-allocs');if(host.children.length<=1){toast('Minimal satu sumber budget');return;}btn.closest('.pk-pur-alloc').remove();pkPurchaseUpdateTotals();}
 function pkPurchaseRemoveLine(btn){const host=document.getElementById('pkPurLines');if(!host||host.children.length<=1){toast('Minimal satu material');return;}btn.closest('.pk-pur-line').remove();pkPurchaseUpdateTotals();}
 function pkPurchaseQtyStep(input,delta){
@@ -2199,18 +2201,21 @@ function pkPurchaseUpdateTotals(){
    const savings=reference===null?null:pkPurchaseRound(reference-v);
    const pct=reference>0&&savings!==null?(100*savings/reference).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
    const sub=row.querySelector('.pk-pur-subtotal');
-   sub.innerHTML='<div class="pk-pur-summary-grid">'+(reference===null?'':'<div><small>Budget asli material PK</small><strong>'+pkBudgetMoney(reference)+'</strong></div>')+'<div><small>Nilai pemesanan</small><strong>'+pkBudgetMoney(v)+'</strong></div><div><small>Alokasi budget</small><strong>'+pkBudgetMoney(allocated)+'</strong></div><div style="color:var(--'+(diff===0?'green':'amber')+')"><small>'+(diff<0?'Kelebihan alokasi':'Kekurangan alokasi')+'</small><strong>'+pkBudgetMoney(Math.abs(diff))+'</strong></div></div>'+(savings===null?'':'<div class="pk-pur-saving" style="color:var(--'+(savings<0?'red':'green')+')"><span>'+(savings<0?'Kebutuhan di atas budget asli':'Selisih terhadap budget asli')+'</span><strong>'+pkBudgetMoney(Math.abs(savings))+(pct===null?'':' · '+pct+'%')+'</strong></div>')+sourceRows;
+   sub.classList.toggle('pk-pur-budget-error',diff!==0&&v>0);
+   sub.innerHTML='<div class="pk-pur-summary-grid">'+(reference===null?'':'<div><small>Budget asli material PK</small><strong>'+pkBudgetMoney(reference)+'</strong></div>')+'<div><small>Nilai pemesanan</small><strong>'+pkBudgetMoney(v)+'</strong></div><div><small>Alokasi budget</small><strong>'+pkBudgetMoney(allocated)+'</strong></div><div style="color:var(--'+(diff===0?'green':'amber')+')"><small>'+(diff<0?'Kelebihan alokasi':'Kekurangan alokasi')+'</small><strong>'+pkBudgetMoney(Math.abs(diff))+'</strong></div></div>'+(savings===null?'':'<div class="pk-pur-saving" style="color:var(--'+(savings<0?'red':'green')+')"><span>'+(savings<0?'Kebutuhan di atas budget asli':'Selisih terhadap budget asli')+'</span><strong>'+pkBudgetMoney(Math.abs(savings))+(pct===null?'':' · '+pct+'%')+'</strong></div>')+sourceRows+(diff>0&&v>0?'<div class="pk-pur-budget-warning">Budget kurang '+pkBudgetMoney(diff)+'. Pilih + Sumber untuk menutup kekurangan. <button type="button" class="btn btn-sm" onclick="pkPurchaseAddMissingSource(this)">+ Sumber budget</button></div>':'');
  }
  const el=document.getElementById('pkPurTotal');if(el)el.textContent=pkBudgetMoney(total);
 }
 async function savePKPurchaseCreate(){
  const st=_pkProcCurrent,btn=document.getElementById('pkPurSave'),modal=document.getElementById('pkPurchaseCreate');if(!btn||btn.disabled||!modal||!pkPurchaseCanStart(st))return;
- const date=gv('pkPurDate'),supplier=gv('pkPurSupplier').trim(),number=gv('pkPurNumber').trim(),lines=[...modal.querySelectorAll('.pk-pur-line')].map(pkPurchaseReadRow);
+ pkPurchaseUpdateTotals();
+ const rows=[...modal.querySelectorAll('.pk-pur-line')];
+ const date=gv('pkPurDate'),supplier=gv('pkPurSupplier').trim(),number=gv('pkPurNumber').trim(),lines=rows.map(pkPurchaseReadRow);
  if(!date||!supplier||!lines.length){toast('Lengkapi tanggal, supplier dan material');return;}
  const sums={},qtys={};let total=0;
- for(const l of lines){const v=pkPurchaseLineTotal(l);
+ for(const [i,l] of lines.entries()){const v=pkPurchaseLineTotal(l);
  if(!l.name||!l.unit||(l.mode==='other'&&!l.reason)||(l.mode==='pk'&&!l.original_id)||![l.qty,l.unit_price,l.shipping,l.discount,v].every(Number.isFinite)||l.qty<=0||l.unit_price<=0||l.shipping<0||l.discount<0||v<=0){toast('Lengkapi semua data material dan harga');return;}
- l.allocations=l.allocations.filter(a=>a.source_id&&a.amount!==0);if(!l.allocations.length||l.allocations.some(a=>!a.source_id||!Number.isFinite(a.amount)||a.amount<=0)||pkPurchaseRound(l.allocations.reduce((n,a)=>n+a.amount,0))!==v){toast('Alokasi setiap material harus sama dengan nilai material');return;}
+ l.allocations=l.allocations.filter(a=>a.source_id&&a.amount!==0);const allocated=pkPurchaseRound(l.allocations.reduce((n,a)=>n+a.amount,0));if(!l.allocations.length||l.allocations.some(a=>!a.source_id||!Number.isFinite(a.amount)||a.amount<=0)||allocated!==v){const msg='Material '+(i+1)+' — '+l.name+': '+(v>allocated?'kekurangan budget '+pkBudgetMoney(v-allocated):v<allocated?'kelebihan alokasi '+pkBudgetMoney(allocated-v):'sumber budget tidak valid')+'. Pilih sumber budget tambahan yang tersedia.';toast(msg);rows[i].scrollIntoView({block:'center',behavior:'smooth'});rows[i].querySelector('.pk-pur-subtotal').classList.add('pk-pur-budget-error');return;}
  if(l.original_id){qtys[l.original_id]=(qtys[l.original_id]||0)+l.qty;if(!l.allocations.some(a=>a.source_id===l.original_id)){toast('Material PK harus memakai budget sendiri');return;}}
  for(const a of l.allocations){const f=st.purchase.funds.find(x=>x.source_id===a.source_id);if(!f||(!f.outside_allowed&&a.source_id!==l.original_id)){toast('Sumber budget tidak sesuai');return;}sums[a.source_id]=(sums[a.source_id]||0)+a.amount;}
  total+=v;delete l.mode;
