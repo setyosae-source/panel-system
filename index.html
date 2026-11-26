@@ -2212,7 +2212,9 @@ function pkPurchasePoolPlan(lines,funds,extras){
  let total=0;
  for(const l of lines){const v=Math.max(0,cents(pkPurchaseLineTotal(l)));total+=v;if(l.original_id)need.set(String(l.original_id),(need.get(String(l.original_id))||0)+v);}
  let left=total;
+ const qty=new Map();for(const l of lines)if(l.original_id)qty.set(String(l.original_id),(qty.get(String(l.original_id))||0)+Number(l.qty||0));
  for(const [id,value] of need){const cap=remaining.get(id)||0,amount=Math.min(value,cap,left);primary.push({source_id:id,amount:amount/100,available:cap/100});remaining.set(id,cap-amount);used.set(id,amount);left-=amount;}
+ for(const a of primary){const id=a.source_id,f=funds.find(x=>String(x.source_id)===id);if(!f||!(Number(f.own_qty_remaining)>0&&qty.get(id)>=Number(f.own_qty_remaining)))continue;const cap=remaining.get(id)||0,amount=Math.min(cap,left);a.amount=(Math.round(a.amount*100)+amount)/100;remaining.set(id,cap-amount);used.set(id,(used.get(id)||0)+amount);left-=amount;}
  for(const raw of extras){const id=String(raw||''),f=funds.find(x=>String(x.source_id)===id),cap=f?.outside_allowed?(remaining.get(id)||0):0,amount=Math.min(left,cap);additional.push({source_id:id,amount:amount/100,available:cap/100});if(id){remaining.set(id,cap-amount);used.set(id,(used.get(id)||0)+amount);}left-=amount;}
  return {total:total/100,primary,additional,allocated:(total-left)/100,shortage:left/100,allocations:[...used].filter(x=>x[1]>0).map(([source_id,amount])=>({source_id,amount:amount/100}))};
 }
