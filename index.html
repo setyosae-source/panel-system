@@ -514,6 +514,15 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-pur-footer-total strong{font-size:17px}
 .pk-purchase-form .pk-pur-cost-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 @media(max-width:700px){.pk-purchase-form .pk-pur-cost-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.pk-purchase-form .form-row input:not([type="hidden"]),.pk-purchase-form .form-row select,.pk-purchase-form .pk-pur-alloc input,.pk-purchase-form .pk-pur-alloc select{height:38px;min-height:38px;padding:8px 11px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;box-sizing:border-box;outline:none}
+.pk-purchase-form .form-row input:focus,.pk-purchase-form .form-row select:focus,.pk-purchase-form .pk-pur-alloc input:focus,.pk-purchase-form .pk-pur-alloc select:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+.pk-purchase-form input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--surface) inset;-webkit-text-fill-color:var(--text)}
+.pk-purchase-form .form-row label{display:block;margin-bottom:5px;font-size:12px;font-weight:600}
+.pk-purchase-form .pk-pur-option[aria-disabled="true"]{cursor:default;background:var(--surface2)}
+.pk-purchase-form .pk-pur-option[aria-disabled="true"] small{color:var(--amber)}
+.pk-purchase-form .pk-pur-option[aria-disabled="true"] strong{color:var(--text2)}
+.pk-purchase-form .pk-pur-results{max-height:280px}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -1987,10 +1996,10 @@ function pkPurchaseAddLine(originalId='',sourceId=''){
 
 function pkPurchasePredictiveMatches(funds,query,limit=12){
  const q=String(query||'').toLowerCase().trim(),terms=q.split(/\s+/).filter(Boolean);
- return funds.filter(f=>Number(f.own_qty_remaining)>0&&Number(f.available)>0).map(f=>{
+ return funds.map(f=>{
  const name=String(f.component_name||'').toLowerCase(),part=String(f.part_number||'').toLowerCase(),hay=name+' '+part;
  if(!terms.every(t=>hay.includes(t)))return null;
- return {f,score:!q?0:part===q?1000:name===q?900:part.startsWith(q)?700:name.startsWith(q)?600:hay.includes(q)?400:200};
+ return {f,score:(!q?0:part===q?1000:name===q?900:part.startsWith(q)?700:name.startsWith(q)?600:hay.includes(q)?400:200)+(Number(f.own_qty_remaining)>0&&Number(f.available)>0?20:0)};
  }).filter(Boolean).sort((a,b)=>b.score-a.score||String(a.f.component_name||'').localeCompare(String(b.f.component_name||''),'id')).slice(0,limit).map(x=>x.f);
 }
 function pkPurchaseSuggestClose(input){
@@ -2000,13 +2009,18 @@ function pkPurchaseSuggestClose(input){
 function pkPurchaseSuggest(input){
  const wrap=input.closest('.pk-pur-autocomplete'),row=input.closest('.pk-pur-line');if(!wrap||!row)return;
  const list=wrap.querySelector('.pk-pur-results'),selected=row.querySelector('.pk-pur-original').value;
- const matches=pkPurchasePredictiveMatches(_pkProcCurrent?.purchase?.funds||[],selected?'':input.value);
+ const matches=pkPurchasePredictiveMatches(_pkProcCurrent?.purchase?.funds||[],selected?'':input.value,selected||!input.value.trim()?20:100);
  list.id=list.id||'pkPurSuggestions-'+crypto.randomUUID();input.setAttribute('aria-controls',list.id);list.innerHTML='';
  matches.forEach((f,i)=>{
  const opt=document.createElement('div');opt.className='pk-pur-option';opt.id=list.id+'-'+i;opt.dataset.source=f.source_id;opt.setAttribute('role','option');opt.setAttribute('aria-selected','false');
  const name=document.createElement('strong');name.textContent=f.component_name||'—';
- const meta=document.createElement('small');meta.textContent=(f.part_number||'Tanpa Part No.')+' · Sisa '+Number(f.own_qty_remaining)+' '+(f.unit||'')+' · Budget '+pkBudgetMoney(f.available);
- opt.append(name,meta);opt.addEventListener('mousedown',e=>e.preventDefault());opt.addEventListener('click',()=>pkPurchaseSelectMaterial(row,f.source_id));list.appendChild(opt);
+ const eligible=Number(f.own_qty_remaining)>0&&Number(f.available)>0;
+ const rec=_pkProcCurrent?.recMap?.[f.source_id];
+ const status=eligible?'Tersedia · Sisa '+Number(f.own_qty_remaining)+' '+(f.unit||''):(rec?.status&&rec.status!=='Belum Dibeli')?'Histori: '+rec.status:Number(f.new_reserved)>0?'Sudah dipesan':f.source_type==='PAX'?'Budget PAX — gunakan Di luar PK':['cancelled','stock','replaced'].includes(f.source_type)?pkPurchaseSourceLabel(f):'Budget / qty tidak tersedia';
+ const meta=document.createElement('small');meta.textContent=(f.part_number||'Tanpa Part No.')+' · '+status+' · Budget tersedia '+pkBudgetMoney(f.available);
+ opt.setAttribute('aria-disabled',String(!eligible));opt.append(name,meta);opt.addEventListener('mousedown',e=>e.preventDefault());
+ if(eligible)opt.addEventListener('click',()=>pkPurchaseSelectMaterial(row,f.source_id));
+ list.appendChild(opt);
  });
  if(!matches.length){const msg=document.createElement('div');msg.style.cssText='padding:10px;color:var(--text3);font-size:12px';msg.textContent='Material tidak ditemukan. Pilih Di luar PK jika material belum terdaftar.';list.appendChild(msg);}
  list.hidden=false;input.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');
@@ -2028,7 +2042,7 @@ function pkPurchaseSuggestKey(event,input){
  if(event.key==='Escape'){pkPurchaseSuggestClose(input);return;}
  if(!['ArrowDown','ArrowUp','Enter'].includes(event.key))return;
  if(list.hidden){if(event.key==='Enter')return;pkPurchaseSuggest(input);}
- const options=[...list.querySelectorAll('.pk-pur-option')];if(!options.length)return;
+ const options=[...list.querySelectorAll('.pk-pur-option:not([aria-disabled="true"])')];if(!options.length)return;
  const index=options.findIndex(o=>o.classList.contains('is-active'));
  if(event.key==='Enter'){event.preventDefault();if(index>=0)pkPurchaseSelectMaterial(input.closest('.pk-pur-line'),options[index].dataset.source);else if(options.length===1)pkPurchaseSelectMaterial(input.closest('.pk-pur-line'),options[0].dataset.source);return;}
  event.preventDefault();const next=event.key==='ArrowDown'?(index+1)%options.length:(index<0?options.length-1:(index-1+options.length)%options.length);
