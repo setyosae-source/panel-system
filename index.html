@@ -525,6 +525,45 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-purchase-form .pk-pur-results{max-height:280px}
 .pk-purchase-form .pk-pur-note{width:100%;min-height:66px;resize:vertical;padding:8px 11px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;line-height:1.5;box-sizing:border-box;outline:none}
 .pk-purchase-form .pk-pur-note:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+
+/* Consistent purchasing controls across list, tabs and transaction dialogs */
+.pk-proc-detail-modal input[type="search"],
+#pkProcBody input[type="search"],
+#pkProcBody .toolbar select,
+#pkPurchaseEvent .form-row input:not([type="hidden"]),
+#pkBudgetDisposition .form-row input:not([type="hidden"]),
+#pkBudgetDisposition .form-row select,
+#pkProcItemModal .form-row input:not([type="hidden"]),
+#pkProcItemModal .form-row select,
+#pkHandoverForm .form-row input:not([type="hidden"]),
+#pkHandoverForm .form-row select,
+#pkBudgetAdd .form-row input:not([type="hidden"]),
+#pkBudgetAdd .form-row select {
+ height:38px;min-height:38px;padding:8px 11px;border:1px solid var(--border);
+ border-radius:7px;background:var(--surface);color:var(--text);font:inherit;
+ font-size:13px;box-sizing:border-box;outline:none;line-height:normal;
+}
+.pk-proc-detail-modal input[type="search"]:focus,#pkProcBody input[type="search"]:focus,
+#pkProcBody .toolbar select:focus,#pkPurchaseEvent .form-row input:focus,
+#pkBudgetDisposition .form-row select:focus,#pkProcItemModal .form-row input:focus,
+#pkHandoverForm .form-row input:focus,#pkBudgetAdd .form-row input:focus {
+ border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-bg);
+}
+#pkPurchaseEvent .form-row input:not([type="hidden"]),#pkBudgetDisposition .form-row select,
+#pkProcItemModal .form-row input:not([type="hidden"]),#pkHandoverForm .form-row input:not([type="hidden"]),
+#pkBudgetAdd .form-row input:not([type="hidden"]){width:100%;min-width:0}
+#pkPurchaseEvent .form-row textarea,#pkBudgetDisposition .form-row textarea,
+#pkProcItemModal .form-row textarea,#pkHandoverForm .form-row textarea,#pkBudgetAdd .form-row textarea{
+ width:100%;min-height:66px;padding:8px 11px;border:1px solid var(--border);border-radius:7px;
+ background:var(--surface);color:var(--text);font:inherit;font-size:13px;resize:vertical;box-sizing:border-box;
+}
+.pk-proc-detail-modal .pk-purchase-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pk-proc-detail-modal .pk-purchase-toolbar input[type="search"]{flex:1 1 240px;min-width:0;max-width:400px}
+.pk-proc-detail-modal .pk-purchase-toolbar .btn,.pk-proc-detail-modal .pk-proc-searchbar .btn{min-height:38px}
+.pk-proc-detail-modal [data-pk-purchase-panel] .table-wrap table{width:100%}
+.pk-proc-detail-modal [data-pk-purchase-panel]{min-width:0;max-width:100%}
+#pkProcBody .search-wrap input[type="search"]{border:0;background:transparent;box-shadow:none;padding-left:30px}
+
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -1953,14 +1992,14 @@ function pkPurchaseOverview(st){
 function pkPurchaseOrdersHtml(st){
  if(st.purchase.error)return '<div style="padding:16px;color:var(--text3)">Data pembelian baru tidak tersedia.</div>';
  const rows=st.purchase.orders.map(o=>{const c=pkPurchaseOrderCalc(o,st.purchase.events);return `<tr data-pk-purchase-search="1"><td><button class="pk-proc-material-link" onclick="openPKPurchaseOrder('${o.id}')">${escapeHtml(o.order_number)} ›</button><div style="font-size:11px;color:var(--text3)">${fmtDate(o.order_date)}</div></td><td>${escapeHtml(o.supplier)}</td><td style="white-space:normal">${(o.lines||[]).map(l=>escapeHtml(l.name)).join(' · ')}</td><td><strong>${pkBudgetMoney(o.total)}</strong></td><td>${pkBudgetMoney(c.paid)}<div style="font-size:11px;color:var(--text3)">${c.paid>=Number(o.total)?'Lunas':c.paid>0?'Sebagian':'Belum dibayar'}</div></td><td>${escapeHtml(c.status)}</td></tr>`;}).join('');
- return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>Daftar Pemesanan</strong><input type="search" placeholder="Cari order, supplier, material..." aria-label="Cari pemesanan" oninput="pkPurchaseSearch(this)" style="flex:1;min-width:170px;max-width:400px">${pkPurchaseCanStart(st)?'<button class="btn btn-primary" onclick="openPKPurchaseCreate()">+ Buat Pemesanan</button>':''}</div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="min-width:800px"><thead><tr><th>Order / Tanggal</th><th>Supplier</th><th>Material</th><th>Nilai Order</th><th>Dibayar</th><th>Progress</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text3)">Belum ada pemesanan baru. Histori lama tersedia di tab Histori Lama.</td></tr>'}</tbody></table></div></div>`;
+ return `<div class="pk-purchase-toolbar"><strong>Daftar Pemesanan</strong><input type="search" placeholder="Cari order, supplier, material..." aria-label="Cari pemesanan" oninput="pkPurchaseSearch(this)" style="flex:1;min-width:170px;max-width:400px">${pkPurchaseCanStart(st)?'<button class="btn btn-primary" onclick="openPKPurchaseCreate()">+ Buat Pemesanan</button>':''}</div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="min-width:800px"><thead><tr><th>Order / Tanggal</th><th>Supplier</th><th>Material</th><th>Nilai Order</th><th>Dibayar</th><th>Progress</th></tr></thead><tbody>${rows||'<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--text3)">Belum ada pemesanan baru. Histori lama tersedia di tab Histori Lama.</td></tr>'}</tbody></table></div></div>`;
 }
 function pkPurchaseBudgetHtml(st){
  if(st.purchase.error)return '<div style="padding:16px;color:var(--text3)">Sumber budget tidak dapat dimuat.</div>';
  const rows=st.purchase.funds.map(f=>{const available=pkPurchaseNum(f.available),own=pkPurchaseNum(f.own_qty_remaining),canStart=pkPurchaseCanStart(st),untouched=own>=pkPurchaseNum(f.qty_pk)&&pkPurchaseNum(f.legacy_reserved)===0&&pkPurchaseNum(f.new_reserved)===0&&pkPurchaseNum(f.extra_reserved)===0;
  const action=canStart&&available>0?(own>0?`<button class="btn btn-sm" onclick="openPKPurchaseCreate('${f.source_id}')">Pesan</button>${untouched?` <button class="btn btn-sm" onclick="openPKBudgetDisposition('${f.source_id}')">Alihkan</button>`:''}`:f.outside_allowed?`<button class="btn btn-sm" onclick="openPKPurchaseCreate('','${f.source_id}')">Pakai Budget</button>`:''):'';
  return `<tr data-pk-purchase-search="1"><td>${escapeHtml(f.part_number||'—')}</td><td style="white-space:normal"><strong>${escapeHtml(f.component_name)}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(pkPurchaseSourceLabel(f))} · ${pkPurchaseNum(f.qty_pk)} ${escapeHtml(f.unit)}${own>0?' · Sisa qty '+own:''}</div></td><td>${pkBudgetMoney(f.budget)}</td><td>${pkBudgetMoney(pkPurchaseNum(f.legacy_reserved)+pkPurchaseNum(f.extra_reserved))}</td><td>${pkBudgetMoney(f.new_reserved)}</td><td><strong>${pkBudgetMoney(f.available)}</strong></td><td>${action}</td></tr>`;}).join('');
- return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong>Rincian Budget PK</strong><input type="search" placeholder="Cari material / Part No..." aria-label="Cari sumber budget" oninput="pkPurchaseSearch(this)" style="flex:1;min-width:170px;max-width:400px"></div><div style="font-size:11px;color:var(--text3);margin-top:6px">Sumber budget asli tidak dihapus. Sisa pembelian lama tanpa nominal aktual tetap dicadangkan untuk menghindari penggunaan ganda.</div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="min-width:930px"><thead><tr><th>Part No.</th><th>Material / Sumber</th><th>Budget</th><th>Komitmen Lama</th><th>Order Baru</th><th>Sisa</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3)">PK belum memiliki rincian sumber budget.</td></tr>'}</tbody></table></div></div>`;
+ return `<div class="pk-purchase-toolbar"><strong>Rincian Budget PK</strong><input type="search" placeholder="Cari material / Part No..." aria-label="Cari sumber budget" oninput="pkPurchaseSearch(this)" style="flex:1;min-width:170px;max-width:400px"></div><div style="font-size:11px;color:var(--text3);margin-top:6px">Sumber budget asli tidak dihapus. Sisa pembelian lama tanpa nominal aktual tetap dicadangkan untuk menghindari penggunaan ganda.</div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="min-width:930px"><thead><tr><th>Part No.</th><th>Material / Sumber</th><th>Budget</th><th>Komitmen Lama</th><th>Order Baru</th><th>Sisa</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3)">PK belum memiliki rincian sumber budget.</td></tr>'}</tbody></table></div></div>`;
 }
 function pkPurchaseSearch(input){const host=input.closest('[data-pk-purchase-panel]');if(!host)return;const terms=input.value.toLowerCase().trim().split(/\s+/).filter(Boolean);host.querySelectorAll('[data-pk-purchase-search]').forEach(tr=>tr.style.display=terms.every(t=>tr.textContent.toLowerCase().includes(t))?'':'none');}
 function pkPurchaseTab(tab){
