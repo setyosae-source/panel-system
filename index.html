@@ -1977,9 +1977,21 @@ function openPKPurchaseCreate(originalId='',sourceId=''){
  const st=_pkProcCurrent;if(!pkPurchaseCanStart(st)){toast('PK belum release atau data budget belum siap');return;}
  const funds=st.purchase.funds;if(!funds.some(f=>Number(f.available)>0&&(Number(f.own_qty_remaining)>0||f.outside_allowed))){toast('Tidak ada sumber budget yang tersedia');return;}
  closeModal('pkPurchaseCreate');
- openModal(`<div class="modal pk-purchase-form" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>Buat Pemesanan</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor pemesanan"></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button></div><div class="modal-footer"><div class="pk-pur-footer-total"><span style="font-size:11px;color:var(--text3)">Total Pemesanan</span><strong id="pkPurTotal">Rp 0</strong></div><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
+ openModal(`<div class="modal pk-purchase-form" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>Buat Pemesanan</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}" onchange="pkPurchasePreviewNumber()"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor otomatis..." autocomplete="off" oninput="this.dataset.manual=this.value.trim()?'1':'0';if(!this.value.trim())pkPurchasePreviewNumber()"><div style="font-size:11px;color:var(--text3);margin-top:3px">Nomor otomatis · dapat diubah</div></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button></div><div class="modal-footer"><div class="pk-pur-footer-total"><span style="font-size:11px;color:var(--text3)">Total Pemesanan</span><strong id="pkPurTotal">Rp 0</strong></div><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
  document.getElementById('pkPurchaseCreate').dataset.draftId=crypto.randomUUID();
  pkPurchaseAddLine(originalId,sourceId);
+ pkPurchasePreviewNumber();
+}
+async function pkPurchasePreviewNumber(){
+ const input=document.getElementById('pkPurNumber'),date=gv('pkPurDate');
+ if(!input||!date||input.dataset.manual==='1')return;
+ input.value='';input.placeholder='Memuat nomor otomatis...';
+ try{
+ const res=await sb.rpc('pk_purchase_next_number',{p_date:date});
+ if(!input.isConnected||gv('pkPurDate')!==date||input.dataset.manual==='1')return;
+ if(res.error||!res.data){input.placeholder='Otomatis saat disimpan';return;}
+ input.value=res.data;
+ }catch(e){if(input.isConnected&&input.dataset.manual!=='1')input.placeholder='Otomatis saat disimpan';}
 }
 function pkPurchaseAddLine(originalId='',sourceId=''){
  const host=document.getElementById('pkPurLines'),st=_pkProcCurrent;if(!host||!st||host.children.length>=100)return;
@@ -2088,7 +2100,7 @@ function pkPurchaseUpdateTotals(){
 async function savePKPurchaseCreate(){
  const st=_pkProcCurrent,btn=document.getElementById('pkPurSave'),modal=document.getElementById('pkPurchaseCreate');if(!btn||btn.disabled||!modal||!pkPurchaseCanStart(st))return;
  const date=gv('pkPurDate'),supplier=gv('pkPurSupplier').trim(),number=gv('pkPurNumber').trim(),lines=[...modal.querySelectorAll('.pk-pur-line')].map(pkPurchaseReadRow);
- if(!date||!supplier||!number||!lines.length){toast('Lengkapi tanggal, supplier, nomor order dan material');return;}
+ if(!date||!supplier||!lines.length){toast('Lengkapi tanggal, supplier dan material');return;}
  const sums={},qtys={};let total=0;
  for(const l of lines){const v=pkPurchaseLineTotal(l);
  if(!l.name||!l.unit||(l.mode==='other'&&!l.reason)||(l.mode==='pk'&&!l.original_id)||![l.qty,l.unit_price,l.shipping,l.discount,v].every(Number.isFinite)||l.qty<=0||l.unit_price<=0||l.shipping<0||l.discount<0||v<=0){toast('Lengkapi semua data material dan harga');return;}
@@ -2101,10 +2113,10 @@ async function savePKPurchaseCreate(){
  for(const [id,v] of Object.entries(qtys)){const f=st.purchase.funds.find(x=>x.source_id===id);if(v>Number(f.own_qty_remaining)+1e-9){toast('Qty '+f.component_name+' melebihi kebutuhan PK');return;}}
  if(pkPurchaseRound(total)>pkPurchaseTotals(st).available){toast('Total order melebihi budget tersedia');return;}
  btn.disabled=true;try{
- const payload={id:modal.dataset.draftId,pk_id:st.pk.id,order_date:date,supplier,order_number:number,lines,note:gv('pkPurNote').trim()||null,created_by:String(currentUser.id)};
- const res=await sb.from('pk_purchase_orders').insert(payload);
+ const payload={id:modal.dataset.draftId,pk_id:st.pk.id,order_date:date,supplier,order_number:document.getElementById('pkPurNumber')?.dataset.manual==='1'&&number?number:'__AUTO__',lines,note:gv('pkPurNote').trim()||null,created_by:String(currentUser.id)};
+ const res=await sb.from('pk_purchase_orders').insert(payload).select('order_number').single();
  if(res.error){toast('Gagal simpan order: '+res.error.message);return;}
- toast('Pemesanan tersimpan');try{await logPO(st.poId,'Purchasing PK',number+' · '+pkBudgetMoney(total));}catch(e){console.warn('Log PO:',e);}
+ toast('Pemesanan tersimpan');try{await logPO(st.poId,'Purchasing PK',(res.data?.order_number||number)+' · '+pkBudgetMoney(total));}catch(e){console.warn('Log PO:',e);}
  closeModal('pkPurchaseCreate');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===payload.id))openPKPurchaseOrder(payload.id);if(document.getElementById('pkProcBody'))renderPKProcurementModule();
  }catch(e){toast('Gagal memproses: '+e.message);}finally{btn.disabled=false;}
 }
