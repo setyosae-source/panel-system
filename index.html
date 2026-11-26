@@ -264,6 +264,19 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-proc-mini{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px}
 .pk-proc-mini .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.04em}
 .pk-proc-mini .val{font-size:17px;font-weight:700;margin-top:2px}
+.pk-proc-material-link{border:0;background:none;color:var(--text);font:inherit;font-weight:600;text-align:left;padding:0;cursor:pointer;white-space:normal}
+.pk-proc-material-link:hover,.pk-proc-material-link:focus-visible{text-decoration:underline;color:var(--blue)}
+.pk-proc-material-link span{color:var(--blue);font-size:15px}
+.pk-proc-stage-list{display:flex;flex-direction:column;gap:8px}
+.pk-proc-stage-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left;width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text);cursor:pointer;font:inherit}
+.pk-proc-stage-row:hover,.pk-proc-stage-row.selected{border-color:var(--blue);background:var(--surface2)}
+.pk-proc-stage-row:disabled{cursor:default;opacity:1}
+.pk-proc-stage-dot{display:grid;place-items:center;border-radius:50%;width:28px;height:28px;background:var(--surface3);color:var(--text3);font-weight:700}
+.pk-proc-stage-row.done .pk-proc-stage-dot{background:var(--green-bg);color:var(--green)}
+.pk-proc-stage-row.active .pk-proc-stage-dot{background:var(--text);color:var(--surface)}
+.pk-proc-stage-date{font-size:11px;color:var(--text3);display:block;margin-top:3px}
+.pk-proc-stage-editor{padding:12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2);display:flex;flex-direction:column;gap:10px}
+.pk-proc-stage-editor .form-row{margin:0}
 /* Daftar item pengadaan: scroll vertikal mandiri agar semua barang dapat diakses */
 .pk-proc-detail-modal{height:min(92vh,860px);max-height:calc(100vh - 1.5rem)}
 .pk-proc-detail-modal .modal-body{overflow-y:auto;overflow-x:hidden;min-width:0}
@@ -1835,12 +1848,11 @@ async function openPKProcurementDetail(pkId, poId) {
     const dateInfo = [r.ordered_at&&'Pesan '+fmtDate(r.ordered_at),r.paid_at&&'Bayar '+fmtDate(r.paid_at),r.shipped_at&&'Kirim '+fmtDate(r.shipped_at),r.arrived_at&&'Sampai '+fmtDate(r.arrived_at),r.handed_over_at&&'Serah '+fmtDate(r.handed_over_at)].filter(Boolean).join(' · ');
     return `<tr>
       <td class="mono" style="font-size:11px">${escapeHtml(it.part_number||'—')}</td>
-      <td><div style="font-weight:600">${escapeHtml(it.component_name||'—')}</div><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')}</div></td>
+      <td><button type="button" class="pk-proc-material-link" onclick="openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')">${escapeHtml(it.component_name||'—')} <span aria-hidden="true">›</span></button><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')}</div></td>
       <td>${pkProcBadge(status)}</td>
       <td><div style="font-size:12px">${escapeHtml(r.supplier||'—')}</div><div style="font-size:10px;color:var(--text3)">${escapeHtml(r.order_reference||r.tracking_number||'')}</div></td>
       <td><div style="font-size:12px">${r.qty_ordered||0} / ${r.qty_received||0}</div><div style="font-size:10px;color:var(--text3)">order / terima</div></td>
       <td style="font-size:10px;color:var(--text3);white-space:normal;min-width:180px">${dateInfo||'Belum ada tanggal proses'}</td>
-      <td>${canManage?`<button class="btn btn-sm" onclick="openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')">Update</button>`:''}</td>
     </tr>`;
   }).join('');
 
@@ -1863,7 +1875,7 @@ async function openPKProcurementDetail(pkId, poId) {
         ${PK_PROC_STATUSES.map(s=>`<div class="pk-proc-mini"><div class="lbl">${s}</div><div class="val">${summary.counts[s]||0}</div></div>`).join('')}
       </div>
       <div style="display:flex;align-items:center;gap:10px"><div class="pk-proc-progress" style="flex:1;height:9px"><span style="width:${summary.progress}%"></span></div><strong>${summary.progress}%</strong></div>
-      <div class="table-card"><div class="table-wrap pk-proc-items-scroll" tabindex="0" aria-label="Daftar barang pengadaan, gunakan scroll untuk melihat seluruh item"><table><thead><tr><th>Part No.</th><th>Barang</th><th>Status</th><th>Supplier / Referensi</th><th>Qty</th><th>Tanggal Proses</th><th></th></tr></thead><tbody>${itemRows||`<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text3)">PK belum memiliki item</td></tr>`}</tbody></table></div></div>
+      <div class="table-card"><div class="table-wrap pk-proc-items-scroll" tabindex="0" aria-label="Daftar barang pengadaan, gunakan scroll untuk melihat seluruh item"><table><thead><tr><th>Part No.</th><th>Barang</th><th>Status</th><th>Supplier / Referensi</th><th>Qty</th><th>Tanggal Proses</th></tr></thead><tbody>${itemRows||`<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">PK belum memiliki item</td></tr>`}</tbody></table></div></div>
       <div class="detail-section" style="margin:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><div class="sect-title" style="margin:0">Serah Terima Barang (${handovers.length})</div>${canManage&&items.length?`<button class="btn btn-sm btn-primary" onclick="openPKHandoverForm('${pk.id}','${_pkProcCurrent.poId}')">+ Buat Serah Terima</button>`:''}</div>
         ${handoverHtml}
@@ -1890,78 +1902,133 @@ function enablePKProcurementItemScroll() {
   }, { passive:false });
 }
 
-function pkProcStatusAutofill(status) {
-  const idx = PK_PROC_STATUSES.indexOf(status);
-  const map = [null,'pkProcOrdered','pkProcPaid','pkProcShipped','pkProcArrived','pkProcHanded'];
-  for (let i=1;i<=idx;i++) {
-    const el = document.getElementById(map[i]);
-    if (el && !el.value) el.value = today();
-  }
+
+const PK_PROC_DATE_FIELDS = [null,'ordered_at','paid_at','shipped_at','arrived_at','handed_over_at'];
+const PK_PROC_STAGE_FIELDS = [
+  [],
+  [['supplier','Supplier / Vendor','text'],['order_reference','No. PO / Order','text'],['qty_ordered','Qty Dipesan','number']],
+  [['invoice_number','No. Invoice','text'],['payment_reference','No. Bukti Pembayaran / Referensi','text'],['payment_amount','Nominal Pembayaran (Rp)','number']],
+  [['tracking_number','No. Resi / Tracking','text'],['courier','Ekspedisi / Kurir','text'],['delivery_note','No. Surat Jalan','text']],
+  [['qty_received','Qty Diterima','number'],['receipt_reference','No. Surat Jalan / Bukti Penerimaan','text'],['received_by','Diterima Oleh','text']],
+  [['handover_reference','No. Serah Terima / BAST','text'],['handed_by','Diserahkan Oleh','text'],['received_by','Diterima Oleh','text'],['location','Lokasi / Bagian','text']]
+];
+const PK_PROC_LEGACY_FIELDS = ['supplier','order_reference','tracking_number','qty_ordered','qty_received'];
+let pkProcStageSaving = false;
+
+function pkProcStageData(r, stage) {
+  return (r.stage_details && r.stage_details[String(stage)]) || {};
 }
 
-function openPKProcurementItemForm(pkId, poId, itemId) {
+function openPKProcurementItemForm(pkId, poId, itemId, selectedStage=null) {
   const state = _pkProcCurrent;
-  if (!state || state.pk.id !== pkId) return;
-  const item = (state.pk.po_pk_items||[]).find(it => String(it.id) === String(itemId));
+  if (!can('pk_procurement_view') || !state || String(state.pk.id)!==String(pkId)) return;
+  const item = (state.pk.po_pk_items||[]).find(it => String(it.id)===String(itemId));
   if (!item) return;
   const r = state.recMap[String(itemId)] || {};
-  const status = r.status || 'Belum Dibeli';
-  openModal(`<div class="modal" style="max-width:720px">
-    <div class="modal-header"><div><h2>Update Pengadaan Barang</h2><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(item.component_name||'')} · ${item.qty_pk||0} ${escapeHtml(item.unit||'pcs')}</div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('pkProcItemModal')">✕</button></div>
+  const idx = Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
+  const manage = can('pk_procurement_manage');
+  const steps = PK_PROC_STATUSES.map((status,i) => {
+    const date = PK_PROC_DATE_FIELDS[i] && r[PK_PROC_DATE_FIELDS[i]];
+    const cls = i<idx?'done':i===idx?'active':'';
+    const desc = i===0 ? (idx===0?'Status awal':'Tahapan awal') : date ? fmtDate(date) : i<=idx ? 'Tanggal belum tercatat' : 'Belum diproses';
+    return `<button type="button" class="pk-proc-stage-row ${cls}" data-stage="${i}" onclick="selectPKProcStage(${i})"><span class="pk-proc-stage-dot">${i<idx?'✓':i+1}</span><span><strong>${status}</strong><span class="pk-proc-stage-date">${desc}</span></span><span style="font-size:11px;color:var(--text3)">${i===0?'Lihat':i<=idx?(manage?'Edit ›':'Lihat ›'):manage?'Proses ›':'Lihat ›'}</span></button>`;
+  }).join('');
+  closeModal('pkProcItemModal');
+  openModal(`<div class="modal" style="max-width:780px;width:min(96vw,780px)">
+    <div class="modal-header"><div><h2>Timeline Pengadaan Material</h2><div style="font-size:12px;margin-top:4px">${escapeHtml(item.component_name||'—')}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">${escapeHtml(item.part_number||'—')} · Kebutuhan ${item.qty_pk||0} ${escapeHtml(item.unit||'pcs')}</div></div><button class="btn btn-ghost btn-sm" onclick="closeModal('pkProcItemModal')">✕</button></div>
     <div class="modal-body">
-      ${pkProcTimeline(status)}
-      <div class="form-grid">
-        <div class="form-row"><label>Status <span class="req">*</span></label><select id="pkProcStatus" onchange="pkProcStatusAutofill(this.value)">${PK_PROC_STATUSES.map(s=>`<option ${status===s?'selected':''}>${s}</option>`).join('')}</select></div>
-        <div class="form-row"><label>Supplier / Vendor</label><input type="text" id="pkProcSupplier" value="${escapeHtml(r.supplier||'')}"></div>
-        <div class="form-row"><label>No. Order / Invoice</label><input type="text" id="pkProcOrderRef" value="${escapeHtml(r.order_reference||'')}"></div>
-        <div class="form-row"><label>No. Resi / Tracking</label><input type="text" id="pkProcTracking" value="${escapeHtml(r.tracking_number||'')}"></div>
-        <div class="form-row"><label>Qty Dipesan</label><input type="number" step="0.01" min="0" id="pkProcQtyOrdered" value="${r.qty_ordered ?? item.qty_pk ?? 0}"></div>
-        <div class="form-row"><label>Qty Diterima</label><input type="number" step="0.01" min="0" id="pkProcQtyReceived" value="${r.qty_received ?? 0}"></div>
-      </div>
-      <div class="form-section" style="margin-top:.25rem"><div class="form-section-title">Tanggal Tahapan</div><div class="form-grid">
-        <div class="form-row"><label>Dipesan</label><input type="date" id="pkProcOrdered" value="${r.ordered_at||''}"></div>
-        <div class="form-row"><label>Dibayar</label><input type="date" id="pkProcPaid" value="${r.paid_at||''}"></div>
-        <div class="form-row"><label>Dikirim</label><input type="date" id="pkProcShipped" value="${r.shipped_at||''}"></div>
-        <div class="form-row"><label>Sampai</label><input type="date" id="pkProcArrived" value="${r.arrived_at||''}"></div>
-        <div class="form-row"><label>Diserahkan</label><input type="date" id="pkProcHanded" value="${r.handed_over_at||''}"></div>
-      </div></div>
-      <div class="form-row"><label>Catatan</label><textarea id="pkProcNote">${escapeHtml(r.note||'')}</textarea></div>
+      <div style="display:flex;align-items:center;justify-content:space-between"><strong>Status saat ini</strong>${pkProcBadge(r.status||'Belum Dibeli')}</div>
+      <div style="font-size:12px;color:var(--text3)">Klik tahapan untuk melihat atau memperbarui detail proses.</div>
+      <div class="pk-proc-stage-list" id="pkProcStageList">${steps}</div>
+      <div id="pkProcStageEditor"></div>
+      ${r.note?`<div style="font-size:12px;color:var(--text3);white-space:pre-wrap">Catatan lama: ${escapeHtml(r.note)}</div>`:''}
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('pkProcItemModal')">Batal</button><button class="btn btn-primary" onclick="savePKProcurementItem('${pkId}','${poId}','${itemId}')">Simpan</button></div>
-  </div>`, 'pkProcItemModal', true);
+    <div class="modal-footer"><button class="btn" onclick="closeModal('pkProcItemModal')">Tutup</button></div>
+  </div>`,'pkProcItemModal',true);
+  const el=document.getElementById('pkProcItemModal');
+  el.dataset.pkId=String(pkId);el.dataset.poId=String(poId);el.dataset.itemId=String(itemId);
+  if(selectedStage!==null) selectPKProcStage(selectedStage);
 }
 
-async function savePKProcurementItem(pkId, poId, itemId) {
-  const state = _pkProcCurrent;
-  const item = (state?.pk?.po_pk_items||[]).find(it => String(it.id) === String(itemId));
-  if (!item) return;
-  const status = gv('pkProcStatus');
-  const payload = {
-    pk_id: pkId,
-    pk_item_id: String(itemId),
-    status,
-    supplier: gv('pkProcSupplier').trim() || null,
-    order_reference: gv('pkProcOrderRef').trim() || null,
-    tracking_number: gv('pkProcTracking').trim() || null,
-    qty_ordered: parseFloat(gv('pkProcQtyOrdered')) || 0,
-    qty_received: parseFloat(gv('pkProcQtyReceived')) || 0,
-    ordered_at: gv('pkProcOrdered') || null,
-    paid_at: gv('pkProcPaid') || null,
-    shipped_at: gv('pkProcShipped') || null,
-    arrived_at: gv('pkProcArrived') || null,
-    handed_over_at: gv('pkProcHanded') || null,
-    note: gv('pkProcNote').trim() || null,
-    updated_by: String(currentUser.id),
-    updated_at: new Date().toISOString()
-  };
-  const { error } = await sb.from('po_pk_procurement').upsert(payload,{onConflict:'pk_id,pk_item_id'});
-  if (error) { toast('Gagal menyimpan: '+error.message); return; }
-  await logPO(poId, 'Pengadaan PK', `${item.component_name||item.part_number||itemId} → ${status}`);
-  toast('Status pengadaan diperbarui');
-  closeAllModals();
-  await loadPOs();
-  if (currentModule === 'pkproc') await renderPKProcurementModule();
-  await openPKProcurementDetail(pkId, poId);
+function selectPKProcStage(stage) {
+  const modal=document.getElementById('pkProcItemModal');
+  const state=_pkProcCurrent;
+  if(!modal||!state||!Number.isInteger(stage)||stage<0||stage>=PK_PROC_STATUSES.length)return;
+  const item=(state.pk.po_pk_items||[]).find(it=>String(it.id)===modal.dataset.itemId);
+  if(!item)return;
+  const r=state.recMap[modal.dataset.itemId]||{};
+  const idx=Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
+  const canEdit=can('pk_procurement_manage')&&stage>0&&stage<=idx+1;
+  const data=pkProcStageData(r,stage);
+  const editor=document.getElementById('pkProcStageEditor');
+  modal.querySelectorAll('[data-stage]').forEach(el=>el.classList.toggle('selected',Number(el.dataset.stage)===stage));
+  if(stage===0){editor.innerHTML='<div class="pk-proc-stage-editor">Belum Dibeli adalah status awal material sebelum proses pemesanan.</div>';return;}
+  const fields=PK_PROC_STAGE_FIELDS[stage].map(([key,label,type])=>{
+    let val=PK_PROC_LEGACY_FIELDS.includes(key)?r[key]:data[key];
+    if(val==null && key==='qty_ordered' && stage>idx)val=item.qty_pk||0;
+    if(val==null && key==='qty_received' && stage>idx)val=r.qty_ordered??item.qty_pk??0;
+    const attrs=type==='number'?' min="0" step="0.01"':'';
+    return `<div class="form-row"><label>${label}</label><input type="${type}" id="pkProcStage_${key}" value="${escapeHtml(String(val??''))}"${attrs} ${canEdit?'':'disabled'}></div>`;
+  }).join('');
+  const date=r[PK_PROC_DATE_FIELDS[stage]]||(canEdit&&stage>idx?today():'');
+  const notice=stage>idx+1?'Selesaikan tahapan sebelumnya terlebih dahulu.':stage===5?'Pencatatan tahap ini tidak membuat dokumen BAST otomatis. Gunakan menu Buat Serah Terima untuk penerbitan dokumen.':'';
+  editor.innerHTML=`<div class="pk-proc-stage-editor">
+    <strong>${PK_PROC_STATUSES[stage]}</strong>
+    ${notice?`<div style="font-size:12px;color:var(--text3)">${notice}</div>`:''}
+    <div class="form-grid"><div class="form-row"><label>Tanggal Proses *</label><input type="date" id="pkProcStageDate" value="${date}" ${canEdit?'':'disabled'}></div>${fields}</div>
+    <div class="form-row"><label>Catatan Tahapan</label><textarea id="pkProcStageNote" ${canEdit?'':'disabled'}>${escapeHtml(data.note||'')}</textarea></div>
+    ${data.updated_at?`<div style="font-size:11px;color:var(--text3)">Terakhir diperbarui: ${escapeHtml(new Date(data.updated_at).toLocaleString('id-ID'))}</div>`:''}
+    ${canEdit?`<div style="display:flex;justify-content:flex-end"><button class="btn btn-primary" id="pkProcStageSave" onclick="savePKProcStage(${stage})">${stage>idx?'Proses '+PK_PROC_STATUSES[stage]:'Simpan Perubahan'}</button></div>`:''}
+  </div>`;
+  editor.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+async function savePKProcStage(stage) {
+  if(pkProcStageSaving||!can('pk_procurement_manage'))return;
+  const modal=document.getElementById('pkProcItemModal'),state=_pkProcCurrent;
+  if(!modal||!state||stage<1||stage>5)return;
+  const {pkId,poId,itemId}=modal.dataset;
+  if(String(state.pk.id)!==pkId)return;
+  const item=(state.pk.po_pk_items||[]).find(it=>String(it.id)===itemId);
+  if(!item)return;
+  const r=state.recMap[itemId]||{};
+  const idx=Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
+  if(stage>idx+1){toast('Selesaikan tahapan sebelumnya');return;}
+  const date=gv('pkProcStageDate');
+  if(!date){toast('Tanggal proses wajib diisi');return;}
+  for(let i=1;i<stage;i++){const d=r[PK_PROC_DATE_FIELDS[i]];if(d&&d>date){toast('Tanggal tidak boleh sebelum tahapan sebelumnya');return;}}
+  for(let i=stage+1;i<PK_PROC_DATE_FIELDS.length;i++){const d=r[PK_PROC_DATE_FIELDS[i]];if(d&&d<date){toast('Tanggal tidak boleh setelah tahapan berikutnya');return;}}
+  const now=new Date().toISOString();
+  const details={...(r.stage_details||{})};
+  const data={...pkProcStageData(r,stage),note:gv('pkProcStageNote').trim()||null,updated_by:String(currentUser.id),updated_at:now};
+  const status=PK_PROC_STATUSES[Math.max(idx,stage)];
+  const payload={pk_id:pkId,pk_item_id:itemId,status,[PK_PROC_DATE_FIELDS[stage]]:date,updated_by:String(currentUser.id),updated_at:now};
+  for(const [key,label,type] of PK_PROC_STAGE_FIELDS[stage]){
+    const raw=gv('pkProcStage_'+key).trim();
+    const value=type==='number'?(raw===''?null:Number(raw)):(raw||null);
+    if(type==='number'&&value!==null&&(!Number.isFinite(value)||value<0)){toast(label+' tidak valid');return;}
+    if(key==='qty_ordered'||key==='qty_received'){
+      if(value===null||value<=0){toast(label+' wajib lebih dari nol');return;}
+      if(key==='qty_received'&&r.qty_ordered!=null&&Number(r.qty_ordered)>0&&value>Number(r.qty_ordered)){toast('Qty diterima melebihi qty dipesan');return;}
+      if(key==='qty_ordered'&&Number(r.qty_received||0)>value){toast('Qty dipesan tidak boleh kurang dari qty diterima');return;}
+    }
+    if(PK_PROC_LEGACY_FIELDS.includes(key))payload[key]=value;
+    else data[key]=value;
+  }
+  details[String(stage)]=data;payload.stage_details=details;
+  pkProcStageSaving=true;
+  const btn=document.getElementById('pkProcStageSave');if(btn)btn.disabled=true;
+  try{
+    const {error}=await sb.from('po_pk_procurement').upsert(payload,{onConflict:'pk_id,pk_item_id'});
+    if(error){toast('Gagal menyimpan: '+error.message);return;}
+    await logPO(poId,'Pengadaan PK',`${item.component_name||item.part_number||itemId} → ${PK_PROC_STATUSES[stage]} (${date})`);
+    toast('Tahapan pengadaan disimpan');
+    closeAllModals();
+    await loadPOs();
+    if(currentModule==='pkproc')await renderPKProcurementModule();
+    await openPKProcurementDetail(pkId,poId);
+    openPKProcurementItemForm(pkId,poId,itemId,stage);
+  }finally{pkProcStageSaving=false;if(btn)btn.disabled=false;}
 }
 
 function openPKHandoverForm(pkId, poId) {
