@@ -1917,7 +1917,7 @@ async function renderPKProcurementModule() {
  const [pks,old,ordersResult]=await Promise.all([
   pkPurchaseFetchAll(()=>sb.from('po_pk').select('*,purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}).order('id')),
   pkPurchaseFetchAll(()=>sb.from('po_pk_procurement').select('pk_id,pk_item_id,status,ordered_at,paid_at').order('id')),
-  pkPurchaseFetchAll(()=>sb.from('pk_purchase_orders').select('id,pk_id,total,lines,order_date,created_at').order('created_at',{ascending:false}).order('id')).then(data=>({data,error:null}),e=>({data:[],error:String(e.message||e)}))
+  pkPurchaseFetchAll(()=>sb.from('pk_purchase_orders').select('id,pk_id,total,lines,order_date,created_at,cancelled_at').order('created_at',{ascending:false}).order('id')).then(data=>({data,error:null}),e=>({data:[],error:String(e.message||e)}))
  ]);
  const orders=ordersResult.data,events=[];
  if(!ordersResult.error){try{for(let i=0;i<orders.length;i+=50){events.push(...await pkPurchaseFetchAll(()=>sb.from('pk_purchase_events').select('*').in('order_id',orders.slice(i,i+50).map(o=>o.id)).order('created_at').order('id')));}}catch(e){ordersResult.error=String(e.message||e);}}
@@ -1931,14 +1931,14 @@ function renderPKProcurementBody(){
  const body=document.getElementById('pkProcBody');if(!body)return;
  const st=pkProcModuleState,orders=st.newOrders||[],events=st.newEvents||[],old=st.procurement||[];
  const paid=events.filter(e=>e.kind==='payment').reduce((n,e)=>n+Number(e.amount||0),0);
- const total=orders.reduce((n,o)=>n+Number(o.total||0),0);
+ const total=orders.filter(o=>!o.cancelled_at).reduce((n,o)=>n+Number(o.total||0),0);
  const cards=[['PK Siap Purchasing',st.pks.filter(pk=>PK_PURCHASE_RELEASED.includes(pk.status)).length],['Pemesanan Baru',orders.length],['Nilai Order Baru',pkBudgetMoney(total)],['Pembayaran Baru',pkBudgetMoney(paid)]];
  const rows=st.pks.map(pk=>{
  const po=pk.purchase_orders||{},os=orders.filter(o=>o.pk_id===pk.id),ev=events.filter(e=>os.some(o=>o.id===e.order_id)),calc=os.map(o=>pkPurchaseOrderCalc(o,ev)),ls=old.filter(r=>r.pk_id===pk.id&&(r.ordered_at||r.status!=='Belum Dibeli'));
  const ready=PK_PURCHASE_RELEASED.includes(pk.status),category=ready?'released':['Selesai','Ditolak'].includes(pk.status)?'closed':'draft';
  const search=[pk.id,pk.no_pk,pk.keperluan,po.no_po,po.no_project,po.customer_name,po.project_name].join(' ');
  const received=calc.filter(c=>c.receivedAll).length,complete=calc.filter(c=>c.handedAll).length;
- const newTotal=os.reduce((n,o)=>n+Number(o.total||0),0),newPaid=calc.reduce((n,c)=>n+c.paid,0);
+ const newTotal=os.filter(o=>!o.cancelled_at).reduce((n,o)=>n+Number(o.total||0),0),newPaid=calc.reduce((n,c)=>n+c.paid,0);
  return `<tr data-pk-purchase-module-row="1" data-category="${category}" data-search="${escapeHtml(search)}" tabindex="0" aria-label="Buka PK ${escapeHtml(pk.no_pk||pk.id)}" onclick="pkPurchaseOpenRow(this,'${pk.id}','${pk.po_id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"><td><span class="pk-purchase-id">${escapeHtml(pk.no_pk||pk.id)} ›</span><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.no_project||po.no_po||'—')}</div></td><td style="white-space:normal"><strong>${escapeHtml(po.customer_name||'—')}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.project_name||pk.keperluan||'—')}</div></td><td><strong>${escapeHtml(pk.status)}</strong><div style="font-size:11px;color:var(--text3)">${ready?'Siap purchasing':category==='closed'?'Ditutup':'Belum release'}</div></td><td>${pkBudgetMoney(pk.nilai_pengajuan)}</td><td>${os.length} order<div style="font-size:11px;color:var(--text3)">${pkBudgetMoney(newTotal)}${ls.length?' · '+ls.length+' histori lama':''}</div></td><td>${pkBudgetMoney(newPaid)}<div style="font-size:11px;color:var(--text3)">${received}/${os.length} diterima · ${complete}/${os.length} diserahkan</div></td></tr>`;
  }).join('');
  body.innerHTML=`<div class="stats-grid">${cards.map(([l,v])=>`<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val" style="font-size:20px">${v}</div></div>`).join('')}</div>${st.purchaseError?`<div style="padding:10px;color:var(--red);background:var(--red-bg);border-radius:8px">Data transaksi baru belum lengkap: ${escapeHtml(st.purchaseError)}. Daftar PK tetap tersedia.</div>`:''}<div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="search" value="${escapeHtml(st.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;pkPurchaseModuleFilter()"></div><select onchange="pkProcModuleState.filter=this.value;pkPurchaseModuleFilter()"><option value="">Semua PK</option><option value="released">Siap Purchasing</option><option value="draft">Belum Release</option><option value="closed">Ditutup</option></select></div><div class="table-card"><div class="table-wrap"><table style="min-width:950px"><thead><tr><th>PK / PO</th><th>Customer & Project</th><th>Status PK</th><th>Nilai PK</th><th>Pemesanan Baru</th><th>Pembayaran / Progres Baru</th></tr></thead><tbody>${rows}<tr id="pkPurchaseModuleEmpty" style="display:none"><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Tidak ada PK yang cocok</td></tr></tbody></table></div></div>`;
@@ -1986,7 +1986,7 @@ function pkPurchaseOrderCalc(o,events){
  const ev=events.filter(e=>e.order_id===o.id),paid=ev.filter(e=>e.kind==='payment').reduce((n,e)=>n+pkPurchaseNum(e.amount),0);
  const lines=(o.lines||[]).map((l,i)=>{const sum=k=>ev.filter(e=>e.kind===k&&Number(e.line_no)===i+1).reduce((n,e)=>n+pkPurchaseNum(e.qty),0);return {line:l,no:i+1,received:sum('receipt'),handed:sum('handover')};});
  const receivedAll=lines.length>0&&lines.every(x=>x.received>=pkPurchaseNum(x.line.qty)),handedAll=lines.length>0&&lines.every(x=>x.handed>=pkPurchaseNum(x.line.qty));
- const status=handedAll?'Diserahkan':lines.some(x=>x.handed>0)?'Serah terima sebagian':receivedAll?'Sampai':lines.some(x=>x.received>0)?'Diterima sebagian':ev.some(e=>e.kind==='shipment')?'Dikirim':paid>=pkPurchaseNum(o.total)?'Dibayar':paid>0?'DP / sebagian':'Dipesan';
+ const status=o.cancelled_at?'Dibatalkan':handedAll?'Diserahkan':lines.some(x=>x.handed>0)?'Serah terima sebagian':receivedAll?'Sampai':lines.some(x=>x.received>0)?'Diterima sebagian':ev.some(e=>e.kind==='shipment')?'Dikirim':paid>=pkPurchaseNum(o.total)?'Dibayar':paid>0?'DP / sebagian':'Dipesan';
  return {ev,paid,lines,status,receivedAll,handedAll};
 }
 function pkPurchaseTotals(st){
@@ -1996,7 +1996,7 @@ function pkPurchaseTotals(st){
  const legacyPaid=st.procurement.filter(x=>x.paid_at&&x.stage_details?.['2']?.payment_amount!=null).reduce((n,x)=>n+pkPurchaseNum(x.stage_details['2'].payment_amount),0);
  const unknown=st.procurement.filter(x=>x.paid_at&&x.stage_details?.['2']?.payment_amount==null).length;
  const newPaid=events.filter(e=>e.kind==='payment').reduce((n,e)=>n+pkPurchaseNum(e.amount),0);
- return {baseline,itemBudget,legacy,newReserved,newPaid,legacyPaid,unknown,available:Math.max(0,Math.min(sum('available'),baseline-legacy-newReserved)),unitemized:baseline-itemBudget,orderTotal:orders.reduce((n,o)=>n+pkPurchaseNum(o.total),0)};
+ return {baseline,itemBudget,legacy,newReserved,newPaid,legacyPaid,unknown,available:Math.max(0,Math.min(sum('available'),baseline-legacy-newReserved)),unitemized:baseline-itemBudget,orderTotal:orders.filter(o=>!o.cancelled_at).reduce((n,o)=>n+pkPurchaseNum(o.total),0)};
 }
 function pkPurchaseSourceLabel(f){return ({cancelled:'Tidak jadi dibeli',stock:'Menggunakan stok',replaced:'Diganti material',PAX:'Budget PAX'})[f.source_type]||f.source_type||'Material PK';}
 function pkPurchaseOverview(st){
@@ -2034,12 +2034,36 @@ function pkPurchaseFundsForRow(row){
  const st=_pkProcCurrent,oid=row.querySelector('.pk-pur-mode').value==='pk'?row.querySelector('.pk-pur-original').value:'';
  return (st?.purchase?.funds||[]).filter(f=>Number(f.available)>0&&(f.source_id===oid||f.outside_allowed));
 }
-function openPKPurchaseCreate(originalId='',sourceId=''){
+
+function pkPurchaseOrderAllocations(o){if(o.budget_allocations)return o.budget_allocations;const m=new Map();for(const l of o.lines||[])for(const a of l.allocations||[])m.set(a.source_id,(m.get(a.source_id)||0)+Number(a.amount));return [...m].map(([source_id,amount])=>({source_id,amount}));}
+function pkPurchaseEditFunds(st,o){
+ const al=new Map(pkPurchaseOrderAllocations(o).map(a=>[a.source_id,Number(a.amount)])),qty=new Map();
+ for(const l of o.lines||[])if(l.original_id)qty.set(l.original_id,(qty.get(l.original_id)||0)+Number(l.qty));
+ return st.purchase.funds.map(f=>({...f,available:Number(f.available)+(al.get(f.source_id)||0),own_qty_remaining:Math.min(Number(f.qty_pk)||0,Number(f.own_qty_remaining)+(qty.get(f.source_id)||0)),outside_allowed:!!f.outside_allowed&&(!qty.has(f.source_id)||Number(f.own_qty_remaining)>0||f.source_type!=='Sisa pembelian')}));
+}
+function pkPurchaseFormFunds(){const st=_pkProcCurrent,id=document.getElementById('pkPurchaseCreate')?.dataset.editId,o=st?.purchase?.orders.find(x=>x.id===id);return o?pkPurchaseEditFunds(st,o):st?.purchase?.funds||[];}
+async function pkPurchaseReviseSimple(id,cancel){
+ const st=_pkProcCurrent,o=st?.purchase?.orders.find(x=>x.id===id);if(!o||o.cancelled_at||!can('pk_procurement_manage'))return;
+ if(cancel&&st.purchase.events.some(e=>e.order_id===id)){toast('Order sudah memiliki transaksi lanjutan');return;}
+ const reason=prompt(cancel?'Alasan pembatalan pemesanan:':'Alasan perubahan catatan:');if(!reason?.trim())return;
+ const note=cancel?null:prompt('Catatan order:',o.note||'');if(!cancel&&note===null)return;
+ const patch={revision:Number(o.revision||0)+1,change_reason:reason.trim(),...(cancel?{cancelled_at:new Date().toISOString()}:{note})};
+ const res=await sb.from('pk_purchase_orders').update(patch).eq('id',id).eq('revision',Number(o.revision||0)).select('id').maybeSingle();
+ if(res.error||!res.data){toast('Gagal: '+(res.error?.message||'Versi order berubah'));return;}
+ toast(cancel?'Order dibatalkan, budget dikembalikan':'Catatan diperbarui');await openPKProcurementDetail(st.pk.id,st.poId,'orders');openPKPurchaseOrder(id);if(document.getElementById('pkProcBody'))renderPKProcurementModule();
+}
+
+function openPKPurchaseCreate(originalId='',sourceId='',editId=''){
  const st=_pkProcCurrent;if(!pkPurchaseCanStart(st)){toast('PK belum release atau data budget belum siap');return;}
- const funds=st.purchase.funds;if(!funds.some(f=>Number(f.available)>0&&(Number(f.own_qty_remaining)>0||f.outside_allowed))){toast('Tidak ada sumber budget yang tersedia');return;}
+ const edit=editId?st.purchase.orders.find(o=>o.id===editId):null;
+ if(editId&&(!edit||edit.cancelled_at||st.purchase.events.some(e=>e.order_id===editId))){toast('Order tidak dapat diedit penuh');return;}
+ const funds=edit?pkPurchaseEditFunds(st,edit):st.purchase.funds;if(!funds.some(f=>Number(f.available)>0&&(Number(f.own_qty_remaining)>0||f.outside_allowed))){toast('Tidak ada sumber budget yang tersedia');return;}
  closeModal('pkPurchaseCreate');
- openModal(`<div class="modal pk-purchase-form" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>Buat Pemesanan</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}" onchange="pkPurchasePreviewNumber()"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor otomatis..." autocomplete="off" oninput="this.dataset.manual=this.value.trim()?'1':'0';if(!this.value.trim())pkPurchasePreviewNumber()"><div style="font-size:11px;color:var(--text3);margin-top:3px">Nomor otomatis · dapat diubah</div></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div><div class="pk-pur-section-title">1. Daftar Material Pemesanan</div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button><div class="pk-pur-order-budget"><div class="pk-pur-section-title">2. Alokasi Budget Pemesanan</div><div style="font-size:12px;color:var(--text3)">Budget utama otomatis mengikuti material PK yang dipilih. Tambahkan sumber lain bila total masih kurang.</div><div id="pkPurPrimary"></div><div id="pkPurAdditional" style="display:flex;flex-direction:column;gap:8px"></div><button type="button" class="btn btn-sm" onclick="pkPurchaseAllocAdd(document.getElementById('pkPurAdditional'));pkPurchaseUpdateTotals()">+ Sumber Budget Tambahan</button><div id="pkPurBudgetSummary" class="pk-pur-subtotal"></div></div></div><div class="modal-footer"><div class="pk-pur-footer-total"><span style="font-size:11px;color:var(--text3)">Total Pemesanan</span><strong id="pkPurTotal">Rp 0</strong></div><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
- document.getElementById('pkPurchaseCreate').dataset.draftId=crypto.randomUUID();
+ openModal(`<div class="modal pk-purchase-form" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>${edit?'Edit Pemesanan':'Buat Pemesanan'}</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}" onchange="pkPurchasePreviewNumber()"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor otomatis..." autocomplete="off" oninput="this.dataset.manual=this.value.trim()?'1':'0';if(!this.value.trim())pkPurchasePreviewNumber()"><div style="font-size:11px;color:var(--text3);margin-top:3px">Nomor otomatis · dapat diubah</div></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div>${edit?'<div class="form-row"><label>Alasan perubahan *</label><input id="pkPurEditReason"></div>':''}<div class="pk-pur-section-title">1. Daftar Material Pemesanan</div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button><div class="pk-pur-order-budget"><div class="pk-pur-section-title">2. Alokasi Budget Pemesanan</div><div style="font-size:12px;color:var(--text3)">Budget utama otomatis mengikuti material PK yang dipilih. Tambahkan sumber lain bila total masih kurang.</div><div id="pkPurPrimary"></div><div id="pkPurAdditional" style="display:flex;flex-direction:column;gap:8px"></div><button type="button" class="btn btn-sm" onclick="pkPurchaseAllocAdd(document.getElementById('pkPurAdditional'));pkPurchaseUpdateTotals()">+ Sumber Budget Tambahan</button><div id="pkPurBudgetSummary" class="pk-pur-subtotal"></div></div></div><div class="modal-footer"><div class="pk-pur-footer-total"><span style="font-size:11px;color:var(--text3)">Total Pemesanan</span><strong id="pkPurTotal">Rp 0</strong></div><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
+ const modal=document.getElementById('pkPurchaseCreate');modal.dataset.draftId=crypto.randomUUID();
+ if(edit){modal.dataset.editId=edit.id;modal.dataset.revision=String(edit.revision||0);document.getElementById('pkPurDate').value=edit.order_date;const num=document.getElementById('pkPurNumber');num.value=edit.order_number;num.dataset.manual='1';document.getElementById('pkPurSupplier').value=edit.supplier;document.getElementById('pkPurNote').value=edit.note||'';
+ for(const l of edit.lines||[]){pkPurchaseAddLine(l.original_id||'');const row=document.getElementById('pkPurLines').lastElementChild;if(!l.original_id){row.querySelector('.pk-pur-mode').value='other';pkPurchaseModeChanged(row);row.querySelector('.pk-pur-name').value=l.name;row.querySelector('.pk-pur-part').value=l.part_number||'';row.querySelector('.pk-pur-unit').value=l.unit;}for(const [k,v] of [['qty',l.qty],['price',l.unit_price],['shipping',l.shipping||0],['discount',l.discount||0],['note',l.note||l.reason||'']])row.querySelector('.pk-pur-'+k).value=v;}
+ const primary=new Set((edit.lines||[]).map(l=>l.original_id));for(const a of pkPurchaseOrderAllocations(edit))if(!primary.has(a.source_id))pkPurchaseAllocAdd(document.getElementById('pkPurAdditional'),a.source_id);pkPurchaseUpdateTotals();return;}
  pkPurchaseAddLine(originalId,sourceId);
  if(sourceId)pkPurchaseAllocAdd(document.getElementById('pkPurAdditional'),sourceId);
  pkPurchaseUpdateTotals();pkPurchasePreviewNumber();
@@ -2057,7 +2081,7 @@ async function pkPurchasePreviewNumber(){
 }
 function pkPurchaseAddLine(originalId='',sourceId=''){
  const host=document.getElementById('pkPurLines'),st=_pkProcCurrent;if(!host||!st||host.children.length>=100)return;
- const originals=st.purchase.funds.filter(f=>Number(f.own_qty_remaining)>0&&Number(f.available)>0);
+ const originals=pkPurchaseFormFunds().filter(f=>Number(f.own_qty_remaining)>0&&Number(f.available)>0);
  const row=document.createElement('div');row.className='pk-pur-line';
  row.innerHTML=`<div class="pk-pur-line-head"><strong class="pk-pur-label">Material</strong><button class="btn btn-sm btn-ghost" onclick="pkPurchaseRemoveLine(this)" aria-label="Hapus material">✕ Hapus</button></div>
  <div class="form-grid"><div class="form-row"><label>Jenis Material</label><select class="pk-pur-mode" onchange="pkPurchaseModeChanged(this.closest('.pk-pur-line'))"><option value="pk">Sesuai PK</option><option value="other">Di luar PK</option></select></div><div class="form-row pk-pur-original-wrap"><label>Pilih Material PK *</label><div class="pk-pur-autocomplete"><input type="hidden" class="pk-pur-original" value=""><input type="text" class="pk-pur-query" placeholder="Ketik nama material / Part No..." autocomplete="off" role="combobox" aria-label="Cari material PK" aria-autocomplete="list" aria-expanded="false" onfocus="pkPurchaseSuggest(this)" oninput="pkPurchaseQueryChanged(this)" onkeydown="pkPurchaseSuggestKey(event,this)" onblur="pkPurchaseSuggestBlur(this)"><div class="pk-pur-results" role="listbox" hidden></div><div class="pk-pur-selected" aria-live="polite"></div></div></div></div>
@@ -2086,7 +2110,7 @@ function pkPurchaseSuggestClose(input){
 function pkPurchaseSuggest(input){
  const wrap=input.closest('.pk-pur-autocomplete'),row=input.closest('.pk-pur-line');if(!wrap||!row)return;
  const list=wrap.querySelector('.pk-pur-results'),selected=row.querySelector('.pk-pur-original').value;
- const matches=pkPurchasePredictiveMatches(_pkProcCurrent?.purchase?.funds||[],selected?'':input.value,selected||!input.value.trim()?20:100);
+ const matches=pkPurchasePredictiveMatches(pkPurchaseFormFunds(),selected?'':input.value,selected||!input.value.trim()?20:100);
  list.id=list.id||'pkPurSuggestions-'+crypto.randomUUID();input.setAttribute('aria-controls',list.id);list.innerHTML='';
  matches.forEach((f,i)=>{
  const opt=document.createElement('div');opt.className='pk-pur-option';opt.id=list.id+'-'+i;opt.dataset.source=f.source_id;opt.setAttribute('role','option');opt.setAttribute('aria-selected','false');
@@ -2108,7 +2132,7 @@ function pkPurchaseQueryChanged(input){
  pkPurchaseSuggest(input);
 }
 function pkPurchaseSelectMaterial(row,id){
- const f=(_pkProcCurrent?.purchase?.funds||[]).find(x=>x.source_id===id&&Number(x.own_qty_remaining)>0&&Number(x.available)>0);if(!f)return;
+ const f=pkPurchaseFormFunds().find(x=>x.source_id===id&&Number(x.own_qty_remaining)>0&&Number(x.available)>0);if(!f)return;
  row.querySelector('.pk-pur-original').value=id;
  const input=row.querySelector('.pk-pur-query');input.value=f.component_name||'';
  row.querySelector('.pk-pur-selected').textContent='✓ '+(f.part_number||'Material PK')+' · '+Number(f.own_qty_remaining)+' '+(f.unit||'')+' · Harga PK '+pkBudgetMoney(f.unit_price);
@@ -2133,7 +2157,7 @@ function pkPurchaseModeChanged(row,sourceId=''){
  row.querySelector('.pk-pur-original-wrap').style.display=mode==='pk'?'':'none';
  row.querySelector('.pk-pur-other').style.display=mode==='other'?'':'none';
  if(mode==='other')pkPurchaseSuggestClose(row.querySelector('.pk-pur-query'));
- const f=_pkProcCurrent?.purchase?.funds.find(x=>x.source_id===oid);
+ const f=pkPurchaseFormFunds().find(x=>x.source_id===oid);
  if(mode==='pk'&&f){row.querySelector('.pk-pur-qty').value=Number(f.own_qty_remaining)||1;row.querySelector('.pk-pur-price').value=Number(f.unit_price)||'';}
  row.querySelector('.pk-pur-note-label').textContent=mode==='other'?'(wajib)':'(opsional)';row.querySelector('.pk-pur-note').required=mode==='other';
  pkPurchaseUpdateTotals();
@@ -2151,7 +2175,7 @@ function pkPurchaseFundSelect(a,id,refresh=true){
 }
 function pkPurchaseFundChange(input){input.closest('.pk-pur-alloc').querySelector('.pk-pur-source').value='';pkPurchaseUpdateTotals();pkPurchaseFundSuggest(input);}
 function pkPurchaseFundSuggest(input){
- const a=input.closest('.pk-pur-alloc'),list=a.querySelector('.pk-pur-results'),all=_pkProcCurrent?.purchase?.funds||[],selected=a.querySelector('.pk-pur-source').value;
+ const a=input.closest('.pk-pur-alloc'),list=a.querySelector('.pk-pur-results'),all=pkPurchaseFormFunds(),selected=a.querySelector('.pk-pur-source').value;
  const allowed=new Set(pkPurchaseOrderAdditionalFunds().map(f=>String(f.source_id)));
  const used=new Set([...document.querySelectorAll('#pkPurAdditional .pk-pur-source')].filter(e=>e!==a.querySelector('.pk-pur-source')).map(e=>e.value));
  const q=selected?'':input.value;const matches=pkPurchasePredictiveMatches(all,q,Math.max(100,all.length));
@@ -2182,7 +2206,7 @@ function pkPurchaseReadRow(row){
  const val=c=>row.querySelector(c).value.trim(),mode=val('.pk-pur-mode'),oid=mode==='pk'?val('.pk-pur-original'):null,f=_pkProcCurrent?.purchase?.funds.find(x=>x.source_id===oid);
  return {original_id:oid||null,mode,name:mode==='pk'?(f?.component_name||''):val('.pk-pur-name'),part_number:mode==='pk'?(f?.part_number||null):val('.pk-pur-part')||null,unit:mode==='pk'?(f?.unit||''):val('.pk-pur-unit'),reason:mode==='other'?val('.pk-pur-note'):null,note:val('.pk-pur-note')||null,qty:Number(val('.pk-pur-qty')),unit_price:Number(val('.pk-pur-price')),shipping:Number(val('.pk-pur-shipping')),discount:Number(val('.pk-pur-discount'))};
 }
-function pkPurchaseOrderAdditionalFunds(){return (_pkProcCurrent?.purchase?.funds||[]).filter(f=>f.outside_allowed&&Number(f.available)>0);}
+function pkPurchaseOrderAdditionalFunds(){return pkPurchaseFormFunds().filter(f=>f.outside_allowed&&Number(f.available)>0);}
 function pkPurchasePoolPlan(lines,funds,extras){
  const cents=v=>Math.round(Number(v||0)*100),remaining=new Map(funds.map(f=>[String(f.source_id),Math.max(0,cents(f.available))])),need=new Map(),primary=[],additional=[],used=new Map();
  let total=0;
@@ -2194,7 +2218,7 @@ function pkPurchasePoolPlan(lines,funds,extras){
 }
 function pkPurchaseUpdateTotals(){
  const host=document.getElementById('pkPurLines'),extra=document.getElementById('pkPurAdditional');if(!host||!extra)return;
- const funds=_pkProcCurrent?.purchase?.funds||[],rows=[...host.children],lines=rows.map(pkPurchaseReadRow),extraRows=[...extra.children];
+ const funds=pkPurchaseFormFunds(),rows=[...host.children],lines=rows.map(pkPurchaseReadRow),extraRows=[...extra.children];
  const plan=pkPurchasePoolPlan(lines,funds,extraRows.map(a=>a.querySelector('.pk-pur-source').value));
  rows.forEach((row,i)=>{row.querySelector('.pk-pur-label').textContent='Material '+(i+1);row.querySelector('.pk-pur-line-value').textContent='Subtotal '+pkBudgetMoney(pkPurchaseLineTotal(lines[i])||0);});
  const primary=document.getElementById('pkPurPrimary');
@@ -2217,10 +2241,11 @@ async function savePKPurchaseCreate(){
  }
  if(!plan||plan.shortage>0||!plan.allocations.length){toast('Alokasi pemesanan kurang '+pkBudgetMoney(plan?.shortage||0));document.getElementById('pkPurBudgetSummary')?.scrollIntoView({block:'center'});return;}
  const total=plan.total;
- if(total>pkPurchaseTotals(st).available){toast('Total order melebihi budget tersedia');return;}
+ const edit=st.purchase.orders.find(o=>o.id===modal.dataset.editId);const reason=edit?gv('pkPurEditReason').trim():'';if(edit&&!reason){toast('Alasan perubahan wajib');return;}
+ if(total>pkPurchaseTotals(st).available+(edit?Number(edit.total):0)){toast('Total order melebihi budget tersedia');return;}
  btn.disabled=true;try{
  const payload={id:modal.dataset.draftId,pk_id:st.pk.id,order_date:date,supplier,order_number:document.getElementById('pkPurNumber')?.dataset.manual==='1'&&number?number:'__AUTO__',lines,budget_allocations:plan.allocations,note:gv('pkPurNote').trim()||null,created_by:String(currentUser.id)};
- const res=await sb.from('pk_purchase_orders').insert(payload).select('order_number').single();
+ let res;if(edit){const {order_date,supplier,order_number,lines,budget_allocations,note}=payload;res=await sb.from('pk_purchase_orders').update({order_date,supplier,order_number,lines,budget_allocations,note,revision:Number(modal.dataset.revision)+1,change_reason:reason}).eq('id',edit.id).eq('revision',Number(modal.dataset.revision)).select('order_number').single();payload.id=edit.id;}else res=await sb.from('pk_purchase_orders').insert(payload).select('order_number').single();
  if(res.error){toast('Gagal simpan order: '+res.error.message);return;}
  toast('Pemesanan tersimpan');try{await logPO(st.poId,'Purchasing PK',(res.data?.order_number||number)+' · '+pkBudgetMoney(total));}catch(e){console.warn('Log PO:',e);}
  closeModal('pkPurchaseCreate');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===payload.id))openPKPurchaseOrder(payload.id);if(document.getElementById('pkProcBody'))renderPKProcurementModule();
@@ -2228,11 +2253,11 @@ async function savePKPurchaseCreate(){
 }
 function openPKPurchaseOrder(orderId){
  const st=_pkProcCurrent,o=st?.purchase?.orders.find(x=>x.id===orderId);if(!o)return;
- const c=pkPurchaseOrderCalc(o,st.purchase.events),manage=can('pk_procurement_manage');
+ const c=pkPurchaseOrderCalc(o,st.purchase.events),manage=can('pk_procurement_manage')&&!o.cancelled_at;
  const material=c.lines.map(x=>`<div style="border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:7px"><div style="display:flex;justify-content:space-between;gap:8px"><strong>${escapeHtml(x.line.name)}</strong><strong>${pkBudgetMoney(pkPurchaseLineTotal(x.line))}</strong></div><div style="font-size:12px;color:var(--text3)">${escapeHtml(x.line.part_number||'—')} · Pesan ${Number(x.line.qty)} ${escapeHtml(x.line.unit)} · Terima ${x.received} · Serah ${x.handed}</div><div style="font-size:11px;color:var(--text3)">${o.budget_allocations?'':(x.line.allocations||[]).map(a=>escapeHtml(st.purchase.funds.find(f=>f.source_id===a.source_id)?.component_name||a.source_id)+' '+pkBudgetMoney(a.amount)).join(' · ')}</div>${x.line.reason?`<div style="font-size:11px">Alasan: ${escapeHtml(x.line.reason)}</div>`:''}${x.line.note?`<div style="font-size:12px;padding:8px 10px;background:var(--surface2);border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere"><strong>Catatan / Info:</strong> ${escapeHtml(x.line.note)}</div>`:''}${manage?`<div style="display:flex;gap:6px;flex-wrap:wrap">${x.received<Number(x.line.qty)?`<button class="btn btn-sm" onclick="openPKPurchaseEvent('${o.id}','receipt',${x.no})">+ Penerimaan</button>`:''}${x.handed<x.received?`<button class="btn btn-sm" onclick="openPKPurchaseEvent('${o.id}','handover',${x.no})">+ Serah Terima</button>`:''}</div>`:''}</div>`).join('');
  const history=c.ev.slice().sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date))||String(b.created_at).localeCompare(String(a.created_at))).map(e=>`<div style="padding:8px;border-bottom:1px solid var(--border)"><strong>${escapeHtml(PK_PURCHASE_EVENT_LABELS[e.kind]||e.kind)}</strong> · ${fmtDate(e.event_date)}<div style="font-size:12px;color:var(--text3)">${e.kind==='payment'?pkBudgetMoney(e.amount):e.line_no?escapeHtml(o.lines[Number(e.line_no)-1]?.name||'')+' · Qty '+Number(e.qty):''}${e.reference?' · '+escapeHtml(e.reference):''}${e.party?' · '+escapeHtml(e.party):''}</div>${e.note?`<div style="font-size:12px;white-space:pre-wrap">${escapeHtml(e.note)}</div>`:''}</div>`).join('');
  closeModal('pkPurchaseOrder');
- openModal(`<div class="modal" style="max-width:820px;width:min(96vw,820px)"><div class="modal-header"><div><h2>${escapeHtml(o.order_number)}</h2><div style="font-size:12px;color:var(--text3)">${escapeHtml(o.supplier)} · ${fmtDate(o.order_date)} · ${escapeHtml(c.status)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseOrder')">✕</button></div><div class="modal-body"><div class="pk-proc-summary-grid">${[['Nilai Order',o.total],['Dibayar',c.paid],['Sisa Pembayaran',Math.max(0,Number(o.total)-c.paid)]].map(([l,v])=>`<div class="pk-proc-mini"><div class="lbl">${l}</div><strong>${pkBudgetMoney(v)}</strong></div>`).join('')}</div>${manage?`<div style="display:flex;gap:8px;flex-wrap:wrap">${c.paid<Number(o.total)?`<button class="btn btn-primary" onclick="openPKPurchaseEvent('${o.id}','payment')">+ Pembayaran</button>`:''}<button class="btn" onclick="openPKPurchaseEvent('${o.id}','shipment')">+ Pengiriman</button></div>`:''}<strong>Material Dipesan</strong>${material}${o.budget_allocations?'<strong>Alokasi Budget Pemesanan</strong>'+o.budget_allocations.map(a=>'<div class="pk-pur-primary-row"><span>'+escapeHtml(st.purchase.funds.find(f=>f.source_id===a.source_id)?.component_name||a.source_id)+'</span><strong>'+pkBudgetMoney(a.amount)+'</strong></div>').join(''):''}<strong>Riwayat Transaksi</strong><div style="border:1px solid var(--border);border-radius:8px">${history||'<div style="padding:12px;color:var(--text3)">Belum ada transaksi lanjutan.</div>'}</div>${o.note?`<div style="font-size:12px">Catatan order: ${escapeHtml(o.note)}</div>`:''}</div><div class="modal-footer"><button class="btn" onclick="closeModal('pkPurchaseOrder')">Tutup</button></div></div>`,'pkPurchaseOrder',true);
+ openModal(`<div class="modal" style="max-width:820px;width:min(96vw,820px)"><div class="modal-header"><div><h2>${escapeHtml(o.order_number)}</h2><div style="font-size:12px;color:var(--text3)">${escapeHtml(o.supplier)} · ${fmtDate(o.order_date)} · ${escapeHtml(c.status)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseOrder')">✕</button></div><div class="modal-body"><div class="pk-proc-summary-grid">${[['Nilai Order',o.total],['Dibayar',c.paid],['Sisa Pembayaran',Math.max(0,Number(o.total)-c.paid)]].map(([l,v])=>`<div class="pk-proc-mini"><div class="lbl">${l}</div><strong>${pkBudgetMoney(v)}</strong></div>`).join('')}</div>${manage?`<div style="display:flex;gap:8px;flex-wrap:wrap">${c.paid<Number(o.total)?`<button class="btn btn-primary" onclick="openPKPurchaseEvent('${o.id}','payment')">+ Pembayaran</button>`:''}<button class="btn" onclick="openPKPurchaseEvent('${o.id}','shipment')">+ Pengiriman</button></div>`:''}<strong>Material Dipesan</strong>${material}${o.budget_allocations?'<strong>Alokasi Budget Pemesanan</strong>'+o.budget_allocations.map(a=>'<div class="pk-pur-primary-row"><span>'+escapeHtml(st.purchase.funds.find(f=>f.source_id===a.source_id)?.component_name||a.source_id)+'</span><strong>'+pkBudgetMoney(a.amount)+'</strong></div>').join(''):''}<strong>Riwayat Transaksi</strong><div style="border:1px solid var(--border);border-radius:8px">${history||'<div style="padding:12px;color:var(--text3)">Belum ada transaksi lanjutan.</div>'}</div>${o.note?`<div style="font-size:12px">Catatan order: ${escapeHtml(o.note)}</div>`:''}</div><div class="modal-footer">${manage?c.ev.length?`<button class="btn" onclick="pkPurchaseReviseSimple('${o.id}',false)">Edit Catatan</button>`:`<button class="btn" onclick="openPKPurchaseCreate('','','${o.id}')">Edit Pemesanan</button><button class="btn" style="color:var(--red)" onclick="pkPurchaseReviseSimple('${o.id}',true)">Batalkan Pemesanan</button>`:''}<button class="btn" onclick="closeModal('pkPurchaseOrder')">Tutup</button></div></div>`,'pkPurchaseOrder',true);
 }
 function openPKPurchaseEvent(orderId,kind,lineNo=null){
  const st=_pkProcCurrent,o=st?.purchase?.orders.find(x=>x.id===orderId);if(!o||!can('pk_procurement_manage')||!PK_PURCHASE_EVENT_LABELS[kind])return;
