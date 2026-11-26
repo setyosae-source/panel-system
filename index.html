@@ -1812,96 +1812,50 @@ function pkProcTimeline(status) {
   }).join('')}</div>`;
 }
 
+
 async function renderPKProcurementModule() {
-  if (!can('pk_procurement_view')) { toast('Tidak punya akses Pengadaan PK'); return; }
-  document.getElementById('mainContent').innerHTML = `
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:12px">
-        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
-        <div><div class="page-title">Kontrol Pengadaan PK</div><div class="page-sub">Pesan, bayar, kirim, penerimaan dan serah terima barang PK</div></div>
-      </div>
-      <div class="topbar-right"><button class="btn btn-sm" onclick="renderPKProcurementModule()">↻ Refresh</button></div>
-    </div>
-    <div class="page-body" id="pkProcBody">${loading()}</div>`;
-
-  const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
-    sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}),
-    sb.from('po_pk_procurement').select('*').order('updated_at',{ascending:false}),
-    sb.from('po_pk_handovers').select('*').order('handover_date',{ascending:false}),
-    sb.from('pk_budget_materials').select('*'),sb.from('pk_budget_sources').select('*')
-  ]);
-  pkProcModuleState.pks = pkRes.data || [];
-  pkProcModuleState.procurement = procRes.data || [];
-  pkProcModuleState.handovers = handRes.data || [];
-  pkProcModuleState.schemaError = pkRes.error || procRes.error || handRes.error || extraRes.error || sourceRes.error || null;
-  pkProcModuleState.extra=extraRes.data||[];pkProcModuleState.sources=sourceRes.data||[];
-  renderPKProcurementBody();
+ if(!can('pk_procurement_view')){toast('Tidak punya akses Pengadaan PK');return;}
+ const host=document.getElementById('mainContent');if(!host)return;
+ host.innerHTML=`<div class="topbar"><div style="display:flex;align-items:center;gap:12px"><button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="page-title">Purchasing Control</div><div class="page-sub">Budget PK release, pemesanan, pembayaran, penerimaan dan serah terima</div></div></div><div class="topbar-right"><button class="btn btn-sm" onclick="renderPKProcurementModule()">↻ Refresh</button></div></div><div class="page-body" id="pkProcBody">${loading()}</div>`;
+ const body=document.getElementById('pkProcBody');
+ try{
+ const [pks,old,ordersResult]=await Promise.all([
+  pkPurchaseFetchAll(()=>sb.from('po_pk').select('*,purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}).order('id')),
+  pkPurchaseFetchAll(()=>sb.from('po_pk_procurement').select('pk_id,pk_item_id,status,ordered_at,paid_at').order('id')),
+  pkPurchaseFetchAll(()=>sb.from('pk_purchase_orders').select('id,pk_id,total,lines,order_date,created_at').order('created_at',{ascending:false}).order('id')).then(data=>({data,error:null}),e=>({data:[],error:String(e.message||e)}))
+ ]);
+ const orders=ordersResult.data,events=[];
+ if(!ordersResult.error){try{for(let i=0;i<orders.length;i+=50){events.push(...await pkPurchaseFetchAll(()=>sb.from('pk_purchase_events').select('*').in('order_id',orders.slice(i,i+50).map(o=>o.id)).order('created_at').order('id')));}}catch(e){ordersResult.error=String(e.message||e);}}
+ if(!body.isConnected)return;
+ Object.assign(pkProcModuleState,{pks,procurement:old,newOrders:orders,newEvents:events,purchaseError:ordersResult.error,schemaError:null});
+ if(!['','released','draft','closed'].includes(pkProcModuleState.filter))pkProcModuleState.filter='';
+ renderPKProcurementBody();
+ }catch(e){if(body.isConnected){body.innerHTML=`<div style="padding:16px;color:var(--red);background:var(--red-bg);border-radius:8px">Gagal memuat daftar PK: ${escapeHtml(String(e.message||e))}. Silakan refresh.</div>`;}}
 }
-
-function renderPKProcurementBody() {
-  const body = document.getElementById('pkProcBody');
-  if (!body) return;
-  if (pkProcModuleState.schemaError) {
-    body.innerHTML = `<div style="background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);padding:1rem;border-radius:var(--r);font-size:13px;line-height:1.6"><strong>Tabel kontrol pengadaan belum tersedia.</strong><br>Jalankan file SQL migrasi yang disertakan, lalu refresh halaman.</div>`;
-    return;
-  }
-
-  const procByPk = {};
-  const handByPk = {};
-  pkProcModuleState.procurement.forEach(r => { (procByPk[r.pk_id] = procByPk[r.pk_id] || []).push(r); });
-  pkProcModuleState.handovers.forEach(r => { (handByPk[r.pk_id] = handByPk[r.pk_id] || []).push(r); });
-
-  let rows = pkProcModuleState.pks.map(pk => {
-    pk._procurement = procByPk[pk.id] || [];
-    pk._handovers = handByPk[pk.id] || [];
-    pk._budget=pkBudgetMerge(pk,pk._procurement,(pkProcModuleState.extra||[]).filter(x=>x.pk_id===pk.id),(pkProcModuleState.sources||[]).filter(x=>x.pk_id===pk.id));
-    pk._summary = pkProcSummary(pk._budget.items, pk._procurement);
-    return pk;
-  });
-
-  const q = (pkProcModuleState.search || '').toLowerCase();
-  rows = rows.filter(pk => {
-    const po = pk.purchase_orders || {};
-    const hay = [pk.id,pk.no_pk,pk.keperluan,po.no_po,po.no_project,po.customer_name,po.project_name].join(' ').toLowerCase();
-    return (!q || hay.includes(q)) && (!pkProcModuleState.filter || pk._summary.overall === pkProcModuleState.filter);
-  });
-
-  const allItems = pkProcModuleState.pks.flatMap(pk => pkBudgetActive(pk._budget?.items||pk.po_pk_items||[]).map(it => {
-    const rec = (procByPk[pk.id] || []).find(r => String(r.pk_item_id) === String(it.id));
-    return rec?.status || 'Belum Dibeli';
-  }));
-  const countStatus = s => allItems.filter(x => x === s).length;
-  const totalItems = allItems.length;
-  const inProcess = ['Dipesan','Dibayar','Dikirim'].reduce((n,s)=>n+countStatus(s),0);
-
-  body.innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total Item PK</div><div class="stat-val">${totalItems}</div></div>
-      <div class="stat-card"><div class="stat-label">Belum Dibeli</div><div class="stat-val red">${countStatus('Belum Dibeli')}</div></div>
-      <div class="stat-card"><div class="stat-label">Dalam Proses</div><div class="stat-val amber">${inProcess}</div></div>
-      <div class="stat-card"><div class="stat-label">Sudah Diserahkan</div><div class="stat-val green">${countStatus('Diserahkan')}</div></div>
-    </div>
-    <div class="toolbar">
-      <div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="text" value="${escapeHtml(pkProcModuleState.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;renderPKProcurementBody()"></div>
-      <select onchange="pkProcModuleState.filter=this.value;renderPKProcurementBody()" style="max-width:190px"><option value="">Semua Status</option>${PK_PROC_STATUSES.map(s=>`<option ${pkProcModuleState.filter===s?'selected':''}>${s}</option>`).join('')}</select>
-    </div>
-    <div class="table-card"><div class="table-wrap"><table style="min-width:900px">
-      <thead><tr><th style="min-width:110px">PK / PO</th><th>Customer & Project</th><th style="min-width:140px">Status Pengadaan</th><th style="min-width:190px">Progress</th><th style="min-width:100px">Serah Terima</th><th style="width:90px"></th></tr></thead>
-      <tbody>${rows.length ? rows.map(pk => {
-        const po = pk.purchase_orders || {};
-        const s = pk._summary;
-        return `<tr onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')" style="cursor:pointer">
-          <td><div class="mono" style="font-weight:600;color:var(--blue)">${pk.no_pk || pk.id}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${po.no_project || po.no_po || '—'}</div></td>
-          <td><div style="font-weight:600">${escapeHtml(po.customer_name || '—')}</div><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(po.project_name || pk.keperluan || '—')}</div></td>
-          <td>${pkProcBadge(s.overall)}<div style="font-size:10px;color:var(--text3);margin-top:4px">${s.total} item</div></td>
-          <td><div class="pk-proc-progress"><span style="width:${s.progress}%"></span></div><div style="font-size:11px;color:var(--text3);margin-top:4px">${s.progress}% · ${s.counts['Diserahkan']||0}/${s.total} diserahkan</div></td>
-          <td><div style="font-weight:600">${(pk._handovers||[]).length}</div><div style="font-size:10px;color:var(--text3)">dokumen</div></td>
-          <td><button class="btn btn-sm btn-coral" onclick="event.stopPropagation();openPKProcurementDetail('${pk.id}','${pk.po_id}')">Buka</button></td>
-        </tr>`;
-      }).join('') : `<tr><td colspan="6" style="text-align:center;padding:2.5rem;color:var(--text3)">Tidak ada PK yang cocok</td></tr>`}</tbody>
-    </table></div></div>`;
+function renderPKProcurementBody(){
+ const body=document.getElementById('pkProcBody');if(!body)return;
+ const st=pkProcModuleState,orders=st.newOrders||[],events=st.newEvents||[],old=st.procurement||[];
+ const paid=events.filter(e=>e.kind==='payment').reduce((n,e)=>n+Number(e.amount||0),0);
+ const total=orders.reduce((n,o)=>n+Number(o.total||0),0);
+ const cards=[['PK Siap Purchasing',st.pks.filter(pk=>PK_PURCHASE_RELEASED.includes(pk.status)).length],['Pemesanan Baru',orders.length],['Nilai Order Baru',pkBudgetMoney(total)],['Pembayaran Baru',pkBudgetMoney(paid)]];
+ const rows=st.pks.map(pk=>{
+ const po=pk.purchase_orders||{},os=orders.filter(o=>o.pk_id===pk.id),ev=events.filter(e=>os.some(o=>o.id===e.order_id)),calc=os.map(o=>pkPurchaseOrderCalc(o,ev)),ls=old.filter(r=>r.pk_id===pk.id&&(r.ordered_at||r.status!=='Belum Dibeli'));
+ const ready=PK_PURCHASE_RELEASED.includes(pk.status),category=ready?'released':['Selesai','Ditolak'].includes(pk.status)?'closed':'draft';
+ const search=[pk.id,pk.no_pk,pk.keperluan,po.no_po,po.no_project,po.customer_name,po.project_name].join(' ');
+ const received=calc.filter(c=>c.receivedAll).length,complete=calc.filter(c=>c.handedAll).length;
+ const newTotal=os.reduce((n,o)=>n+Number(o.total||0),0),newPaid=calc.reduce((n,c)=>n+c.paid,0);
+ return `<tr data-pk-purchase-module-row="1" data-category="${category}" data-search="${escapeHtml(search)}"><td><button class="pk-proc-material-link" onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')">${escapeHtml(pk.no_pk||pk.id)} ›</button><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.no_project||po.no_po||'—')}</div></td><td style="white-space:normal"><strong>${escapeHtml(po.customer_name||'—')}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.project_name||pk.keperluan||'—')}</div></td><td><strong>${escapeHtml(pk.status)}</strong><div style="font-size:11px;color:var(--text3)">${ready?'Siap purchasing':category==='closed'?'Ditutup':'Belum release'}</div></td><td>${pkBudgetMoney(pk.nilai_pengajuan)}</td><td>${os.length} order<div style="font-size:11px;color:var(--text3)">${pkBudgetMoney(newTotal)}${ls.length?' · '+ls.length+' histori lama':''}</div></td><td>${pkBudgetMoney(newPaid)}<div style="font-size:11px;color:var(--text3)">${received}/${os.length} diterima · ${complete}/${os.length} diserahkan</div></td><td><button class="btn btn-sm btn-coral" onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')">Buka</button></td></tr>`;
+ }).join('');
+ body.innerHTML=`<div class="stats-grid">${cards.map(([l,v])=>`<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val" style="font-size:20px">${v}</div></div>`).join('')}</div>${st.purchaseError?`<div style="padding:10px;color:var(--red);background:var(--red-bg);border-radius:8px">Data transaksi baru belum lengkap: ${escapeHtml(st.purchaseError)}. Daftar PK tetap tersedia.</div>`:''}<div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="search" value="${escapeHtml(st.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;pkPurchaseModuleFilter()"></div><select onchange="pkProcModuleState.filter=this.value;pkPurchaseModuleFilter()"><option value="">Semua PK</option><option value="released">Siap Purchasing</option><option value="draft">Belum Release</option><option value="closed">Ditutup</option></select></div><div class="table-card"><div class="table-wrap"><table style="min-width:950px"><thead><tr><th>PK / PO</th><th>Customer & Project</th><th>Status PK</th><th>Nilai PK</th><th>Pemesanan Baru</th><th>Pembayaran / Progres Baru</th><th></th></tr></thead><tbody>${rows}<tr id="pkPurchaseModuleEmpty" style="display:none"><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Tidak ada PK yang cocok</td></tr></tbody></table></div></div>`;
+ const select=body.querySelector('.toolbar select');if(select)select.value=st.filter;
+ pkPurchaseModuleFilter();
 }
-
+function pkPurchaseModuleFilter(){
+ const body=document.getElementById('pkProcBody');if(!body)return;
+ const st=pkProcModuleState,terms=String(st.search||'').toLowerCase().trim().split(/\s+/).filter(Boolean);
+ let n=0;body.querySelectorAll('[data-pk-purchase-module-row]').forEach(row=>{const show=(!st.filter||row.dataset.category===st.filter)&&terms.every(t=>String(row.dataset.search||'').toLowerCase().includes(t));row.style.display=show?'':'none';if(show)n++;});
+ const empty=body.querySelector('#pkPurchaseModuleEmpty');if(empty)empty.style.display=n?'none':'';
+}
 
 const PK_PURCHASE_RELEASED = ['Disetujui','Pengadaan','Realisasi'];
 const PK_PURCHASE_EVENT_LABELS={payment:'Pembayaran',shipment:'Pengiriman',receipt:'Penerimaan',handover:'Serah Terima'};
@@ -2045,7 +1999,7 @@ async function savePKPurchaseCreate(){
  const res=await sb.from('pk_purchase_orders').insert(payload);
  if(res.error){toast('Gagal simpan order: '+res.error.message);return;}
  toast('Pemesanan tersimpan');try{await logPO(st.poId,'Purchasing PK',number+' · '+pkBudgetMoney(total));}catch(e){console.warn('Log PO:',e);}
- closeModal('pkPurchaseCreate');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===payload.id))openPKPurchaseOrder(payload.id);
+ closeModal('pkPurchaseCreate');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===payload.id))openPKPurchaseOrder(payload.id);if(document.getElementById('pkProcBody'))renderPKProcurementModule();
  }catch(e){toast('Gagal memproses: '+e.message);}finally{btn.disabled=false;}
 }
 function openPKPurchaseOrder(orderId){
@@ -2076,7 +2030,7 @@ async function savePKPurchaseEvent(orderId,kind,lineNo){
  const res=await sb.from('pk_purchase_events').insert({id:modal.dataset.draftId,order_id:orderId,kind,event_date:date,line_no:lineNo,amount:kind==='payment'?val:null,qty:kind==='receipt'||kind==='handover'?val:null,reference:ref||null,party:party||null,note:gv('pkPurEventNote').trim()||null,created_by:String(currentUser.id)});
  if(res.error){toast('Gagal simpan transaksi: '+res.error.message);return;}
  toast(PK_PURCHASE_EVENT_LABELS[kind]+' tersimpan');try{await logPO(st.poId,'Purchasing PK',o.order_number+' · '+PK_PURCHASE_EVENT_LABELS[kind]);}catch(e){console.warn('Log PO:',e);}
- closeModal('pkPurchaseEvent');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===orderId))openPKPurchaseOrder(orderId);
+ closeModal('pkPurchaseEvent');await openPKProcurementDetail(st.pk.id,st.poId,'orders');if(_pkProcCurrent?.purchase?.orders.some(o=>o.id===orderId))openPKPurchaseOrder(orderId);if(document.getElementById('pkProcBody'))renderPKProcurementModule();
  }catch(e){toast('Gagal memproses: '+e.message);}finally{btn.disabled=false;}
 }
 
@@ -2099,7 +2053,7 @@ async function openPKProcurementDetail(pkId, poId, selectedTab='orders') {
   const purchase=await pkPurchaseLoad(pk.id);
   _pkProcCurrent = {pk, poId:poId || pk.po_id, procurement:proc, handovers, recMap,budget,items:budget.items,purchase};
   const summary = pkProcSummary(budget.items, proc);
-  const canManage = can('pk_procurement_manage');
+  const canManage = can('pk_procurement_manage')&&!purchase.error;
   const items = budget.items.filter(it=>it._extra||(!it._fund?.group&&!it._fund?.disposition&&(recMap[String(it.id)]?.status!=='Belum Dibeli'&&!!recMap[String(it.id)]?.status||!!recMap[String(it.id)]?.ordered_at))).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
 
   const itemRows = items.map(it => {
