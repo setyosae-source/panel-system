@@ -484,6 +484,36 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
   .bom-sheet-toolbar .hint{width:100%;margin-left:0}
 }
 
+
+#pkProcBody [data-pk-purchase-module-row]{cursor:pointer;transition:background-color .15s}
+#pkProcBody [data-pk-purchase-module-row]:hover,#pkProcBody [data-pk-purchase-module-row]:focus-visible{background:var(--blue-bg);outline-offset:-2px}
+#pkProcBody [data-pk-purchase-module-row] td{padding-top:13px;padding-bottom:13px;vertical-align:middle}
+.pk-purchase-id{color:var(--blue);font-weight:600}
+.pk-purchase-tabs{display:flex;gap:4px;padding:4px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;width:fit-content;max-width:100%;flex-wrap:wrap}
+.pk-purchase-tabs .btn{border:0;box-shadow:none;border-radius:7px}
+.pk-purchase-tabs .btn:not(.btn-primary){background:transparent}
+.pk-purchase-tabs .btn-primary{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.pk-purchase-form .modal-body{gap:14px}
+.pk-purchase-form .form-grid{gap:10px 14px}
+.pk-purchase-form .form-row{margin:0;min-width:0}
+.pk-purchase-form input,.pk-purchase-form select{min-width:0;width:100%}
+.pk-purchase-form .pk-pur-line{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.pk-pur-line-head{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px}
+.pk-pur-results{border:1px solid var(--border);border-radius:8px;background:var(--surface);box-shadow:var(--shadow);max-height:225px;overflow-y:auto;margin-top:4px}
+.pk-pur-results[hidden]{display:none}
+.pk-pur-option{display:block;width:100%;text-align:left;background:var(--surface);color:var(--text);border:0;border-bottom:1px solid var(--border);padding:9px 11px;cursor:pointer;font:inherit}
+.pk-pur-option:last-child{border-bottom:0}
+.pk-pur-option:hover,.pk-pur-option.is-active{background:var(--blue-bg)}
+.pk-pur-option strong{display:block;font-size:12px;white-space:normal}
+.pk-pur-option small{display:block;color:var(--text3);font-size:11px;margin-top:3px;white-space:normal}
+.pk-pur-selected{font-size:11px;color:var(--green);margin-top:4px}
+.pk-pur-selected:empty{display:none}
+.pk-pur-subtotal{background:var(--surface2);border-radius:7px;padding:9px 11px;display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.pk-purchase-form .modal-footer{align-items:center;gap:8px;flex-wrap:wrap}
+.pk-pur-footer-total{margin-right:auto;min-width:140px;display:flex;flex-direction:column;gap:2px}
+.pk-pur-footer-total strong{font-size:17px}
+.pk-purchase-form .pk-pur-cost-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:700px){.pk-purchase-form .pk-pur-cost-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -1844,11 +1874,17 @@ function renderPKProcurementBody(){
  const search=[pk.id,pk.no_pk,pk.keperluan,po.no_po,po.no_project,po.customer_name,po.project_name].join(' ');
  const received=calc.filter(c=>c.receivedAll).length,complete=calc.filter(c=>c.handedAll).length;
  const newTotal=os.reduce((n,o)=>n+Number(o.total||0),0),newPaid=calc.reduce((n,c)=>n+c.paid,0);
- return `<tr data-pk-purchase-module-row="1" data-category="${category}" data-search="${escapeHtml(search)}"><td><button class="pk-proc-material-link" onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')">${escapeHtml(pk.no_pk||pk.id)} ›</button><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.no_project||po.no_po||'—')}</div></td><td style="white-space:normal"><strong>${escapeHtml(po.customer_name||'—')}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.project_name||pk.keperluan||'—')}</div></td><td><strong>${escapeHtml(pk.status)}</strong><div style="font-size:11px;color:var(--text3)">${ready?'Siap purchasing':category==='closed'?'Ditutup':'Belum release'}</div></td><td>${pkBudgetMoney(pk.nilai_pengajuan)}</td><td>${os.length} order<div style="font-size:11px;color:var(--text3)">${pkBudgetMoney(newTotal)}${ls.length?' · '+ls.length+' histori lama':''}</div></td><td>${pkBudgetMoney(newPaid)}<div style="font-size:11px;color:var(--text3)">${received}/${os.length} diterima · ${complete}/${os.length} diserahkan</div></td><td><button class="btn btn-sm btn-coral" onclick="openPKProcurementDetail('${pk.id}','${pk.po_id}')">Buka</button></td></tr>`;
+ return `<tr data-pk-purchase-module-row="1" data-category="${category}" data-search="${escapeHtml(search)}" tabindex="0" aria-label="Buka PK ${escapeHtml(pk.no_pk||pk.id)}" onclick="pkPurchaseOpenRow(this,'${pk.id}','${pk.po_id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"><td><span class="pk-purchase-id">${escapeHtml(pk.no_pk||pk.id)} ›</span><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.no_project||po.no_po||'—')}</div></td><td style="white-space:normal"><strong>${escapeHtml(po.customer_name||'—')}</strong><div style="font-size:11px;color:var(--text3)">${escapeHtml(po.project_name||pk.keperluan||'—')}</div></td><td><strong>${escapeHtml(pk.status)}</strong><div style="font-size:11px;color:var(--text3)">${ready?'Siap purchasing':category==='closed'?'Ditutup':'Belum release'}</div></td><td>${pkBudgetMoney(pk.nilai_pengajuan)}</td><td>${os.length} order<div style="font-size:11px;color:var(--text3)">${pkBudgetMoney(newTotal)}${ls.length?' · '+ls.length+' histori lama':''}</div></td><td>${pkBudgetMoney(newPaid)}<div style="font-size:11px;color:var(--text3)">${received}/${os.length} diterima · ${complete}/${os.length} diserahkan</div></td></tr>`;
  }).join('');
- body.innerHTML=`<div class="stats-grid">${cards.map(([l,v])=>`<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val" style="font-size:20px">${v}</div></div>`).join('')}</div>${st.purchaseError?`<div style="padding:10px;color:var(--red);background:var(--red-bg);border-radius:8px">Data transaksi baru belum lengkap: ${escapeHtml(st.purchaseError)}. Daftar PK tetap tersedia.</div>`:''}<div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="search" value="${escapeHtml(st.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;pkPurchaseModuleFilter()"></div><select onchange="pkProcModuleState.filter=this.value;pkPurchaseModuleFilter()"><option value="">Semua PK</option><option value="released">Siap Purchasing</option><option value="draft">Belum Release</option><option value="closed">Ditutup</option></select></div><div class="table-card"><div class="table-wrap"><table style="min-width:950px"><thead><tr><th>PK / PO</th><th>Customer & Project</th><th>Status PK</th><th>Nilai PK</th><th>Pemesanan Baru</th><th>Pembayaran / Progres Baru</th><th></th></tr></thead><tbody>${rows}<tr id="pkPurchaseModuleEmpty" style="display:none"><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Tidak ada PK yang cocok</td></tr></tbody></table></div></div>`;
+ body.innerHTML=`<div class="stats-grid">${cards.map(([l,v])=>`<div class="stat-card"><div class="stat-label">${l}</div><div class="stat-val" style="font-size:20px">${v}</div></div>`).join('')}</div>${st.purchaseError?`<div style="padding:10px;color:var(--red);background:var(--red-bg);border-radius:8px">Data transaksi baru belum lengkap: ${escapeHtml(st.purchaseError)}. Daftar PK tetap tersedia.</div>`:''}<div class="toolbar"><div class="search-wrap"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><input type="search" value="${escapeHtml(st.search)}" placeholder="Cari PK, PO, customer, project..." oninput="pkProcModuleState.search=this.value;pkPurchaseModuleFilter()"></div><select onchange="pkProcModuleState.filter=this.value;pkPurchaseModuleFilter()"><option value="">Semua PK</option><option value="released">Siap Purchasing</option><option value="draft">Belum Release</option><option value="closed">Ditutup</option></select></div><div class="table-card"><div class="table-wrap"><table style="min-width:950px"><thead><tr><th>PK / PO</th><th>Customer & Project</th><th>Status PK</th><th>Nilai PK</th><th>Pemesanan Baru</th><th>Pembayaran / Progres Baru</th></tr></thead><tbody>${rows}<tr id="pkPurchaseModuleEmpty" style="display:none"><td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">Tidak ada PK yang cocok</td></tr></tbody></table></div></div>`;
  const select=body.querySelector('.toolbar select');if(select)select.value=st.filter;
  pkPurchaseModuleFilter();
+}
+async function pkPurchaseOpenRow(row,pkId,poId){
+ if(row.dataset.opening==='1')return;
+ row.dataset.opening='1';row.setAttribute('aria-busy','true');
+ try{await openPKProcurementDetail(pkId,poId);}catch(e){toast('Gagal membuka PK: '+String(e.message||e));}
+ finally{delete row.dataset.opening;row.removeAttribute('aria-busy');}
 }
 function pkPurchaseModuleFilter(){
  const body=document.getElementById('pkProcBody');if(!body)return;
@@ -1930,29 +1966,82 @@ function openPKPurchaseCreate(originalId='',sourceId=''){
  const st=_pkProcCurrent;if(!pkPurchaseCanStart(st)){toast('PK belum release atau data budget belum siap');return;}
  const funds=st.purchase.funds;if(!funds.some(f=>Number(f.available)>0&&(Number(f.own_qty_remaining)>0||f.outside_allowed))){toast('Tidak ada sumber budget yang tersedia');return;}
  closeModal('pkPurchaseCreate');
- openModal(`<div class="modal" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>Buat Pemesanan</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor pemesanan"></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button><div id="pkPurTotal" style="font-size:15px;font-weight:700;text-align:right"></div></div><div class="modal-footer"><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
+ openModal(`<div class="modal pk-purchase-form" style="width:min(96vw,920px);max-width:920px"><div class="modal-header"><div><h2>Buat Pemesanan</h2><div style="font-size:11px;color:var(--text3)">${escapeHtml(st.pk.no_pk||st.pk.id)} · Budget tersedia ${pkBudgetMoney(pkPurchaseTotals(st).available)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkPurchaseCreate')">✕</button></div><div class="modal-body"><div class="form-grid"><div class="form-row"><label>Tanggal Order *</label><input type="date" id="pkPurDate" value="${today()}"></div><div class="form-row"><label>No. PO / Order *</label><input id="pkPurNumber" placeholder="Nomor pemesanan"></div><div class="form-row"><label>Supplier *</label><input id="pkPurSupplier"></div><div class="form-row"><label>Catatan Order</label><input id="pkPurNote"></div></div><div id="pkPurLines" style="display:flex;flex-direction:column;gap:12px"></div><button class="btn" onclick="pkPurchaseAddLine()">+ Tambah Baris Material</button></div><div class="modal-footer"><div class="pk-pur-footer-total"><span style="font-size:11px;color:var(--text3)">Total Pemesanan</span><strong id="pkPurTotal">Rp 0</strong></div><button class="btn" onclick="closeModal('pkPurchaseCreate')">Batal</button><button class="btn btn-primary" id="pkPurSave" onclick="savePKPurchaseCreate()">Simpan Pemesanan</button></div></div>`,'pkPurchaseCreate',true);
  document.getElementById('pkPurchaseCreate').dataset.draftId=crypto.randomUUID();
  pkPurchaseAddLine(originalId,sourceId);
 }
 function pkPurchaseAddLine(originalId='',sourceId=''){
  const host=document.getElementById('pkPurLines'),st=_pkProcCurrent;if(!host||!st||host.children.length>=100)return;
  const originals=st.purchase.funds.filter(f=>Number(f.own_qty_remaining)>0&&Number(f.available)>0);
- const row=document.createElement('div');row.className='pk-pur-line';row.style.cssText='border:1px solid var(--border);padding:12px;border-radius:9px;display:flex;flex-direction:column;gap:9px';
- row.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><strong class="pk-pur-label">Material</strong><button class="btn btn-sm" onclick="pkPurchaseRemoveLine(this)">Hapus</button></div>
- <div class="form-grid"><div class="form-row"><label>Jenis Material</label><select class="pk-pur-mode" onchange="pkPurchaseModeChanged(this.closest('.pk-pur-line'))"><option value="pk">Sesuai PK</option><option value="other">Di luar PK</option></select></div><div class="form-row pk-pur-original-wrap"><label>Pilih Material PK *</label><select class="pk-pur-original" onchange="pkPurchaseModeChanged(this.closest('.pk-pur-line'))"><option value="">Pilih material...</option>${originals.map(f=>`<option value="${f.source_id}">${escapeHtml(f.component_name)} · sisa ${Number(f.own_qty_remaining)} ${escapeHtml(f.unit)}</option>`).join('')}</select></div></div>
+ const row=document.createElement('div');row.className='pk-pur-line';
+ row.innerHTML=`<div class="pk-pur-line-head"><strong class="pk-pur-label">Material</strong><button class="btn btn-sm btn-ghost" onclick="pkPurchaseRemoveLine(this)" aria-label="Hapus material">✕ Hapus</button></div>
+ <div class="form-grid"><div class="form-row"><label>Jenis Material</label><select class="pk-pur-mode" onchange="pkPurchaseModeChanged(this.closest('.pk-pur-line'))"><option value="pk">Sesuai PK</option><option value="other">Di luar PK</option></select></div><div class="form-row pk-pur-original-wrap"><label>Pilih Material PK *</label><div class="pk-pur-autocomplete"><input type="hidden" class="pk-pur-original" value=""><input type="text" class="pk-pur-query" placeholder="Ketik nama material / Part No..." autocomplete="off" role="combobox" aria-label="Cari material PK" aria-autocomplete="list" aria-expanded="false" onfocus="pkPurchaseSuggest(this)" oninput="pkPurchaseQueryChanged(this)" onkeydown="pkPurchaseSuggestKey(event,this)" onblur="pkPurchaseSuggestBlur(this)"><div class="pk-pur-results" role="listbox" hidden></div><div class="pk-pur-selected" aria-live="polite"></div></div></div></div>
  <div class="form-grid pk-pur-other"><div class="form-row"><label>Nama Material *</label><input class="pk-pur-name"></div><div class="form-row"><label>Part No.</label><input class="pk-pur-part"></div><div class="form-row"><label>Satuan *</label><input class="pk-pur-unit" value="pcs"></div><div class="form-row"><label>Alasan *</label><input class="pk-pur-reason" placeholder="Kebutuhan / penggantian"></div></div>
- <div class="form-grid"><div class="form-row"><label>Qty *</label><input type="number" min=".01" step=".01" value="1" class="pk-pur-qty" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Harga Beli Satuan (Rp) *</label><input type="number" min=".01" step=".01" class="pk-pur-price" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Ongkir dialokasikan (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-shipping" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Diskon (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-discount" oninput="pkPurchaseUpdateTotals()"></div></div>
+ <div class="pk-pur-cost-grid"><div class="form-row"><label>Qty *</label><input type="number" min=".01" step=".01" value="1" class="pk-pur-qty" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Harga Beli Satuan (Rp) *</label><input type="number" min=".01" step=".01" class="pk-pur-price" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Ongkir dialokasikan (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-shipping" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Diskon (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-discount" oninput="pkPurchaseUpdateTotals()"></div></div>
  <div style="display:flex;align-items:center;justify-content:space-between"><strong>Sumber Budget</strong><button class="btn btn-sm" onclick="pkPurchaseAllocAdd(this.closest('.pk-pur-line'));pkPurchaseUpdateTotals()">+ Sumber</button></div><div class="pk-pur-allocs" style="display:flex;flex-direction:column;gap:6px"></div><div class="pk-pur-subtotal" style="text-align:right;font-size:12px;font-weight:600"></div>`;
  host.appendChild(row);
  row.querySelector('.pk-pur-mode').value=sourceId||!originals.length?'other':'pk';
- if(originalId)row.querySelector('.pk-pur-original').value=originalId;
- pkPurchaseModeChanged(row,sourceId);
+ if(originalId&&originals.some(f=>f.source_id===originalId)){pkPurchaseSelectMaterial(row,originalId);}else pkPurchaseModeChanged(row,sourceId);
  pkPurchaseUpdateTotals();
 }
+
+function pkPurchasePredictiveMatches(funds,query,limit=12){
+ const q=String(query||'').toLowerCase().trim(),terms=q.split(/\s+/).filter(Boolean);
+ return funds.filter(f=>Number(f.own_qty_remaining)>0&&Number(f.available)>0).map(f=>{
+ const name=String(f.component_name||'').toLowerCase(),part=String(f.part_number||'').toLowerCase(),hay=name+' '+part;
+ if(!terms.every(t=>hay.includes(t)))return null;
+ return {f,score:!q?0:part===q?1000:name===q?900:part.startsWith(q)?700:name.startsWith(q)?600:hay.includes(q)?400:200};
+ }).filter(Boolean).sort((a,b)=>b.score-a.score||String(a.f.component_name||'').localeCompare(String(b.f.component_name||''),'id')).slice(0,limit).map(x=>x.f);
+}
+function pkPurchaseSuggestClose(input){
+ const list=input.closest('.pk-pur-autocomplete')?.querySelector('.pk-pur-results');
+ if(list)list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');
+}
+function pkPurchaseSuggest(input){
+ const wrap=input.closest('.pk-pur-autocomplete'),row=input.closest('.pk-pur-line');if(!wrap||!row)return;
+ const list=wrap.querySelector('.pk-pur-results'),selected=row.querySelector('.pk-pur-original').value;
+ const matches=pkPurchasePredictiveMatches(_pkProcCurrent?.purchase?.funds||[],selected?'':input.value);
+ list.id=list.id||'pkPurSuggestions-'+crypto.randomUUID();input.setAttribute('aria-controls',list.id);list.innerHTML='';
+ matches.forEach((f,i)=>{
+ const opt=document.createElement('div');opt.className='pk-pur-option';opt.id=list.id+'-'+i;opt.dataset.source=f.source_id;opt.setAttribute('role','option');opt.setAttribute('aria-selected','false');
+ const name=document.createElement('strong');name.textContent=f.component_name||'—';
+ const meta=document.createElement('small');meta.textContent=(f.part_number||'Tanpa Part No.')+' · Sisa '+Number(f.own_qty_remaining)+' '+(f.unit||'')+' · Budget '+pkBudgetMoney(f.available);
+ opt.append(name,meta);opt.addEventListener('mousedown',e=>e.preventDefault());opt.addEventListener('click',()=>pkPurchaseSelectMaterial(row,f.source_id));list.appendChild(opt);
+ });
+ if(!matches.length){const msg=document.createElement('div');msg.style.cssText='padding:10px;color:var(--text3);font-size:12px';msg.textContent='Material tidak ditemukan. Pilih Di luar PK jika material belum terdaftar.';list.appendChild(msg);}
+ list.hidden=false;input.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');
+}
+function pkPurchaseQueryChanged(input){
+ const row=input.closest('.pk-pur-line'),selected=row.querySelector('.pk-pur-original');
+ if(selected.value){selected.value='';row.querySelector('.pk-pur-selected').textContent='';row.querySelector('.pk-pur-qty').value='1';row.querySelector('.pk-pur-price').value='';pkPurchaseModeChanged(row);}
+ pkPurchaseSuggest(input);
+}
+function pkPurchaseSelectMaterial(row,id){
+ const f=(_pkProcCurrent?.purchase?.funds||[]).find(x=>x.source_id===id&&Number(x.own_qty_remaining)>0&&Number(x.available)>0);if(!f)return;
+ row.querySelector('.pk-pur-original').value=id;
+ const input=row.querySelector('.pk-pur-query');input.value=f.component_name||'';
+ row.querySelector('.pk-pur-selected').textContent='✓ '+(f.part_number||'Material PK')+' · '+Number(f.own_qty_remaining)+' '+(f.unit||'')+' · Harga PK '+pkBudgetMoney(f.unit_price);
+ pkPurchaseSuggestClose(input);pkPurchaseModeChanged(row);
+}
+function pkPurchaseSuggestKey(event,input){
+ const list=input.closest('.pk-pur-autocomplete').querySelector('.pk-pur-results');
+ if(event.key==='Escape'){pkPurchaseSuggestClose(input);return;}
+ if(!['ArrowDown','ArrowUp','Enter'].includes(event.key))return;
+ if(list.hidden){if(event.key==='Enter')return;pkPurchaseSuggest(input);}
+ const options=[...list.querySelectorAll('.pk-pur-option')];if(!options.length)return;
+ const index=options.findIndex(o=>o.classList.contains('is-active'));
+ if(event.key==='Enter'){event.preventDefault();if(index>=0)pkPurchaseSelectMaterial(input.closest('.pk-pur-line'),options[index].dataset.source);else if(options.length===1)pkPurchaseSelectMaterial(input.closest('.pk-pur-line'),options[0].dataset.source);return;}
+ event.preventDefault();const next=event.key==='ArrowDown'?(index+1)%options.length:(index<0?options.length-1:(index-1+options.length)%options.length);
+ options.forEach((o,i)=>{o.classList.toggle('is-active',i===next);o.setAttribute('aria-selected',String(i===next));});
+ input.setAttribute('aria-activedescendant',options[next].id);options[next].scrollIntoView({block:'nearest'});
+}
+function pkPurchaseSuggestBlur(input){setTimeout(()=>{if(document.activeElement!==input)pkPurchaseSuggestClose(input);},160);}
+
 function pkPurchaseModeChanged(row,sourceId=''){
  const mode=row.querySelector('.pk-pur-mode').value,oid=row.querySelector('.pk-pur-original').value;
  row.querySelector('.pk-pur-original-wrap').style.display=mode==='pk'?'':'none';
  row.querySelector('.pk-pur-other').style.display=mode==='other'?'':'none';
+ if(mode==='other')pkPurchaseSuggestClose(row.querySelector('.pk-pur-query'));
  const f=_pkProcCurrent?.purchase?.funds.find(x=>x.source_id===oid);
  if(mode==='pk'&&f){row.querySelector('.pk-pur-qty').value=Number(f.own_qty_remaining)||1;row.querySelector('.pk-pur-price').value=Number(f.unit_price)||'';}
  row.querySelector('.pk-pur-allocs').innerHTML='';
@@ -1976,8 +2065,8 @@ function pkPurchaseUpdateTotals(){
  [...host.children].forEach((row,i)=>{row.querySelector('.pk-pur-label').textContent='Material '+(i+1);let l=pkPurchaseReadRow(row),v=pkPurchaseLineTotal(l);if(!Number.isFinite(v))v=0;
  const amounts=row.querySelectorAll('.pk-pur-amount');if(amounts.length===1){amounts[0].readOnly=true;amounts[0].value=v>0?v:'';}else amounts.forEach(el=>el.readOnly=false);
  l=pkPurchaseReadRow(row);const a=l.allocations.reduce((n,x)=>n+Number(x.amount||0),0);
- row.querySelector('.pk-pur-subtotal').textContent='Nilai '+pkBudgetMoney(v)+' · Alokasi '+pkBudgetMoney(a)+' · Selisih '+pkBudgetMoney(pkPurchaseRound(v-a));total+=v;});
- const el=document.getElementById('pkPurTotal');if(el)el.textContent='Total Pemesanan: '+pkBudgetMoney(total);
+ const sub=row.querySelector('.pk-pur-subtotal'),diff=pkPurchaseRound(v-a);sub.innerHTML='<span>Nilai <strong>'+pkBudgetMoney(v)+'</strong></span><span>Alokasi '+pkBudgetMoney(a)+'</span><span style="color:var(--'+(diff===0?'green':'amber')+')">Selisih '+pkBudgetMoney(diff)+'</span>';total+=v;});
+ const el=document.getElementById('pkPurTotal');if(el)el.textContent=pkBudgetMoney(total);
 }
 async function savePKPurchaseCreate(){
  const st=_pkProcCurrent,btn=document.getElementById('pkPurSave'),modal=document.getElementById('pkPurchaseCreate');if(!btn||btn.disabled||!modal||!pkPurchaseCanStart(st))return;
@@ -2087,7 +2176,7 @@ async function openPKProcurementDetail(pkId, poId, selectedTab='orders') {
     <div class="modal-header"><div><h2>Purchasing Control — ${pk.no_pk||pk.id}</h2><div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHtml(pk.purchase_orders?.customer_name||'')} · ${escapeHtml(pk.purchase_orders?.project_name||pk.keperluan||'')}</div></div><button class="btn btn-ghost btn-sm" onclick="closeAllModals()">✕</button></div>
     <div class="modal-body">
       ${pkPurchaseOverview(_pkProcCurrent)}
-      <div style="display:flex;flex-wrap:wrap;gap:6px" role="group" aria-label="Tab Purchasing">
+      <div class="pk-purchase-tabs" role="group" aria-label="Tab Purchasing">
         <button class="btn btn-primary" data-pk-purchase-tab="orders" onclick="pkPurchaseTab('orders')">Pembelian</button>
         <button class="btn" data-pk-purchase-tab="budget" onclick="pkPurchaseTab('budget')">Budget PK</button>
         <button class="btn" data-pk-purchase-tab="legacy" onclick="pkPurchaseTab('legacy')">Histori Lama</button>
