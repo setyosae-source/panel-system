@@ -571,6 +571,7 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-pur-saving{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
 .pk-pur-budget-source{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;font-weight:400}
 .pk-pur-budget-source b{display:block;font-weight:600}
+.pk-pur-alloc{align-items:start!important}.pk-pur-alloc>.btn{margin-top:7px}.pk-pur-alloc .pk-pur-autocomplete{min-width:0}.pk-pur-alloc .pk-pur-fund-query{width:100%;min-width:0}.pk-pur-alloc .pk-pur-amount[readonly]{background:var(--surface2)}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -2047,7 +2048,7 @@ function pkPurchaseAddLine(originalId='',sourceId=''){
  <div class="form-grid"><div class="form-row"><label>Jenis Material</label><select class="pk-pur-mode" onchange="pkPurchaseModeChanged(this.closest('.pk-pur-line'))"><option value="pk">Sesuai PK</option><option value="other">Di luar PK</option></select></div><div class="form-row pk-pur-original-wrap"><label>Pilih Material PK *</label><div class="pk-pur-autocomplete"><input type="hidden" class="pk-pur-original" value=""><input type="text" class="pk-pur-query" placeholder="Ketik nama material / Part No..." autocomplete="off" role="combobox" aria-label="Cari material PK" aria-autocomplete="list" aria-expanded="false" onfocus="pkPurchaseSuggest(this)" oninput="pkPurchaseQueryChanged(this)" onkeydown="pkPurchaseSuggestKey(event,this)" onblur="pkPurchaseSuggestBlur(this)"><div class="pk-pur-results" role="listbox" hidden></div><div class="pk-pur-selected" aria-live="polite"></div></div></div></div>
  <div class="form-grid pk-pur-other"><div class="form-row"><label>Nama Material *</label><input class="pk-pur-name"></div><div class="form-row"><label>Part No.</label><input class="pk-pur-part"></div><div class="form-row"><label>Satuan *</label><input class="pk-pur-unit" value="pcs"></div><div class="form-row"><label>Alasan *</label><input class="pk-pur-reason" placeholder="Kebutuhan / penggantian"></div></div>
  <div class="pk-pur-cost-grid"><div class="form-row"><label>Qty *</label><input type="number" min=".01" step=".01" value="1" class="pk-pur-qty" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Harga Beli Satuan (Rp) *</label><input type="number" min=".01" step=".01" class="pk-pur-price" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Ongkir dialokasikan (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-shipping" oninput="pkPurchaseUpdateTotals()"></div><div class="form-row"><label>Diskon (Rp)</label><input type="number" min="0" step=".01" value="0" class="pk-pur-discount" oninput="pkPurchaseUpdateTotals()"></div></div>
- <div class="form-row"><label>Catatan / Info Material <span style="font-weight:400;color:var(--text3)">(opsional)</span></label><textarea class="pk-pur-note" rows="2" maxlength="2000" placeholder="Spesifikasi tambahan, merek, tipe, kebutuhan khusus, atau informasi lainnya..."></textarea></div>
+ <div class="form-row pk-pur-extra-reason-wrap" style="display:none"><label>Alasan tambahan qty *</label><input class="pk-pur-extra-reason" placeholder="Jelaskan kebutuhan tambahan"></div><div class="form-row"><label>Catatan / Info Material <span style="font-weight:400;color:var(--text3)">(opsional)</span></label><textarea class="pk-pur-note" rows="2" maxlength="2000" placeholder="Spesifikasi tambahan, merek, tipe, kebutuhan khusus, atau informasi lainnya..."></textarea></div>
  <div style="display:flex;align-items:center;justify-content:space-between"><strong>Sumber Budget</strong><button class="btn btn-sm" onclick="pkPurchaseAllocAdd(this.closest('.pk-pur-line'));pkPurchaseUpdateTotals()">+ Sumber</button></div><div class="pk-pur-allocs" style="display:flex;flex-direction:column;gap:6px"></div><div class="pk-pur-subtotal" style="text-align:right;font-size:12px;font-weight:600"></div>`;
  host.appendChild(row);
  row.querySelector('.pk-pur-mode').value=sourceId||!originals.length?'other':'pk';
@@ -2126,23 +2127,54 @@ function pkPurchaseModeChanged(row,sourceId=''){
 function pkPurchaseAllocAdd(row,sourceId=''){
  const host=row.querySelector('.pk-pur-allocs');if(!host||host.children.length>=20)return;
  const a=document.createElement('div');a.className='pk-pur-alloc';a.style.cssText='display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,140px) 38px;gap:6px;align-items:center';
- a.innerHTML=`<select class="pk-pur-source" aria-label="Sumber budget" onchange="pkPurchaseUpdateTotals()"><option value="">Pilih sumber...</option>${pkPurchaseFundsForRow(row).map(f=>`<option value="${f.source_id}">${escapeHtml(f.component_name)} · ${pkBudgetMoney(f.available)}</option>`).join('')}</select><input type="number" min=".01" step=".01" class="pk-pur-amount" aria-label="Nominal alokasi" placeholder="Rp" oninput="pkPurchaseUpdateTotals()"><button class="btn btn-sm" aria-label="Hapus sumber" onclick="pkPurchaseRemoveAlloc(this)">✕</button>`;
- host.appendChild(a);if(sourceId)a.querySelector('.pk-pur-source').value=sourceId;
+ a.innerHTML=`<div class="pk-pur-autocomplete"><input type="hidden" class="pk-pur-source"><input type="text" class="pk-pur-fund-query" placeholder="Cari sumber budget / Part No..." autocomplete="off" onfocus="pkPurchaseFundSuggest(this)" oninput="pkPurchaseFundChange(this)" onkeydown="pkPurchaseFundKey(event,this)" onblur="pkPurchaseSuggestBlur(this)" role="combobox" aria-autocomplete="list" aria-expanded="false"><div class="pk-pur-results" role="listbox" hidden></div></div><input type="number" min=".01" step=".01" class="pk-pur-amount" aria-label="Nominal alokasi" placeholder="Rp" readonly><button class="btn btn-sm" aria-label="Hapus sumber" onclick="pkPurchaseRemoveAlloc(this)">✕</button>`;
+ host.appendChild(a);if(sourceId)pkPurchaseFundSelect(a,sourceId,false);
 }
+
+function pkPurchaseFundSelect(a,id,refresh=true){
+ const row=a.closest('.pk-pur-line'),f=pkPurchaseFundsForRow(row).find(x=>String(x.source_id)===String(id));if(!f)return;
+ a.querySelector('.pk-pur-source').value=id;const input=a.querySelector('.pk-pur-fund-query');input.value=f.component_name+' · '+pkBudgetMoney(f.available);pkPurchaseSuggestClose(input);if(refresh)pkPurchaseUpdateTotals();
+}
+function pkPurchaseFundChange(input){input.closest('.pk-pur-alloc').querySelector('.pk-pur-source').value='';pkPurchaseUpdateTotals();pkPurchaseFundSuggest(input);}
+function pkPurchaseFundSuggest(input){
+ const a=input.closest('.pk-pur-alloc'),row=a.closest('.pk-pur-line'),list=a.querySelector('.pk-pur-results'),all=_pkProcCurrent?.purchase?.funds||[],selected=a.querySelector('.pk-pur-source').value;
+ const allowed=new Set(pkPurchaseFundsForRow(row).map(f=>String(f.source_id)));
+ const used=new Set([...row.querySelectorAll('.pk-pur-source')].filter(e=>e!==a.querySelector('.pk-pur-source')).map(e=>e.value));
+ const q=selected?'':input.value;const matches=pkPurchasePredictiveMatches(all,q,Math.max(100,all.length));
+ list.id=list.id||'pkFund-'+crypto.randomUUID();input.setAttribute('aria-controls',list.id);list.replaceChildren();
+ for(const f of matches){const id=String(f.source_id),ok=allowed.has(id)&&!used.has(id);
+ const opt=document.createElement('div');opt.className='pk-pur-option';opt.id=list.id+'-'+list.children.length;opt.dataset.source=id;opt.setAttribute('role','option');opt.setAttribute('aria-disabled',String(!ok));opt.setAttribute('aria-selected','false');
+ const name=document.createElement('strong');name.textContent=f.component_name||'—';const meta=document.createElement('small');meta.textContent=(f.part_number||'—')+' · '+pkBudgetMoney(f.available)+' · '+(ok?'Bisa digunakan':used.has(id)?'Sudah dipilih':Number(f.available)<=0?'Budget habis':'Belum bebas untuk realokasi');opt.append(name,meta);opt.addEventListener('mousedown',e=>e.preventDefault());if(ok)opt.addEventListener('click',()=>pkPurchaseFundSelect(a,id));list.appendChild(opt);}
+ if(!matches.length){const msg=document.createElement('div');msg.style.padding='10px';msg.textContent='Sumber budget tidak ditemukan dalam PK ini';list.appendChild(msg);}
+ list.hidden=false;input.setAttribute('aria-expanded','true');input.removeAttribute('aria-activedescendant');
+}
+function pkPurchaseFundKey(e,input){
+ const a=input.closest('.pk-pur-alloc'),list=a.querySelector('.pk-pur-results');if(e.key==='Escape'){pkPurchaseSuggestClose(input);return;}if(!['ArrowDown','ArrowUp','Enter'].includes(e.key))return;
+ if(list.hidden){if(e.key==='Enter')return;pkPurchaseFundSuggest(input);}
+ const opts=[...list.querySelectorAll('.pk-pur-option:not([aria-disabled="true"])')];if(!opts.length)return;const i=opts.findIndex(o=>o.classList.contains('is-active'));e.preventDefault();
+ if(e.key==='Enter'){if(i>=0||opts.length===1)pkPurchaseFundSelect(a,opts[Math.max(0,i)].dataset.source);return;}
+ const n=e.key==='ArrowDown'?(i+1)%opts.length:i<0?opts.length-1:(i-1+opts.length)%opts.length;
+ opts.forEach((o,j)=>{o.classList.toggle('is-active',j===n);o.setAttribute('aria-selected',String(j===n));});input.setAttribute('aria-activedescendant',opts[n].id);opts[n].scrollIntoView({block:'nearest'});
+}
+
 function pkPurchaseRemoveAlloc(btn){const host=btn.closest('.pk-pur-allocs');if(host.children.length<=1){toast('Minimal satu sumber budget');return;}btn.closest('.pk-pur-alloc').remove();pkPurchaseUpdateTotals();}
 function pkPurchaseRemoveLine(btn){const host=document.getElementById('pkPurLines');if(!host||host.children.length<=1){toast('Minimal satu material');return;}btn.closest('.pk-pur-line').remove();pkPurchaseUpdateTotals();}
 function pkPurchaseReadRow(row){
  const val=c=>row.querySelector(c).value.trim(),mode=val('.pk-pur-mode'),oid=mode==='pk'?val('.pk-pur-original'):null,f=_pkProcCurrent?.purchase?.funds.find(x=>x.source_id===oid);
- return {original_id:oid||null,mode,name:mode==='pk'?(f?.component_name||''):val('.pk-pur-name'),part_number:mode==='pk'?(f?.part_number||null):val('.pk-pur-part')||null,unit:mode==='pk'?(f?.unit||''):val('.pk-pur-unit'),reason:mode==='other'?val('.pk-pur-reason'):null,note:val('.pk-pur-note')||null,qty:Number(val('.pk-pur-qty')),unit_price:Number(val('.pk-pur-price')),shipping:Number(val('.pk-pur-shipping')),discount:Number(val('.pk-pur-discount')),allocations:[...row.querySelectorAll('.pk-pur-alloc')].map(el=>({source_id:el.querySelector('.pk-pur-source').value,amount:Number(el.querySelector('.pk-pur-amount').value)}))};
+ return {original_id:oid||null,mode,name:mode==='pk'?(f?.component_name||''):val('.pk-pur-name'),part_number:mode==='pk'?(f?.part_number||null):val('.pk-pur-part')||null,unit:mode==='pk'?(f?.unit||''):val('.pk-pur-unit'),reason:mode==='other'?val('.pk-pur-reason'):val('.pk-pur-extra-reason')||null,note:val('.pk-pur-note')||null,qty:Number(val('.pk-pur-qty')),unit_price:Number(val('.pk-pur-price')),shipping:Number(val('.pk-pur-shipping')),discount:Number(val('.pk-pur-discount')),allocations:[...row.querySelectorAll('.pk-pur-alloc')].map(el=>({source_id:el.querySelector('.pk-pur-source').value,amount:Number(el.querySelector('.pk-pur-amount').value)}))};
 }
 function pkPurchaseUpdateTotals(){
  const host=document.getElementById('pkPurLines');if(!host)return;let total=0;
  const funds=_pkProcCurrent?.purchase?.funds||[];
+ const remaining=new Map(funds.map(f=>[String(f.source_id),Number(f.available)||0]));const qtyUsed=new Map();
  const entries=[...host.children].map((row,i)=>{
    row.querySelector('.pk-pur-label').textContent='Material '+(i+1);
    let l=pkPurchaseReadRow(row),v=pkPurchaseLineTotal(l);if(!Number.isFinite(v))v=0;
-   const amounts=row.querySelectorAll('.pk-pur-amount');
-   if(amounts.length===1){amounts[0].readOnly=true;amounts[0].value=v>0?v:'';}else amounts.forEach(el=>el.readOnly=false);
+   let left=Math.max(0,v);
+   for(const a of row.querySelectorAll('.pk-pur-alloc')){
+     const id=a.querySelector('.pk-pur-source').value,cap=Math.max(0,remaining.get(id)||0),amount=pkPurchaseRound(Math.min(left,cap));a.querySelector('.pk-pur-amount').value=id?amount:'';if(id)remaining.set(id,pkPurchaseRound(cap-amount));left=pkPurchaseRound(left-amount);
+   }
+   const own=funds.find(f=>String(f.source_id)===String(l.original_id||''));const prior=qtyUsed.get(l.original_id)||0;const excess=!!own&&prior+l.qty>Number(own.own_qty_remaining);if(own)qtyUsed.set(l.original_id,prior+l.qty);row.querySelector('.pk-pur-extra-reason-wrap').style.display=excess?'':'none';
    l=pkPurchaseReadRow(row);total+=v;return {row,l,v};
  });
  const bySource=new Map();
@@ -2158,11 +2190,11 @@ function pkPurchaseUpdateTotals(){
      const after=pkPurchaseRound(available-(bySource.get(id)||0));
      return '<div class="pk-pur-budget-source"><span>'+escapeHtml(f.component_name||f.part_number||'Sumber budget')+'</span><span>Budget tersedia <b>'+pkBudgetMoney(available)+'</b></span><span>Alokasi item <b>'+pkBudgetMoney(thisUse)+'</b></span><span style="color:var(--'+(after<0?'red':'green')+')">Sisa setelah seluruh order <b>'+pkBudgetMoney(after)+'</b></span></div>';
    }).join('');
-   const reference=own&&Number(own.qty_pk)>0&&Number(l.qty)>0?pkPurchaseRound(Number(own.budget)*Number(l.qty)/Number(own.qty_pk)):null;
+   const reference=own?Number(own.budget):null;
    const savings=reference===null?null:pkPurchaseRound(reference-v);
    const pct=reference>0&&savings!==null?(100*savings/reference).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
    const sub=row.querySelector('.pk-pur-subtotal');
-   sub.innerHTML='<div class="pk-pur-summary-grid">'+(reference===null?'':'<div><small>Budget PK sesuai qty</small><strong>'+pkBudgetMoney(reference)+'</strong></div>')+'<div><small>Nilai pemesanan</small><strong>'+pkBudgetMoney(v)+'</strong></div><div><small>Alokasi budget</small><strong>'+pkBudgetMoney(allocated)+'</strong></div><div style="color:var(--'+(diff===0?'green':'amber')+')"><small>'+(diff<0?'Kelebihan alokasi':'Kekurangan alokasi')+'</small><strong>'+pkBudgetMoney(Math.abs(diff))+'</strong></div></div>'+(savings===null?'':'<div class="pk-pur-saving" style="color:var(--'+(savings<0?'red':'green')+')"><span>'+(savings<0?'Kelebihan atas budget PK':'Potensi penghematan vs PK')+'</span><strong>'+pkBudgetMoney(Math.abs(savings))+(pct===null?'':' · '+pct+'%')+'</strong></div>')+sourceRows;
+   sub.innerHTML='<div class="pk-pur-summary-grid">'+(reference===null?'':'<div><small>Budget asli material PK</small><strong>'+pkBudgetMoney(reference)+'</strong></div>')+'<div><small>Nilai pemesanan</small><strong>'+pkBudgetMoney(v)+'</strong></div><div><small>Alokasi budget</small><strong>'+pkBudgetMoney(allocated)+'</strong></div><div style="color:var(--'+(diff===0?'green':'amber')+')"><small>'+(diff<0?'Kelebihan alokasi':'Kekurangan alokasi')+'</small><strong>'+pkBudgetMoney(Math.abs(diff))+'</strong></div></div>'+(savings===null?'':'<div class="pk-pur-saving" style="color:var(--'+(savings<0?'red':'green')+')"><span>'+(savings<0?'Kebutuhan di atas budget asli':'Selisih terhadap budget asli')+'</span><strong>'+pkBudgetMoney(Math.abs(savings))+(pct===null?'':' · '+pct+'%')+'</strong></div>')+sourceRows;
  }
  const el=document.getElementById('pkPurTotal');if(el)el.textContent=pkBudgetMoney(total);
 }
@@ -2173,13 +2205,13 @@ async function savePKPurchaseCreate(){
  const sums={},qtys={};let total=0;
  for(const l of lines){const v=pkPurchaseLineTotal(l);
  if(!l.name||!l.unit||(l.mode==='other'&&!l.reason)||(l.mode==='pk'&&!l.original_id)||![l.qty,l.unit_price,l.shipping,l.discount,v].every(Number.isFinite)||l.qty<=0||l.unit_price<=0||l.shipping<0||l.discount<0||v<=0){toast('Lengkapi semua data material dan harga');return;}
- if(!l.allocations.length||l.allocations.some(a=>!a.source_id||!Number.isFinite(a.amount)||a.amount<=0)||pkPurchaseRound(l.allocations.reduce((n,a)=>n+a.amount,0))!==v){toast('Alokasi setiap material harus sama dengan nilai material');return;}
+ l.allocations=l.allocations.filter(a=>a.source_id&&a.amount!==0);if(!l.allocations.length||l.allocations.some(a=>!a.source_id||!Number.isFinite(a.amount)||a.amount<=0)||pkPurchaseRound(l.allocations.reduce((n,a)=>n+a.amount,0))!==v){toast('Alokasi setiap material harus sama dengan nilai material');return;}
  if(l.original_id){qtys[l.original_id]=(qtys[l.original_id]||0)+l.qty;if(!l.allocations.some(a=>a.source_id===l.original_id)){toast('Material PK harus memakai budget sendiri');return;}}
  for(const a of l.allocations){const f=st.purchase.funds.find(x=>x.source_id===a.source_id);if(!f||(!f.outside_allowed&&a.source_id!==l.original_id)){toast('Sumber budget tidak sesuai');return;}sums[a.source_id]=(sums[a.source_id]||0)+a.amount;}
  total+=v;delete l.mode;
  }
  for(const [id,v] of Object.entries(sums)){const f=st.purchase.funds.find(x=>x.source_id===id);if(pkPurchaseRound(v)>Number(f.available)){toast('Budget '+f.component_name+' tidak mencukupi');return;}}
- for(const [id,v] of Object.entries(qtys)){const f=st.purchase.funds.find(x=>x.source_id===id);if(v>Number(f.own_qty_remaining)+1e-9){toast('Qty '+f.component_name+' melebihi kebutuhan PK');return;}}
+ for(const [id,v] of Object.entries(qtys)){const f=st.purchase.funds.find(x=>x.source_id===id);if(v>Number(f.own_qty_remaining)+1e-9){const related=lines.filter(l=>l.original_id===id);if(related.some(l=>!l.reason||!l.allocations.some(a=>a.source_id!==id&&a.amount>0))){toast('Tambahan qty '+f.component_name+' wajib memiliki alasan dan sumber budget tambahan');return;}}}
  if(pkPurchaseRound(total)>pkPurchaseTotals(st).available){toast('Total order melebihi budget tersedia');return;}
  btn.disabled=true;try{
  const payload={id:modal.dataset.draftId,pk_id:st.pk.id,order_date:date,supplier,order_number:document.getElementById('pkPurNumber')?.dataset.manual==='1'&&number?number:'__AUTO__',lines,note:gv('pkPurNote').trim()||null,created_by:String(currentUser.id)};
