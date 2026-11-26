@@ -579,6 +579,7 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-pur-material-preview{display:inline-flex;align-items:center;gap:9px;padding:5px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
 .pk-pur-material-preview:hover,.pk-pur-material-preview:focus-visible{border-color:var(--blue);color:var(--blue)}
 .pk-pur-material-search[hidden]{display:none!important}
+.pk-ms-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:10px}.pk-ms-card{text-align:left;cursor:pointer;color:var(--text);font:inherit;border:1px solid var(--border)}.pk-ms-card:hover{border-color:var(--blue)}.pk-ms-card strong{font-size:19px}.pk-ms-meta{font-size:11px;color:var(--text3);margin-top:4px}.pk-ms-tag{display:inline-block;border-radius:12px;padding:4px 8px;background:var(--surface2);font-size:11px;white-space:nowrap}.pk-ms-tag[data-category="handed"],.pk-ms-tag[data-category="received"]{color:var(--green)}.pk-ms-tag[data-category="partial"],.pk-ms-tag[data-category="excluded"]{color:var(--amber)}#pkMsFilter{height:38px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);padding:5px 8px}#pkMsEmpty[hidden]{display:none!important}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -2024,6 +2025,58 @@ function pkPurchaseBudgetHtml(st){
  return `<div class="pk-purchase-toolbar"><strong>Rincian Budget PK</strong><input type="search" placeholder="Cari material / Part No..." aria-label="Cari sumber budget" oninput="pkPurchaseSearch(this)" style="flex:1;min-width:170px;max-width:400px"></div><div style="font-size:11px;color:var(--text3);margin-top:6px">Sumber budget asli tidak dihapus. Sisa pembelian lama tanpa nominal aktual tetap dicadangkan untuk menghindari penggunaan ganda.</div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="min-width:930px"><thead><tr><th>Part No.</th><th>Material / Sumber</th><th>Budget</th><th>Komitmen Lama</th><th>Order Baru</th><th>Sisa</th><th>Aksi</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3)">PK belum memiliki rincian sumber budget.</td></tr>'}</tbody></table></div></div>`;
 }
 function pkPurchaseSearch(input){const host=input.closest('[data-pk-purchase-panel]');if(!host)return;const terms=input.value.toLowerCase().trim().split(/\s+/).filter(Boolean);host.querySelectorAll('[data-pk-purchase-search]').forEach(tr=>tr.style.display=terms.every(t=>tr.textContent.toLowerCase().includes(t))?'':'none');}
+
+function pkMaterialStatusData(st){
+ const map=new Map(),n=v=>Number(v)||0;
+ for(const it of st.budget.items||[]){
+ const id=String(it.id),rec=st.recMap[id]||{},fund=it._fund;
+ map.set(id,{id,name:it.component_name||'—',part:it.part_number||'—',unit:it.unit||'pcs',target:n(it.qty_pk),extra:!!it._extra,group:!!fund?.group,disposition:fund?.disposition,legacy:rec,orders:[],ordered:n(rec.qty_ordered),received:n(rec.qty_received),handed:rec.status==='Diserahkan'?n(rec.qty_received):0,paidQty:rec.paid_at?n(rec.qty_ordered):0,shippedQty:rec.shipped_at?n(rec.qty_ordered):0,partialPay:false});
+ }
+ for(const o of st.purchase.orders||[]){
+ if(o.cancelled_at)continue;
+ const c=pkPurchaseOrderCalc(o,st.purchase.events||[]);
+ for(const x of c.lines){
+ const l=x.line,id=l.original_id?String(l.original_id):'extra:'+o.id+':'+x.no;
+ if(!map.has(id))map.set(id,{id,name:l.name||'—',part:l.part_number||'—',unit:l.unit||'pcs',target:null,extra:true,group:false,orders:[],ordered:0,received:0,handed:0,paidQty:0,shippedQty:0,partialPay:false});
+ const m=map.get(id),qty=n(l.qty);m.ordered+=qty;m.received+=n(x.received);m.handed+=n(x.handed);
+ if(c.paid>=n(o.total)&&n(o.total)>0)m.paidQty+=qty;else if(c.paid>0)m.partialPay=true;
+ if(c.ev.some(e=>e.kind==='shipment'))m.shippedQty+=qty;
+ m.orders.push({o,x,c});
+ }
+ }
+ return [...map.values()].map(m=>{
+ const goal=m.target===null?m.ordered:m.target,complete=q=>goal>0&&q+1e-8>=goal;
+ let status,category;
+ if(m.disposition){status=pkBudgetDispositionLabel(m.disposition);category='excluded';}
+ else if(m.group){status='Budget PAX';category='group';}
+ else if(complete(m.handed)){status='Diserahkan';category='handed';}
+ else if(complete(m.received)){status='Diterima';category='received';}
+ else if(m.received>0){status='Diterima sebagian';category='partial';}
+ else if(!m.ordered){status='Belum Dipesan';category='unordered';}
+ else if(!complete(m.ordered)){status='Dipesan sebagian';category='partial';}
+ else if(m.shippedQty>=goal){status='Dikirim';category='paid';}
+ else if(complete(m.paidQty)){status='Dibayar';category='paid';}
+ else {status=m.partialPay||m.paidQty>0?'DP / sebagian':'Dipesan';category='ordered';}
+ return {...m,status,category,remaining:m.group||m.disposition||m.target===null?null:Math.max(0,m.target-m.ordered),ready:m.group||m.disposition||m.target===null?null:Math.max(0,m.target-m.received)};
+ });
+}
+function pkMaterialStatusHtml(st){
+ if(st.purchase.error)return '<div style="padding:16px;color:var(--red)">Status material tidak dapat dihitung karena transaksi baru gagal dimuat. Refresh terlebih dahulu.</div>';
+ const all=pkMaterialStatusData(st);st.materialStatus=all;
+ const cats=[['unordered','Belum Dipesan'],['partial','Sebagian'],['ordered','Dipesan / DP'],['paid','Dibayar / Dikirim'],['received','Diterima'],['handed','Diserahkan'],['excluded','Tidak Dibeli / Stok'],['group','Budget PAX']];
+ const qty=(v,m)=>v===null?'—':Number(v||0).toLocaleString('id-ID',{maximumFractionDigits:6})+' '+escapeHtml(m.unit);
+ const rows=all.map((m,i)=>`<tr data-material-status-row="1" data-category="${m.category}" data-search="${escapeHtml([m.name,m.part,m.status,...m.orders.map(t=>t.o.order_number+' '+t.o.supplier)].join(' '))}"><td><button class="pk-proc-material-link" onclick="openPKMaterialStatus(${i})">${escapeHtml(m.name)} ›</button><div class="pk-ms-meta">${escapeHtml(m.part)}${m.extra?' · Di luar PK':''}</div></td><td>${m.group?'—':qty(m.target,m)}</td><td>${m.group?'—':qty(m.ordered,m)}${m.target!==null&&m.ordered>m.target&&!m.group?'<div class="pk-ms-meta">Tambahan '+qty(m.ordered-m.target,m)+'</div>':''}</td><td>${m.group?'—':qty(m.received,m)}</td><td>${m.group?'—':qty(m.handed,m)}</td><td>${qty(m.remaining,m)}</td><td><span class="pk-ms-tag" data-category="${m.category}">${escapeHtml(m.status)}</span></td></tr>`).join('');
+ return `<div class="pk-ms-cards">${cats.map(([k,l])=>`<button type="button" class="pk-proc-mini pk-ms-card" onclick="pkMaterialStatusPick('${k}')"><div class="lbl">${l}</div><strong>${all.filter(m=>m.category===k).length}</strong></button>`).join('')}</div><div class="pk-purchase-toolbar"><strong>Status Material</strong><input type="search" id="pkMsSearch" placeholder="Cari material, Part No., order..." oninput="pkMaterialStatusFilter()"><select id="pkMsFilter" onchange="pkMaterialStatusFilter()"><option value="">Semua status</option>${cats.map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><span class="pk-ms-meta" id="pkMsCount">${all.length} item</span></div><div class="table-card" style="margin-top:10px"><div class="table-wrap" style="overflow:auto;max-height:45vh"><table style="width:100%;min-width:800px"><thead><tr><th>Material / Part No.</th><th>Qty PK</th><th>Dipesan</th><th>Diterima</th><th>Diserahkan</th><th>Kurang Pesan</th><th>Status</th></tr></thead><tbody>${rows}<tr id="pkMsEmpty" hidden><td colspan="7" style="text-align:center;padding:16px">Tidak ada material yang cocok</td></tr></tbody></table></div></div><div class="pk-ms-meta">Status berdasarkan transaksi aktif dan histori lama. Pembayaran dihitung pada tingkat order; DP tidak dianggap pelunasan material. PAX bukan material fisik.</div>`;
+}
+function pkMaterialStatusPick(k){const el=document.getElementById('pkMsFilter');if(el){el.value=el.value===k?'':k;pkMaterialStatusFilter();}}
+function pkMaterialStatusFilter(){const panel=document.querySelector('[data-pk-purchase-panel="materials"]');if(!panel)return;const q=(document.getElementById('pkMsSearch')?.value||'').toLowerCase().trim().split(/\s+/).filter(Boolean),k=document.getElementById('pkMsFilter')?.value||'';let n=0;panel.querySelectorAll('[data-material-status-row]').forEach(r=>{const show=(!k||r.dataset.category===k)&&q.every(t=>r.dataset.search.toLowerCase().includes(t));r.style.display=show?'':'none';if(show)n++;});document.getElementById('pkMsEmpty').hidden=!!n;document.getElementById('pkMsCount').textContent=n+' item';}
+function openPKMaterialStatus(i){
+ const st=_pkProcCurrent,m=st?.materialStatus?.[i];if(!m)return;
+ const legacy=m.legacy||{},history=legacy.ordered_at||legacy.qty_ordered||legacy.status&&legacy.status!=='Belum Dibeli';
+ const orders=m.orders.map(({o,x,c})=>`<div class="pk-pur-primary-row"><span><button class="pk-proc-material-link" onclick="closeModal('pkMaterialStatusDetail');openPKPurchaseOrder('${o.id}')">${escapeHtml(o.order_number)} ›</button><small>${escapeHtml(o.supplier)} · ${fmtDate(o.order_date)}</small><small>Pesan ${x.line.qty} · Terima ${x.received} · Serah ${x.handed} ${escapeHtml(m.unit)}</small><small>Pembayaran order: ${pkBudgetMoney(c.paid)} / ${pkBudgetMoney(o.total)}</small></span><strong>${escapeHtml(c.status)}</strong></div>`).join('');
+ openModal(`<div class="modal" style="max-width:700px;width:min(94vw,700px)"><div class="modal-header"><div><h2>${escapeHtml(m.name)}</h2><div class="pk-ms-meta">${escapeHtml(m.part)} · ${escapeHtml(m.status)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkMaterialStatusDetail')">✕</button></div><div class="modal-body"><div class="pk-ms-cards">${[['Qty PK',m.target],['Dipesan',m.ordered],['Diterima',m.received],['Diserahkan',m.handed],['Kurang pesan',m.remaining],['Kurang terima',m.ready]].map(([k,v])=>`<div class="pk-proc-mini"><div class="lbl">${k}</div><strong>${m.group||v===null?'—':v+' '+escapeHtml(m.unit)}</strong></div>`).join('')}</div>${m.disposition?'<div>Keputusan: '+escapeHtml(pkBudgetDispositionLabel(m.disposition))+'</div>':''}<strong>Transaksi terkait</strong>${orders||'<div class="pk-ms-meta">Belum ada pemesanan baru untuk material ini.</div>'}${history?`<div class="pk-pur-primary-row"><span>Histori lama<small>${escapeHtml(legacy.supplier||'—')} · ${escapeHtml(legacy.status||'—')} · Pesan ${legacy.qty_ordered||0} / Terima ${legacy.qty_received||0}</small></span><button class="btn btn-sm" onclick="closeModal('pkMaterialStatusDetail');pkPurchaseTab('legacy')">Lihat histori</button></div>`:''}</div><div class="modal-footer"><button class="btn" onclick="closeModal('pkMaterialStatusDetail')">Tutup</button></div></div>`,'pkMaterialStatusDetail',true);
+}
+
 function pkPurchaseTab(tab){
  const modal=document.querySelector('.pk-proc-detail-modal');if(!modal)return;
  modal.querySelectorAll('[data-pk-purchase-panel]').forEach(el=>el.style.display=el.dataset.pkPurchasePanel===tab?'':'none');
@@ -2285,7 +2338,7 @@ async function savePKPurchaseEvent(orderId,kind,lineNo){
  }catch(e){toast('Gagal memproses: '+e.message);}finally{btn.disabled=false;}
 }
 
-async function openPKProcurementDetail(pkId, poId, selectedTab='orders') {
+async function openPKProcurementDetail(pkId, poId, selectedTab='materials') {
   if (!can('pk_procurement_view')) return;
   const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
     sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').eq('id',pkId).single(),
@@ -2339,11 +2392,13 @@ async function openPKProcurementDetail(pkId, poId, selectedTab='orders') {
     <div class="modal-body">
       ${pkPurchaseOverview(_pkProcCurrent)}
       <div class="pk-purchase-tabs" role="group" aria-label="Tab Purchasing">
-        <button class="btn btn-primary" data-pk-purchase-tab="orders" onclick="pkPurchaseTab('orders')">Pembelian</button>
+        <button class="btn btn-primary" data-pk-purchase-tab="materials" onclick="pkPurchaseTab('materials')">Status Material</button>
+        <button class="btn" data-pk-purchase-tab="orders" onclick="pkPurchaseTab('orders')">Pembelian</button>
         <button class="btn" data-pk-purchase-tab="budget" onclick="pkPurchaseTab('budget')">Budget PK</button>
         <button class="btn" data-pk-purchase-tab="legacy" onclick="pkPurchaseTab('legacy')">Histori Lama</button>
       </div>
-      <div data-pk-purchase-panel="orders">${pkPurchaseOrdersHtml(_pkProcCurrent)}</div>
+      <div data-pk-purchase-panel="materials">${pkMaterialStatusHtml(_pkProcCurrent)}</div>
+      <div data-pk-purchase-panel="orders" style="display:none">${pkPurchaseOrdersHtml(_pkProcCurrent)}</div>
       <div data-pk-purchase-panel="budget" style="display:none">${pkPurchaseBudgetHtml(_pkProcCurrent)}</div>
       <div data-pk-purchase-panel="legacy" style="display:none;display:flex;flex-direction:column;gap:10px">
       <div style="font-size:12px;color:var(--text3)">Riwayat transaksi sebelum Purchasing Control dan material tambahan lama yang sudah memiliki alokasi.</div>
