@@ -1846,7 +1846,7 @@ async function openPKProcurementDetail(pkId, poId) {
     const r = recMap[String(it.id)] || {};
     const status = r.status || 'Belum Dibeli';
     const dateInfo = [r.ordered_at&&'Pesan '+fmtDate(r.ordered_at),r.paid_at&&'Bayar '+fmtDate(r.paid_at),r.shipped_at&&'Kirim '+fmtDate(r.shipped_at),r.arrived_at&&'Sampai '+fmtDate(r.arrived_at),r.handed_over_at&&'Serah '+fmtDate(r.handed_over_at)].filter(Boolean).join(' · ');
-    return `<tr>
+    return `<tr data-pk-proc-material="1">
       <td class="mono" style="font-size:11px">${escapeHtml(it.part_number||'—')}</td>
       <td><button type="button" class="pk-proc-material-link" onclick="openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')">${escapeHtml(it.component_name||'—')} <span aria-hidden="true">›</span></button><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')}</div></td>
       <td>${pkProcBadge(status)}</td>
@@ -1875,7 +1875,14 @@ async function openPKProcurementDetail(pkId, poId) {
         ${PK_PROC_STATUSES.map(s=>`<div class="pk-proc-mini"><div class="lbl">${s}</div><div class="val">${summary.counts[s]||0}</div></div>`).join('')}
       </div>
       <div style="display:flex;align-items:center;gap:10px"><div class="pk-proc-progress" style="flex:1;height:9px"><span style="width:${summary.progress}%"></span></div><strong>${summary.progress}%</strong></div>
-      <div class="table-card"><div class="table-wrap pk-proc-items-scroll" tabindex="0" aria-label="Daftar barang pengadaan, gunakan scroll untuk melihat seluruh item"><table><thead><tr><th>Part No.</th><th>Barang</th><th>Status</th><th>Supplier / Referensi</th><th>Qty</th><th>Tanggal Proses</th></tr></thead><tbody>${itemRows||`<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">PK belum memiliki item</td></tr>`}</tbody></table></div></div>
+      <div class="pk-proc-searchbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="position:relative;flex:1;min-width:180px;max-width:460px">
+          <input type="search" id="pkProcMaterialSearch" aria-label="Cari material" placeholder="Cari nama material atau Part No..." oninput="filterPKProcMaterials()" style="width:100%;box-sizing:border-box;padding:9px 34px 9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text);font:inherit">
+        </div>
+        <button type="button" class="btn btn-sm" onclick="clearPKProcMaterialSearch()" id="pkProcMaterialClear" hidden style="display:none">Reset</button>
+        <span id="pkProcMaterialCount" aria-live="polite" style="font-size:12px;color:var(--text3);margin-left:auto">${items.length} material</span>
+      </div>
+      <div class="table-card"><div class="table-wrap pk-proc-items-scroll" tabindex="0" aria-label="Daftar barang pengadaan, gunakan scroll untuk melihat seluruh item"><table><thead><tr><th>Part No.</th><th>Barang</th><th>Status</th><th>Supplier / Referensi</th><th>Qty</th><th>Tanggal Proses</th></tr></thead><tbody>${itemRows||`<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3)">PK belum memiliki item</td></tr>`}<tr id="pkProcMaterialEmpty" style="display:none"><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text3)">Material tidak ditemukan</td></tr></tbody></table></div></div>
       <div class="detail-section" style="margin:0">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px"><div class="sect-title" style="margin:0">Serah Terima Barang (${handovers.length})</div>${canManage&&items.length?`<button class="btn btn-sm btn-primary" onclick="openPKHandoverForm('${pk.id}','${_pkProcCurrent.poId}')">+ Buat Serah Terima</button>`:''}</div>
         ${handoverHtml}
@@ -1884,6 +1891,33 @@ async function openPKProcurementDetail(pkId, poId) {
     <div class="modal-footer"><button class="btn" onclick="closeAllModals()">Tutup</button></div>
   </div>`);
   requestAnimationFrame(enablePKProcurementItemScroll);
+}
+
+function filterPKProcMaterials() {
+  const modal=document.querySelector('.pk-proc-detail-modal');
+  if(!modal)return;
+  const input=modal.querySelector('#pkProcMaterialSearch');
+  if(!input)return;
+  const terms=input.value.toLocaleLowerCase('id-ID').trim().split(/\s+/).filter(Boolean);
+  const rows=[...modal.querySelectorAll('tr[data-pk-proc-material]')];
+  let count=0;
+  rows.forEach(row=>{
+    const text=[row.cells[0]?.textContent,row.cells[1]?.querySelector('.pk-proc-material-link')?.textContent].join(' ').toLocaleLowerCase('id-ID');
+    const show=terms.every(term=>text.includes(term));
+    row.style.display=show?'':'none';
+    if(show)count++;
+  });
+  const empty=modal.querySelector('#pkProcMaterialEmpty');
+  if(empty)empty.style.display=rows.length&&!count?'':'none';
+  const label=modal.querySelector('#pkProcMaterialCount');
+  if(label)label.textContent=terms.length?count+' dari '+rows.length+' material':rows.length+' material';
+  const reset=modal.querySelector('#pkProcMaterialClear');
+  if(reset){reset.hidden=!input.value;reset.style.display=input.value?'':'none';}
+  const scroll=modal.querySelector('.pk-proc-items-scroll');if(scroll)scroll.scrollTop=0;
+}
+function clearPKProcMaterialSearch() {
+  const input=document.getElementById('pkProcMaterialSearch');
+  if(input){input.value='';filterPKProcMaterials();input.focus();}
 }
 
 function enablePKProcurementItemScroll() {
