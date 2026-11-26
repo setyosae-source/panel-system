@@ -564,6 +564,13 @@ body.col-resizing-active,body.col-resizing-active *{cursor:col-resize !important
 .pk-proc-detail-modal [data-pk-purchase-panel]{min-width:0;max-width:100%}
 #pkProcBody .search-wrap input[type="search"]{border:0;background:transparent;box-shadow:none;padding-left:30px}
 
+.pk-purchase-form .pk-pur-subtotal{display:block;text-align:left;padding:12px}
+.pk-pur-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.pk-pur-summary-grid>div{display:flex;flex-direction:column;gap:3px}
+.pk-pur-summary-grid small{font-size:11px;color:var(--text3);font-weight:400}
+.pk-pur-saving{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid var(--border)}
+.pk-pur-budget-source{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;font-weight:400}
+.pk-pur-budget-source b{display:block;font-weight:600}
 </style>
 <script src="panel-security.js?v=20261125-1"></script>
 </head>
@@ -2130,10 +2137,33 @@ function pkPurchaseReadRow(row){
 }
 function pkPurchaseUpdateTotals(){
  const host=document.getElementById('pkPurLines');if(!host)return;let total=0;
- [...host.children].forEach((row,i)=>{row.querySelector('.pk-pur-label').textContent='Material '+(i+1);let l=pkPurchaseReadRow(row),v=pkPurchaseLineTotal(l);if(!Number.isFinite(v))v=0;
- const amounts=row.querySelectorAll('.pk-pur-amount');if(amounts.length===1){amounts[0].readOnly=true;amounts[0].value=v>0?v:'';}else amounts.forEach(el=>el.readOnly=false);
- l=pkPurchaseReadRow(row);const a=l.allocations.reduce((n,x)=>n+Number(x.amount||0),0);
- const sub=row.querySelector('.pk-pur-subtotal'),diff=pkPurchaseRound(v-a);sub.innerHTML='<span>Nilai <strong>'+pkBudgetMoney(v)+'</strong></span><span>Alokasi '+pkBudgetMoney(a)+'</span><span style="color:var(--'+(diff===0?'green':'amber')+')">Selisih '+pkBudgetMoney(diff)+'</span>';total+=v;});
+ const funds=_pkProcCurrent?.purchase?.funds||[];
+ const entries=[...host.children].map((row,i)=>{
+   row.querySelector('.pk-pur-label').textContent='Material '+(i+1);
+   let l=pkPurchaseReadRow(row),v=pkPurchaseLineTotal(l);if(!Number.isFinite(v))v=0;
+   const amounts=row.querySelectorAll('.pk-pur-amount');
+   if(amounts.length===1){amounts[0].readOnly=true;amounts[0].value=v>0?v:'';}else amounts.forEach(el=>el.readOnly=false);
+   l=pkPurchaseReadRow(row);total+=v;return {row,l,v};
+ });
+ const bySource=new Map();
+ for(const {l} of entries)for(const x of l.allocations)if(x.source_id&&Number.isFinite(Number(x.amount)))bySource.set(String(x.source_id),(bySource.get(String(x.source_id))||0)+Number(x.amount));
+ for(const {row,l,v} of entries){
+   const allocated=l.allocations.reduce((n,x)=>n+(Number.isFinite(Number(x.amount))?Number(x.amount):0),0);
+   const diff=pkPurchaseRound(v-allocated);
+   const own=funds.find(f=>String(f.source_id)===String(l.original_id||''));
+   const selected=[...new Set(l.allocations.map(x=>String(x.source_id||'')).filter(Boolean))].map(id=>funds.find(f=>String(f.source_id)===id)).filter(Boolean);
+   const sourceRows=selected.map(f=>{
+     const id=String(f.source_id),available=Number(f.available)||0;
+     const thisUse=l.allocations.filter(x=>String(x.source_id)===id).reduce((n,x)=>n+(Number.isFinite(Number(x.amount))?Number(x.amount):0),0);
+     const after=pkPurchaseRound(available-(bySource.get(id)||0));
+     return '<div class="pk-pur-budget-source"><span>'+escapeHtml(f.component_name||f.part_number||'Sumber budget')+'</span><span>Budget tersedia <b>'+pkBudgetMoney(available)+'</b></span><span>Alokasi item <b>'+pkBudgetMoney(thisUse)+'</b></span><span style="color:var(--'+(after<0?'red':'green')+')">Sisa setelah seluruh order <b>'+pkBudgetMoney(after)+'</b></span></div>';
+   }).join('');
+   const reference=own&&Number(own.qty_pk)>0&&Number(l.qty)>0?pkPurchaseRound(Number(own.budget)*Number(l.qty)/Number(own.qty_pk)):null;
+   const savings=reference===null?null:pkPurchaseRound(reference-v);
+   const pct=reference>0&&savings!==null?(100*savings/reference).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
+   const sub=row.querySelector('.pk-pur-subtotal');
+   sub.innerHTML='<div class="pk-pur-summary-grid">'+(reference===null?'':'<div><small>Budget PK sesuai qty</small><strong>'+pkBudgetMoney(reference)+'</strong></div>')+'<div><small>Nilai pemesanan</small><strong>'+pkBudgetMoney(v)+'</strong></div><div><small>Alokasi budget</small><strong>'+pkBudgetMoney(allocated)+'</strong></div><div style="color:var(--'+(diff===0?'green':'amber')+')"><small>'+(diff<0?'Kelebihan alokasi':'Kekurangan alokasi')+'</small><strong>'+pkBudgetMoney(Math.abs(diff))+'</strong></div></div>'+(savings===null?'':'<div class="pk-pur-saving" style="color:var(--'+(savings<0?'red':'green')+')"><span>'+(savings<0?'Kelebihan atas budget PK':'Potensi penghematan vs PK')+'</span><strong>'+pkBudgetMoney(Math.abs(savings))+(pct===null?'':' · '+pct+'%')+'</strong></div>')+sourceRows;
+ }
  const el=document.getElementById('pkPurTotal');if(el)el.textContent=pkBudgetMoney(total);
 }
 async function savePKPurchaseCreate(){
