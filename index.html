@@ -1706,7 +1706,83 @@ function pkProcBadge(status) {
   return `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:${c.bg};color:${c.color}"><span style="width:5px;height:5px;border-radius:50%;background:${c.color}"></span>${s}</span>`;
 }
 
+
+function pkBudgetAmount(it){return Number(it.subtotal)||Number(it.qty_pk||0)*Number(it.unit_price||0);}
+function pkBudgetMoney(n){return 'Rp '+Number(n||0).toLocaleString('id-ID',{maximumFractionDigits:2});}
+function pkBudgetGroup(it,rec){return !it._extra&&String(it.unit||'').trim().toLowerCase()==='pax'&&(!rec||rec.status==='Belum Dibeli');}
+function pkBudgetMerge(pk,proc,extra,sources){
+  const original=pk.po_pk_items||[];
+  const records=Object.fromEntries(proc.map(r=>[String(r.pk_item_id),r]));
+  const dispositions=Object.fromEntries(sources.map(r=>[String(r.source_id),r]));
+  const used={};
+  extra.forEach(it=>(it.allocations||[]).forEach(a=>{used[a.source_id]=(used[a.source_id]||0)+Number(a.amount||0);}));
+  const funds=original.map(it=>{
+    const id=String(it.id),r=records[id],d=dispositions[id],group=pkBudgetGroup(it,r);
+    const paid=r?.paid_at&&r?.stage_details?.['2']?.payment_amount!=null?Number(r.stage_details['2'].payment_amount):null;
+    const cap=group||d?pkBudgetAmount(it):paid!==null?Math.max(0,pkBudgetAmount(it)-paid):0;
+    return {...it,group,disposition:d,cap,used:used[id]||0,available:Math.max(0,cap-(used[id]||0))};
+  });
+  const items=[...original.map(it=>({...it,_fund:funds.find(f=>String(f.id)===String(it.id))})),...extra.map(it=>({...it,_extra:true,sort_order:999999}))];
+  return {original,items,funds,dispositions,extra};
+}
+function pkBudgetActive(items){return items.filter(it=>!it._fund?.group&&!it._fund?.disposition);}
+function pkBudgetDispositionLabel(d){return ({cancelled:'Tidak Jadi Dibeli',stock:'Menggunakan Stok',replaced:'Diganti Material Lain'})[d?.disposition]||'';}
+function pkBudgetPanel(b,proc){
+ const recs=Object.fromEntries(proc.map(r=>[String(r.pk_item_id),r]));
+ const active=pkBudgetActive(b.items), baseline=b.original.reduce((n,it)=>n+pkBudgetAmount(it),0);
+ const planned=active.reduce((n,it)=>{const r=recs[String(it.id)],p=r?.stage_details?.['2']?.payment_amount;return n+(r?.paid_at&&p!=null?Number(p):pkBudgetAmount(it));},0);
+ const paid=active.reduce((n,it)=>{const r=recs[String(it.id)];return n+(r?.paid_at?Number(r.stage_details?.['2']?.payment_amount||0):0);},0);
+ const unknown=active.filter(it=>recs[String(it.id)]?.paid_at&&recs[String(it.id)]?.stage_details?.['2']?.payment_amount==null).length;
+ const free=b.funds.reduce((n,f)=>n+f.available,0);
+ return `<div class="pk-proc-summary-grid" style="grid-template-columns:repeat(auto-fit,minmax(145px,1fr))">${[['Budget PK awal (item)',baseline],['Estimasi kebutuhan',planned],['Pembayaran tercatat',paid],['Sisa komitmen estimasi',Math.max(0,planned-paid)],['Budget siap dialokasi',free]].map(([label,v])=>`<div class="pk-proc-mini"><div class="lbl">${label}</div><div class="val" style="font-size:15px">${pkBudgetMoney(v)}</div></div>`).join('')}</div>${unknown?`<div style="font-size:11px;color:var(--amber)">${unknown} pembayaran lama belum memiliki nominal; angka realisasi belum lengkap.</div>`:''}`;
+}
+function openPKBudgetAdd(sourceId=''){
+ const st=_pkProcCurrent;if(!st||!st.budget||!can('pk_procurement_manage'))return;
+ const funds=st.budget.funds.filter(f=>f.available>0);
+ if(!funds.length){toast('Belum ada sumber budget tersedia');return;}
+ const rows=funds.map(f=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) 130px;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)"><div><strong>${escapeHtml(f.component_name)}</strong><div style="font-size:11px;color:var(--text3)">${f.group?'PAX':pkBudgetDispositionLabel(f.disposition)||'Sisa pembelian'} · Tersedia ${pkBudgetMoney(f.available)}</div></div><input type="number" class="pk-budget-allocation" data-source="${f.id}" min="0" max="${f.available}" step=".01" value="" placeholder="Rp 0" oninput="pkBudgetAddTotal()"></div>`).join('');
+ openModal(`<div class="modal" style="max-width:750px"><div class="modal-header"><h2>Tambah Material / Breakdown Budget</h2><button class="btn btn-ghost" onclick="closeModal('pkBudgetAdd')">✕</button></div><div class="modal-body">
+ <div class="form-grid"><div class="form-row"><label>Nama Material *</label><input id="pkBudgetName"></div><div class="form-row"><label>Part No.</label><input id="pkBudgetPart"></div><div class="form-row"><label>Qty *</label><input type="number" min=".01" step=".01" id="pkBudgetQty" value="1" oninput="pkBudgetAddTotal()"></div><div class="form-row"><label>Satuan *</label><input id="pkBudgetUnit" value="pcs"></div><div class="form-row"><label>Harga Satuan (Rp) *</label><input type="number" min=".01" step=".01" id="pkBudgetPrice" oninput="pkBudgetAddTotal()"></div></div>
+ <div class="form-row"><label>Alasan penambahan *</label><textarea id="pkBudgetReason"></textarea></div><strong>Sumber budget (dapat lebih dari satu)</strong><div style="border:1px solid var(--border);border-radius:8px;max-height:250px;overflow:auto">${rows}</div><div id="pkBudgetAddTotal"></div></div><div class="modal-footer"><button class="btn" onclick="closeModal('pkBudgetAdd')">Batal</button><button class="btn btn-primary" id="pkBudgetAddSave" onclick="savePKBudgetAdd()">Simpan Material</button></div></div>`,'pkBudgetAdd',true);
+ if(sourceId){const el=[...document.querySelectorAll('#pkBudgetAdd .pk-budget-allocation')].find(e=>e.dataset.source===sourceId);if(el)el.focus();}
+ pkBudgetAddTotal();
+}
+function pkBudgetAddTotal(){
+ const total=Math.round(Number(gv('pkBudgetQty'))*Number(gv('pkBudgetPrice'))*100)/100;
+ const alloc=[...document.querySelectorAll('#pkBudgetAdd .pk-budget-allocation')].reduce((n,e)=>n+Number(e.value||0),0);
+ const el=document.getElementById('pkBudgetAddTotal');if(el)el.textContent='Kebutuhan '+pkBudgetMoney(total)+' · Alokasi '+pkBudgetMoney(alloc)+' · Selisih '+pkBudgetMoney(total-alloc);
+}
+async function savePKBudgetAdd(){
+ const st=_pkProcCurrent,btn=document.getElementById('pkBudgetAddSave');if(!st||!btn||btn.disabled||!can('pk_procurement_manage'))return;
+ const name=gv('pkBudgetName').trim(),unit=gv('pkBudgetUnit').trim(),reason=gv('pkBudgetReason').trim(),qty=Number(gv('pkBudgetQty')),price=Number(gv('pkBudgetPrice'));
+ const allocations=[...document.querySelectorAll('#pkBudgetAdd .pk-budget-allocation')].filter(e=>Number(e.value)!==0).map(e=>({source_id:e.dataset.source,amount:Number(e.value)}));
+ const total=Math.round(qty*price*100)/100;
+ if(!name||!unit||!reason||!Number.isFinite(total)||qty<=0||price<=0||total<=0||!allocations.length||allocations.some(a=>!Number.isFinite(a.amount)||a.amount<=0||a.amount>(st.budget.funds.find(f=>f.id===a.source_id)?.available||0))||Math.round(allocations.reduce((n,a)=>n+a.amount,0)*100)!==Math.round(total*100)){toast('Lengkapi data dan pastikan alokasi sama dengan total kebutuhan serta tidak melebihi sisa budget');return;}
+ btn.disabled=true;try{
+ const {error}=await sb.from('pk_budget_materials').insert({pk_id:st.pk.id,component_name:name,part_number:gv('pkBudgetPart').trim()||null,qty_pk:qty,unit,unit_price:price,reason,allocations,created_by:String(currentUser.id)});
+ if(error){toast('Gagal: '+error.message);return;}
+ await logPO(st.poId,'Realokasi Budget PK',name+' · '+pkBudgetMoney(total)+' · '+reason);
+ toast('Material tambahan tersimpan');await openPKProcurementDetail(st.pk.id,st.poId);
+ }catch(e){toast('Gagal: '+e.message);}finally{btn.disabled=false;}
+}
+function openPKBudgetDisposition(itemId){
+ const st=_pkProcCurrent;if(!st||!can('pk_procurement_manage'))return;
+ const f=st.budget.funds.find(f=>String(f.id)===String(itemId));if(!f||f.group||f.disposition)return;
+ openModal(`<div class="modal" style="max-width:500px"><div class="modal-header"><h2>Alihkan Budget Material</h2><button class="btn btn-ghost" onclick="closeModal('pkBudgetDisposition')">✕</button></div><div class="modal-body"><strong>${escapeHtml(f.component_name)}</strong><div>${pkBudgetMoney(pkBudgetAmount(f))}</div><div class="form-row"><label>Keputusan</label><select id="pkBudgetDispositionType"><option value="cancelled">Tidak Jadi Dibeli</option><option value="stock">Menggunakan Stok</option><option value="replaced">Diganti Material Lain</option></select></div><div class="form-row"><label>Alasan *</label><textarea id="pkBudgetDispositionReason"></textarea></div><div style="font-size:12px;color:var(--amber)">Keputusan dicatat permanen. Material tidak lagi diproses sebagai pembelian.</div></div><div class="modal-footer"><button class="btn" onclick="closeModal('pkBudgetDisposition')">Batal</button><button class="btn btn-primary" id="pkBudgetDispositionSave" onclick="savePKBudgetDisposition('${f.id}')">Konfirmasi</button></div></div>`,'pkBudgetDisposition',true);
+}
+async function savePKBudgetDisposition(itemId){
+ const st=_pkProcCurrent,btn=document.getElementById('pkBudgetDispositionSave');if(!st||!btn||btn.disabled||!can('pk_procurement_manage'))return;
+ const reason=gv('pkBudgetDispositionReason').trim(),disposition=gv('pkBudgetDispositionType');if(!reason){toast('Alasan wajib diisi');return;}
+ btn.disabled=true;try{const {error}=await sb.from('pk_budget_sources').insert({pk_id:st.pk.id,source_id:itemId,disposition,reason,created_by:String(currentUser.id)});if(error){toast('Gagal: '+error.message);return;}await logPO(st.poId,'Realokasi Budget PK',itemId+' · '+pkBudgetDispositionLabel({disposition})+' · '+reason);await openPKProcurementDetail(st.pk.id,st.poId);toast('Budget tersedia untuk realokasi');}catch(e){toast('Gagal: '+e.message);}finally{btn.disabled=false;}
+}
+function openPKBudgetGroup(itemId){
+ const st=_pkProcCurrent,f=st?.budget?.funds.find(f=>String(f.id)===String(itemId));if(!f)return;
+ const children=st.budget.extra.filter(it=>(it.allocations||[]).some(a=>String(a.source_id)===String(itemId)));
+ openModal(`<div class="modal" style="max-width:650px"><div class="modal-header"><div><h2>${escapeHtml(f.component_name)}</h2><div style="font-size:12px;color:var(--text3)">${f.group?'Budget PAX':pkBudgetDispositionLabel(f.disposition)}</div></div><button class="btn btn-ghost" onclick="closeModal('pkBudgetGroup')">✕</button></div><div class="modal-body"><div class="pk-proc-summary-grid">${[['Budget tersedia awal',f.cap],['Teralokasi',f.used],['Sisa',f.available]].map(([l,v])=>`<div class="pk-proc-mini"><div class="lbl">${l}</div><strong>${pkBudgetMoney(v)}</strong></div>`).join('')}</div>${f.disposition?`<div>Alasan: ${escapeHtml(f.disposition.reason)}</div>`:''}<strong>Material turunan / realokasi</strong>${children.length?children.map(it=>`<button class="btn" style="text-align:left;white-space:normal" onclick="closeModal('pkBudgetGroup');openPKProcurementItemForm('${st.pk.id}','${st.poId}','${it.id}')">${escapeHtml(it.component_name)} · ${pkBudgetMoney((it.allocations||[]).find(a=>a.source_id===String(itemId))?.amount)} ›</button>`).join(''):'<div style="color:var(--text3)">Belum ada material</div>'}</div><div class="modal-footer"><button class="btn" onclick="closeModal('pkBudgetGroup')">Tutup</button>${can('pk_procurement_manage')&&f.available>0?`<button class="btn btn-primary" onclick="closeModal('pkBudgetGroup');openPKBudgetAdd('${f.id}')">+ Tambah Material</button>`:''}</div></div>`,'pkBudgetGroup',true);
+}
+
 function pkProcSummary(items, records) {
+  items=pkBudgetActive(items||[]);
   const recMap = {};
   (records || []).forEach(r => { recMap[String(r.pk_item_id)] = r; });
   const counts = Object.fromEntries(PK_PROC_STATUSES.map(s => [s,0]));
@@ -1748,15 +1824,17 @@ async function renderPKProcurementModule() {
     </div>
     <div class="page-body" id="pkProcBody">${loading()}</div>`;
 
-  const [pkRes, procRes, handRes] = await Promise.all([
+  const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
     sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}),
     sb.from('po_pk_procurement').select('*').order('updated_at',{ascending:false}),
-    sb.from('po_pk_handovers').select('*').order('handover_date',{ascending:false})
+    sb.from('po_pk_handovers').select('*').order('handover_date',{ascending:false}),
+    sb.from('pk_budget_materials').select('*'),sb.from('pk_budget_sources').select('*')
   ]);
   pkProcModuleState.pks = pkRes.data || [];
   pkProcModuleState.procurement = procRes.data || [];
   pkProcModuleState.handovers = handRes.data || [];
-  pkProcModuleState.schemaError = procRes.error || handRes.error || null;
+  pkProcModuleState.schemaError = pkRes.error || procRes.error || handRes.error || extraRes.error || sourceRes.error || null;
+  pkProcModuleState.extra=extraRes.data||[];pkProcModuleState.sources=sourceRes.data||[];
   renderPKProcurementBody();
 }
 
@@ -1776,7 +1854,8 @@ function renderPKProcurementBody() {
   let rows = pkProcModuleState.pks.map(pk => {
     pk._procurement = procByPk[pk.id] || [];
     pk._handovers = handByPk[pk.id] || [];
-    pk._summary = pkProcSummary(pk.po_pk_items || [], pk._procurement);
+    pk._budget=pkBudgetMerge(pk,pk._procurement,(pkProcModuleState.extra||[]).filter(x=>x.pk_id===pk.id),(pkProcModuleState.sources||[]).filter(x=>x.pk_id===pk.id));
+    pk._summary = pkProcSummary(pk._budget.items, pk._procurement);
     return pk;
   });
 
@@ -1787,7 +1866,7 @@ function renderPKProcurementBody() {
     return (!q || hay.includes(q)) && (!pkProcModuleState.filter || pk._summary.overall === pkProcModuleState.filter);
   });
 
-  const allItems = pkProcModuleState.pks.flatMap(pk => (pk.po_pk_items || []).map(it => {
+  const allItems = pkProcModuleState.pks.flatMap(pk => pkBudgetActive(pk._budget?.items||pk.po_pk_items||[]).map(it => {
     const rec = (procByPk[pk.id] || []).find(r => String(r.pk_item_id) === String(it.id));
     return rec?.status || 'Belum Dibeli';
   }));
@@ -1825,31 +1904,34 @@ function renderPKProcurementBody() {
 
 async function openPKProcurementDetail(pkId, poId) {
   if (!can('pk_procurement_view')) return;
-  const [pkRes, procRes, handRes] = await Promise.all([
+  const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
     sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').eq('id',pkId).single(),
     sb.from('po_pk_procurement').select('*').eq('pk_id',pkId).order('updated_at',{ascending:false}),
-    sb.from('po_pk_handovers').select('*').eq('pk_id',pkId).order('handover_date',{ascending:false})
+    sb.from('po_pk_handovers').select('*').eq('pk_id',pkId).order('handover_date',{ascending:false}),
+    sb.from('pk_budget_materials').select('*').eq('pk_id',pkId),sb.from('pk_budget_sources').select('*').eq('pk_id',pkId)
   ]);
-  if (procRes.error || handRes.error) { toast('Tabel kontrol pengadaan belum tersedia. Jalankan SQL migrasi.'); return; }
+  if (pkRes.error || procRes.error || handRes.error || extraRes.error || sourceRes.error) { toast('Gagal memuat Kontrol Pengadaan: '+(pkRes.error||procRes.error||handRes.error||extraRes.error||sourceRes.error).message); return; }
   const pk = pkRes.data;
   if (!pk) { toast('PK tidak ditemukan'); return; }
   const proc = procRes.data || [];
   const handovers = handRes.data || [];
   const recMap = {};
   proc.forEach(r => { recMap[String(r.pk_item_id)] = r; });
-  _pkProcCurrent = {pk, poId:poId || pk.po_id, procurement:proc, handovers, recMap};
-  const summary = pkProcSummary(pk.po_pk_items || [], proc);
+  const budget=pkBudgetMerge(pk,proc,extraRes.data||[],sourceRes.data||[]);
+  _pkProcCurrent = {pk, poId:poId || pk.po_id, procurement:proc, handovers, recMap,budget,items:budget.items};
+  const summary = pkProcSummary(budget.items, proc);
   const canManage = can('pk_procurement_manage');
-  const items = (pk.po_pk_items || []).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const items = budget.items.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
 
   const itemRows = items.map(it => {
     const r = recMap[String(it.id)] || {};
     const status = r.status || 'Belum Dibeli';
+    const fund=it._fund,group=fund?.group||fund?.disposition;
     const dateInfo = [r.ordered_at&&'Pesan '+fmtDate(r.ordered_at),r.paid_at&&'Bayar '+fmtDate(r.paid_at),r.shipped_at&&'Kirim '+fmtDate(r.shipped_at),r.arrived_at&&'Sampai '+fmtDate(r.arrived_at),r.handed_over_at&&'Serah '+fmtDate(r.handed_over_at)].filter(Boolean).join(' · ');
     return `<tr data-pk-proc-material="1">
       <td class="mono" style="font-size:11px">${escapeHtml(it.part_number||'—')}</td>
-      <td><button type="button" class="pk-proc-material-link" onclick="openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')">${escapeHtml(it.component_name||'—')} <span aria-hidden="true">›</span></button><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')}</div></td>
-      <td>${pkProcBadge(status)}</td>
+      <td><button type="button" class="pk-proc-material-link" onclick="${group?`openPKBudgetGroup('${it.id}')`:`openPKProcurementItemForm('${pk.id}','${_pkProcCurrent.poId}','${it.id}')`}">${escapeHtml(it.component_name||'—')} <span aria-hidden="true">›</span></button><div style="font-size:10px;color:var(--text3)">${it.qty_pk||0} ${escapeHtml(it.unit||'pcs')} · ${pkBudgetMoney(pkBudgetAmount(it))}${it._extra?' · Tambahan':''}${group?' · Sisa '+pkBudgetMoney(fund.available):''}</div></td>
+      <td>${group?`<span style="font-size:11px;font-weight:600;color:var(--blue)">${fund.group?'Budget PAX':pkBudgetDispositionLabel(fund.disposition)}</span>`:pkProcBadge(status)}</td>
       <td><div style="font-size:12px">${escapeHtml(r.supplier||'—')}</div><div style="font-size:10px;color:var(--text3)">${escapeHtml(r.order_reference||r.tracking_number||'')}</div></td>
       <td><div style="font-size:12px">${r.qty_ordered||0} / ${r.qty_received||0}</div><div style="font-size:10px;color:var(--text3)">order / terima</div></td>
       <td style="font-size:10px;color:var(--text3);white-space:normal;min-width:180px">${dateInfo||'Belum ada tanggal proses'}</td>
@@ -1875,7 +1957,9 @@ async function openPKProcurementDetail(pkId, poId) {
         ${PK_PROC_STATUSES.map(s=>`<div class="pk-proc-mini"><div class="lbl">${s}</div><div class="val">${summary.counts[s]||0}</div></div>`).join('')}
       </div>
       <div style="display:flex;align-items:center;gap:10px"><div class="pk-proc-progress" style="flex:1;height:9px"><span style="width:${summary.progress}%"></span></div><strong>${summary.progress}%</strong></div>
+      ${pkBudgetPanel(budget,proc)}
       <div class="pk-proc-searchbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${canManage?`<button class="btn btn-primary btn-sm" onclick="openPKBudgetAdd()">+ Tambah Material</button>`:''}
         <div style="position:relative;flex:1;min-width:180px;max-width:460px">
           <input type="search" id="pkProcMaterialSearch" aria-label="Cari material" placeholder="Cari nama material atau Part No..." oninput="filterPKProcMaterials()" style="width:100%;box-sizing:border-box;padding:9px 34px 9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text);font:inherit">
         </div>
@@ -1956,9 +2040,10 @@ function pkProcStageData(r, stage) {
 function openPKProcurementItemForm(pkId, poId, itemId, selectedStage=null) {
   const state = _pkProcCurrent;
   if (!can('pk_procurement_view') || !state || String(state.pk.id)!==String(pkId)) return;
-  const item = (state.pk.po_pk_items||[]).find(it => String(it.id)===String(itemId));
+  const item = (state.items||state.pk.po_pk_items||[]).find(it => String(it.id)===String(itemId));
   if (!item) return;
   const r = state.recMap[String(itemId)] || {};
+  if(item._fund?.group||item._fund?.disposition){openPKBudgetGroup(item.id);return;}
   const idx = Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
   const manage = can('pk_procurement_manage');
   const steps = PK_PROC_STATUSES.map((status,i) => {
@@ -1977,7 +2062,7 @@ function openPKProcurementItemForm(pkId, poId, itemId, selectedStage=null) {
       <div id="pkProcStageEditor"></div>
       ${r.note?`<div style="font-size:12px;color:var(--text3);white-space:pre-wrap">Catatan lama: ${escapeHtml(r.note)}</div>`:''}
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('pkProcItemModal')">Tutup</button></div>
+    <div class="modal-footer">${manage&&!item._extra&&!item._fund?.group&&!item._fund?.disposition&&idx===0?`<button class="btn" onclick="openPKBudgetDisposition('${item.id}')">Alihkan Budget / Stok</button>`:''}<button class="btn" onclick="closeModal('pkProcItemModal')">Tutup</button></div>
   </div>`,'pkProcItemModal',true);
   const el=document.getElementById('pkProcItemModal');
   el.dataset.pkId=String(pkId);el.dataset.poId=String(poId);el.dataset.itemId=String(itemId);
@@ -1988,7 +2073,7 @@ function selectPKProcStage(stage) {
   const modal=document.getElementById('pkProcItemModal');
   const state=_pkProcCurrent;
   if(!modal||!state||!Number.isInteger(stage)||stage<0||stage>=PK_PROC_STATUSES.length)return;
-  const item=(state.pk.po_pk_items||[]).find(it=>String(it.id)===modal.dataset.itemId);
+  const item=(state.items||state.pk.po_pk_items||[]).find(it=>String(it.id)===modal.dataset.itemId);
   if(!item)return;
   const r=state.recMap[modal.dataset.itemId]||{};
   const idx=Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
@@ -2023,7 +2108,7 @@ async function savePKProcStage(stage) {
   if(!modal||!state||stage<1||stage>5)return;
   const {pkId,poId,itemId}=modal.dataset;
   if(String(state.pk.id)!==pkId)return;
-  const item=(state.pk.po_pk_items||[]).find(it=>String(it.id)===itemId);
+  const item=(state.items||state.pk.po_pk_items||[]).find(it=>String(it.id)===itemId);
   if(!item)return;
   const r=state.recMap[itemId]||{};
   const idx=Math.max(0,PK_PROC_STATUSES.indexOf(r.status||'Belum Dibeli'));
@@ -2068,7 +2153,7 @@ async function savePKProcStage(stage) {
 function openPKHandoverForm(pkId, poId) {
   const state = _pkProcCurrent;
   if (!state || state.pk.id !== pkId) return;
-  const items = (state.pk.po_pk_items||[]).filter(it => (state.recMap[String(it.id)]?.status || 'Belum Dibeli') !== 'Diserahkan');
+  const items = pkBudgetActive(state.items||state.pk.po_pk_items||[]).filter(it => (state.recMap[String(it.id)]?.status || 'Belum Dibeli') !== 'Diserahkan');
   if (!items.length) { toast('Semua item sudah diserahkan'); return; }
   const no = `BAST-PK-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
   const rows = items.map(it => {
@@ -2100,7 +2185,7 @@ async function savePKHandover(pkId, poId) {
   const chosen = [];
   document.querySelectorAll('.pkHoItem:checked').forEach(cb => {
     const itemId = cb.dataset.itemId;
-    const it = (state.pk.po_pk_items||[]).find(x => String(x.id) === String(itemId));
+    const it = (state.items||state.pk.po_pk_items||[]).find(x => String(x.id) === String(itemId));
     const qtyEl = document.querySelector(`.pkHoQty[data-item-id="${itemId}"]`);
     if (it) chosen.push({
       pk_item_id: String(itemId),
@@ -2128,7 +2213,7 @@ async function savePKHandover(pkId, poId) {
       supplier:old.supplier||null, order_reference:old.order_reference||null, tracking_number:old.tracking_number||null,
       qty_ordered:old.qty_ordered||ch.qty, qty_received:Math.max(parseFloat(old.qty_received)||0,ch.qty),
       ordered_at:old.ordered_at||null, paid_at:old.paid_at||null, shipped_at:old.shipped_at||null,
-      arrived_at:old.arrived_at||date, handed_over_at:date, note:old.note||null,
+      arrived_at:old.arrived_at||date, handed_over_at:date, note:old.note||null, stage_details:old.stage_details||{},
       updated_by:String(currentUser.id), updated_at:new Date().toISOString()
     };
   });
