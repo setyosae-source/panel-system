@@ -1825,7 +1825,7 @@ async function renderPKProcurementModule() {
     <div class="page-body" id="pkProcBody">${loading()}</div>`;
 
   const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
-    sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}),
+    sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').order('created_at',{ascending:false}),
     sb.from('po_pk_procurement').select('*').order('updated_at',{ascending:false}),
     sb.from('po_pk_handovers').select('*').order('handover_date',{ascending:false}),
     sb.from('pk_budget_materials').select('*'),sb.from('pk_budget_sources').select('*')
@@ -1905,7 +1905,7 @@ function renderPKProcurementBody() {
 async function openPKProcurementDetail(pkId, poId) {
   if (!can('pk_procurement_view')) return;
   const [pkRes, procRes, handRes, extraRes, sourceRes] = await Promise.all([
-    sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(id,no_po,no_project,customer_name,project_name)').eq('id',pkId).single(),
+    sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),purchase_orders:purchase_orders!po_pk_po_id_fkey1(id,no_po,no_project,customer_name,project_name)').eq('id',pkId).single(),
     sb.from('po_pk_procurement').select('*').eq('pk_id',pkId).order('updated_at',{ascending:false}),
     sb.from('po_pk_handovers').select('*').eq('pk_id',pkId).order('handover_date',{ascending:false}),
     sb.from('pk_budget_materials').select('*').eq('pk_id',pkId),sb.from('pk_budget_sources').select('*').eq('pk_id',pkId)
@@ -4864,7 +4864,7 @@ async function renderPOModule() {
 
 async function loadPOs() {
   const [{ data: pos }, { data: boms }, { data: procurement }, { data: handovers }] = await Promise.all([
-    sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk(*,po_pk_items(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
+    sb.from('purchase_orders').select('*,po_items(*),po_docs(*),po_pk:po_pk!po_pk_po_id_fkey1(*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').order('created_at', { ascending: false }),
     sb.from('bom_lists').select('id,po_id,po_item_id,status,title,unit_qty,total_price').not('po_id','is',null),
     sb.from('po_pk_procurement').select('*'),
     sb.from('po_pk_handovers').select('*')
@@ -5518,7 +5518,7 @@ async function pkGenSave(poId) {
 async function openPODetail(id) {
   let p = allPOs.find(x => x.id === id);
   if (!p) {
-    const { data } = await sb.from('purchase_orders').select('*,po_items(*,item_specs(*)),po_docs(*),po_pk(*,po_pk_items(*),pk_docs(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').eq('id', id).single();
+    const { data } = await sb.from('purchase_orders').select('*,po_items(*,item_specs(*)),po_docs(*),po_pk:po_pk!po_pk_po_id_fkey1(*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),pk_docs(*)),po_pic(*,app_users(id,full_name,role)),po_logs(*)').eq('id', id).single();
     p = data;
   }
   if (!p) return;
@@ -6985,7 +6985,7 @@ async function deletePK(pkId, poId) {
 let _pkItemsState = { pkId:null, poId:null, items:[] };
 
 async function openPKItemsModal(pkId, poId) {
-  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items(*)').eq('id', pkId).single();
+  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*)').eq('id', pkId).single();
   if (!pk) { toast('PK tidak ditemukan'); return; }
   _pkItemsState = {
     pkId, poId,
@@ -7172,7 +7172,7 @@ async function pkItemsSave() {
 
 // ═══════ Cetak PK ke PDF (browser print) ═══════
 async function exportPKPrint(pkId) {
-  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items(*),purchase_orders(no_po,no_project,customer_name,project_name)').eq('id', pkId).single();
+  const { data: pk } = await sb.from('po_pk').select('*,po_pk_items:po_pk_items!po_pk_items_pk_id_fkey(*),purchase_orders:purchase_orders!po_pk_po_id_fkey1(no_po,no_project,customer_name,project_name)').eq('id', pkId).single();
   if (!pk) { toast('PK tidak ditemukan'); return; }
   const items = (pk.po_pk_items||[]).slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const showPrice = can('nilai_po');
